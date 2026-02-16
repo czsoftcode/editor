@@ -5,21 +5,23 @@ use eframe::egui;
 use crate::editor::Editor;
 use crate::file_tree::FileTree;
 use crate::terminal::Terminal;
-use crate::watcher::FileWatcher;
+use crate::watcher::{FileWatcher, FsChange, ProjectWatcher};
 
 #[derive(PartialEq, Clone, Copy)]
-enum FocusedTerminal {
+enum FocusedPanel {
     Build,
     Claude,
+    Editor,
 }
 
 pub struct EditorApp {
     file_tree: FileTree,
     editor: Editor,
     watcher: FileWatcher,
+    project_watcher: ProjectWatcher,
     claude_terminal: Option<Terminal>,
     build_terminal: Option<Terminal>,
-    focused_terminal: FocusedTerminal,
+    focused_panel: FocusedPanel,
     root_path: PathBuf,
 }
 
@@ -27,14 +29,16 @@ impl EditorApp {
     pub fn new(root_path: PathBuf) -> Self {
         let mut file_tree = FileTree::new();
         file_tree.load(&root_path);
+        let project_watcher = ProjectWatcher::new(&root_path);
 
         Self {
             file_tree,
             editor: Editor::new(),
             watcher: FileWatcher::new(),
+            project_watcher,
             claude_terminal: None,
             build_terminal: None,
-            focused_terminal: FocusedTerminal::Claude,
+            focused_panel: FocusedPanel::Editor,
             root_path,
         }
     }
@@ -68,6 +72,44 @@ impl eframe::App for EditorApp {
             }
         }
 
+        // Check for project-wide filesystem changes
+        let fs_changes = self.project_watcher.poll();
+        if !fs_changes.is_empty() {
+            let mut need_reload = false;
+            let mut open_file: Option<PathBuf> = None;
+            for change in &fs_changes {
+                match change {
+                    FsChange::Created(path) => {
+                        need_reload = true;
+                        if path.is_file() {
+                            open_file = Some(path.clone());
+                        }
+                    }
+                    FsChange::Removed(path) => {
+                        need_reload = true;
+                        if let Some(editor_path) = &self.editor.path {
+                            if editor_path == path || editor_path.starts_with(path) {
+                                self.editor.clear();
+                            }
+                        }
+                    }
+                    FsChange::Modified => {
+                        need_reload = true;
+                    }
+                }
+            }
+            if need_reload {
+                if let Some(ref path) = open_file {
+                    self.file_tree.request_reload_and_expand(path);
+                } else {
+                    self.file_tree.request_reload();
+                }
+            }
+            if let Some(path) = open_file {
+                self.open_file(path);
+            }
+        }
+
         // Autosave
         self.editor.try_autosave();
 
@@ -75,7 +117,8 @@ impl eframe::App for EditorApp {
         ctx.request_repaint_after(std::time::Duration::from_millis(250));
 
         // Right panel — Claude terminál
-        let focused = self.focused_terminal;
+        let dialog_open = self.file_tree.has_open_dialog();
+        let focused = self.focused_panel;
         egui::SidePanel::right("claude_panel")
             .default_width(400.0)
             .width_range(200.0..=600.0)
@@ -84,9 +127,11 @@ impl eframe::App for EditorApp {
                 ui.heading("Claude");
                 ui.separator();
 
-                if let Some(terminal) = &mut self.claude_terminal {
-                    if terminal.ui(ui, focused == FocusedTerminal::Claude) {
-                        self.focused_terminal = FocusedTerminal::Claude;
+                if !dialog_open {
+                    if let Some(terminal) = &mut self.claude_terminal {
+                        if terminal.ui(ui, focused == FocusedPanel::Claude) {
+                            self.focused_panel = FocusedPanel::Claude;
+                        }
                     }
                 }
             });
@@ -109,8 +154,19 @@ impl eframe::App for EditorApp {
                     egui::ScrollArea::both()
                         .auto_shrink([false, false])
                         .show(ui, |ui| {
-                            if let Some(selected) = self.file_tree.ui(ui) {
-                                self.open_file(selected);
+                            let result = self.file_tree.ui(ui);
+                            if let Some(path) = result.selected {
+                                self.open_file(path);
+                            }
+                            if let Some(path) = result.created_file {
+                                self.open_file(path);
+                            }
+                            if let Some(deleted) = result.deleted {
+                                if let Some(editor_path) = &self.editor.path {
+                                    if editor_path.starts_with(&deleted) || *editor_path == deleted {
+                                        self.editor.clear();
+                                    }
+                                }
                             }
                         });
                 });
@@ -121,16 +177,20 @@ impl eframe::App for EditorApp {
                 ui.heading("Build");
                 ui.separator();
 
-                if let Some(terminal) = &mut self.build_terminal {
-                    if terminal.ui(ui, focused == FocusedTerminal::Build) {
-                        self.focused_terminal = FocusedTerminal::Build;
+                if !dialog_open {
+                    if let Some(terminal) = &mut self.build_terminal {
+                        if terminal.ui(ui, focused == FocusedPanel::Build) {
+                            self.focused_panel = FocusedPanel::Build;
+                        }
                     }
                 }
             });
 
         // Central panel — editor
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.editor.ui(ui);
+            if self.editor.ui(ui, dialog_open) {
+                self.focused_panel = FocusedPanel::Editor;
+            }
         });
     }
 }

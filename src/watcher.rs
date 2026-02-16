@@ -1,4 +1,4 @@
-use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
@@ -60,5 +60,68 @@ impl FileWatcher {
             last = Some(path);
         }
         last
+    }
+}
+
+pub enum FsChange {
+    Created(PathBuf),
+    Removed(PathBuf),
+    Modified,
+}
+
+pub struct ProjectWatcher {
+    _watcher: Option<RecommendedWatcher>,
+    receiver: mpsc::Receiver<FsChange>,
+}
+
+impl ProjectWatcher {
+    pub fn new(root: &Path) -> Self {
+        let (tx, receiver) = mpsc::channel();
+
+        let watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
+            if let Ok(event) = res {
+                for p in &event.paths {
+                    // Ignorovat změny v .git, target atd.
+                    let skip = p.components().any(|c| {
+                        let s = c.as_os_str().to_string_lossy();
+                        matches!(s.as_ref(), ".git" | "target" | "node_modules")
+                    });
+                    if skip {
+                        continue;
+                    }
+
+                    let change = match &event.kind {
+                        EventKind::Create(_) => Some(FsChange::Created(p.clone())),
+                        EventKind::Remove(_) => Some(FsChange::Removed(p.clone())),
+                        EventKind::Modify(_) => Some(FsChange::Modified),
+                        _ => None,
+                    };
+                    if let Some(c) = change {
+                        let _ = tx.send(c);
+                    }
+                }
+            }
+        });
+
+        let watcher = match watcher {
+            Ok(mut w) => {
+                let _ = w.watch(root, RecursiveMode::Recursive);
+                Some(w)
+            }
+            Err(_) => None,
+        };
+
+        Self {
+            _watcher: watcher,
+            receiver,
+        }
+    }
+
+    pub fn poll(&self) -> Vec<FsChange> {
+        let mut changes = Vec::new();
+        while let Ok(change) = self.receiver.try_recv() {
+            changes.push(change);
+        }
+        changes
     }
 }

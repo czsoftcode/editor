@@ -41,6 +41,16 @@ impl Editor {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.content.clear();
+        self.path = None;
+        self.modified = false;
+        self.last_edit = None;
+        self.save_status = SaveStatus::None;
+        self.last_saved_content.clear();
+        self.scroll_offset = 0.0;
+    }
+
     pub fn open_file(&mut self, path: &PathBuf) {
         match std::fs::read_to_string(path) {
             Ok(content) => {
@@ -154,27 +164,29 @@ impl Editor {
         ui.separator();
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    /// Vrací `true` pokud uživatel klikl do editoru (pro přepnutí fokusu).
+    pub fn ui(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
         if self.path.is_none() {
             ui.centered_and_justified(|ui| {
                 ui.label("Otevřete soubor z adresářového stromu vlevo");
             });
-            return;
+            return false;
         }
 
         self.status_bar(ui);
 
         if self.is_markdown() {
-            self.ui_markdown_split(ui);
+            self.ui_markdown_split(ui, dialog_open)
         } else {
-            self.ui_normal(ui);
+            self.ui_normal(ui, dialog_open)
         }
     }
 
-    fn ui_normal(&mut self, ui: &mut egui::Ui) {
+    fn ui_normal(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
         let bg = self.highlighter.background_color();
         let ext = self.extension();
         let fname = self.filename();
+        let mut clicked = false;
 
         let frame = egui::Frame::new()
             .fill(bg)
@@ -192,12 +204,17 @@ impl Editor {
                         ui.fonts(|f| f.layout_job(job))
                     };
 
-                    let _response = egui::TextEdit::multiline(&mut self.content)
+                    let response = egui::TextEdit::multiline(&mut self.content)
                         .font(egui::TextStyle::Monospace)
                         .code_editor()
+                        .interactive(!dialog_open)
                         .desired_width(f32::INFINITY)
                         .layouter(&mut layouter)
                         .show(ui);
+
+                    if response.response.clicked() || response.response.has_focus() {
+                        clicked = true;
+                    }
 
                     if self.content != previous_content {
                         self.modified = true;
@@ -206,12 +223,15 @@ impl Editor {
                     }
                 });
         });
+
+        clicked
     }
 
-    fn ui_markdown_split(&mut self, ui: &mut egui::Ui) {
+    fn ui_markdown_split(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
         let bg = self.highlighter.background_color();
         let ext = self.extension();
         let fname = self.filename();
+        let mut clicked = false;
 
         ui.columns(2, |columns| {
             // Levý sloupec — editor
@@ -236,12 +256,17 @@ impl Editor {
                             ui.fonts(|f| f.layout_job(job))
                         };
 
-                        let _response = egui::TextEdit::multiline(&mut self.content)
+                        let response = egui::TextEdit::multiline(&mut self.content)
                             .font(egui::TextStyle::Monospace)
                             .code_editor()
+                            .interactive(!dialog_open)
                             .desired_width(f32::INFINITY)
                             .layouter(&mut layouter)
                             .show(ui);
+
+                        if response.response.clicked() || response.response.has_focus() {
+                            clicked = true;
+                        }
 
                         if self.content != previous_content {
                             self.modified = true;
@@ -271,6 +296,8 @@ impl Editor {
                     });
             });
         });
+
+        clicked
     }
 
     fn render_markdown_preview(&self, ui: &mut egui::Ui) {

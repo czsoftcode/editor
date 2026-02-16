@@ -8,17 +8,20 @@ mod watcher;
 use std::path::PathBuf;
 
 fn main() -> eframe::Result<()> {
-    let root_path = std::env::args()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."));
+    let root_path = std::env::args().nth(1).map(|arg| {
+        let p = PathBuf::from(arg);
+        p.canonicalize().unwrap_or(p)
+    });
 
-    let root_path = root_path.canonicalize().unwrap_or(root_path);
+    let title = match &root_path {
+        Some(p) => format!("Rust Editor — {}", p.display()),
+        None => "Rust Editor".to_string(),
+    };
 
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_inner_size([1200.0, 800.0])
-            .with_title(format!("Rust Editor — {}", root_path.display())),
+            .with_title(title),
         ..Default::default()
     };
 

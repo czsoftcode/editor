@@ -25,6 +25,7 @@ pub struct Editor {
     pub last_saved_content: String,
     highlighter: Highlighter,
     scroll_offset: f32,
+    last_cursor_range: Option<egui::text::CursorRange>,
 }
 
 impl Editor {
@@ -38,6 +39,7 @@ impl Editor {
             last_saved_content: String::new(),
             highlighter: Highlighter::new(),
             scroll_offset: 0.0,
+            last_cursor_range: None,
         }
     }
 
@@ -95,7 +97,7 @@ impl Editor {
         }
     }
 
-    fn save(&mut self) {
+    pub fn save(&mut self) {
         if let Some(path) = &self.path {
             self.save_status = SaveStatus::Saving;
             match std::fs::write(path, &self.content) {
@@ -187,6 +189,7 @@ impl Editor {
         let ext = self.extension();
         let fname = self.filename();
         let mut clicked = false;
+        let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
 
         let frame = egui::Frame::new()
             .fill(bg)
@@ -204,17 +207,32 @@ impl Editor {
                         ui.fonts(|f| f.layout_job(job))
                     };
 
-                    let response = egui::TextEdit::multiline(&mut self.content)
-                        .font(egui::TextStyle::Monospace)
-                        .code_editor()
-                        .interactive(!dialog_open)
-                        .desired_width(f32::INFINITY)
-                        .layouter(&mut layouter)
-                        .show(ui);
+                    let line_count = self.content.lines().count().max(1)
+                        + if self.content.ends_with('\n') { 1 } else { 0 };
+                    let gutter_width = Self::gutter_width(ui, line_count);
 
-                    if response.response.clicked() || response.response.has_focus() {
-                        clicked = true;
-                    }
+                    ui.horizontal_top(|ui| {
+                        let (gutter_rect, _) = ui.allocate_exact_size(
+                            egui::vec2(gutter_width, ui.available_height()),
+                            egui::Sense::hover(),
+                        );
+
+                        let response = egui::TextEdit::multiline(&mut self.content)
+                            .font(egui::TextStyle::Monospace)
+                            .code_editor()
+                            .interactive(!dialog_open)
+                            .desired_width(f32::INFINITY)
+                            .layouter(&mut layouter)
+                            .show(ui);
+
+                        Self::paint_line_numbers(ui, &response, gutter_rect);
+
+                        if response.response.clicked() || response.response.has_focus() {
+                            clicked = true;
+                        }
+
+                        saved_response = Some(response);
+                    });
 
                     if self.content != previous_content {
                         self.modified = true;
@@ -224,6 +242,10 @@ impl Editor {
                 });
         });
 
+        if let Some(response) = &saved_response {
+            self.show_editor_context_menu(response);
+        }
+
         clicked
     }
 
@@ -232,6 +254,7 @@ impl Editor {
         let ext = self.extension();
         let fname = self.filename();
         let mut clicked = false;
+        let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
 
         ui.columns(2, |columns| {
             // Levý sloupec — editor
@@ -256,17 +279,32 @@ impl Editor {
                             ui.fonts(|f| f.layout_job(job))
                         };
 
-                        let response = egui::TextEdit::multiline(&mut self.content)
-                            .font(egui::TextStyle::Monospace)
-                            .code_editor()
-                            .interactive(!dialog_open)
-                            .desired_width(f32::INFINITY)
-                            .layouter(&mut layouter)
-                            .show(ui);
+                        let line_count = self.content.lines().count().max(1)
+                            + if self.content.ends_with('\n') { 1 } else { 0 };
+                        let gutter_width = Self::gutter_width(ui, line_count);
 
-                        if response.response.clicked() || response.response.has_focus() {
-                            clicked = true;
-                        }
+                        ui.horizontal_top(|ui| {
+                            let (gutter_rect, _) = ui.allocate_exact_size(
+                                egui::vec2(gutter_width, ui.available_height()),
+                                egui::Sense::hover(),
+                            );
+
+                            let response = egui::TextEdit::multiline(&mut self.content)
+                                .font(egui::TextStyle::Monospace)
+                                .code_editor()
+                                .interactive(!dialog_open)
+                                .desired_width(f32::INFINITY)
+                                .layouter(&mut layouter)
+                                .show(ui);
+
+                            Self::paint_line_numbers(ui, &response, gutter_rect);
+
+                            if response.response.clicked() || response.response.has_focus() {
+                                clicked = true;
+                            }
+
+                            saved_response = Some(response);
+                        });
 
                         if self.content != previous_content {
                             self.modified = true;
@@ -297,7 +335,152 @@ impl Editor {
             });
         });
 
+        if let Some(response) = &saved_response {
+            self.show_editor_context_menu(response);
+        }
+
         clicked
+    }
+
+    fn show_editor_context_menu(
+        &mut self,
+        response: &egui::text_edit::TextEditOutput,
+    ) {
+        // Uložit cursor range pro použití v kontextovém menu
+        if response.cursor_range.is_some() {
+            self.last_cursor_range = response.cursor_range;
+        }
+
+        let menu_size = 15.0;
+        response.response.context_menu(|ui| {
+            let selected_text = self.last_cursor_range.and_then(|cr| {
+                let start = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
+                let end = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
+                if start != end {
+                    Some(
+                        self.content
+                            .chars()
+                            .skip(start)
+                            .take(end - start)
+                            .collect::<String>(),
+                    )
+                } else {
+                    None
+                }
+            });
+            let has_selection = selected_text.is_some();
+
+            if ui
+                .add_enabled(
+                    has_selection,
+                    egui::Button::new(egui::RichText::new("Kopírovat").size(menu_size)),
+                )
+                .clicked()
+            {
+                if let Some(text) = &selected_text {
+                    ui.ctx().copy_text(text.to_string());
+                }
+                ui.close_menu();
+            }
+
+            if ui
+                .button(egui::RichText::new("Vložit").size(menu_size))
+                .clicked()
+            {
+                if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                    if let Ok(text) = clipboard.get_text() {
+                        let insert_pos = self
+                            .last_cursor_range
+                            .map(|cr| {
+                                cr.primary.ccursor.index.max(cr.secondary.ccursor.index)
+                            })
+                            .unwrap_or(self.content.chars().count());
+                        // Pokud je vybraný text, nahradíme ho
+                        let (start, end) = if let Some(cr) = self.last_cursor_range {
+                            let s = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
+                            let e = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
+                            if s != e { (s, e) } else { (insert_pos, insert_pos) }
+                        } else {
+                            (insert_pos, insert_pos)
+                        };
+                        let byte_start = self
+                            .content
+                            .char_indices()
+                            .nth(start)
+                            .map(|(i, _)| i)
+                            .unwrap_or(self.content.len());
+                        let byte_end = self
+                            .content
+                            .char_indices()
+                            .nth(end)
+                            .map(|(i, _)| i)
+                            .unwrap_or(self.content.len());
+                        self.content.replace_range(byte_start..byte_end, &text);
+                        self.modified = true;
+                        self.last_edit = Some(Instant::now());
+                        self.save_status = SaveStatus::Modified;
+                    }
+                }
+                ui.close_menu();
+            }
+        });
+    }
+
+    fn gutter_width(ui: &egui::Ui, line_count: usize) -> f32 {
+        let font_id = egui::FontId::monospace(14.0);
+        let digits = ((line_count.max(1) as f64).log10().floor() as usize) + 1;
+        let char_width = ui.fonts(|f| f.glyph_width(&font_id, '0'));
+        (digits as f32) * char_width + 12.0
+    }
+
+    fn paint_line_numbers(
+        ui: &egui::Ui,
+        output: &egui::text_edit::TextEditOutput,
+        gutter_rect: egui::Rect,
+    ) {
+        let font_id = egui::FontId::monospace(14.0);
+        let gutter_color = egui::Color32::from_rgb(130, 130, 130);
+        let highlight_color = egui::Color32::from_rgba_unmultiplied(80, 65, 15, 50);
+        let painter = ui.painter();
+
+        let galley_pos = output.galley_pos;
+        let galley = &output.galley;
+
+        let cursor_row = output
+            .cursor_range
+            .map(|cr| cr.primary.rcursor.row);
+
+        let mut line_num: usize = 1;
+        let mut is_new_line = true;
+
+        for (row_idx, row) in galley.rows.iter().enumerate() {
+            let y = galley_pos.y + row.rect.min.y;
+            let row_height = row.rect.height();
+
+            if cursor_row == Some(row_idx) {
+                let highlight_rect = egui::Rect::from_min_size(
+                    egui::pos2(gutter_rect.left(), y),
+                    egui::vec2(
+                        output.response.rect.right() - gutter_rect.left(),
+                        row_height,
+                    ),
+                );
+                painter.rect_filled(highlight_rect, 0.0, highlight_color);
+            }
+
+            if is_new_line {
+                let text = format!("{}", line_num);
+                painter.text(
+                    egui::pos2(gutter_rect.right() - 4.0, y),
+                    egui::Align2::RIGHT_TOP,
+                    text,
+                    font_id.clone(),
+                    gutter_color,
+                );
+                line_num += 1;
+            }
+            is_new_line = row.ends_with_newline;
+        }
     }
 
     fn render_markdown_preview(&self, ui: &mut egui::Ui) {

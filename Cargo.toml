@@ -1,0 +1,11 @@
+[package]
+name = "rust_editor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eframe = "0.31"
+syntect = "5"
+notify = "7"
+rfd = "0.15"
+pulldown-cmark = "0.12"

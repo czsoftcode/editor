@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::mpsc;
 
 use eframe::egui;
 
@@ -29,6 +30,14 @@ impl ProjectType {
     }
 }
 
+pub struct BuildError {
+    pub file: PathBuf,
+    pub line: usize,
+    pub _column: usize,
+    pub message: String,
+    pub is_warning: bool,
+}
+
 struct WorkspaceState {
     file_tree: FileTree,
     editor: Editor,
@@ -42,6 +51,8 @@ struct WorkspaceState {
     show_right_panel: bool,
     show_build_terminal: bool,
     show_about: bool,
+    build_errors: Vec<BuildError>,
+    build_error_rx: Option<mpsc::Receiver<Vec<BuildError>>>,
 }
 
 pub struct EditorApp {
@@ -52,6 +63,8 @@ pub struct EditorApp {
     new_project_name: String,
     new_project_path: String,
     new_project_error: String,
+    show_quit_confirm: bool,
+    quit_confirmed: bool,
 }
 
 impl EditorApp {
@@ -74,6 +87,8 @@ impl EditorApp {
             new_project_name: String::new(),
             new_project_path: projects_dir,
             new_project_error: String::new(),
+            show_quit_confirm: false,
+            quit_confirmed: false,
         }
     }
 
@@ -95,6 +110,8 @@ impl EditorApp {
             show_right_panel: true,
             show_build_terminal: true,
             show_about: false,
+            build_errors: Vec::new(),
+            build_error_rx: None,
         }
     }
 
@@ -103,6 +120,33 @@ impl EditorApp {
         if let Some(parent) = path.parent() {
             ws.watcher.watch(parent);
         }
+    }
+
+    fn path_env() -> String {
+        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
+        let current = std::env::var("PATH").unwrap_or_default();
+        let cargo_bin = home.join(".cargo/bin");
+        let local_bin = home.join(".local/bin");
+        format!("{}:{}:{}", cargo_bin.display(), local_bin.display(), current)
+    }
+
+    fn run_build_check(root_path: PathBuf) -> mpsc::Receiver<Vec<BuildError>> {
+        let (tx, rx) = mpsc::channel();
+        let path_env = Self::path_env();
+        std::thread::spawn(move || {
+            let output = std::process::Command::new("cargo")
+                .args(["build", "--color=never"])
+                .current_dir(&root_path)
+                .env("PATH", &path_env)
+                .output();
+
+            if let Ok(output) = output {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let errors = parse_build_errors(&stderr);
+                let _ = tx.send(errors);
+            }
+        });
+        rx
     }
 
     /// Zobrazí dialog pro vytvoření nového projektu.
@@ -209,13 +253,7 @@ impl EditorApp {
                 let _ = std::fs::create_dir_all(&type_dir);
             }
             let full_path = type_dir.join(&name);
-            let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
-            let path_env = {
-                let current = std::env::var("PATH").unwrap_or_default();
-                let cargo_bin = home.join(".cargo/bin");
-                let local_bin = home.join(".local/bin");
-                format!("{}:{}:{}", cargo_bin.display(), local_bin.display(), current)
-            };
+            let path_env = Self::path_env();
 
             let result = match project_type {
                 ProjectType::Rust => {
@@ -269,17 +307,60 @@ impl EditorApp {
 
 impl eframe::App for EditorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Zachytit křížek okna — zrušit okamžité zavření a ukázat dialog
+        if ctx.input(|i| i.viewport().close_requested()) {
+            if self.quit_confirmed {
+                // Uživatel potvrdil — nechat zavřít
+            } else {
+                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+                self.show_quit_confirm = true;
+            }
+        }
+
         if self.state.is_none() {
             self.show_startup_dialog(ctx);
             self.show_new_project_dialog(ctx);
-            return;
+        } else {
+            self.update_workspace(ctx);
         }
 
-        self.update_workspace(ctx);
+        // Potvrzovací dialog — zobrazit nad ostatním obsahem
+        if self.show_quit_confirm {
+            self.show_quit_confirm_dialog(ctx);
+        }
     }
 }
 
 impl EditorApp {
+    fn show_quit_confirm_dialog(&mut self, ctx: &egui::Context) {
+        let modal = egui::Modal::new(egui::Id::new("quit_confirm_modal"));
+        let mut confirmed = false;
+        let mut cancelled = false;
+
+        modal.show(ctx, |ui| {
+            ui.heading("Ukončit aplikaci");
+            ui.add_space(8.0);
+            ui.label("Opravdu chcete ukončit Rust Editor?");
+            ui.add_space(12.0);
+            ui.horizontal(|ui| {
+                if ui.button("Ukončit").clicked() {
+                    confirmed = true;
+                }
+                if ui.button("Zrušit").clicked() {
+                    cancelled = true;
+                }
+            });
+        });
+
+        if confirmed {
+            self.quit_confirmed = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+        if cancelled {
+            self.show_quit_confirm = false;
+        }
+    }
+
     fn show_startup_dialog(&mut self, ctx: &egui::Context) {
         let mut should_open = false;
         let mut browse = false;
@@ -360,9 +441,9 @@ impl EditorApp {
 
         // Check for file changes from watcher
         if let Some(changed_path) = ws.watcher.try_recv() {
-            if let Some(editor_path) = &ws.editor.path {
+            if let Some(editor_path) = ws.editor.active_path() {
                 if let (Ok(a), Ok(b)) = (changed_path.canonicalize(), editor_path.canonicalize()) {
-                    if a == b && !ws.editor.modified {
+                    if a == b && !ws.editor.is_modified() {
                         ws.editor.reload_from_disk();
                     }
                 }
@@ -384,11 +465,7 @@ impl EditorApp {
                     }
                     FsChange::Removed(path) => {
                         need_reload = true;
-                        if let Some(editor_path) = &ws.editor.path {
-                            if editor_path == path || editor_path.starts_with(path) {
-                                ws.editor.clear();
-                            }
-                        }
+                        ws.editor.close_tabs_for_path(path);
                     }
                     FsChange::Modified => {
                         need_reload = true;
@@ -407,6 +484,14 @@ impl EditorApp {
             }
         }
 
+        // Check for build error results
+        if let Some(rx) = &ws.build_error_rx {
+            if let Ok(errors) = rx.try_recv() {
+                ws.build_errors = errors;
+                ws.build_error_rx = None;
+            }
+        }
+
         // Autosave
         ws.editor.try_autosave();
 
@@ -416,6 +501,11 @@ impl EditorApp {
         // Ctrl+S shortcut
         if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
             ws.editor.save();
+        }
+
+        // Ctrl+W — zavřít aktivní záložku
+        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) {
+            ws.editor.clear();
         }
 
         // --- Menu bar ---
@@ -441,7 +531,7 @@ impl EditorApp {
                         action_save = true;
                         ui.close_menu();
                     }
-                    if ui.button("Zavřít soubor").clicked() {
+                    if ui.add(egui::Button::new("Zavřít soubor").shortcut_text("Ctrl+W")).clicked() {
                         action_close_file = true;
                         ui.close_menu();
                     }
@@ -467,6 +557,13 @@ impl EditorApp {
                     ui.add_enabled(false, egui::Button::new("Kopírovat").shortcut_text("Ctrl+C"));
                     ui.add_enabled(false, egui::Button::new("Vložit").shortcut_text("Ctrl+V"));
                     ui.add_enabled(false, egui::Button::new("Vybrat vše").shortcut_text("Ctrl+A"));
+                    ui.separator();
+                    if ui.add(egui::Button::new("Hledat…").shortcut_text("Ctrl+F")).clicked() {
+                        ui.close_menu();
+                    }
+                    if ui.add(egui::Button::new("Hledat a nahradit…").shortcut_text("Ctrl+H")).clicked() {
+                        ui.close_menu();
+                    }
                 });
 
                 ui.menu_button("Zobrazit", |ui| {
@@ -498,7 +595,7 @@ impl EditorApp {
 
         // Handle menu actions
         if action_quit {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            self.show_quit_confirm = true;
         }
         if action_save {
             ws.editor.save();
@@ -581,6 +678,7 @@ impl EditorApp {
         // Right panel — Claude terminál
         let dialog_open = ws.file_tree.has_open_dialog();
         let focused = ws.focused_panel;
+        let mut any_terminal_clicked = false;
         if ws.show_right_panel {
             egui::SidePanel::right("claude_panel")
                 .default_width(400.0)
@@ -594,6 +692,7 @@ impl EditorApp {
                         if let Some(terminal) = &mut ws.claude_terminal {
                             if terminal.ui(ui, focused == FocusedPanel::Claude) {
                                 ws.focused_panel = FocusedPanel::Claude;
+                                any_terminal_clicked = true;
                             }
                         }
                     }
@@ -631,11 +730,7 @@ impl EditorApp {
                                     Self::open_file(ws, path);
                                 }
                                 if let Some(deleted) = result.deleted {
-                                    if let Some(editor_path) = &ws.editor.path {
-                                        if editor_path.starts_with(&deleted) || *editor_path == deleted {
-                                            ws.editor.clear();
-                                        }
-                                    }
+                                    ws.editor.close_tabs_for_path(&deleted);
                                 }
                             });
                     });
@@ -643,15 +738,88 @@ impl EditorApp {
                     if ws.show_build_terminal {
                         ui.separator();
 
-                        // Dolní část — build terminál
-                        ui.heading("Build");
+                        // Build toolbar
+                        ui.horizontal(|ui| {
+                            ui.strong("Build");
+                            ui.separator();
+
+                            if ui.small_button("\u{25B6} Build").clicked() {
+                                if let Some(terminal) = &mut ws.build_terminal {
+                                    terminal.send_command("cargo build 2>&1");
+                                }
+                                let rx = Self::run_build_check(ws.root_path.clone());
+                                ws.build_error_rx = Some(rx);
+                                ws.build_errors.clear();
+                            }
+                            if ui.small_button("\u{25B6} Run").clicked() {
+                                if let Some(terminal) = &mut ws.build_terminal {
+                                    terminal.send_command("cargo run 2>&1");
+                                }
+                            }
+                            if ui.small_button("\u{25B6} Test").clicked() {
+                                if let Some(terminal) = &mut ws.build_terminal {
+                                    terminal.send_command("cargo test 2>&1");
+                                }
+                            }
+                            if ui.small_button("\u{2716} Clean").clicked() {
+                                if let Some(terminal) = &mut ws.build_terminal {
+                                    terminal.send_command("cargo clean");
+                                }
+                            }
+                        });
                         ui.separator();
 
                         if !dialog_open {
                             if let Some(terminal) = &mut ws.build_terminal {
                                 if terminal.ui(ui, focused == FocusedPanel::Build) {
                                     ws.focused_panel = FocusedPanel::Build;
+                                    any_terminal_clicked = true;
                                 }
+                            }
+                        }
+
+                        // Build errors list
+                        if !ws.build_errors.is_empty() {
+                            ui.separator();
+                            ui.label(
+                                egui::RichText::new(format!("Chyby ({})", ws.build_errors.len()))
+                                    .strong()
+                                    .size(12.0),
+                            );
+                            let mut open_error_file: Option<(PathBuf, usize)> = None;
+                            egui::ScrollArea::vertical()
+                                .id_salt("build_errors_scroll")
+                                .max_height(150.0)
+                                .auto_shrink([false, false])
+                                .show(ui, |ui| {
+                                    for error in &ws.build_errors {
+                                        let color = if error.is_warning {
+                                            egui::Color32::from_rgb(230, 180, 60)
+                                        } else {
+                                            egui::Color32::from_rgb(230, 80, 80)
+                                        };
+                                        let label_text = format!(
+                                            "{}:{}  {}",
+                                            error.file.display(),
+                                            error.line,
+                                            error.message,
+                                        );
+                                        let response = ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(&label_text)
+                                                    .size(11.0)
+                                                    .color(color),
+                                            )
+                                            .sense(egui::Sense::click()),
+                                        );
+                                        if response.clicked() {
+                                            let full_path = ws.root_path.join(&error.file);
+                                            open_error_file = Some((full_path, error.line));
+                                        }
+                                    }
+                                });
+                            if let Some((path, _line)) = open_error_file {
+                                Self::open_file(ws, path);
                             }
                         }
                     }
@@ -664,5 +832,44 @@ impl EditorApp {
                 ws.focused_panel = FocusedPanel::Editor;
             }
         });
+
+        // Pokud uživatel klikl jinam než do terminálu, zrušit terminálový fokus
+        let in_terminal = ws.focused_panel == FocusedPanel::Claude
+            || ws.focused_panel == FocusedPanel::Build;
+        if ctx.input(|i| i.pointer.any_pressed()) && !any_terminal_clicked && in_terminal {
+            ws.focused_panel = FocusedPanel::Editor;
+        }
     }
+}
+
+fn parse_build_errors(stderr: &str) -> Vec<BuildError> {
+    let mut errors = Vec::new();
+    let mut current_message: Option<(String, bool)> = None;
+
+    for line in stderr.lines() {
+        if line.starts_with("error") || line.starts_with("warning") {
+            let is_warning = line.starts_with("warning");
+            current_message = Some((line.to_string(), is_warning));
+        } else if let Some(location) = line.trim_start().strip_prefix("--> ") {
+            if let Some((msg, is_warning)) = current_message.take() {
+                // Parse file:line:col
+                let parts: Vec<&str> = location.rsplitn(3, ':').collect();
+                if parts.len() >= 3 {
+                    if let (Ok(line_num), Ok(col)) =
+                        (parts[1].parse::<usize>(), parts[0].parse::<usize>())
+                    {
+                        errors.push(BuildError {
+                            file: PathBuf::from(parts[2]),
+                            line: line_num,
+                            _column: col,
+                            message: msg,
+                            is_warning,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    errors
 }

@@ -2,10 +2,13 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 
+use alacritty_terminal::grid::Dimensions;
 use eframe::egui;
 use egui_term::{BackendSettings, PtyEvent, TerminalBackend, TerminalView};
 
 static ENV_INITIALIZED: AtomicBool = AtomicBool::new(false);
+
+const SCROLLBAR_WIDTH: f32 = 10.0;
 
 fn ensure_terminal_env() {
     if !ENV_INITIALIZED.swap(true, Ordering::SeqCst) {
@@ -18,14 +21,37 @@ fn ensure_terminal_env() {
 }
 
 pub struct Terminal {
+    id: u64,
+    working_dir: PathBuf,
+    init_command: Option<String>,
     backend: TerminalBackend,
     pty_receiver: Receiver<(u64, PtyEvent)>,
     exited: bool,
+    /// Akumulátor pro sub-pixelový drag scrollbaru
+    scroll_drag_acc: f32,
 }
 
 impl Terminal {
     pub fn new(id: u64, ctx: &egui::Context, working_dir: &PathBuf, init_command: Option<&str>) -> Self {
         ensure_terminal_env();
+        let (backend, pty_receiver) = Self::create_backend(id, ctx, working_dir, init_command);
+        Self {
+            id,
+            working_dir: working_dir.clone(),
+            init_command: init_command.map(|s| s.to_string()),
+            backend,
+            pty_receiver,
+            exited: false,
+            scroll_drag_acc: 0.0,
+        }
+    }
+
+    fn create_backend(
+        id: u64,
+        ctx: &egui::Context,
+        working_dir: &PathBuf,
+        init_command: Option<&str>,
+    ) -> (TerminalBackend, Receiver<(u64, PtyEvent)>) {
         let (sender, pty_receiver) = std::sync::mpsc::channel();
 
         #[cfg(unix)]
@@ -52,11 +78,27 @@ impl Terminal {
             ));
         }
 
-        Self {
-            backend,
-            pty_receiver,
-            exited: false,
-        }
+        (backend, pty_receiver)
+    }
+
+    fn restart(&mut self, ctx: &egui::Context) {
+        let (backend, pty_receiver) = Self::create_backend(
+            self.id,
+            ctx,
+            &self.working_dir,
+            self.init_command.as_deref(),
+        );
+        self.backend = backend;
+        self.pty_receiver = pty_receiver;
+        self.exited = false;
+        self.scroll_drag_acc = 0.0;
+    }
+
+    pub fn send_command(&mut self, command: &str) {
+        let cmd = format!("{}\n", command);
+        self.backend.process_command(
+            egui_term::BackendCommand::Write(cmd.as_bytes().to_vec()),
+        );
     }
 
     /// Vykreslí terminál. Vrací `true` pokud uživatel klikl do oblasti terminálu.
@@ -69,21 +111,66 @@ impl Terminal {
         }
 
         if self.exited {
-            ui.centered_and_justified(|ui| {
+            let mut restart = false;
+            ui.vertical_centered(|ui| {
+                ui.add_space(20.0);
                 ui.label("Terminál ukončen.");
+                ui.add_space(8.0);
+                if ui.button("Restartovat").clicked() {
+                    restart = true;
+                }
             });
+            if restart {
+                self.restart(ui.ctx());
+            }
             return false;
         }
 
+        let term_height = ui.available_height();
+        let term_width = (ui.available_width() - SCROLLBAR_WIDTH).max(10.0);
+
         let terminal = TerminalView::new(ui, &mut self.backend)
             .set_focus(focused)
-            .set_size(egui::Vec2::new(
-                ui.available_width(),
-                ui.available_height(),
-            ));
+            .set_size(egui::Vec2::new(term_width, term_height));
 
         let response = ui.add(terminal);
 
+        // Neaktivní terminál: ztmavení + dutý kurzor místo plného bloku
+        if !focused {
+            let painter = ui.painter_at(response.rect);
+            let content = self.backend.last_content();
+            let cell_w = content.terminal_size.cell_width as f32;
+            let cell_h = content.terminal_size.cell_height as f32;
+
+            let cursor_rect = if cell_w > 0.0 && cell_h > 0.0 {
+                let col = content.grid.cursor.point.column.0 as f32;
+                let line = (content.grid.cursor.point.line.0
+                    + content.grid.display_offset() as i32) as f32;
+                let cx = response.rect.min.x + cell_w * col;
+                let cy = response.rect.min.y + cell_h * line;
+                Some(egui::Rect::from_min_size(
+                    egui::Pos2::new(cx, cy),
+                    egui::Vec2::new(cell_w, cell_h),
+                ))
+            } else {
+                None
+            };
+
+            if let Some(rect) = cursor_rect {
+                painter.rect_filled(rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0x18, 0x18, 0x18));
+            }
+            painter.rect_filled(response.rect, egui::CornerRadius::ZERO, egui::Color32::from_black_alpha(60));
+            if let Some(rect) = cursor_rect {
+                painter.rect_stroke(
+                    rect,
+                    egui::CornerRadius::ZERO,
+                    egui::Stroke::new(1.5, egui::Color32::from_gray(200)),
+                    egui::StrokeKind::Middle,
+                );
+            }
+        }
+
+        // Kontext menu
         let menu_size = 15.0;
         response.context_menu(|ui| {
             let selected = self.backend.selectable_content();
@@ -115,6 +202,88 @@ impl Terminal {
             }
         });
 
+        // Scrollbar
+        self.draw_scrollbar(ui, response.rect, term_height);
+
         response.clicked() || response.hovered() && ui.input(|i| i.pointer.any_pressed())
+    }
+
+    fn draw_scrollbar(&mut self, ui: &mut egui::Ui, term_rect: egui::Rect, height: f32) {
+        let sb_rect = egui::Rect::from_min_size(
+            egui::Pos2::new(term_rect.max.x, term_rect.min.y),
+            egui::Vec2::new(SCROLLBAR_WIDTH, height),
+        );
+
+        let painter = ui.painter_at(sb_rect);
+
+        // Pozadí scrollbaru
+        painter.rect_filled(sb_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0x18, 0x18, 0x18));
+
+        let content = self.backend.last_content();
+        let history_size = content.grid.history_size();
+        let screen_lines = content.grid.screen_lines();
+        let display_offset = content.grid.display_offset();
+
+        if history_size == 0 {
+            // Žádná historie — scrollbar jako dekorace (plný track = vše viditelné)
+            let thumb_rect = sb_rect.shrink2(egui::Vec2::new(2.0, 0.0));
+            painter.rect_filled(thumb_rect, egui::CornerRadius::same(3), egui::Color32::from_gray(60));
+            ui.allocate_rect(sb_rect, egui::Sense::hover());
+            return;
+        }
+
+        let total_lines = screen_lines + history_size;
+        let track_h = sb_rect.height();
+        let thumb_ratio = screen_lines as f32 / total_lines as f32;
+        let thumb_h = (thumb_ratio * track_h).max(20.0);
+        let track_range = (track_h - thumb_h).max(1.0);
+
+        // display_offset = 0 → jsme dole → palec dole
+        // display_offset = history_size → jsme nahoře → palec nahoře
+        let scroll_frac = display_offset as f32 / history_size as f32;
+        let thumb_top = sb_rect.min.y + (1.0 - scroll_frac) * track_range;
+
+        let thumb_rect = egui::Rect::from_min_size(
+            egui::Pos2::new(sb_rect.min.x + 2.0, thumb_top),
+            egui::Vec2::new(SCROLLBAR_WIDTH - 4.0, thumb_h),
+        );
+
+        // Interakce
+        let sb_id = ui.id().with("scrollbar");
+        let sb_response = ui.interact(sb_rect, sb_id, egui::Sense::drag());
+
+        let thumb_color = if sb_response.hovered() || sb_response.dragged() {
+            egui::Color32::from_gray(140)
+        } else {
+            egui::Color32::from_gray(90)
+        };
+        painter.rect_filled(thumb_rect, egui::CornerRadius::same(3), thumb_color);
+
+        // Drag: přeložit pixely na řádky
+        if sb_response.dragged() {
+            let dy = sb_response.drag_delta().y;
+            // Negativní dy (tažení nahoru) = scroll do historie = kladný delta
+            self.scroll_drag_acc -= dy;
+            let lines_per_pixel = history_size as f32 / track_range;
+            let line_delta = (self.scroll_drag_acc * lines_per_pixel) as i32;
+            if line_delta != 0 {
+                self.scroll_drag_acc -= line_delta as f32 / lines_per_pixel;
+                self.backend.process_command(egui_term::BackendCommand::Scroll(line_delta));
+            }
+        } else {
+            self.scroll_drag_acc = 0.0;
+        }
+
+        // Klik na track (mimo palec) = skok o stránku
+        if sb_response.clicked() {
+            if let Some(pos) = sb_response.interact_pointer_pos() {
+                let page = screen_lines as i32;
+                if pos.y < thumb_rect.min.y {
+                    self.backend.process_command(egui_term::BackendCommand::Scroll(page));
+                } else if pos.y > thumb_rect.max.y {
+                    self.backend.process_command(egui_term::BackendCommand::Scroll(-page));
+                }
+            }
+        }
     }
 }

@@ -16,111 +16,74 @@ pub enum SaveStatus {
     Saved,
 }
 
-pub struct Editor {
-    pub content: String,
-    pub path: Option<PathBuf>,
-    pub modified: bool,
-    pub last_edit: Option<Instant>,
-    pub save_status: SaveStatus,
-    pub last_saved_content: String,
-    highlighter: Highlighter,
+enum TabAction {
+    Switch(usize),
+    Close(usize),
+}
+
+struct Tab {
+    content: String,
+    path: PathBuf,
+    modified: bool,
+    last_edit: Option<Instant>,
+    save_status: SaveStatus,
+    last_saved_content: String,
     scroll_offset: f32,
     last_cursor_range: Option<egui::text::CursorRange>,
+}
+
+pub struct Editor {
+    tabs: Vec<Tab>,
+    active_tab: Option<usize>,
+    highlighter: Highlighter,
+    show_search: bool,
+    search_query: String,
+    replace_query: String,
+    show_replace: bool,
+    search_matches: Vec<(usize, usize)>,
+    current_match: Option<usize>,
+    search_focus_requested: bool,
 }
 
 impl Editor {
     pub fn new() -> Self {
         Self {
-            content: String::new(),
-            path: None,
-            modified: false,
-            last_edit: None,
-            save_status: SaveStatus::None,
-            last_saved_content: String::new(),
+            tabs: Vec::new(),
+            active_tab: None,
             highlighter: Highlighter::new(),
-            scroll_offset: 0.0,
-            last_cursor_range: None,
+            show_search: false,
+            search_query: String::new(),
+            replace_query: String::new(),
+            show_replace: false,
+            search_matches: Vec::new(),
+            current_match: None,
+            search_focus_requested: false,
         }
     }
 
-    pub fn clear(&mut self) {
-        self.content.clear();
-        self.path = None;
-        self.modified = false;
-        self.last_edit = None;
-        self.save_status = SaveStatus::None;
-        self.last_saved_content.clear();
-        self.scroll_offset = 0.0;
+    // --- Helpers ---
+
+    fn active(&self) -> Option<&Tab> {
+        self.active_tab.and_then(|i| self.tabs.get(i))
     }
 
-    pub fn open_file(&mut self, path: &PathBuf) {
-        match std::fs::read_to_string(path) {
-            Ok(content) => {
-                self.content = content.clone();
-                self.last_saved_content = content;
-                self.path = Some(path.clone());
-                self.modified = false;
-                self.last_edit = None;
-                self.save_status = SaveStatus::None;
-                self.scroll_offset = 0.0;
-            }
-            Err(e) => {
-                self.content = format!("Chyba při čtení souboru: {}", e);
-                self.path = Some(path.clone());
-                self.modified = false;
-                self.save_status = SaveStatus::None;
-            }
-        }
+    fn active_mut(&mut self) -> Option<&mut Tab> {
+        self.active_tab.and_then(|i| self.tabs.get_mut(i))
     }
 
-    pub fn reload_from_disk(&mut self) {
-        if let Some(path) = &self.path {
-            if let Ok(content) = std::fs::read_to_string(path) {
-                self.content = content.clone();
-                self.last_saved_content = content;
-                self.modified = false;
-                self.last_edit = None;
-                self.save_status = SaveStatus::Saved;
-            }
-        }
+    pub fn active_path(&self) -> Option<&PathBuf> {
+        self.active().map(|t| &t.path)
     }
 
-    pub fn try_autosave(&mut self) {
-        if !self.modified {
-            return;
-        }
-
-        if let Some(last_edit) = self.last_edit {
-            if last_edit.elapsed().as_millis() >= AUTOSAVE_DELAY_MS {
-                self.save();
-            }
-        }
-    }
-
-    pub fn save(&mut self) {
-        if let Some(path) = &self.path {
-            self.save_status = SaveStatus::Saving;
-            match std::fs::write(path, &self.content) {
-                Ok(()) => {
-                    self.last_saved_content = self.content.clone();
-                    self.modified = false;
-                    self.last_edit = None;
-                    self.save_status = SaveStatus::Saved;
-                }
-                Err(_) => {
-                    self.save_status = SaveStatus::Modified;
-                }
-            }
-        }
+    pub fn is_modified(&self) -> bool {
+        self.active().is_some_and(|t| t.modified)
     }
 
     fn extension(&self) -> String {
-        self.path
-            .as_ref()
-            .and_then(|p| p.extension())
+        self.active()
+            .and_then(|t| t.path.extension())
             .map(|e| e.to_string_lossy().to_string())
             .or_else(|| {
-                // Pro soubory jako ".env" — nemají příponu, ale název začíná tečkou
                 let name = self.filename();
                 if name.starts_with('.') && name.len() > 1 {
                     Some(name[1..].to_string())
@@ -132,9 +95,8 @@ impl Editor {
     }
 
     fn filename(&self) -> String {
-        self.path
-            .as_ref()
-            .and_then(|p| p.file_name())
+        self.active()
+            .and_then(|t| t.path.file_name())
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default()
     }
@@ -144,13 +106,443 @@ impl Editor {
         ext == "md" || ext == "markdown"
     }
 
-    fn status_bar(&self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            if let Some(path) = &self.path {
-                ui.label(path.to_string_lossy().to_string());
+    // --- Tab management ---
+
+    pub fn open_file(&mut self, path: &PathBuf) {
+        // Pokud je soubor už otevřený, přepnout na záložku
+        if let Some(idx) = self.tabs.iter().position(|t| t.path == *path) {
+            self.active_tab = Some(idx);
+            self.update_search();
+            return;
+        }
+
+        match std::fs::read_to_string(path) {
+            Ok(content) => {
+                let tab = Tab {
+                    last_saved_content: content.clone(),
+                    content,
+                    path: path.clone(),
+                    modified: false,
+                    last_edit: None,
+                    save_status: SaveStatus::None,
+                    scroll_offset: 0.0,
+                    last_cursor_range: None,
+                };
+                self.tabs.push(tab);
+                self.active_tab = Some(self.tabs.len() - 1);
             }
+            Err(e) => {
+                let tab = Tab {
+                    content: format!("Chyba při čtení souboru: {}", e),
+                    last_saved_content: String::new(),
+                    path: path.clone(),
+                    modified: false,
+                    last_edit: None,
+                    save_status: SaveStatus::None,
+                    scroll_offset: 0.0,
+                    last_cursor_range: None,
+                };
+                self.tabs.push(tab);
+                self.active_tab = Some(self.tabs.len() - 1);
+            }
+        }
+        self.update_search();
+    }
+
+    pub fn close_tab(&mut self, index: usize) {
+        if index >= self.tabs.len() {
+            return;
+        }
+        self.tabs.remove(index);
+        if self.tabs.is_empty() {
+            self.active_tab = None;
+        } else if let Some(active) = self.active_tab {
+            if active == index {
+                self.active_tab = Some(active.min(self.tabs.len() - 1));
+            } else if active > index {
+                self.active_tab = Some(active - 1);
+            }
+        }
+        self.update_search();
+    }
+
+    pub fn clear(&mut self) {
+        if let Some(idx) = self.active_tab {
+            self.close_tab(idx);
+        }
+    }
+
+    pub fn close_tabs_for_path(&mut self, path: &PathBuf) {
+        let indices: Vec<usize> = self
+            .tabs
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| t.path == *path || t.path.starts_with(path))
+            .map(|(i, _)| i)
+            .collect();
+        for idx in indices.into_iter().rev() {
+            self.close_tab(idx);
+        }
+    }
+
+    // --- File operations ---
+
+    pub fn reload_from_disk(&mut self) {
+        if let Some(tab) = self.active_mut() {
+            if let Ok(content) = std::fs::read_to_string(&tab.path) {
+                tab.content = content.clone();
+                tab.last_saved_content = content;
+                tab.modified = false;
+                tab.last_edit = None;
+                tab.save_status = SaveStatus::Saved;
+            }
+        }
+        self.update_search();
+    }
+
+    pub fn try_autosave(&mut self) {
+        let should_save = self
+            .active()
+            .is_some_and(|t| {
+                t.modified
+                    && t.last_edit
+                        .is_some_and(|e| e.elapsed().as_millis() >= AUTOSAVE_DELAY_MS)
+            });
+        if should_save {
+            self.save();
+        }
+    }
+
+    pub fn save(&mut self) {
+        if let Some(tab) = self.active_mut() {
+            tab.save_status = SaveStatus::Saving;
+            match std::fs::write(&tab.path, &tab.content) {
+                Ok(()) => {
+                    tab.last_saved_content = tab.content.clone();
+                    tab.modified = false;
+                    tab.last_edit = None;
+                    tab.save_status = SaveStatus::Saved;
+                }
+                Err(_) => {
+                    tab.save_status = SaveStatus::Modified;
+                }
+            }
+        }
+    }
+
+    // --- Search ---
+
+    fn update_search(&mut self) {
+        self.search_matches.clear();
+        self.current_match = None;
+
+        if !self.show_search || self.search_query.is_empty() {
+            return;
+        }
+
+        let content = match self.active() {
+            Some(t) => t.content.clone(),
+            None => return,
+        };
+
+        let query_len = self.search_query.len();
+        if query_len > content.len() {
+            return;
+        }
+
+        let mut start = 0;
+        while start + query_len <= content.len() {
+            if content[start..start + query_len].eq_ignore_ascii_case(&self.search_query) {
+                self.search_matches.push((start, start + query_len));
+                start += 1;
+            } else {
+                start += 1;
+            }
+            while start < content.len() && !content.is_char_boundary(start) {
+                start += 1;
+            }
+        }
+
+        if !self.search_matches.is_empty() {
+            self.current_match = Some(0);
+        }
+    }
+
+    fn next_match(&mut self) {
+        if self.search_matches.is_empty() {
+            return;
+        }
+        self.current_match = Some(match self.current_match {
+            Some(i) => (i + 1) % self.search_matches.len(),
+            None => 0,
+        });
+    }
+
+    fn prev_match(&mut self) {
+        if self.search_matches.is_empty() {
+            return;
+        }
+        self.current_match = Some(match self.current_match {
+            Some(0) | None => self.search_matches.len() - 1,
+            Some(i) => i - 1,
+        });
+    }
+
+    fn replace_current(&mut self) {
+        let match_idx = match self.current_match {
+            Some(i) => i,
+            None => return,
+        };
+        let (start, end) = match self.search_matches.get(match_idx) {
+            Some(&m) => m,
+            None => return,
+        };
+        let replace = self.replace_query.clone();
+        if let Some(tab) = self.active_mut() {
+            tab.content.replace_range(start..end, &replace);
+            tab.modified = true;
+            tab.last_edit = Some(Instant::now());
+            tab.save_status = SaveStatus::Modified;
+        }
+        self.update_search();
+    }
+
+    fn replace_all(&mut self) {
+        if self.search_matches.is_empty() {
+            return;
+        }
+        let replace = self.replace_query.clone();
+        let matches: Vec<(usize, usize)> = self.search_matches.iter().rev().copied().collect();
+        if let Some(tab) = self.active_mut() {
+            for (start, end) in matches {
+                tab.content.replace_range(start..end, &replace);
+            }
+            tab.modified = true;
+            tab.last_edit = Some(Instant::now());
+            tab.save_status = SaveStatus::Modified;
+        }
+        self.update_search();
+    }
+
+    // --- UI ---
+
+    /// Vrací `true` pokud uživatel klikl do editoru (pro přepnutí fokusu).
+    pub fn ui(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
+        if self.tabs.is_empty() {
+            ui.centered_and_justified(|ui| {
+                ui.label("Otevřete soubor z adresářového stromu vlevo");
+            });
+            return false;
+        }
+
+        // Tab bar
+        let mut tab_action = None;
+        self.tab_bar(ui, &mut tab_action);
+        match tab_action {
+            Some(TabAction::Switch(idx)) => {
+                self.active_tab = Some(idx);
+                self.update_search();
+            }
+            Some(TabAction::Close(idx)) => {
+                self.close_tab(idx);
+            }
+            None => {}
+        }
+
+        if self.tabs.is_empty() {
+            return false;
+        }
+
+        // Klávesové zkratky pro search
+        let ctrl_f = ui.ctx().input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::F));
+        let ctrl_h = ui.ctx().input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::H));
+        let escape = ui.ctx().input(|i| i.key_pressed(egui::Key::Escape));
+
+        if ctrl_f {
+            self.show_search = true;
+            self.show_replace = false;
+            self.search_focus_requested = true;
+            self.update_search();
+        }
+        if ctrl_h {
+            self.show_search = true;
+            self.show_replace = true;
+            self.search_focus_requested = true;
+            self.update_search();
+        }
+        if escape && self.show_search {
+            self.show_search = false;
+            self.show_replace = false;
+            self.search_matches.clear();
+            self.current_match = None;
+        }
+
+        self.status_bar(ui);
+
+        if self.show_search {
+            self.search_bar(ui);
+        }
+
+        if self.is_markdown() {
+            self.ui_markdown_split(ui, dialog_open)
+        } else {
+            self.ui_normal(ui, dialog_open)
+        }
+    }
+
+    fn tab_bar(&self, ui: &mut egui::Ui, action: &mut Option<TabAction>) {
+        ui.horizontal(|ui| {
+            for (idx, tab) in self.tabs.iter().enumerate() {
+                let is_active = self.active_tab == Some(idx);
+                let name = tab
+                    .path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "???".to_string());
+
+                let label = if tab.modified {
+                    format!("{} \u{25CF}", name)
+                } else {
+                    name
+                };
+
+                let mut text = egui::RichText::new(&label).size(13.0);
+                if is_active {
+                    text = text.strong();
+                }
+
+                let response = ui.selectable_label(is_active, text);
+                if response.clicked() {
+                    *action = Some(TabAction::Switch(idx));
+                }
+                if response.clicked_by(egui::PointerButton::Middle) {
+                    *action = Some(TabAction::Close(idx));
+                }
+
+                if ui.small_button("\u{00D7}").clicked() {
+                    *action = Some(TabAction::Close(idx));
+                }
+
+                if idx + 1 < self.tabs.len() {
+                    ui.separator();
+                }
+            }
+        });
+        ui.separator();
+    }
+
+    fn search_bar(&mut self, ui: &mut egui::Ui) {
+        let match_count = self.search_matches.len();
+        let current_idx = self.current_match;
+        let focus_requested = self.search_focus_requested;
+
+        let mut do_next = false;
+        let mut do_prev = false;
+        let mut do_replace = false;
+        let mut do_replace_all = false;
+        let mut do_close = false;
+        let mut query_changed = false;
+
+        ui.horizontal(|ui| {
+            ui.label("Hledat:");
+            let response = ui.add(
+                egui::TextEdit::singleline(&mut self.search_query)
+                    .desired_width(200.0)
+                    .id(egui::Id::new("search_input")),
+            );
+            if response.changed() {
+                query_changed = true;
+            }
+            if focus_requested {
+                response.request_focus();
+            }
+            // Enter → next, Shift+Enter → prev
+            if response.has_focus()
+                && ui.input(|i| i.key_pressed(egui::Key::Enter))
+            {
+                if ui.input(|i| i.modifiers.shift) {
+                    do_prev = true;
+                } else {
+                    do_next = true;
+                }
+            }
+
+            if ui.small_button("\u{25B2}").clicked() {
+                do_prev = true;
+            }
+            if ui.small_button("\u{25BC}").clicked() {
+                do_next = true;
+            }
+
+            if match_count > 0 {
+                let current = current_idx.map(|i| i + 1).unwrap_or(0);
+                ui.label(format!("{}/{}", current, match_count));
+            } else if !self.search_query.is_empty() {
+                ui.label("0/0");
+            }
+
+            if !self.show_replace {
+                if ui.small_button("Nahradit\u{2026}").clicked() {
+                    self.show_replace = true;
+                }
+            }
+
+            if ui.small_button("\u{00D7}").clicked() {
+                do_close = true;
+            }
+        });
+
+        if self.show_replace {
+            ui.horizontal(|ui| {
+                ui.label("Nahradit:");
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.replace_query)
+                        .desired_width(200.0),
+                );
+                if ui.small_button("Nahradit").clicked() {
+                    do_replace = true;
+                }
+                if ui.small_button("Nahradit v\u{0161}e").clicked() {
+                    do_replace_all = true;
+                }
+            });
+        }
+
+        ui.separator();
+
+        self.search_focus_requested = false;
+        if query_changed {
+            self.update_search();
+        }
+        if do_next {
+            self.next_match();
+        }
+        if do_prev {
+            self.prev_match();
+        }
+        if do_replace {
+            self.replace_current();
+        }
+        if do_replace_all {
+            self.replace_all();
+        }
+        if do_close {
+            self.show_search = false;
+            self.show_replace = false;
+            self.search_matches.clear();
+            self.current_match = None;
+        }
+    }
+
+    fn status_bar(&self, ui: &mut egui::Ui) {
+        let tab = match self.active() {
+            Some(t) => t,
+            None => return,
+        };
+        ui.horizontal(|ui| {
+            ui.label(tab.path.to_string_lossy().to_string());
             ui.separator();
-            match self.save_status {
+            match tab.save_status {
                 SaveStatus::None => {}
                 SaveStatus::Modified => {
                     ui.label("Neuloženo");
@@ -166,30 +558,21 @@ impl Editor {
         ui.separator();
     }
 
-    /// Vrací `true` pokud uživatel klikl do editoru (pro přepnutí fokusu).
-    pub fn ui(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
-        if self.path.is_none() {
-            ui.centered_and_justified(|ui| {
-                ui.label("Otevřete soubor z adresářového stromu vlevo");
-            });
-            return false;
-        }
-
-        self.status_bar(ui);
-
-        if self.is_markdown() {
-            self.ui_markdown_split(ui, dialog_open)
-        } else {
-            self.ui_normal(ui, dialog_open)
-        }
-    }
-
     fn ui_normal(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
+        let idx = match self.active_tab {
+            Some(i) => i,
+            None => return false,
+        };
+
         let bg = self.highlighter.background_color();
         let ext = self.extension();
         let fname = self.filename();
+        let search_matches = self.search_matches.clone();
+        let current_match = self.current_match;
+
         let mut clicked = false;
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
+        let mut content_changed = false;
 
         let frame = egui::Frame::new()
             .fill(bg)
@@ -199,16 +582,20 @@ impl Editor {
             egui::ScrollArea::both()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    let previous_content = self.content.clone();
+                    let highlighter = &self.highlighter;
+                    let tab = &mut self.tabs[idx];
+
+                    let previous_content = tab.content.clone();
 
                     let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                        let mut job = self.highlighter.highlight(text, &ext, &fname);
+                        let mut job = highlighter.highlight(text, &ext, &fname);
                         job.wrap.max_width = wrap_width;
+                        apply_search_highlights(&mut job, &search_matches, current_match);
                         ui.fonts(|f| f.layout_job(job))
                     };
 
-                    let line_count = self.content.lines().count().max(1)
-                        + if self.content.ends_with('\n') { 1 } else { 0 };
+                    let line_count = tab.content.lines().count().max(1)
+                        + if tab.content.ends_with('\n') { 1 } else { 0 };
                     let gutter_width = Self::gutter_width(ui, line_count);
 
                     ui.horizontal_top(|ui| {
@@ -217,7 +604,7 @@ impl Editor {
                             egui::Sense::hover(),
                         );
 
-                        let response = egui::TextEdit::multiline(&mut self.content)
+                        let response = egui::TextEdit::multiline(&mut tab.content)
                             .font(egui::TextStyle::Monospace)
                             .code_editor()
                             .interactive(!dialog_open)
@@ -234,10 +621,11 @@ impl Editor {
                         saved_response = Some(response);
                     });
 
-                    if self.content != previous_content {
-                        self.modified = true;
-                        self.last_edit = Some(Instant::now());
-                        self.save_status = SaveStatus::Modified;
+                    if tab.content != previous_content {
+                        tab.modified = true;
+                        tab.last_edit = Some(Instant::now());
+                        tab.save_status = SaveStatus::Modified;
+                        content_changed = true;
                     }
                 });
         });
@@ -246,15 +634,31 @@ impl Editor {
             self.show_editor_context_menu(response);
         }
 
+        if content_changed && self.show_search {
+            self.update_search();
+        }
+
         clicked
     }
 
     fn ui_markdown_split(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
+        let idx = match self.active_tab {
+            Some(i) => i,
+            None => return false,
+        };
+
         let bg = self.highlighter.background_color();
         let ext = self.extension();
         let fname = self.filename();
+        let search_matches = self.search_matches.clone();
+        let current_match = self.current_match;
+
         let mut clicked = false;
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
+        let mut content_changed = false;
+
+        // Potřebujeme obsah pro markdown preview — klonujeme
+        let mut preview_content = String::new();
 
         ui.columns(2, |columns| {
             // Levý sloupec — editor
@@ -266,21 +670,25 @@ impl Editor {
                 .inner_margin(egui::Margin::same(8));
 
             frame.show(&mut columns[0], |ui| {
+                let highlighter = &self.highlighter;
+                let tab = &mut self.tabs[idx];
+
                 let scroll_output = egui::ScrollArea::both()
                     .id_salt("md_editor_scroll")
                     .auto_shrink([false, false])
-                    .vertical_scroll_offset(self.scroll_offset)
+                    .vertical_scroll_offset(tab.scroll_offset)
                     .show(ui, |ui| {
-                        let previous_content = self.content.clone();
+                        let previous_content = tab.content.clone();
 
                         let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                            let mut job = self.highlighter.highlight(text, &ext, &fname);
+                            let mut job = highlighter.highlight(text, &ext, &fname);
                             job.wrap.max_width = wrap_width;
+                            apply_search_highlights(&mut job, &search_matches, current_match);
                             ui.fonts(|f| f.layout_job(job))
                         };
 
-                        let line_count = self.content.lines().count().max(1)
-                            + if self.content.ends_with('\n') { 1 } else { 0 };
+                        let line_count = tab.content.lines().count().max(1)
+                            + if tab.content.ends_with('\n') { 1 } else { 0 };
                         let gutter_width = Self::gutter_width(ui, line_count);
 
                         ui.horizontal_top(|ui| {
@@ -289,7 +697,7 @@ impl Editor {
                                 egui::Sense::hover(),
                             );
 
-                            let response = egui::TextEdit::multiline(&mut self.content)
+                            let response = egui::TextEdit::multiline(&mut tab.content)
                                 .font(egui::TextStyle::Monospace)
                                 .code_editor()
                                 .interactive(!dialog_open)
@@ -306,19 +714,23 @@ impl Editor {
                             saved_response = Some(response);
                         });
 
-                        if self.content != previous_content {
-                            self.modified = true;
-                            self.last_edit = Some(Instant::now());
-                            self.save_status = SaveStatus::Modified;
+                        if tab.content != previous_content {
+                            tab.modified = true;
+                            tab.last_edit = Some(Instant::now());
+                            tab.save_status = SaveStatus::Modified;
+                            content_changed = true;
                         }
                     });
 
-                self.scroll_offset = scroll_output.state.offset.y;
+                tab.scroll_offset = scroll_output.state.offset.y;
+                preview_content = tab.content.clone();
             });
 
             // Pravý sloupec — náhled
             columns[1].label(egui::RichText::new("Náhled").strong());
             columns[1].separator();
+
+            let scroll_offset = self.tabs.get(idx).map(|t| t.scroll_offset).unwrap_or(0.0);
 
             let preview_frame = egui::Frame::new()
                 .fill(egui::Color32::from_rgb(40, 44, 52))
@@ -328,15 +740,19 @@ impl Editor {
                 egui::ScrollArea::vertical()
                     .id_salt("md_preview_scroll")
                     .auto_shrink([false, false])
-                    .vertical_scroll_offset(self.scroll_offset)
+                    .vertical_scroll_offset(scroll_offset)
                     .show(ui, |ui| {
-                        self.render_markdown_preview(ui);
+                        Self::render_markdown_preview(ui, &preview_content);
                     });
             });
         });
 
         if let Some(response) = &saved_response {
             self.show_editor_context_menu(response);
+        }
+
+        if content_changed && self.show_search {
+            self.update_search();
         }
 
         clicked
@@ -346,19 +762,25 @@ impl Editor {
         &mut self,
         response: &egui::text_edit::TextEditOutput,
     ) {
-        // Uložit cursor range pro použití v kontextovém menu
+        let idx = match self.active_tab {
+            Some(i) => i,
+            None => return,
+        };
+
         if response.cursor_range.is_some() {
-            self.last_cursor_range = response.cursor_range;
+            self.tabs[idx].last_cursor_range = response.cursor_range;
         }
 
+        let tab = &mut self.tabs[idx];
         let menu_size = 15.0;
+
         response.response.context_menu(|ui| {
-            let selected_text = self.last_cursor_range.and_then(|cr| {
+            let selected_text = tab.last_cursor_range.and_then(|cr| {
                 let start = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
                 let end = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
                 if start != end {
                     Some(
-                        self.content
+                        tab.content
                             .chars()
                             .skip(start)
                             .take(end - start)
@@ -389,36 +811,35 @@ impl Editor {
             {
                 if let Ok(mut clipboard) = arboard::Clipboard::new() {
                     if let Ok(text) = clipboard.get_text() {
-                        let insert_pos = self
+                        let insert_pos = tab
                             .last_cursor_range
                             .map(|cr| {
                                 cr.primary.ccursor.index.max(cr.secondary.ccursor.index)
                             })
-                            .unwrap_or(self.content.chars().count());
-                        // Pokud je vybraný text, nahradíme ho
-                        let (start, end) = if let Some(cr) = self.last_cursor_range {
+                            .unwrap_or(tab.content.chars().count());
+                        let (start, end) = if let Some(cr) = tab.last_cursor_range {
                             let s = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
                             let e = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
                             if s != e { (s, e) } else { (insert_pos, insert_pos) }
                         } else {
                             (insert_pos, insert_pos)
                         };
-                        let byte_start = self
+                        let byte_start = tab
                             .content
                             .char_indices()
                             .nth(start)
                             .map(|(i, _)| i)
-                            .unwrap_or(self.content.len());
-                        let byte_end = self
+                            .unwrap_or(tab.content.len());
+                        let byte_end = tab
                             .content
                             .char_indices()
                             .nth(end)
                             .map(|(i, _)| i)
-                            .unwrap_or(self.content.len());
-                        self.content.replace_range(byte_start..byte_end, &text);
-                        self.modified = true;
-                        self.last_edit = Some(Instant::now());
-                        self.save_status = SaveStatus::Modified;
+                            .unwrap_or(tab.content.len());
+                        tab.content.replace_range(byte_start..byte_end, &text);
+                        tab.modified = true;
+                        tab.last_edit = Some(Instant::now());
+                        tab.save_status = SaveStatus::Modified;
                     }
                 }
                 ui.close_menu();
@@ -483,13 +904,12 @@ impl Editor {
         }
     }
 
-    fn render_markdown_preview(&self, ui: &mut egui::Ui) {
+    fn render_markdown_preview(ui: &mut egui::Ui, content: &str) {
         let options = Options::all();
-        let parser = Parser::new_ext(&self.content, options);
+        let parser = Parser::new_ext(content, options);
 
         let text_color = egui::Color32::from_rgb(220, 220, 220);
 
-        // Sbíráme eventy do bloků, pak renderujeme celý blok najednou
         let events: Vec<Event> = parser.collect();
         let mut i = 0;
 
@@ -554,7 +974,6 @@ impl Editor {
                             Event::Start(Tag::Strikethrough) => {}
                             Event::End(TagEnd::Strikethrough) => {}
                             Event::Start(Tag::Link { dest_url, .. }) => {
-                                // Sbíráme text odkazu
                                 let _url = dest_url.to_string();
                                 i += 1;
                                 while i < events.len() {
@@ -746,6 +1165,31 @@ impl Editor {
                 _ => {
                     i += 1;
                 }
+            }
+        }
+    }
+}
+
+fn apply_search_highlights(
+    job: &mut egui::text::LayoutJob,
+    matches: &[(usize, usize)],
+    current: Option<usize>,
+) {
+    if matches.is_empty() {
+        return;
+    }
+    let highlight_bg = egui::Color32::from_rgba_unmultiplied(255, 255, 0, 60);
+    let current_bg = egui::Color32::from_rgba_unmultiplied(255, 165, 0, 100);
+
+    for section in &mut job.sections {
+        for (idx, &(m_start, m_end)) in matches.iter().enumerate() {
+            if m_start < section.byte_range.end && m_end > section.byte_range.start {
+                section.format.background = if Some(idx) == current {
+                    current_bg
+                } else {
+                    highlight_bg
+                };
+                break;
             }
         }
     }

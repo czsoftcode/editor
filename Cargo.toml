@@ -10,5 +10,6 @@ notify = "7"
 rfd = "0.15"
 pulldown-cmark = "0.12"
 egui_term = "0.1"
+alacritty_terminal = "0.25"
 dirs = "6"
 arboard = { version = "3.6.1", features = ["wayland-data-control"] }

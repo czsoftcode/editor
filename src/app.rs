@@ -30,6 +30,21 @@ impl ProjectType {
     }
 }
 
+#[derive(PartialEq, Clone, Copy)]
+enum AiTool {
+    ClaudeCode,
+    Codex,
+}
+
+impl AiTool {
+    fn command(&self) -> &'static str {
+        match self {
+            AiTool::ClaudeCode => "claude",
+            AiTool::Codex => "codex",
+        }
+    }
+}
+
 pub struct BuildError {
     pub file: PathBuf,
     pub line: usize,
@@ -53,6 +68,7 @@ struct WorkspaceState {
     show_about: bool,
     build_errors: Vec<BuildError>,
     build_error_rx: Option<mpsc::Receiver<Vec<BuildError>>>,
+    claude_tool: AiTool,
 }
 
 pub struct EditorApp {
@@ -112,6 +128,7 @@ impl EditorApp {
             show_about: false,
             build_errors: Vec::new(),
             build_error_rx: None,
+            claude_tool: AiTool::ClaudeCode,
         }
     }
 
@@ -433,7 +450,7 @@ impl EditorApp {
 
         // Lazy init terminálů
         if ws.claude_terminal.is_none() {
-            ws.claude_terminal = Some(Terminal::new(0, ctx, &ws.root_path, Some("claude")));
+            ws.claude_terminal = Some(Terminal::new(0, ctx, &ws.root_path, Some(ws.claude_tool.command())));
         }
         if ws.build_terminal.is_none() {
             ws.build_terminal = Some(Terminal::new(1, ctx, &ws.root_path, None));
@@ -577,7 +594,7 @@ impl EditorApp {
                         action_toggle_build = true;
                         ui.close_menu();
                     }
-                    let right_label = if ws.show_right_panel { "✓ Claude" } else { "  Claude" };
+                    let right_label = if ws.show_right_panel { "✓ AI terminál" } else { "  AI terminál" };
                     if ui.button(right_label).clicked() {
                         action_toggle_right = true;
                         ui.close_menu();
@@ -685,7 +702,20 @@ impl EditorApp {
                 .width_range(200.0..=600.0)
                 .resizable(true)
                 .show(ctx, |ui| {
-                    ui.heading("Claude");
+                    ui.heading("AI terminál");
+
+                    let prev_tool = ws.claude_tool;
+                    ui.horizontal(|ui| {
+                        ui.radio_value(&mut ws.claude_tool, AiTool::ClaudeCode, "Claude Code");
+                        ui.radio_value(&mut ws.claude_tool, AiTool::Codex, "Codex");
+                    });
+                    if ws.claude_tool != prev_tool {
+                        let cmd = ws.claude_tool.command();
+                        if let Some(terminal) = &mut ws.claude_terminal {
+                            terminal.restart_with_command(ui.ctx(), Some(cmd));
+                        }
+                    }
+
                     ui.separator();
 
                     if !dialog_open {

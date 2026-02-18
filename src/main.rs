@@ -1,9 +1,6 @@
 mod app;
-mod editor;
-mod file_tree;
 mod highlighter;
 mod ipc;
-mod terminal;
 mod watcher;
 
 use std::path::PathBuf;

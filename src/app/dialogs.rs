@@ -1,0 +1,349 @@
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+
+use eframe::egui;
+
+use super::types::{AppShared, ProjectType, default_wizard_path, path_env};
+
+// ---------------------------------------------------------------------------
+// WizardState — stav průvodce novým projektem
+// ---------------------------------------------------------------------------
+
+pub(crate) struct WizardState {
+    pub name: String,
+    pub path: String,
+    pub project_type: ProjectType,
+    pub error: String,
+}
+
+impl Default for WizardState {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            path: default_wizard_path(),
+            project_type: ProjectType::Rust,
+            error: String::new(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Validace názvu projektu
+// ---------------------------------------------------------------------------
+
+/// Povolené znaky: písmena, číslice, podtržítko, pomlčka.
+/// Název nesmí být prázdný ani začínat pomlčkou.
+pub(crate) fn is_valid_project_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    if name.starts_with('-') {
+        return false;
+    }
+    name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+// ---------------------------------------------------------------------------
+// show_project_wizard — sjednocený wizard nového projektu
+// ---------------------------------------------------------------------------
+
+/// Zobrazí modální dialog průvodce novým projektem.
+/// `show` se nastaví na `false` při zavření.
+/// `on_success` je voláno s výslednou cestou po úspěšném vytvoření projektu.
+pub(crate) fn show_project_wizard(
+    ctx: &egui::Context,
+    state: &mut WizardState,
+    show: &mut bool,
+    modal_id: &str,
+    shared: &Arc<Mutex<AppShared>>,
+    on_success: impl FnOnce(PathBuf, &Arc<Mutex<AppShared>>),
+) {
+    if !*show { return; }
+
+    let modal = egui::Modal::new(egui::Id::new(modal_id));
+    let mut close_dialog = false;
+    let mut create_project: Option<(ProjectType, String, String)> = None;
+
+    modal.show(ctx, |ui| {
+        ui.heading("Nový projekt");
+        ui.add_space(12.0);
+
+        ui.label("Typ projektu:");
+        ui.horizontal(|ui| {
+            ui.radio_value(&mut state.project_type, ProjectType::Rust, "Rust");
+            ui.radio_value(&mut state.project_type, ProjectType::Symfony, "Symfony");
+        });
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            ui.label("Název:");
+            ui.add(egui::TextEdit::singleline(&mut state.name).desired_width(250.0));
+        });
+        ui.add_space(4.0);
+
+        ui.horizontal(|ui| {
+            ui.label("Pracovní adresář:");
+            ui.add(egui::TextEdit::singleline(&mut state.path).desired_width(200.0));
+            if ui.button("Procházet…").clicked() {
+                if let Some(dir) = rfd::FileDialog::new()
+                    .set_directory(&state.path)
+                    .pick_folder()
+                {
+                    state.path = dir.to_string_lossy().to_string();
+                }
+            }
+        });
+
+        let raw_name = state.name.trim();
+        let display_name = if state.project_type == ProjectType::Rust {
+            raw_name.to_lowercase()
+        } else {
+            raw_name.to_string()
+        };
+        let name_valid = is_valid_project_name(raw_name);
+        if !display_name.is_empty() {
+            if !name_valid {
+                ui.add_space(4.0);
+                ui.colored_label(
+                    egui::Color32::from_rgb(0xe0, 0x70, 0x10),
+                    "Název smí obsahovat pouze písmena, číslice, _ a - (nesmí začínat pomlčkou).",
+                );
+            } else {
+                let preview = PathBuf::from(state.path.trim())
+                    .join(state.project_type.subdir())
+                    .join(&display_name);
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.label("Vytvoří se v:");
+                    ui.monospace(preview.to_string_lossy().to_string());
+                });
+            }
+        }
+
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            let can_create = name_valid && !state.path.trim().is_empty();
+            if ui.add_enabled(can_create, egui::Button::new("Vytvořit")).clicked() {
+                create_project = Some((
+                    state.project_type,
+                    state.name.trim().to_string(),
+                    state.path.trim().to_string(),
+                ));
+            }
+            if ui.button("Zrušit").clicked() {
+                close_dialog = true;
+            }
+        });
+
+        if !state.error.is_empty() {
+            ui.add_space(4.0);
+            ui.colored_label(egui::Color32::RED, &state.error);
+        }
+    });
+
+    if close_dialog {
+        *show = false;
+        return;
+    }
+
+    if let Some((project_type, raw_name, base_path)) = create_project {
+        let name = if project_type == ProjectType::Rust {
+            raw_name.to_lowercase()
+        } else {
+            raw_name
+        };
+        let type_dir = PathBuf::from(&base_path).join(project_type.subdir());
+        if !type_dir.exists() {
+            let _ = std::fs::create_dir_all(&type_dir);
+        }
+        let full_path = type_dir.join(&name);
+        let env = path_env();
+
+        let result = match project_type {
+            ProjectType::Rust => std::process::Command::new("cargo")
+                .args(["new", &name])
+                .current_dir(&type_dir)
+                .env("PATH", &env)
+                .output(),
+            ProjectType::Symfony => std::process::Command::new("composer")
+                .args(["create-project", "symfony/skeleton", &name])
+                .current_dir(&type_dir)
+                .env("PATH", &env)
+                .output(),
+        };
+
+        state.error.clear();
+        match result {
+            Ok(output) if output.status.success() => {
+                let path = full_path.canonicalize().unwrap_or(full_path);
+                *show = false;
+                state.name.clear();
+                on_success(path, shared);
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                state.error = if !stderr.is_empty() {
+                    stderr.to_string()
+                } else if !stdout.is_empty() {
+                    stdout.to_string()
+                } else {
+                    format!("Příkaz selhal s kódem: {}", output.status)
+                };
+            }
+            Err(e) => {
+                state.error = format!("Nepodařilo se spustit příkaz: {}", e);
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// show_quit_confirm_dialog
+// ---------------------------------------------------------------------------
+
+/// Zobrazí dialog pro potvrzení ukončení aplikace.
+/// Vrátí `true` pokud uživatel potvrdil ukončení.
+pub(crate) fn show_quit_confirm_dialog(ctx: &egui::Context) -> QuitDialogResult {
+    let modal = egui::Modal::new(egui::Id::new("quit_confirm_modal"));
+    let mut confirmed = false;
+    let mut cancelled = false;
+
+    modal.show(ctx, |ui| {
+        ui.heading("Ukončit aplikaci");
+        ui.add_space(8.0);
+        ui.label("Opravdu chcete ukončit Rust Editor?");
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            if ui.button("Ukončit").clicked() { confirmed = true; }
+            if ui.button("Zrušit").clicked() { cancelled = true; }
+        });
+    });
+
+    if confirmed {
+        QuitDialogResult::Confirmed
+    } else if cancelled {
+        QuitDialogResult::Cancelled
+    } else {
+        QuitDialogResult::Open
+    }
+}
+
+pub(crate) enum QuitDialogResult {
+    Confirmed,
+    Cancelled,
+    Open,
+}
+
+// ---------------------------------------------------------------------------
+// show_startup_dialog
+// ---------------------------------------------------------------------------
+
+/// Výsledek akce ze startup dialogu
+pub(crate) enum StartupAction {
+    None,
+    OpenPath(PathBuf),
+    OpenWizard,
+}
+
+pub(crate) fn show_startup_dialog(
+    ctx: &egui::Context,
+    path_buffer: &mut String,
+    show_wizard: bool,
+    recent_projects: &[PathBuf],
+) -> StartupAction {
+    let mut should_open = false;
+    let mut browse = false;
+    let mut open_recent: Option<PathBuf> = None;
+
+    egui::CentralPanel::default().show(ctx, |_ui| {});
+
+    let mut open_wizard = false;
+
+    let modal = egui::Modal::new(egui::Id::new("startup_modal"));
+    modal.show(ctx, |ui| {
+        let dlg_size = 15.0;
+        ui.heading("Otevřít projekt");
+        ui.add_space(12.0);
+
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Cesta:").size(dlg_size));
+            let response = ui.add(
+                egui::TextEdit::singleline(path_buffer)
+                    .font(egui::TextStyle::Body)
+                    .desired_width(350.0),
+            );
+            if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                should_open = true;
+            }
+            if !response.has_focus() && !show_wizard {
+                response.request_focus();
+            }
+        });
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            if ui.button(egui::RichText::new("Otevřít").size(dlg_size)).clicked() {
+                should_open = true;
+            }
+            if ui.button(egui::RichText::new("Procházet…").size(dlg_size)).clicked() {
+                browse = true;
+            }
+        });
+        ui.add_space(4.0);
+        ui.separator();
+        ui.add_space(4.0);
+        if ui.button(egui::RichText::new("Založit nový projekt…").size(dlg_size)).clicked() {
+            open_wizard = true;
+        }
+
+        if !recent_projects.is_empty() {
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(4.0);
+            ui.label(egui::RichText::new("Nedávné projekty:").size(dlg_size));
+            ui.add_space(4.0);
+            for path in recent_projects {
+                let name = path.file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| path.to_string_lossy().into_owned());
+                let resp = ui.add(
+                    egui::Label::new(egui::RichText::new(&name).size(dlg_size))
+                        .sense(egui::Sense::click()),
+                ).on_hover_text(path.to_string_lossy());
+                if resp.clicked() {
+                    open_recent = Some(path.clone());
+                }
+            }
+        }
+    });
+
+    if open_wizard {
+        return StartupAction::OpenWizard;
+    }
+
+    if browse {
+        if let Some(dir) = rfd::FileDialog::new()
+            .set_directory(path_buffer.as_str())
+            .pick_folder()
+        {
+            *path_buffer = dir.to_string_lossy().to_string();
+            should_open = true;
+        }
+    }
+
+    if let Some(path) = open_recent {
+        if path.is_dir() {
+            return StartupAction::OpenPath(path);
+        }
+    }
+
+    if should_open {
+        let path = PathBuf::from(path_buffer.trim());
+        if path.is_dir() {
+            let path = path.canonicalize().unwrap_or(path);
+            return StartupAction::OpenPath(path);
+        }
+    }
+
+    StartupAction::None
+}

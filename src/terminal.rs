@@ -107,7 +107,7 @@ impl Terminal {
     }
 
     /// Vykreslí terminál. Vrací `true` pokud uživatel klikl do oblasti terminálu.
-    pub fn ui(&mut self, ui: &mut egui::Ui, focused: bool) -> bool {
+    pub fn ui(&mut self, ui: &mut egui::Ui, focused: bool, font_size: f32) -> bool {
         // Zpracovat události z PTY
         while let Ok((_, event)) = self.pty_receiver.try_recv() {
             if let PtyEvent::Exit = event {
@@ -134,8 +134,12 @@ impl Terminal {
         let term_height = ui.available_height();
         let term_width = (ui.available_width() - SCROLLBAR_WIDTH).max(10.0);
 
+        let term_font = egui_term::TerminalFont::new(egui_term::FontSettings {
+            font_type: egui::FontId::monospace(font_size),
+        });
         let terminal = TerminalView::new(ui, &mut self.backend)
             .set_focus(focused)
+            .set_font(term_font)
             .set_size(egui::Vec2::new(term_width, term_height));
 
         let response = ui.add(terminal);

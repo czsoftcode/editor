@@ -44,7 +44,7 @@ build.rs           — auto-inkrementace patch verze při release buildu
 - Dual terminál: Claude panel (vpravo) + Build terminál (vlevo dole)
 - Menu bar: Soubor, Projekt, Upravit, Zobrazit, Nápověda
 - Soubor: Otevřít složku, Uložit (Ctrl+S), Zavřít soubor, Ukončit
-- Projekt: Otevřít projekt (~/MyProject), Nový projekt (Rust/Symfony)
+- Projekt: Otevřít projekt (~/MyProject), Nový projekt (Rust/Symfony), seznam nedávných projektů (max 10, persistováno)
 - Zobrazit: Toggle levý panel, build terminál, Claude panel
 - Nápověda: O aplikaci s verzí
 - Nový projekt — wizard s výběrem typu, názvu, cesty; struktura ~/MyProject/Rust|Symfony/název
@@ -54,6 +54,11 @@ build.rs           — auto-inkrementace patch verze při release buildu
 - Záložky (tabs) — přepínání, zavírání (×, prostřední myš, Ctrl+W), indikátor neuloženého stavu (●)
 - Vyhledávání a nahrazování — Ctrl+F hledání, Ctrl+H nahrazování, zvýrazňování výskytů, navigace ▲▼
 - Build toolbar — tlačítka Build/Run/Test/Clean, parsování chyb z cargo build, klikatelný error list
+- Nedávné projekty — seznam v menu Projekt i ve startup dialogu, persistováno přes eframe storage
+- Otevření projektu — dialog „V tomto okně / V novém okně / Zrušit" při otevírání projektu, když je workspace již otevřen
+- Multi-instance správa — IPC přes Unix socket (`~/.config/rust_editor/rust_editor.sock`); příkazy: PING, QUERY, REGISTER, UNREGISTER, ADD_RECENT, RECENT; sdílené nedávné projekty v `~/.config/rust_editor/recent.json`
+- **Single-process multi-window architektura** — jeden proces, více oken (egui `show_viewport_deferred`); každý projekt se otevře v samostatném okně; `AppShared` (za `Arc<Mutex>`) pro komunikaci mezi viewporty; kořenový viewport renderuje root workspace nebo startup dialog; sekundární workspacy jsou za `Arc<Mutex<WorkspaceState>>`
+- **Session restore** — při startu se obnoví všechna předchozí okna ze session souboru (`~/.config/rust_editor/session.json`); při ukončení se session uloží; podobný přístup jako PHPStorm
 
 ## TODO
 

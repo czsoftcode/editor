@@ -14,3 +14,6 @@ egui_term = "0.1"
 alacritty_terminal = "0.25"
 dirs = "6"
 arboard = { version = "3.6.1", features = ["wayland-data-control"] }
+
+[patch.crates-io]
+egui_term = { path = "vendor/egui_term" }

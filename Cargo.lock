@@ -3076,6 +3076,7 @@ dependencies = [
  "pulldown-cmark",
  "rfd",
  "serde",
+ "serde_json",
  "syntect",
 ]
 

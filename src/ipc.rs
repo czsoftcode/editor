@@ -18,6 +18,8 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use serde_json;
+
 // ---------------------------------------------------------------------------
 // Cesty k souborům
 // ---------------------------------------------------------------------------
@@ -44,73 +46,30 @@ fn session_path() -> PathBuf {
 // Ukládání nedávných projektů
 // ---------------------------------------------------------------------------
 
-fn save_recent(recent: &[PathBuf]) {
-    let path = recent_path();
-    if let Some(parent) = path.parent() {
+fn save_paths(file_path: &std::path::Path, paths: &[PathBuf]) {
+    if let Some(parent) = file_path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    let items: Vec<String> = recent
-        .iter()
-        .map(|p| {
-            let s = p.to_string_lossy();
-            format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
-        })
-        .collect();
-    let content = format!("[{}]\n", items.join(",\n"));
-    let tmp = path.with_extension("tmp");
-    if std::fs::write(&tmp, &content).is_ok() {
-        let _ = std::fs::rename(&tmp, &path);
+    let strings: Vec<&str> = paths.iter().filter_map(|p| p.to_str()).collect();
+    let Ok(content) = serde_json::to_string(&strings) else { return };
+    let tmp = file_path.with_extension("tmp");
+    if std::fs::write(&tmp, content).is_ok() {
+        let _ = std::fs::rename(&tmp, file_path);
     }
+}
+
+fn load_paths(file_path: &std::path::Path) -> Vec<PathBuf> {
+    let Ok(content) = std::fs::read_to_string(file_path) else { return vec![] };
+    let Ok(strings): Result<Vec<String>, _> = serde_json::from_str(&content) else { return vec![] };
+    strings.into_iter().map(PathBuf::from).filter(|p| p.is_dir()).collect()
+}
+
+fn save_recent(recent: &[PathBuf]) {
+    save_paths(&recent_path(), recent);
 }
 
 fn load_recent() -> Vec<PathBuf> {
-    let path = recent_path();
-    let Ok(content) = std::fs::read_to_string(&path) else {
-        return vec![];
-    };
-    parse_json_string_array(&content)
-        .into_iter()
-        .map(PathBuf::from)
-        .filter(|p| p.is_dir())
-        .collect()
-}
-
-fn parse_json_string_array(s: &str) -> Vec<String> {
-    let s = s.trim();
-    let Some(inner) = s.strip_prefix('[').and_then(|s| s.strip_suffix(']')) else {
-        return vec![];
-    };
-    let mut results = Vec::new();
-    let mut in_str = false;
-    let mut escaped = false;
-    let mut current = String::new();
-    for ch in inner.chars() {
-        if escaped {
-            match ch {
-                '"' => current.push('"'),
-                '\\' => current.push('\\'),
-                'n' => current.push('\n'),
-                _ => {
-                    current.push('\\');
-                    current.push(ch);
-                }
-            }
-            escaped = false;
-        } else if in_str {
-            match ch {
-                '\\' => escaped = true,
-                '"' => {
-                    results.push(current.clone());
-                    current.clear();
-                    in_str = false;
-                }
-                _ => current.push(ch),
-            }
-        } else if ch == '"' {
-            in_str = true;
-        }
-    }
-    results
+    load_paths(&recent_path())
 }
 
 // ---------------------------------------------------------------------------
@@ -392,33 +351,10 @@ impl Ipc {
 
 /// Uloží seznam aktuálně otevřených projektů do session souboru.
 pub fn save_session(paths: &[PathBuf]) {
-    let path = session_path();
-    if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let items: Vec<String> = paths
-        .iter()
-        .map(|p| {
-            let s = p.to_string_lossy();
-            format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
-        })
-        .collect();
-    let content = format!("[{}]\n", items.join(",\n"));
-    let tmp = path.with_extension("tmp");
-    if std::fs::write(&tmp, &content).is_ok() {
-        let _ = std::fs::rename(&tmp, &path);
-    }
+    save_paths(&session_path(), paths);
 }
 
 /// Načte seznam projektů uložených v session souboru.
 pub fn load_session() -> Vec<PathBuf> {
-    let path = session_path();
-    let Ok(content) = std::fs::read_to_string(&path) else {
-        return vec![];
-    };
-    parse_json_string_array(&content)
-        .into_iter()
-        .map(PathBuf::from)
-        .filter(|p| p.is_dir())
-        .collect()
+    load_paths(&session_path())
 }

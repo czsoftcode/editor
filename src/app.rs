@@ -820,6 +820,22 @@ fn render_workspace(
 
 
 // ---------------------------------------------------------------------------
+// Validace názvu projektu
+// ---------------------------------------------------------------------------
+
+/// Povolené znaky: písmena, číslice, podtržítko, pomlčka.
+/// Název nesmí být prázdný ani začínat pomlčkou.
+fn is_valid_project_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    if name.starts_with('-') {
+        return false;
+    }
+    name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+// ---------------------------------------------------------------------------
 // show_workspace_wizard — wizard nového projektu v pracovním okně
 // ---------------------------------------------------------------------------
 
@@ -870,20 +886,29 @@ fn show_workspace_wizard(
         } else {
             raw_name.to_string()
         };
+        let name_valid = is_valid_project_name(raw_name);
         if !display_name.is_empty() {
-            let preview = PathBuf::from(ws.wizard_path.trim())
-                .join(ws.wizard_type.subdir())
-                .join(&display_name);
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.label("Vytvoří se v:");
-                ui.monospace(preview.to_string_lossy().to_string());
-            });
+            if !name_valid {
+                ui.add_space(4.0);
+                ui.colored_label(
+                    egui::Color32::from_rgb(0xe0, 0x70, 0x10),
+                    "Název smí obsahovat pouze písmena, číslice, _ a - (nesmí začínat pomlčkou).",
+                );
+            } else {
+                let preview = PathBuf::from(ws.wizard_path.trim())
+                    .join(ws.wizard_type.subdir())
+                    .join(&display_name);
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.label("Vytvoří se v:");
+                    ui.monospace(preview.to_string_lossy().to_string());
+                });
+            }
         }
 
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            let can_create = !ws.wizard_name.trim().is_empty() && !ws.wizard_path.trim().is_empty();
+            let can_create = name_valid && !ws.wizard_path.trim().is_empty();
             if ui.add_enabled(can_create, egui::Button::new("Vytvořit")).clicked() {
                 create_project = Some((ws.wizard_type, ws.wizard_name.trim().to_string(), ws.wizard_path.trim().to_string()));
             }

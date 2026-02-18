@@ -1,24 +1,11 @@
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 
 use alacritty_terminal::grid::Dimensions;
 use eframe::egui;
 use egui_term::{BackendSettings, PtyEvent, TerminalBackend, TerminalView};
 
-static ENV_INITIALIZED: AtomicBool = AtomicBool::new(false);
-
 const SCROLLBAR_WIDTH: f32 = 10.0;
-
-fn ensure_terminal_env() {
-    if !ENV_INITIALIZED.swap(true, Ordering::SeqCst) {
-        unsafe {
-            std::env::set_var("TERM", "xterm-256color");
-            std::env::set_var("COLORTERM", "truecolor");
-            std::env::set_var("PROMPT_COMMAND", "PS1='\\$ '");
-        }
-    }
-}
 
 pub struct Terminal {
     id: u64,
@@ -33,7 +20,6 @@ pub struct Terminal {
 
 impl Terminal {
     pub fn new(id: u64, ctx: &egui::Context, working_dir: &PathBuf, init_command: Option<&str>) -> Self {
-        ensure_terminal_env();
         let (backend, pty_receiver) = Self::create_backend(id, ctx, working_dir, init_command);
         Self {
             id,

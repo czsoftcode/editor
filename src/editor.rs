@@ -384,8 +384,6 @@ impl Editor {
             self.current_match = None;
         }
 
-        self.status_bar(ui);
-
         if self.show_search {
             self.search_bar(ui);
         }
@@ -600,11 +598,17 @@ impl Editor {
         }
     }
 
-    fn status_bar(&self, ui: &mut egui::Ui) {
+    pub fn status_bar(&self, ui: &mut egui::Ui) {
         let tab = match self.active() {
             Some(t) => t,
             None => return,
         };
+
+        let cursor_text = tab.last_cursor_range.map(|cr| {
+            let rc = cr.primary.rcursor;
+            format!("{}:{}", rc.row + 1, rc.column + 1)
+        });
+
         ui.horizontal(|ui| {
             ui.label(tab.path.to_string_lossy().to_string());
             ui.separator();
@@ -619,6 +623,11 @@ impl Editor {
                 SaveStatus::Saved => {
                     ui.label("Uloženo");
                 }
+            }
+            if let Some(pos) = cursor_text {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(egui::RichText::new(pos).monospace());
+                });
             }
         });
         ui.separator();

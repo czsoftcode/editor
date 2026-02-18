@@ -703,6 +703,13 @@ impl EditorApp {
 
         let ws = self.state.as_mut().unwrap();
 
+        // Status bar — musí být před SidePanel, aby se roztáhl přes celou šířku
+        egui::TopBottomPanel::bottom("status_bar")
+            .exact_height(22.0)
+            .show(ctx, |ui| {
+                ws.editor.status_bar(ui);
+            });
+
         // Right panel — Claude terminál (dokovaný nebo plovoucí)
         let dialog_open = ws.file_tree.has_open_dialog();
         let focused = ws.focused_panel;

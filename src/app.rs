@@ -45,6 +45,27 @@ impl AiTool {
     }
 }
 
+const STORAGE_KEY: &str = "panel_state";
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct PersistentState {
+    show_left_panel: bool,
+    show_right_panel: bool,
+    show_build_terminal: bool,
+    claude_float: bool,
+}
+
+impl Default for PersistentState {
+    fn default() -> Self {
+        Self {
+            show_left_panel: true,
+            show_right_panel: true,
+            show_build_terminal: true,
+            claude_float: false,
+        }
+    }
+}
+
 pub struct BuildError {
     pub file: PathBuf,
     pub line: usize,
@@ -74,6 +95,7 @@ struct WorkspaceState {
 
 pub struct EditorApp {
     state: Option<WorkspaceState>,
+    saved_panel_state: PersistentState, // záloha pro případ, že workspace ještě není otevřen
     path_buffer: String,
     show_new_project: bool,
     new_project_type: ProjectType,
@@ -85,8 +107,12 @@ pub struct EditorApp {
 }
 
 impl EditorApp {
-    pub fn new(root_path: Option<PathBuf>) -> Self {
-        let state = root_path.map(|p| Self::init_workspace(p));
+    pub fn new(cc: &eframe::CreationContext, root_path: Option<PathBuf>) -> Self {
+        let panel_state: PersistentState = cc.storage
+            .and_then(|s| eframe::get_value(s, STORAGE_KEY))
+            .unwrap_or_default();
+
+        let state = root_path.map(|p| Self::init_workspace(p, &panel_state));
         let home = dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("/"))
             .to_string_lossy()
@@ -99,6 +125,7 @@ impl EditorApp {
         Self {
             path_buffer: home,
             state,
+            saved_panel_state: panel_state,
             show_new_project: false,
             new_project_type: ProjectType::Rust,
             new_project_name: String::new(),
@@ -109,7 +136,16 @@ impl EditorApp {
         }
     }
 
-    fn init_workspace(root_path: PathBuf) -> WorkspaceState {
+    fn current_panel_state(&self) -> PersistentState {
+        self.state.as_ref().map(|ws| PersistentState {
+            show_left_panel: ws.show_left_panel,
+            show_right_panel: ws.show_right_panel,
+            show_build_terminal: ws.show_build_terminal,
+            claude_float: ws.claude_float,
+        }).unwrap_or_else(|| self.saved_panel_state.clone())
+    }
+
+    fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) -> WorkspaceState {
         let mut file_tree = FileTree::new();
         file_tree.load(&root_path);
         let project_watcher = ProjectWatcher::new(&root_path);
@@ -123,14 +159,14 @@ impl EditorApp {
             build_terminal: None,
             focused_panel: FocusedPanel::Editor,
             root_path,
-            show_left_panel: true,
-            show_right_panel: true,
-            show_build_terminal: true,
+            show_left_panel: panel_state.show_left_panel,
+            show_right_panel: panel_state.show_right_panel,
+            show_build_terminal: panel_state.show_build_terminal,
             show_about: false,
             build_errors: Vec::new(),
             build_error_rx: None,
             claude_tool: AiTool::ClaudeCode,
-            claude_float: false,
+            claude_float: panel_state.claude_float,
         }
     }
 
@@ -298,7 +334,8 @@ impl EditorApp {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Title(
                         format!("Rust Editor — {}", path.display()),
                     ));
-                    self.state = Some(Self::init_workspace(path));
+                    let ps = self.current_panel_state();
+                    self.state = Some(Self::init_workspace(path, &ps));
                     self.show_new_project = false;
                     self.new_project_name.clear();
                     return true;
@@ -325,6 +362,11 @@ impl EditorApp {
 }
 
 impl eframe::App for EditorApp {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        let ps = self.current_panel_state();
+        eframe::set_value(storage, STORAGE_KEY, &ps);
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Zachytit křížek okna — zrušit okamžité zavření a ukázat dialog
         if ctx.input(|i| i.viewport().close_requested()) {
@@ -442,7 +484,8 @@ impl EditorApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Title(
                     format!("Rust Editor — {}", path.display()),
                 ));
-                self.state = Some(Self::init_workspace(path));
+                let ps = self.current_panel_state();
+                self.state = Some(Self::init_workspace(path, &ps));
             }
         }
     }
@@ -659,7 +702,8 @@ impl EditorApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Title(
                     format!("Rust Editor — {}", path.display()),
                 ));
-                self.state = Some(Self::init_workspace(path));
+                let ps = self.current_panel_state();
+                self.state = Some(Self::init_workspace(path, &ps));
                 return;
             }
         }
@@ -672,7 +716,8 @@ impl EditorApp {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Title(
                     format!("Rust Editor — {}", path.display()),
                 ));
-                self.state = Some(Self::init_workspace(path));
+                let ps = self.current_panel_state();
+                self.state = Some(Self::init_workspace(path, &ps));
                 return;
             }
         }

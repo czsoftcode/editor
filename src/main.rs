@@ -22,12 +22,13 @@ fn main() -> eframe::Result<()> {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_inner_size([1200.0, 800.0])
             .with_title(title),
+        persist_window: true,
         ..Default::default()
     };
 
     eframe::run_native(
         "Rust Editor",
         options,
-        Box::new(move |_cc| Ok(Box::new(app::EditorApp::new(root_path)))),
+        Box::new(move |cc| Ok(Box::new(app::EditorApp::new(cc, root_path)))),
     )
 }

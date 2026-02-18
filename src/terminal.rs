@@ -210,7 +210,7 @@ impl Terminal {
         // Scrollbar
         self.draw_scrollbar(ui, response.rect, term_height);
 
-        response.clicked() || response.hovered() && ui.input(|i| i.pointer.any_pressed())
+        response.hovered()
     }
 
     fn draw_scrollbar(&mut self, ui: &mut egui::Ui, term_rect: egui::Rect, height: f32) {

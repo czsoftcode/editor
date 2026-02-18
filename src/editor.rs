@@ -43,6 +43,9 @@ pub struct Editor {
     search_matches: Vec<(usize, usize)>,
     current_match: Option<usize>,
     search_focus_requested: bool,
+    md_split_ratio: f32,
+    tab_scroll_x: f32,
+    scroll_to_active: bool,
 }
 
 impl Editor {
@@ -58,6 +61,9 @@ impl Editor {
             search_matches: Vec::new(),
             current_match: None,
             search_focus_requested: false,
+            md_split_ratio: 0.5,
+            tab_scroll_x: 0.0,
+            scroll_to_active: false,
         }
     }
 
@@ -147,6 +153,7 @@ impl Editor {
             }
         }
         self.update_search();
+        self.scroll_to_active = true;
     }
 
     pub fn close_tab(&mut self, index: usize) {
@@ -390,44 +397,103 @@ impl Editor {
         }
     }
 
-    fn tab_bar(&self, ui: &mut egui::Ui, action: &mut Option<TabAction>) {
-        ui.horizontal(|ui| {
-            for (idx, tab) in self.tabs.iter().enumerate() {
-                let is_active = self.active_tab == Some(idx);
-                let name = tab
-                    .path
-                    .file_name()
+    fn tab_bar(&mut self, ui: &mut egui::Ui, action: &mut Option<TabAction>) {
+        let btn_w = 22.0;
+        let initial_scroll = self.tab_scroll_x;
+        let active_tab = self.active_tab;
+        let tab_count = self.tabs.len();
+        let need_scroll = self.scroll_to_active;
+
+        // Záložková data vytáhneme před closure, abychom se vyhnuli vnořeným &mut borrow konfliktům
+        let tab_data: Vec<(String, bool)> = self.tabs.iter()
+            .map(|t| {
+                let name = t.path.file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_else(|| "???".to_string());
+                let label = if t.modified { format!("{} \u{25CF}", name) } else { name };
+                (label, t.modified)
+            })
+            .collect();
 
-                let label = if tab.modified {
-                    format!("{} \u{25CF}", name)
-                } else {
-                    name
-                };
+        let mut scroll_left = false;
+        let mut scroll_right = false;
+        let mut new_scroll_x = initial_scroll;
+        let mut active_rect: Option<egui::Rect> = None;
 
-                let mut text = egui::RichText::new(&label).size(13.0);
-                if is_active {
-                    text = text.strong();
-                }
+        ui.horizontal(|ui| {
+            // ◀ tlačítko
+            if ui.add_enabled(
+                initial_scroll > 0.0,
+                egui::Button::new("◀").min_size(egui::vec2(btn_w, 0.0)),
+            ).clicked() {
+                scroll_left = true;
+            }
 
-                let response = ui.selectable_label(is_active, text);
-                if response.clicked() {
-                    *action = Some(TabAction::Switch(idx));
-                }
-                if response.clicked_by(egui::PointerButton::Middle) {
-                    *action = Some(TabAction::Close(idx));
-                }
+            // Vyhradíme místo pro ▶ vpravo
+            let avail_w = (ui.available_width() - btn_w - ui.spacing().item_spacing.x).max(50.0);
 
-                if ui.small_button("\u{00D7}").clicked() {
-                    *action = Some(TabAction::Close(idx));
-                }
+            let mut tab_action: Option<TabAction> = None;
 
-                if idx + 1 < self.tabs.len() {
-                    ui.separator();
+            let out = egui::ScrollArea::horizontal()
+                .id_salt("tab_scroll")
+                .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
+                .scroll_offset(egui::vec2(initial_scroll, 0.0))
+                .max_width(avail_w)
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        for (idx, (label, _)) in tab_data.iter().enumerate() {
+                            let is_active = active_tab == Some(idx);
+                            let mut text = egui::RichText::new(label).size(13.0);
+                            if is_active { text = text.strong(); }
+
+                            let r = ui.selectable_label(is_active, text);
+                            if is_active { active_rect = Some(r.rect); }
+                            if r.clicked() { tab_action = Some(TabAction::Switch(idx)); }
+                            if r.clicked_by(egui::PointerButton::Middle) { tab_action = Some(TabAction::Close(idx)); }
+                            if ui.small_button("\u{00D7}").clicked() { tab_action = Some(TabAction::Close(idx)); }
+                            if idx + 1 < tab_count { ui.separator(); }
+                        }
+                    });
+                });
+
+            if let Some(a) = tab_action { *action = Some(a); }
+
+            new_scroll_x = out.state.offset.x;
+
+            // Pokud byl právě otevřen nový soubor, doscrolujeme aktivní záložku do pohledu
+            if need_scroll {
+                if let Some(tab_rect) = active_rect {
+                    let inner = out.inner_rect;
+                    if tab_rect.max.x > inner.max.x {
+                        new_scroll_x += tab_rect.max.x - inner.max.x + 8.0;
+                    } else if tab_rect.min.x < inner.min.x {
+                        new_scroll_x = (new_scroll_x - (inner.min.x - tab_rect.min.x) - 8.0).max(0.0);
+                    }
                 }
             }
+
+            let content_w = out.content_size.x;
+            let visible_w = out.inner_rect.width();
+            let can_right = new_scroll_x + visible_w < content_w - 1.0;
+
+            // ▶ tlačítko
+            if ui.add_enabled(
+                can_right,
+                egui::Button::new("▶").min_size(egui::vec2(btn_w, 0.0)),
+            ).clicked() {
+                scroll_right = true;
+            }
         });
+
+        if scroll_left {
+            new_scroll_x = (new_scroll_x - 150.0).max(0.0);
+        }
+        if scroll_right {
+            new_scroll_x += 150.0;
+        }
+
+        self.tab_scroll_x = new_scroll_x;
+        self.scroll_to_active = false;
         ui.separator();
     }
 
@@ -657,95 +723,140 @@ impl Editor {
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
         let mut content_changed = false;
 
-        // Potřebujeme obsah pro markdown preview — klonujeme
-        let mut preview_content = String::new();
+        let available = ui.available_size();
+        let handle_h = 6.0_f32;
+        let top_h = (available.y * self.md_split_ratio)
+            .max(50.0)
+            .min(available.y - handle_h - 50.0);
+        let bottom_h = (available.y - top_h - handle_h).max(50.0);
 
-        ui.columns(2, |columns| {
-            // Levý sloupec — editor
-            columns[0].label(egui::RichText::new("Editor").strong());
-            columns[0].separator();
+        // --- Horní polovina: Editor ---
+        ui.allocate_ui_with_layout(
+            egui::vec2(available.x, top_h),
+            egui::Layout::top_down(egui::Align::LEFT),
+            |ui| {
+                ui.label(egui::RichText::new("Editor").strong());
+                ui.separator();
 
-            let frame = egui::Frame::new()
-                .fill(bg)
-                .inner_margin(egui::Margin::same(8));
+                let frame = egui::Frame::new()
+                    .fill(bg)
+                    .inner_margin(egui::Margin::same(8));
 
-            frame.show(&mut columns[0], |ui| {
-                let highlighter = &self.highlighter;
-                let tab = &mut self.tabs[idx];
+                frame.show(ui, |ui| {
+                    let highlighter = &self.highlighter;
+                    let tab = &mut self.tabs[idx];
 
-                let scroll_output = egui::ScrollArea::both()
-                    .id_salt("md_editor_scroll")
-                    .auto_shrink([false, false])
-                    .vertical_scroll_offset(tab.scroll_offset)
-                    .show(ui, |ui| {
-                        let previous_content = tab.content.clone();
+                    let scroll_output = egui::ScrollArea::both()
+                        .id_salt("md_editor_scroll")
+                        .auto_shrink([false, false])
+                        .vertical_scroll_offset(tab.scroll_offset)
+                        .show(ui, |ui| {
+                            let previous_content = tab.content.clone();
 
-                        let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                            let mut job = highlighter.highlight(text, &ext, &fname);
-                            job.wrap.max_width = wrap_width;
-                            apply_search_highlights(&mut job, &search_matches, current_match);
-                            ui.fonts(|f| f.layout_job(job))
-                        };
+                            let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                                let mut job = highlighter.highlight(text, &ext, &fname);
+                                job.wrap.max_width = wrap_width;
+                                apply_search_highlights(&mut job, &search_matches, current_match);
+                                ui.fonts(|f| f.layout_job(job))
+                            };
 
-                        let line_count = tab.content.lines().count().max(1)
-                            + if tab.content.ends_with('\n') { 1 } else { 0 };
-                        let gutter_width = Self::gutter_width(ui, line_count);
+                            let line_count = tab.content.lines().count().max(1)
+                                + if tab.content.ends_with('\n') { 1 } else { 0 };
+                            let gutter_width = Self::gutter_width(ui, line_count);
 
-                        ui.horizontal_top(|ui| {
-                            let (gutter_rect, _) = ui.allocate_exact_size(
-                                egui::vec2(gutter_width, ui.available_height()),
-                                egui::Sense::hover(),
-                            );
+                            ui.horizontal_top(|ui| {
+                                let (gutter_rect, _) = ui.allocate_exact_size(
+                                    egui::vec2(gutter_width, ui.available_height()),
+                                    egui::Sense::hover(),
+                                );
 
-                            let response = egui::TextEdit::multiline(&mut tab.content)
-                                .font(egui::TextStyle::Monospace)
-                                .code_editor()
-                                .interactive(!dialog_open)
-                                .desired_width(f32::INFINITY)
-                                .layouter(&mut layouter)
-                                .show(ui);
+                                let response = egui::TextEdit::multiline(&mut tab.content)
+                                    .font(egui::TextStyle::Monospace)
+                                    .code_editor()
+                                    .interactive(!dialog_open)
+                                    .desired_width(f32::INFINITY)
+                                    .layouter(&mut layouter)
+                                    .show(ui);
 
-                            Self::paint_line_numbers(ui, &response, gutter_rect);
+                                Self::paint_line_numbers(ui, &response, gutter_rect);
 
-                            if response.response.clicked() || response.response.has_focus() {
-                                clicked = true;
+                                if response.response.clicked() || response.response.has_focus() {
+                                    clicked = true;
+                                }
+
+                                saved_response = Some(response);
+                            });
+
+                            if tab.content != previous_content {
+                                tab.modified = true;
+                                tab.last_edit = Some(Instant::now());
+                                tab.save_status = SaveStatus::Modified;
+                                content_changed = true;
                             }
-
-                            saved_response = Some(response);
                         });
 
-                        if tab.content != previous_content {
-                            tab.modified = true;
-                            tab.last_edit = Some(Instant::now());
-                            tab.save_status = SaveStatus::Modified;
-                            content_changed = true;
-                        }
-                    });
+                    tab.scroll_offset = scroll_output.state.offset.y;
+                });
+            },
+        );
 
-                tab.scroll_offset = scroll_output.state.offset.y;
-                preview_content = tab.content.clone();
-            });
+        // --- Táhlo pro změnu velikosti ---
+        let (handle_rect, handle_response) = ui.allocate_exact_size(
+            egui::vec2(available.x, handle_h),
+            egui::Sense::drag(),
+        );
 
-            // Pravý sloupec — náhled
-            columns[1].label(egui::RichText::new("Náhled").strong());
-            columns[1].separator();
+        let handle_color = if handle_response.hovered() || handle_response.dragged() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+            egui::Color32::from_rgb(100, 140, 200)
+        } else {
+            egui::Color32::from_rgb(55, 60, 70)
+        };
+        ui.painter().rect_filled(handle_rect, 0.0, handle_color);
 
-            let scroll_offset = self.tabs.get(idx).map(|t| t.scroll_offset).unwrap_or(0.0);
+        // Tři tečky jako vizuální indikátor táhla
+        let dot_y = handle_rect.center().y;
+        let dot_r = 1.5_f32;
+        for dx in [-6.0_f32, 0.0, 6.0] {
+            ui.painter().circle_filled(
+                egui::pos2(handle_rect.center().x + dx, dot_y),
+                dot_r,
+                egui::Color32::from_rgb(160, 170, 190),
+            );
+        }
 
-            let preview_frame = egui::Frame::new()
-                .fill(egui::Color32::from_rgb(40, 44, 52))
-                .inner_margin(egui::Margin::same(12));
+        if handle_response.dragged() {
+            let delta = handle_response.drag_delta().y;
+            self.md_split_ratio =
+                ((self.md_split_ratio * available.y + delta) / available.y).clamp(0.1, 0.9);
+        }
 
-            preview_frame.show(&mut columns[1], |ui| {
-                egui::ScrollArea::vertical()
-                    .id_salt("md_preview_scroll")
-                    .auto_shrink([false, false])
-                    .vertical_scroll_offset(scroll_offset)
-                    .show(ui, |ui| {
-                        Self::render_markdown_preview(ui, &preview_content);
-                    });
-            });
-        });
+        // --- Dolní polovina: Náhled ---
+        let preview_content = self.tabs[idx].content.clone();
+        let scroll_offset = self.tabs[idx].scroll_offset;
+
+        ui.allocate_ui_with_layout(
+            egui::vec2(available.x, bottom_h),
+            egui::Layout::top_down(egui::Align::LEFT),
+            |ui| {
+                ui.label(egui::RichText::new("Náhled").strong());
+                ui.separator();
+
+                let preview_frame = egui::Frame::new()
+                    .fill(egui::Color32::from_rgb(40, 44, 52))
+                    .inner_margin(egui::Margin::same(12));
+
+                preview_frame.show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .id_salt("md_preview_scroll")
+                        .auto_shrink([false, false])
+                        .vertical_scroll_offset(scroll_offset)
+                        .show(ui, |ui| {
+                            Self::render_markdown_preview(ui, &preview_content);
+                        });
+                });
+            },
+        );
 
         if let Some(response) = &saved_response {
             self.show_editor_context_menu(response);

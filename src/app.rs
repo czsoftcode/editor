@@ -69,6 +69,7 @@ struct WorkspaceState {
     build_errors: Vec<BuildError>,
     build_error_rx: Option<mpsc::Receiver<Vec<BuildError>>>,
     claude_tool: AiTool,
+    claude_float: bool,
 }
 
 pub struct EditorApp {
@@ -129,6 +130,7 @@ impl EditorApp {
             build_errors: Vec::new(),
             build_error_rx: None,
             claude_tool: AiTool::ClaudeCode,
+            claude_float: false,
         }
     }
 
@@ -535,6 +537,7 @@ impl EditorApp {
         let mut action_toggle_left = false;
         let mut action_toggle_right = false;
         let mut action_toggle_build = false;
+        let mut action_toggle_float = false;
         let mut action_about = false;
 
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
@@ -599,6 +602,11 @@ impl EditorApp {
                         action_toggle_right = true;
                         ui.close_menu();
                     }
+                    let float_label = if ws.claude_float { "✓ Plovoucí AI terminál" } else { "  Plovoucí AI terminál" };
+                    if ui.button(float_label).clicked() {
+                        action_toggle_float = true;
+                        ui.close_menu();
+                    }
                 });
 
                 ui.menu_button("Nápověda", |ui| {
@@ -625,6 +633,9 @@ impl EditorApp {
         }
         if action_toggle_right {
             ws.show_right_panel = !ws.show_right_panel;
+        }
+        if action_toggle_float {
+            ws.claude_float = !ws.claude_float;
         }
         if action_toggle_build {
             ws.show_build_terminal = !ws.show_build_terminal;
@@ -692,41 +703,93 @@ impl EditorApp {
 
         let ws = self.state.as_mut().unwrap();
 
-        // Right panel — Claude terminál
+        // Right panel — Claude terminál (dokovaný nebo plovoucí)
         let dialog_open = ws.file_tree.has_open_dialog();
         let focused = ws.focused_panel;
         let mut any_terminal_clicked = false;
         if ws.show_right_panel {
-            egui::SidePanel::right("claude_panel")
-                .default_width(400.0)
-                .width_range(200.0..=600.0)
-                .resizable(true)
-                .show(ctx, |ui| {
-                    ui.heading("AI terminál");
+            if ws.claude_float {
+                // Plovoucí okno
+                let mut is_open = true;
+                egui::Window::new("AI terminál")
+                    .id(egui::Id::new("claude_float_win"))
+                    .default_size([520.0, 420.0])
+                    .min_size([300.0, 200.0])
+                    .resizable(true)
+                    .collapsible(false)
+                    .open(&mut is_open)
+                    .show(ctx, |ui| {
+                        ui.horizontal(|ui| {
+                            let prev_tool = ws.claude_tool;
+                            ui.radio_value(&mut ws.claude_tool, AiTool::ClaudeCode, "Claude Code");
+                            ui.radio_value(&mut ws.claude_tool, AiTool::Codex, "Codex");
+                            if ws.claude_tool != prev_tool {
+                                let cmd = ws.claude_tool.command();
+                                if let Some(terminal) = &mut ws.claude_terminal {
+                                    terminal.restart_with_command(ui.ctx(), Some(cmd));
+                                }
+                            }
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.small_button("⊟").on_hover_text("Přikovat do panelu").clicked() {
+                                    ws.claude_float = false;
+                                }
+                            });
+                        });
 
-                    let prev_tool = ws.claude_tool;
-                    ui.horizontal(|ui| {
-                        ui.radio_value(&mut ws.claude_tool, AiTool::ClaudeCode, "Claude Code");
-                        ui.radio_value(&mut ws.claude_tool, AiTool::Codex, "Codex");
-                    });
-                    if ws.claude_tool != prev_tool {
-                        let cmd = ws.claude_tool.command();
-                        if let Some(terminal) = &mut ws.claude_terminal {
-                            terminal.restart_with_command(ui.ctx(), Some(cmd));
-                        }
-                    }
+                        ui.separator();
 
-                    ui.separator();
-
-                    if !dialog_open {
-                        if let Some(terminal) = &mut ws.claude_terminal {
-                            if terminal.ui(ui, focused == FocusedPanel::Claude) {
-                                ws.focused_panel = FocusedPanel::Claude;
-                                any_terminal_clicked = true;
+                        if !dialog_open {
+                            if let Some(terminal) = &mut ws.claude_terminal {
+                                if terminal.ui(ui, focused == FocusedPanel::Claude) {
+                                    ws.focused_panel = FocusedPanel::Claude;
+                                    any_terminal_clicked = true;
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                if !is_open {
+                    ws.show_right_panel = false;
+                }
+            } else {
+                // Dokovaný panel
+                egui::SidePanel::right("claude_panel")
+                    .default_width(400.0)
+                    .width_range(200.0..=600.0)
+                    .resizable(true)
+                    .show(ctx, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.heading("AI terminál");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.small_button("⧉").on_hover_text("Odpojit do plovoucího okna").clicked() {
+                                    ws.claude_float = true;
+                                }
+                            });
+                        });
+
+                        let prev_tool = ws.claude_tool;
+                        ui.horizontal(|ui| {
+                            ui.radio_value(&mut ws.claude_tool, AiTool::ClaudeCode, "Claude Code");
+                            ui.radio_value(&mut ws.claude_tool, AiTool::Codex, "Codex");
+                        });
+                        if ws.claude_tool != prev_tool {
+                            let cmd = ws.claude_tool.command();
+                            if let Some(terminal) = &mut ws.claude_terminal {
+                                terminal.restart_with_command(ui.ctx(), Some(cmd));
+                            }
+                        }
+
+                        ui.separator();
+
+                        if !dialog_open {
+                            if let Some(terminal) = &mut ws.claude_terminal {
+                                if terminal.ui(ui, focused == FocusedPanel::Claude) {
+                                    ws.focused_panel = FocusedPanel::Claude;
+                                    any_terminal_clicked = true;
+                                }
+                            }
+                        }
+                    });
+            }
         }
 
         // Left panel — file tree nahoře + build terminál dole
@@ -863,10 +926,10 @@ impl EditorApp {
             }
         });
 
-        // Pokud uživatel klikl jinam než do terminálu, zrušit terminálový fokus
+        // Focus follows mouse: pokud myš není nad žádným terminálem, přepnout fokus na editor
         let in_terminal = ws.focused_panel == FocusedPanel::Claude
             || ws.focused_panel == FocusedPanel::Build;
-        if ctx.input(|i| i.pointer.any_pressed()) && !any_terminal_clicked && in_terminal {
+        if !any_terminal_clicked && in_terminal {
             ws.focused_panel = FocusedPanel::Editor;
         }
     }

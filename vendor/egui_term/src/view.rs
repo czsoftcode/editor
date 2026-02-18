@@ -49,7 +49,7 @@ pub struct TerminalView<'a> {
 impl Widget for TerminalView<'_> {
     fn ui(self, ui: &mut egui::Ui) -> Response {
         let (layout, painter) =
-            ui.allocate_painter(self.size, egui::Sense::click());
+            ui.allocate_painter(self.size, egui::Sense::click_and_drag());
 
         let widget_id = self.widget_id;
         let mut state = ui.memory(|m| {

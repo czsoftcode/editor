@@ -129,6 +129,8 @@ struct MenuActions {
     toggle_float: bool,
     about: bool,
     settings: bool,
+    build: bool,
+    run: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +266,18 @@ fn render_menu_bar(
                 if ui.add(egui::Button::new("Hledat a nahradit…").shortcut_text("Ctrl+H")).clicked() {
                     ui.close_menu();
                 }
+                if ui.add(egui::Button::new("Přejít na řádek…").shortcut_text("Ctrl+G")).clicked() {
+                    ui.close_menu();
+                }
+                ui.separator();
+                if ui.add(egui::Button::new("Build").shortcut_text("Ctrl+B")).clicked() {
+                    actions.build = true;
+                    ui.close_menu();
+                }
+                if ui.add(egui::Button::new("Run").shortcut_text("Ctrl+R")).clicked() {
+                    actions.run = true;
+                    ui.close_menu();
+                }
             });
 
             ui.menu_button("Zobrazit", |ui| {
@@ -304,6 +318,14 @@ fn process_menu_actions(
     if actions.about { ws.show_about = true; }
     if actions.settings { ws.show_settings = true; }
     if actions.new_project { ws.show_new_project = true; }
+    if actions.build {
+        if let Some(t) = &mut ws.build_terminal { t.send_command("cargo build 2>&1"); }
+        ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
+        ws.build_errors.clear();
+    }
+    if actions.run {
+        if let Some(t) = &mut ws.build_terminal { t.send_command("cargo run 2>&1"); }
+    }
 
     if let Some(path) = actions.open_recent {
         if path.is_dir() {
@@ -592,8 +614,9 @@ fn render_build_panel(
                     }
                 }
             });
-        if let Some((path, _line)) = open_error_file {
+        if let Some((path, line)) = open_error_file {
             open_file_in_ws(ws, path);
+            ws.editor.jump_to_line(line);
         }
     }
 }
@@ -659,6 +682,14 @@ pub(crate) fn render_workspace(
     // Klávesové zkratky
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) { ws.editor.save(); }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) { ws.editor.clear(); }
+    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::B)) {
+        if let Some(t) = &mut ws.build_terminal { t.send_command("cargo build 2>&1"); }
+        ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
+        ws.build_errors.clear();
+    }
+    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R)) {
+        if let Some(t) = &mut ws.build_terminal { t.send_command("cargo run 2>&1"); }
+    }
 
     // Menu bar + zpracování akcí
     let actions = render_menu_bar(ctx, ws, shared);

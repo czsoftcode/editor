@@ -48,6 +48,11 @@ pub struct Editor {
     md_split_ratio: f32,
     tab_scroll_x: f32,
     scroll_to_active: bool,
+    /// Přejít na řádek — čekající skok (1-based číslo řádku)
+    pending_jump: Option<usize>,
+    /// Dialog "Přejít na řádek" (Ctrl+G)
+    show_goto_line: bool,
+    goto_line_input: String,
 }
 
 impl Editor {
@@ -66,6 +71,9 @@ impl Editor {
             md_split_ratio: 0.5,
             tab_scroll_x: 0.0,
             scroll_to_active: false,
+            pending_jump: None,
+            show_goto_line: false,
+            goto_line_input: String::new(),
         }
     }
 
@@ -206,6 +214,11 @@ impl Editor {
                 tab.save_status = SaveStatus::None;
             }
         }
+    }
+
+    /// Naplánuje přechod kurzoru na daný řádek (1-based). Provede se při příštím renderu.
+    pub fn jump_to_line(&mut self, line: usize) {
+        self.pending_jump = Some(line.max(1));
     }
 
     // --- File operations ---
@@ -385,32 +398,49 @@ impl Editor {
             return false;
         }
 
-        // Klávesové zkratky pro search
+        // Klávesové zkratky pro search + goto
         let ctrl_f = ui.ctx().input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::F));
         let ctrl_h = ui.ctx().input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::H));
+        let ctrl_g = ui.ctx().input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::G));
         let escape = ui.ctx().input(|i| i.key_pressed(egui::Key::Escape));
 
         if ctrl_f {
             self.show_search = true;
             self.show_replace = false;
             self.search_focus_requested = true;
+            self.show_goto_line = false;
             self.update_search();
         }
         if ctrl_h {
             self.show_search = true;
             self.show_replace = true;
             self.search_focus_requested = true;
+            self.show_goto_line = false;
             self.update_search();
         }
-        if escape && self.show_search {
-            self.show_search = false;
-            self.show_replace = false;
-            self.search_matches.clear();
-            self.current_match = None;
+        if ctrl_g {
+            self.show_goto_line = !self.show_goto_line;
+            if self.show_goto_line {
+                self.goto_line_input.clear();
+                self.show_search = false;
+            }
+        }
+        if escape {
+            if self.show_search {
+                self.show_search = false;
+                self.show_replace = false;
+                self.search_matches.clear();
+                self.current_match = None;
+            } else if self.show_goto_line {
+                self.show_goto_line = false;
+            }
         }
 
         if self.show_search {
             self.search_bar(ui);
+        }
+        if self.show_goto_line {
+            self.goto_line_bar(ui);
         }
 
         if self.is_markdown() {
@@ -632,6 +662,43 @@ impl Editor {
         }
     }
 
+    fn goto_line_bar(&mut self, ui: &mut egui::Ui) {
+        let mut do_jump = false;
+        let mut do_close = false;
+
+        ui.horizontal(|ui| {
+            ui.label("Přejít na řádek:");
+            let response = ui.add(
+                egui::TextEdit::singleline(&mut self.goto_line_input)
+                    .desired_width(80.0)
+                    .id(egui::Id::new("goto_line_input")),
+            );
+            response.request_focus();
+            if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                do_jump = true;
+            }
+            if ui.button("OK").clicked() {
+                do_jump = true;
+            }
+            if ui.small_button("\u{00D7}").clicked() {
+                do_close = true;
+            }
+        });
+        ui.separator();
+
+        if do_jump {
+            if let Ok(n) = self.goto_line_input.trim().parse::<usize>() {
+                if n >= 1 {
+                    self.pending_jump = Some(n);
+                }
+            }
+            self.show_goto_line = false;
+        }
+        if do_close {
+            self.show_goto_line = false;
+        }
+    }
+
     pub fn status_bar(&self, ui: &mut egui::Ui) {
         let tab = match self.active() {
             Some(t) => t,
@@ -679,6 +746,21 @@ impl Editor {
         let search_matches = self.search_matches.clone();
         let current_match = self.current_match;
 
+        // Zpracování pending_jump před renderem: vypočítáme char index a odhadovaný scroll offset
+        let jump_line = self.pending_jump.take();
+        let jump_char_idx: Option<usize> = jump_line.and_then(|line| {
+            self.tabs.get(idx).map(|tab| {
+                tab.content
+                    .lines()
+                    .take(line.saturating_sub(1))
+                    .map(|l| l.chars().count() + 1)
+                    .sum::<usize>()
+            })
+        });
+        let desired_scroll_y: Option<f32> = jump_line.map(|line| {
+            (line.saturating_sub(1) as f32) * config::EDITOR_FONT_SIZE * 1.5
+        });
+
         let mut clicked = false;
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
         let mut content_changed = false;
@@ -688,9 +770,11 @@ impl Editor {
             .inner_margin(egui::Margin::same(8));
 
         frame.show(ui, |ui| {
-            egui::ScrollArea::both()
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
+            let mut scroll = egui::ScrollArea::both().auto_shrink([false, false]);
+            if let Some(y) = desired_scroll_y {
+                scroll = scroll.vertical_scroll_offset(y);
+            }
+            scroll.show(ui, |ui| {
                     let highlighter = &self.highlighter;
                     let tab = &mut self.tabs[idx];
 
@@ -741,6 +825,16 @@ impl Editor {
 
         if let Some(response) = &saved_response {
             self.show_editor_context_menu(response);
+        }
+
+        // Nastavení pozice kurzoru po skoku na řádek
+        if let (Some(char_idx), Some(response)) = (jump_char_idx, &saved_response) {
+            let id = response.response.id;
+            let mut state = egui::text_edit::TextEditState::load(ui.ctx(), id).unwrap_or_default();
+            state.cursor.set_char_range(Some(egui::text::CCursorRange::one(
+                egui::text::CCursor::new(char_idx),
+            )));
+            state.store(ui.ctx(), id);
         }
 
         if content_changed && self.show_search {

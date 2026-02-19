@@ -40,6 +40,8 @@ pub(super) struct Tab {
     pub(super) image_texture: Option<egui::TextureHandle>,
     /// Surová data pro binární soubory (pokud je chceme držet v paměti).
     pub(super) binary_data: Option<Vec<u8>>,
+    /// Zda byl SVG modal již zobrazen (true = uživatel si vybral, znovu nezobrazovat).
+    pub(super) svg_modal_shown: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +182,7 @@ impl Editor {
                         is_binary: true,
                         image_texture: None,
                         binary_data: Some(bytes),
+                        svg_modal_shown: false,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -199,6 +202,7 @@ impl Editor {
                         is_binary: false,
                         image_texture: None,
                         binary_data: None,
+                        svg_modal_shown: false,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -221,6 +225,7 @@ impl Editor {
                         is_binary: false,
                         image_texture: None,
                         binary_data: None,
+                        svg_modal_shown: false,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -240,6 +245,7 @@ impl Editor {
                         is_binary: false,
                         image_texture: None,
                         binary_data: None,
+                        svg_modal_shown: false,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -524,6 +530,48 @@ impl Editor {
             self.ui_markdown_split(ui, dialog_open, i18n)
         } else {
             if self.is_svg() {
+                if let Some(idx) = self.active_tab {
+                    if !self.tabs[idx].svg_modal_shown {
+                        let path = self.tabs[idx].path.clone();
+                        let fname = path
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_default();
+
+                        let mut open_external = false;
+                        let mut edit_as_text = false;
+
+                        let modal = egui::Modal::new(egui::Id::new(("svg_modal", &path)));
+                        modal.show(ui.ctx(), |ui| {
+                            ui.heading(i18n.get("svg-modal-title"));
+                            ui.add_space(4.0);
+                            ui.label(egui::RichText::new(&fname).strong());
+                            ui.add_space(8.0);
+                            ui.label(i18n.get("svg-modal-body"));
+                            ui.add_space(12.0);
+                            ui.separator();
+                            ui.add_space(4.0);
+                            ui.horizontal(|ui| {
+                                if ui.button(i18n.get("svg-open-external")).clicked() {
+                                    open_external = true;
+                                }
+                                if ui.button(i18n.get("svg-modal-edit")).clicked() {
+                                    edit_as_text = true;
+                                }
+                            });
+                        });
+
+                        if open_external {
+                            let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
+                            self.tabs[idx].svg_modal_shown = true;
+                        }
+                        if edit_as_text {
+                            self.tabs[idx].svg_modal_shown = true;
+                        }
+                    }
+                }
+
+                // Tlačítko vždy viditelné — uživatel ho může použít kdykoli při editaci
                 if let Some(path) = self.active_path().cloned() {
                     ui.horizontal(|ui| {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

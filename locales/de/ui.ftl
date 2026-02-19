@@ -154,3 +154,7 @@ conflict-hover-keep = Editor-Änderungen behalten; die Datei auf der Festplatte 
 conflict-hover-dismiss = Benachrichtigung ohne Änderungen schließen
 
 svg-open-external = ⧉ Vorschau im Betrachter öffnen
+
+svg-modal-title = SVG-Datei
+svg-modal-body = Diese Datei ist ein SVG-Bild. Möchten Sie sie im Systembetrachter öffnen oder als XML-Text bearbeiten?
+svg-modal-edit = Als Text bearbeiten

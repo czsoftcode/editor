@@ -157,3 +157,7 @@ conflict-hover-keep = Ponechať zmeny editora; súbor na disku bude prepísaný 
 conflict-hover-dismiss = Zatvoriť upozornenie bez zmien
 
 svg-open-external = ⧉ Otvoriť náhľad v prehliadači
+
+svg-modal-title = SVG súbor
+svg-modal-body = Tento súbor je SVG obrázok. Chcete ho otvoriť v systémovom prehliadači, alebo upravovať ako XML text?
+svg-modal-edit = Upravovať ako text

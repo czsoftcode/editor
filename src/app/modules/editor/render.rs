@@ -4,8 +4,8 @@ use eframe::egui;
 
 use crate::config;
 
-use super::{Editor, SaveStatus, TabAction};
 use super::search::apply_search_highlights;
+use super::{Editor, SaveStatus, TabAction};
 
 impl Editor {
     // --- Tab bar ---
@@ -17,9 +17,13 @@ impl Editor {
         let tab_count = self.tabs.len();
         let need_scroll = self.scroll_to_active;
 
-        let tab_data: Vec<(String, bool, bool)> = self.tabs.iter()
+        let tab_data: Vec<(String, bool, bool)> = self
+            .tabs
+            .iter()
             .map(|t| {
-                let name = t.path.file_name()
+                let name = t
+                    .path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_else(|| "???".to_string());
                 let label = if t.deleted {
@@ -39,10 +43,13 @@ impl Editor {
         let mut active_rect: Option<egui::Rect> = None;
 
         ui.horizontal(|ui| {
-            if ui.add_enabled(
-                initial_scroll > 0.0,
-                egui::Button::new("◀").min_size(egui::vec2(btn_w, 0.0)),
-            ).clicked() {
+            if ui
+                .add_enabled(
+                    initial_scroll > 0.0,
+                    egui::Button::new("◀").min_size(egui::vec2(btn_w, 0.0)),
+                )
+                .clicked()
+            {
                 scroll_left = true;
             }
 
@@ -59,26 +66,36 @@ impl Editor {
                         for (idx, (label, _, deleted)) in tab_data.iter().enumerate() {
                             let is_active = active_tab == Some(idx);
                             let mut text = egui::RichText::new(label).size(config::UI_FONT_SIZE);
-                            if is_active { text = text.strong(); }
+                            if is_active {
+                                text = text.strong();
+                            }
                             if *deleted {
                                 text = text.color(egui::Color32::from_rgb(200, 100, 80));
                             }
 
                             let r = ui.selectable_label(is_active, text);
-                            if is_active { active_rect = Some(r.rect); }
-                            if r.clicked() { tab_action = Some(TabAction::Switch(idx)); }
+                            if is_active {
+                                active_rect = Some(r.rect);
+                            }
+                            if r.clicked() {
+                                tab_action = Some(TabAction::Switch(idx));
+                            }
                             if r.clicked_by(egui::PointerButton::Middle) {
                                 tab_action = Some(TabAction::Close(idx));
                             }
                             if ui.small_button("\u{00D7}").clicked() {
                                 tab_action = Some(TabAction::Close(idx));
                             }
-                            if idx + 1 < tab_count { ui.separator(); }
+                            if idx + 1 < tab_count {
+                                ui.separator();
+                            }
                         }
                     });
                 });
 
-            if let Some(a) = tab_action { *action = Some(a); }
+            if let Some(a) = tab_action {
+                *action = Some(a);
+            }
             new_scroll_x = out.state.offset.x;
 
             if need_scroll {
@@ -87,7 +104,8 @@ impl Editor {
                     if tab_rect.max.x > inner.max.x {
                         new_scroll_x += tab_rect.max.x - inner.max.x + 8.0;
                     } else if tab_rect.min.x < inner.min.x {
-                        new_scroll_x = (new_scroll_x - (inner.min.x - tab_rect.min.x) - 8.0).max(0.0);
+                        new_scroll_x =
+                            (new_scroll_x - (inner.min.x - tab_rect.min.x) - 8.0).max(0.0);
                     }
                 }
             }
@@ -96,16 +114,23 @@ impl Editor {
             let visible_w = out.inner_rect.width();
             let can_right = new_scroll_x + visible_w < content_w - 1.0;
 
-            if ui.add_enabled(
-                can_right,
-                egui::Button::new("▶").min_size(egui::vec2(btn_w, 0.0)),
-            ).clicked() {
+            if ui
+                .add_enabled(
+                    can_right,
+                    egui::Button::new("▶").min_size(egui::vec2(btn_w, 0.0)),
+                )
+                .clicked()
+            {
                 scroll_right = true;
             }
         });
 
-        if scroll_left { new_scroll_x = (new_scroll_x - config::TAB_SCROLL_STEP).max(0.0); }
-        if scroll_right { new_scroll_x += config::TAB_SCROLL_STEP; }
+        if scroll_left {
+            new_scroll_x = (new_scroll_x - config::TAB_SCROLL_STEP).max(0.0);
+        }
+        if scroll_right {
+            new_scroll_x += config::TAB_SCROLL_STEP;
+        }
 
         self.tab_scroll_x = new_scroll_x;
         self.scroll_to_active = false;
@@ -129,8 +154,12 @@ impl Editor {
             if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                 do_jump = true;
             }
-            if ui.button("OK").clicked() { do_jump = true; }
-            if ui.small_button("\u{00D7}").clicked() { do_close = true; }
+            if ui.button("OK").clicked() {
+                do_jump = true;
+            }
+            if ui.small_button("\u{00D7}").clicked() {
+                do_close = true;
+            }
         });
         ui.separator();
 
@@ -177,16 +206,17 @@ impl Editor {
         let font_size = Self::current_editor_font_size(ui);
         let font_id = egui::FontId::monospace(font_size);
         let row_height = ui.fonts(|f| f.row_height(&font_id));
-        let desired_scroll_y: Option<f32> = jump_line.map(|line| {
-            (line.saturating_sub(1) as f32) * row_height
-        });
+        let desired_scroll_y: Option<f32> =
+            jump_line.map(|line| (line.saturating_sub(1) as f32) * row_height);
 
         if let Some(char_idx) = jump_char_idx {
-            let mut state = egui::text_edit::TextEditState::load(ui.ctx(), edit_id)
-                .unwrap_or_default();
-            state.cursor.set_char_range(Some(egui::text::CCursorRange::one(
-                egui::text::CCursor::new(char_idx),
-            )));
+            let mut state =
+                egui::text_edit::TextEditState::load(ui.ctx(), edit_id).unwrap_or_default();
+            state
+                .cursor
+                .set_char_range(Some(egui::text::CCursorRange::one(
+                    egui::text::CCursor::new(char_idx),
+                )));
             state.store(ui.ctx(), edit_id);
             ui.memory_mut(|m| m.request_focus(edit_id));
         }
@@ -207,11 +237,12 @@ impl Editor {
             scroll.show(ui, |ui| {
                 let highlighter = &self.highlighter;
                 let tab = &mut self.tabs[idx];
-                let previous_content = tab.content.clone();
 
                 let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
                     let mut job = highlighter.highlight(
-                        text, &ext, &fname,
+                        text,
+                        &ext,
+                        &fname,
                         Self::current_editor_font_size(ui),
                     );
                     job.wrap.max_width = wrap_width;
@@ -243,15 +274,14 @@ impl Editor {
                     if response.response.clicked() || response.response.has_focus() {
                         clicked = true;
                     }
+                    if response.response.changed() {
+                        tab.modified = true;
+                        tab.last_edit = Some(Instant::now());
+                        tab.save_status = SaveStatus::Modified;
+                        content_changed = true;
+                    }
                     saved_response = Some(response);
                 });
-
-                if tab.content != previous_content {
-                    tab.modified = true;
-                    tab.last_edit = Some(Instant::now());
-                    tab.save_status = SaveStatus::Modified;
-                    content_changed = true;
-                }
             });
         });
 
@@ -311,11 +341,11 @@ impl Editor {
                         .auto_shrink([false, false])
                         .vertical_scroll_offset(tab.scroll_offset)
                         .show(ui, |ui| {
-                            let previous_content = tab.content.clone();
-
                             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
                                 let mut job = highlighter.highlight(
-                                    text, &ext, &fname,
+                                    text,
+                                    &ext,
+                                    &fname,
                                     Self::current_editor_font_size(ui),
                                 );
                                 job.wrap.max_width = wrap_width;
@@ -346,15 +376,14 @@ impl Editor {
                                 if response.response.clicked() || response.response.has_focus() {
                                     clicked = true;
                                 }
+                                if response.response.changed() {
+                                    tab.modified = true;
+                                    tab.last_edit = Some(Instant::now());
+                                    tab.save_status = SaveStatus::Modified;
+                                    content_changed = true;
+                                }
                                 saved_response = Some(response);
                             });
-
-                            if tab.content != previous_content {
-                                tab.modified = true;
-                                tab.last_edit = Some(Instant::now());
-                                tab.save_status = SaveStatus::Modified;
-                                content_changed = true;
-                            }
                         });
 
                     tab.scroll_offset = scroll_output.state.offset.y;
@@ -363,10 +392,8 @@ impl Editor {
         );
 
         // Táhlo pro změnu velikosti
-        let (handle_rect, handle_response) = ui.allocate_exact_size(
-            egui::vec2(available.x, handle_h),
-            egui::Sense::drag(),
-        );
+        let (handle_rect, handle_response) =
+            ui.allocate_exact_size(egui::vec2(available.x, handle_h), egui::Sense::drag());
         let handle_color = if handle_response.hovered() || handle_response.dragged() {
             ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
             egui::Color32::from_rgb(100, 140, 200)
@@ -428,10 +455,7 @@ impl Editor {
 
     // --- Context menu ---
 
-    pub(super) fn show_editor_context_menu(
-        &mut self,
-        response: &egui::text_edit::TextEditOutput,
-    ) {
+    pub(super) fn show_editor_context_menu(&mut self, response: &egui::text_edit::TextEditOutput) {
         let idx = match self.active_tab {
             Some(i) => i,
             None => return,
@@ -447,7 +471,7 @@ impl Editor {
         response.response.context_menu(|ui| {
             let selected_text = tab.last_cursor_range.and_then(|cr| {
                 let start = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
-                let end   = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
+                let end = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
                 if start != end {
                     Some(
                         tab.content
@@ -462,17 +486,23 @@ impl Editor {
             });
             let has_selection = selected_text.is_some();
 
-            if ui.add_enabled(
-                has_selection,
-                egui::Button::new(egui::RichText::new("Kopírovat").size(menu_size)),
-            ).clicked() {
+            if ui
+                .add_enabled(
+                    has_selection,
+                    egui::Button::new(egui::RichText::new("Kopírovat").size(menu_size)),
+                )
+                .clicked()
+            {
                 if let Some(text) = &selected_text {
                     ui.ctx().copy_text(text.to_string());
                 }
                 ui.close_menu();
             }
 
-            if ui.button(egui::RichText::new("Vložit").size(menu_size)).clicked() {
+            if ui
+                .button(egui::RichText::new("Vložit").size(menu_size))
+                .clicked()
+            {
                 if let Ok(mut clipboard) = arboard::Clipboard::new() {
                     if let Ok(text) = clipboard.get_text() {
                         let insert_pos = tab
@@ -482,14 +512,24 @@ impl Editor {
                         let (start, end) = if let Some(cr) = tab.last_cursor_range {
                             let s = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
                             let e = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
-                            if s != e { (s, e) } else { (insert_pos, insert_pos) }
+                            if s != e {
+                                (s, e)
+                            } else {
+                                (insert_pos, insert_pos)
+                            }
                         } else {
                             (insert_pos, insert_pos)
                         };
-                        let byte_start = tab.content.char_indices().nth(start)
+                        let byte_start = tab
+                            .content
+                            .char_indices()
+                            .nth(start)
                             .map(|(i, _)| i)
                             .unwrap_or(tab.content.len());
-                        let byte_end = tab.content.char_indices().nth(end)
+                        let byte_end = tab
+                            .content
+                            .char_indices()
+                            .nth(end)
                             .map(|(i, _)| i)
                             .unwrap_or(tab.content.len());
                         tab.content.replace_range(byte_start..byte_end, &text);

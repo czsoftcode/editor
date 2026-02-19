@@ -32,14 +32,16 @@ impl Editor {
         }
 
         let mut matches = Vec::new();
-        let mut start = 0;
-        while start + query_len <= content.len() {
-            if content[start..start + query_len].eq_ignore_ascii_case(&query) {
-                matches.push((start, start + query_len));
+        for (start, _) in content.char_indices() {
+            let end = start + query_len;
+            if end > content.len() {
+                break;
             }
-            start += 1;
-            while start < content.len() && !content.is_char_boundary(start) {
-                start += 1;
+            if !content.is_char_boundary(end) {
+                continue;
+            }
+            if content[start..end].eq_ignore_ascii_case(&query) {
+                matches.push((start, end));
             }
         }
 
@@ -140,8 +142,12 @@ impl Editor {
                 }
             }
 
-            if ui.small_button("\u{25B2}").clicked() { do_prev = true; }
-            if ui.small_button("\u{25BC}").clicked() { do_next = true; }
+            if ui.small_button("\u{25B2}").clicked() {
+                do_prev = true;
+            }
+            if ui.small_button("\u{25BC}").clicked() {
+                do_next = true;
+            }
 
             if match_count > 0 {
                 let current = current_idx.map(|i| i + 1).unwrap_or(0);
@@ -155,29 +161,42 @@ impl Editor {
                     self.show_replace = true;
                 }
             }
-            if ui.small_button("\u{00D7}").clicked() { do_close = true; }
+            if ui.small_button("\u{00D7}").clicked() {
+                do_close = true;
+            }
         });
 
         if self.show_replace {
             ui.horizontal(|ui| {
                 ui.label("Nahradit:");
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.replace_query)
-                        .desired_width(200.0),
-                );
-                if ui.small_button("Nahradit").clicked() { do_replace = true; }
-                if ui.small_button("Nahradit v\u{0161}e").clicked() { do_replace_all = true; }
+                ui.add(egui::TextEdit::singleline(&mut self.replace_query).desired_width(200.0));
+                if ui.small_button("Nahradit").clicked() {
+                    do_replace = true;
+                }
+                if ui.small_button("Nahradit v\u{0161}e").clicked() {
+                    do_replace_all = true;
+                }
             });
         }
 
         ui.separator();
 
         self.search_focus_requested = false;
-        if query_changed   { self.update_search(); }
-        if do_next         { self.next_match(); }
-        if do_prev         { self.prev_match(); }
-        if do_replace      { self.replace_current(); }
-        if do_replace_all  { self.replace_all(); }
+        if query_changed {
+            self.update_search();
+        }
+        if do_next {
+            self.next_match();
+        }
+        if do_prev {
+            self.prev_match();
+        }
+        if do_replace {
+            self.replace_current();
+        }
+        if do_replace_all {
+            self.replace_all();
+        }
         if do_close {
             self.show_search = false;
             self.show_replace = false;
@@ -200,7 +219,7 @@ pub(super) fn apply_search_highlights(
         return;
     }
     let highlight_bg = egui::Color32::from_rgba_unmultiplied(255, 255, 0, 60);
-    let current_bg  = egui::Color32::from_rgba_unmultiplied(255, 165, 0, 100);
+    let current_bg = egui::Color32::from_rgba_unmultiplied(255, 165, 0, 100);
 
     for section in &mut job.sections {
         for (idx, &(m_start, m_end)) in matches.iter().enumerate() {

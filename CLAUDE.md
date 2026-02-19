@@ -81,12 +81,11 @@ build.rs           — auto-inkrementace patch verze při release buildu
 - **Hledání napříč projektem (Ctrl+Shift+F)** — pure Rust implementace; výsledky ve spodním panelu s možností přejít na řádek; max 2000 výsledků
 - **Git integrace** — indikátor větve (⎇ branch) ve status baru; soubory v file tree obarveny podle git stavu (M=zlatá, A=zelená, ??=šedá, D=červená); refresh každých 5s + po Ctrl+S
 - **Vylepšený status bar** — typ souboru (Rust/PHP/Markdown/…), kódování UTF-8, git větev; vše vpravo vedle pozice kurzoru
+- **Konfigurace** — `~/.config/rust_editor/settings.json`; settings panel: dark/light téma, font editoru (10–24 px slider), AI font scale, výchozí cesta projektů; dynamická velikost fontu v gutteru a číslech řádků
 
 ## TODO
 
-### Nejbližší kroky
-
-- [ ] Konfigurace — settings.toml / egui settings panel (font size, téma, výchozí cesta)
+### Pokročilé
 
 ### Pokročilé
 

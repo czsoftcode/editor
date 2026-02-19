@@ -1103,8 +1103,17 @@ impl Editor {
         });
     }
 
+    fn current_editor_font_size(ui: &egui::Ui) -> f32 {
+        ui.style()
+            .text_styles
+            .get(&egui::TextStyle::Monospace)
+            .map(|f| f.size)
+            .unwrap_or(config::EDITOR_FONT_SIZE)
+    }
+
     fn gutter_width(ui: &egui::Ui, line_count: usize) -> f32 {
-        let font_id = egui::FontId::monospace(config::EDITOR_FONT_SIZE);
+        let font_size = Self::current_editor_font_size(ui);
+        let font_id = egui::FontId::monospace(font_size);
         let digits = ((line_count.max(1) as f64).log10().floor() as usize) + 1;
         let char_width = ui.fonts(|f| f.glyph_width(&font_id, '0'));
         (digits as f32) * char_width + 12.0
@@ -1115,7 +1124,8 @@ impl Editor {
         output: &egui::text_edit::TextEditOutput,
         gutter_rect: egui::Rect,
     ) {
-        let font_id = egui::FontId::monospace(config::EDITOR_FONT_SIZE);
+        let font_size = Self::current_editor_font_size(ui);
+        let font_id = egui::FontId::monospace(font_size);
         let gutter_color = egui::Color32::from_rgb(130, 130, 130);
         let highlight_color = egui::Color32::from_rgba_unmultiplied(80, 65, 15, 50);
         let painter = ui.painter();

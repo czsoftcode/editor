@@ -533,22 +533,76 @@ fn render_dialogs(
     }
 
     if ws.show_settings {
+        // Klonujeme aktuální settings — uživatel mění lokální kopii, Save ji zapíše do shared
+        let mut settings = shared.lock().unwrap().settings.clone();
+        let mut do_save = false;
+
         let modal = egui::Modal::new(egui::Id::new("settings_modal"));
         modal.show(ctx, |ui| {
             ui.heading("Nastavení");
-            ui.add_space(12.0);
-            ui.strong("AI terminál");
+            ui.add_space(10.0);
+
+            // Téma
+            ui.strong("Téma");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut settings.dark_theme, true, "Tmavé");
+                ui.radio_value(&mut settings.dark_theme, false, "Světlé");
+            });
+            ui.add_space(10.0);
+
+            // Font editoru
+            ui.strong("Editor — velikost fontu");
             ui.add_space(4.0);
-            ui.label("Velikost fontu:");
+            ui.add(
+                egui::Slider::new(&mut settings.editor_font_size, 10.0..=24.0)
+                    .step_by(1.0)
+                    .suffix(" px")
+                    .clamping(egui::SliderClamping::Always),
+            );
+            ui.add_space(10.0);
+
+            // AI terminál font scale (per-workspace, mimo global settings)
+            ui.strong("AI terminál — velikost fontu");
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 for &scale in &[100u32, 125, 150, 200] {
                     ui.radio_value(&mut ws.ai_font_scale, scale, format!("{}%", scale));
                 }
             });
-            ui.add_space(16.0);
-            if ui.button("Zavřít").clicked() { ws.show_settings = false; }
+            ui.add_space(10.0);
+
+            // Výchozí cesta projektů
+            ui.strong("Výchozí cesta projektů");
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut settings.default_project_path)
+                        .desired_width(280.0),
+                );
+                if ui.button("…").clicked() {
+                    if let Some(dir) = rfd::FileDialog::new()
+                        .set_directory(&settings.default_project_path)
+                        .pick_folder()
+                    {
+                        settings.default_project_path = dir.to_string_lossy().to_string();
+                    }
+                }
+            });
+            ui.add_space(14.0);
+
+            ui.horizontal(|ui| {
+                if ui.button("Uložit").clicked() { do_save = true; }
+                if ui.button("Zavřít").clicked() { ws.show_settings = false; }
+            });
         });
+
+        if do_save {
+            settings.save();
+            // Aktualizovat wizard cestu při změně výchozí cesty
+            ws.wizard.path = settings.default_project_path.clone();
+            shared.lock().unwrap().settings = settings;
+            ws.show_settings = false;
+        }
     }
 
     if ws.show_new_project {

@@ -87,6 +87,7 @@ pub(crate) enum AppAction {
 pub(crate) struct AppShared {
     pub recent_projects: Vec<PathBuf>,
     pub actions: Vec<AppAction>,
+    pub settings: crate::settings::Settings,
 }
 
 // ---------------------------------------------------------------------------
@@ -127,9 +128,5 @@ pub(crate) fn path_env() -> String {
 }
 
 pub(crate) fn default_wizard_path() -> String {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("/"))
-        .join("MyProject")
-        .to_string_lossy()
-        .to_string()
+    crate::settings::default_project_path()
 }

@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod highlighter;
 mod ipc;
+mod settings;
 mod watcher;
 
 use std::path::PathBuf;

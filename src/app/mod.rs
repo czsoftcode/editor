@@ -106,9 +106,12 @@ impl EditorApp {
             })
             .collect();
 
+        let settings = crate::settings::Settings::load();
+
         let shared = Arc::new(Mutex::new(AppShared {
             recent_projects,
             actions: Vec::new(),
+            settings,
         }));
 
         // Aktualizovat lokální cache nedávných
@@ -346,6 +349,9 @@ impl eframe::App for EditorApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Aplikovat nastavení (téma, font) na každý snímek
+        self.shared.lock().unwrap().settings.clone().apply(ctx);
+
         // IPC focus request
         if self.focus_rx.try_recv().is_ok() {
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);

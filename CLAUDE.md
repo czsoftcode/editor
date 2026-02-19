@@ -77,13 +77,14 @@ build.rs           — auto-inkrementace patch verze při release buildu
 - **Ctrl+G (přejít na řádek)** — inline dialog pro zadání čísla řádku; kurzor i scroll se přesunou na cílový řádek
 - **Ctrl+B / Ctrl+R zkratky** — spuštění cargo build / cargo run klávesami i z menu Upravit
 - **Status bar řádek:sloupec** — aktuální pozice kurzoru zobrazena vpravo ve status baru
+- **Ctrl+P — fuzzy file picker** — rychlé otevření souboru projektu; subsequence fuzzy matching; navigace šipkami; ignoruje target, .git, node_modules aj.
+- **Hledání napříč projektem (Ctrl+Shift+F)** — pure Rust implementace; výsledky ve spodním panelu s možností přejít na řádek; max 2000 výsledků
 
 ## TODO
 
 ### Nejbližší kroky
 
-- [ ] Klávesové zkratky — Ctrl+P rychlé otevření souboru (fuzzy)
-- [ ] Hledání napříč projektem
+- [ ] Git integrace — indikátor větve ve status baru, barevný stav souborů ve stromu
 
 ### Střední priorita
 

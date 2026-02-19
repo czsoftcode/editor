@@ -18,6 +18,75 @@ use crate::config;
 use crate::watcher::{FileEvent, FileWatcher, FsChange, ProjectWatcher};
 
 // ---------------------------------------------------------------------------
+// FilePicker — Ctrl+P rychlé otevření souboru
+// ---------------------------------------------------------------------------
+
+pub(crate) struct FilePicker {
+    pub query: String,
+    /// Všechny soubory projektu (relativní cesty)
+    pub files: Vec<PathBuf>,
+    /// Indexy do `files` odpovídající aktuálnímu filtru
+    pub filtered: Vec<usize>,
+    /// Aktuálně označená položka v seznamu
+    pub selected: usize,
+    pub focus_requested: bool,
+}
+
+impl FilePicker {
+    fn new(files: Vec<PathBuf>) -> Self {
+        let filtered: Vec<usize> = (0..files.len()).collect();
+        Self {
+            query: String::new(),
+            files,
+            filtered,
+            selected: 0,
+            focus_requested: true,
+        }
+    }
+
+    fn update_filter(&mut self) {
+        let q = self.query.to_lowercase();
+        self.filtered = self.files
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| fuzzy_match(&q, &p.to_string_lossy()))
+            .map(|(i, _)| i)
+            .collect();
+        self.selected = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ProjectSearch — hledání napříč projektem
+// ---------------------------------------------------------------------------
+
+pub(crate) struct SearchResult {
+    pub file: PathBuf,
+    pub line: usize,
+    pub text: String,
+}
+
+pub(crate) struct ProjectSearch {
+    pub show_input: bool,
+    pub query: String,
+    pub results: Vec<SearchResult>,
+    pub rx: Option<mpsc::Receiver<Vec<SearchResult>>>,
+    pub focus_requested: bool,
+}
+
+impl Default for ProjectSearch {
+    fn default() -> Self {
+        Self {
+            show_input: false,
+            query: String::new(),
+            results: Vec::new(),
+            rx: None,
+            focus_requested: false,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // WorkspaceState — stav jednoho pracovního prostoru (okna projektu)
 // ---------------------------------------------------------------------------
 
@@ -46,6 +115,10 @@ pub(crate) struct WorkspaceState {
     pub toasts: Vec<Toast>,
     /// Kanál pro výsledek asynchronního file dialogu (výběr složky).
     pub folder_pick_rx: Option<mpsc::Receiver<FolderPickResult>>,
+    /// Ctrl+P — fuzzy file picker
+    pub file_picker: Option<FilePicker>,
+    /// Hledání napříč projektem
+    pub project_search: ProjectSearch,
 }
 
 // ---------------------------------------------------------------------------
@@ -99,6 +172,8 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         wizard: WizardState { path: default_wizard_path(), ..WizardState::default() },
         toasts: Vec::new(),
         folder_pick_rx: None,
+        file_picker: None,
+        project_search: ProjectSearch::default(),
     }
 }
 
@@ -131,6 +206,8 @@ struct MenuActions {
     settings: bool,
     build: bool,
     run: bool,
+    open_file_picker: bool,
+    project_search: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -193,6 +270,13 @@ fn process_background_events(ws: &mut WorkspaceState) {
         if let Ok(errors) = rx.try_recv() {
             ws.build_errors = errors;
             ws.build_error_rx = None;
+        }
+    }
+
+    if let Some(rx) = &ws.project_search.rx {
+        if let Ok(results) = rx.try_recv() {
+            ws.project_search.results = results;
+            ws.project_search.rx = None;
         }
     }
 
@@ -269,6 +353,14 @@ fn render_menu_bar(
                 if ui.add(egui::Button::new("Přejít na řádek…").shortcut_text("Ctrl+G")).clicked() {
                     ui.close_menu();
                 }
+                if ui.add(egui::Button::new("Otevřít soubor…").shortcut_text("Ctrl+P")).clicked() {
+                    actions.open_file_picker = true;
+                    ui.close_menu();
+                }
+                if ui.add(egui::Button::new("Hledat v projektu…").shortcut_text("Ctrl+Shift+F")).clicked() {
+                    actions.project_search = true;
+                    ui.close_menu();
+                }
                 ui.separator();
                 if ui.add(egui::Button::new("Build").shortcut_text("Ctrl+B")).clicked() {
                     actions.build = true;
@@ -325,6 +417,14 @@ fn process_menu_actions(
     }
     if actions.run {
         if let Some(t) = &mut ws.build_terminal { t.send_command("cargo run 2>&1"); }
+    }
+    if actions.open_file_picker && ws.file_picker.is_none() {
+        let files = collect_project_files(&ws.root_path);
+        ws.file_picker = Some(FilePicker::new(files));
+    }
+    if actions.project_search {
+        ws.project_search.show_input = true;
+        ws.project_search.focus_requested = true;
     }
 
     if let Some(path) = actions.open_recent {
@@ -619,6 +719,58 @@ fn render_build_panel(
             ws.editor.jump_to_line(line);
         }
     }
+
+    // Výsledky hledání napříč projektem
+    let loading = ws.project_search.rx.is_some();
+    let has_results = !ws.project_search.results.is_empty();
+    if loading || has_results {
+        ui.separator();
+        ui.horizontal(|ui| {
+            if loading {
+                ui.label(egui::RichText::new("Hledání…").weak().size(12.0));
+            } else {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Výsledky hledání „{}\" ({})",
+                        ws.project_search.query,
+                        ws.project_search.results.len()
+                    ))
+                    .strong()
+                    .size(12.0),
+                );
+                if ui.small_button("\u{00D7}").clicked() {
+                    ws.project_search.results.clear();
+                }
+            }
+        });
+        if has_results {
+            let mut open_result: Option<(PathBuf, usize)> = None;
+            egui::ScrollArea::vertical()
+                .id_salt("project_search_scroll")
+                .max_height(config::BUILD_ERROR_LIST_MAX_HEIGHT)
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    for result in &ws.project_search.results {
+                        let text = format!("{}:{}  {}", result.file.display(), result.line, result.text);
+                        let r = ui.add(
+                            egui::Label::new(
+                                egui::RichText::new(&text)
+                                    .size(11.0)
+                                    .color(egui::Color32::from_rgb(130, 190, 255)),
+                            )
+                            .sense(egui::Sense::click()),
+                        );
+                        if r.clicked() {
+                            open_result = Some((ws.root_path.join(&result.file), result.line));
+                        }
+                    }
+                });
+            if let Some((path, line)) = open_result {
+                open_file_in_ws(ws, path);
+                ws.editor.jump_to_line(line);
+            }
+        }
+    }
 }
 
 /// Vykreslí toast notifikace v pravém dolním rohu. Odstraní vypršelé toasty.
@@ -656,6 +808,222 @@ fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
 }
 
 // ---------------------------------------------------------------------------
+// Fuzzy matching a sběr souborů projektu
+// ---------------------------------------------------------------------------
+
+/// Subsequence fuzzy match — pattern znaky musí být v textu v pořadí, ale nemusí sousedit.
+fn fuzzy_match(pattern: &str, text: &str) -> bool {
+    if pattern.is_empty() { return true; }
+    let mut text_chars = text.chars();
+    for pc in pattern.chars() {
+        loop {
+            match text_chars.next() {
+                Some(tc) if tc == pc => break,
+                Some(_) => continue,
+                None => return false,
+            }
+        }
+    }
+    true
+}
+
+const EXCLUDED_DIRS: &[&str] = &[
+    "target", ".git", "node_modules", "vendor", ".idea", ".vscode", ".cache",
+];
+
+/// Rekurzivně sbírá soubory projektu (relativní cesty), vynechává nevýznamné adresáře.
+fn collect_project_files(root: &PathBuf) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    collect_files_recursive(root, root, &mut files);
+    files.sort();
+    files
+}
+
+fn collect_files_recursive(root: &PathBuf, dir: &PathBuf, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if name_str.starts_with('.') { continue; }
+        if EXCLUDED_DIRS.contains(&name_str.as_ref()) { continue; }
+        if path.is_dir() {
+            collect_files_recursive(root, &path, files);
+        } else if path.is_file() {
+            if let Ok(rel) = path.strip_prefix(root) {
+                files.push(rel.to_path_buf());
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// render_file_picker — modal pro Ctrl+P
+// ---------------------------------------------------------------------------
+
+fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -> Option<PathBuf> {
+    let picker = ws.file_picker.as_mut()?;
+
+    // Globální klávesy pro navigaci (čteme před renderem, aby fungovaly i při focus na TextEdit)
+    let key_up    = ctx.input(|i| i.key_pressed(egui::Key::ArrowUp));
+    let key_down  = ctx.input(|i| i.key_pressed(egui::Key::ArrowDown));
+    let key_enter = ctx.input(|i| i.key_pressed(egui::Key::Enter));
+    let key_esc   = ctx.input(|i| i.key_pressed(egui::Key::Escape));
+
+    let filtered_len = picker.filtered.len();
+    if key_up && picker.selected > 0 { picker.selected -= 1; }
+    if key_down && picker.selected + 1 < filtered_len { picker.selected += 1; }
+
+    let mut selected_file: Option<PathBuf> = None;
+    let mut close = key_esc;
+
+    if key_enter && !picker.filtered.is_empty() {
+        let idx = picker.filtered[picker.selected];
+        selected_file = Some(ws.root_path.join(&picker.files[idx]));
+        close = true;
+    }
+
+    // Překreslíme picker pouze pokud ještě máme data
+    if let Some(picker) = ws.file_picker.as_mut() {
+        let focus_req = picker.focus_requested;
+        let total = picker.files.len();
+        let max_show = 14_usize;
+
+        let modal = egui::Modal::new(egui::Id::new("file_picker_modal"));
+        modal.show(ctx, |ui| {
+            ui.set_min_width(520.0);
+            ui.heading("Otevřít soubor");
+            ui.add_space(6.0);
+
+            let resp = ui.add(
+                egui::TextEdit::singleline(&mut picker.query)
+                    .hint_text("Hledat… (fuzzy)")
+                    .desired_width(500.0)
+                    .id(egui::Id::new("file_picker_input")),
+            );
+            if focus_req { resp.request_focus(); }
+            if resp.changed() { picker.update_filter(); }
+
+            let count_label = if picker.query.is_empty() {
+                format!("{} souborů", total)
+            } else {
+                format!("{}/{} souborů", picker.filtered.len(), total)
+            };
+            ui.add_space(2.0);
+            ui.label(egui::RichText::new(count_label).weak().size(11.0));
+            ui.add_space(4.0);
+
+            egui::ScrollArea::vertical()
+                .max_height(320.0)
+                .id_salt("fp_scroll")
+                .show(ui, |ui| {
+                    for (disp_idx, &file_idx) in picker.filtered.iter().take(max_show).enumerate() {
+                        let path = &picker.files[file_idx];
+                        let is_sel = disp_idx == picker.selected;
+                        let text = egui::RichText::new(path.to_string_lossy())
+                            .monospace()
+                            .size(12.0);
+                        let r = ui.selectable_label(is_sel, text);
+                        if is_sel { r.scroll_to_me(None); }
+                        if r.clicked() {
+                            selected_file = Some(ws.root_path.join(path));
+                            close = true;
+                        }
+                    }
+                    if picker.filtered.len() > max_show {
+                        ui.label(
+                            egui::RichText::new(format!("… a {} dalších", picker.filtered.len() - max_show))
+                                .weak()
+                                .size(11.0),
+                        );
+                    }
+                });
+        });
+
+        picker.focus_requested = false;
+    }
+
+    if close {
+        ws.file_picker = None;
+    }
+    selected_file
+}
+
+// ---------------------------------------------------------------------------
+// Hledání napříč projektem (Ctrl+Shift+F)
+// ---------------------------------------------------------------------------
+
+/// Spustí hledání v pozadí (pure Rust, bez externích nástrojů).
+fn run_project_search(root: PathBuf, query: String) -> mpsc::Receiver<Vec<SearchResult>> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let files = collect_project_files(&root);
+        let q = query.to_lowercase();
+        let mut results = Vec::new();
+        'outer: for rel in files {
+            let abs = root.join(&rel);
+            let Ok(content) = std::fs::read_to_string(&abs) else { continue };
+            for (idx, line) in content.lines().enumerate() {
+                if line.to_lowercase().contains(&q) {
+                    results.push(SearchResult {
+                        file: rel.clone(),
+                        line: idx + 1,
+                        text: line.trim().to_string(),
+                    });
+                    if results.len() >= 2000 { break 'outer; }
+                }
+            }
+        }
+        let _ = tx.send(results);
+    });
+    rx
+}
+
+/// Dialog pro zadání hledaného výrazu.
+fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState) {
+    if !ws.project_search.show_input { return; }
+
+    let focus_req = ws.project_search.focus_requested;
+    let mut start_search = false;
+    let mut close = false;
+
+    let modal = egui::Modal::new(egui::Id::new("project_search_modal"));
+    modal.show(ctx, |ui| {
+        ui.heading("Hledat v projektu");
+        ui.add_space(8.0);
+        let resp = ui.add(
+            egui::TextEdit::singleline(&mut ws.project_search.query)
+                .hint_text("Hledaný výraz…")
+                .desired_width(380.0)
+                .id(egui::Id::new("project_search_input")),
+        );
+        if focus_req { resp.request_focus(); }
+        if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            start_search = true;
+        }
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            if ui.button("Hledat").clicked() { start_search = true; }
+            if ui.button("Zrušit").clicked() { close = true; }
+        });
+    });
+
+    ws.project_search.focus_requested = false;
+
+    if start_search && !ws.project_search.query.trim().is_empty() {
+        ws.project_search.results.clear();
+        ws.project_search.rx = Some(run_project_search(
+            ws.root_path.clone(),
+            ws.project_search.query.trim().to_string(),
+        ));
+        ws.project_search.show_input = false;
+    }
+    if close {
+        ws.project_search.show_input = false;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // render_workspace — orchestrátor vykreslení jednoho pracovního prostoru
 // Vrací Some(path) pokud má být workspace reinicializován s novou cestou.
 // ---------------------------------------------------------------------------
@@ -690,6 +1058,20 @@ pub(crate) fn render_workspace(
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R)) {
         if let Some(t) = &mut ws.build_terminal { t.send_command("cargo run 2>&1"); }
     }
+    // Ctrl+P — fuzzy file picker
+    if ctx.input(|i| i.modifiers.ctrl && !i.modifiers.shift && i.key_pressed(egui::Key::P)) {
+        if ws.file_picker.is_none() {
+            let files = collect_project_files(&ws.root_path);
+            ws.file_picker = Some(FilePicker::new(files));
+        } else {
+            ws.file_picker = None;
+        }
+    }
+    // Ctrl+Shift+F — hledání napříč projektem
+    if ctx.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::F)) {
+        ws.project_search.show_input = true;
+        ws.project_search.focus_requested = true;
+    }
 
     // Menu bar + zpracování akcí
     let actions = render_menu_bar(ctx, ws, shared);
@@ -697,6 +1079,14 @@ pub(crate) fn render_workspace(
 
     // Modální dialogy
     render_dialogs(ctx, ws, shared);
+
+    // File picker (Ctrl+P)
+    if let Some(path) = render_file_picker(ctx, ws) {
+        open_file_in_ws(ws, path);
+    }
+
+    // Hledání napříč projektem
+    render_project_search_dialog(ctx, ws);
 
     // Status bar (musí být před SidePanel)
     egui::TopBottomPanel::bottom("status_bar")

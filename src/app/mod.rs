@@ -277,8 +277,8 @@ impl EditorApp {
             let title = sw
                 .state
                 .try_lock()
-                .map(|ws| format!("Rust Editor — {}", ws.root_path.display()))
-                .unwrap_or_else(|_| "Rust Editor".to_string());
+                .map(|ws| format!("PolyCredo Editor — {}", ws.root_path.display()))
+                .unwrap_or_else(|_| "PolyCredo Editor".to_string());
 
             ctx.show_viewport_deferred(
                 vid,
@@ -298,7 +298,7 @@ impl EditorApp {
                         let new_path_clone = new_path.clone();
                         *ws = init_workspace(new_path, &panel);
                         ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
-                            "Rust Editor — {}",
+                            "PolyCredo Editor — {}",
                             ws.root_path.display()
                         )));
                         shared_arc
@@ -358,7 +358,9 @@ impl EditorApp {
                 self.save_session();
                 self.root_ws = None;
                 self.show_close_project_confirm = false;
-                ctx.send_viewport_cmd(egui::ViewportCommand::Title("Rust Editor".to_string()));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Title(
+                    "PolyCredo Editor".to_string(),
+                ));
             }
             QuitDialogResult::Cancelled => {
                 self.show_close_project_confirm = false;
@@ -393,7 +395,7 @@ impl EditorApp {
 
     fn open_workspace_from_startup(&mut self, ctx: &egui::Context, path: PathBuf) {
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
-            "Rust Editor — {}",
+            "PolyCredo Editor — {}",
             path.display()
         )));
         Ipc::register(&path);
@@ -507,7 +509,7 @@ impl eframe::App for EditorApp {
                 let new_path_clone = new_path.clone();
                 ws = init_workspace(new_path, &panel);
                 ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
-                    "Rust Editor — {}",
+                    "PolyCredo Editor — {}",
                     ws.root_path.display()
                 )));
                 self.push_recent(new_path_clone);

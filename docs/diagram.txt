@@ -1,7 +1,7 @@
-Vysvětlení architektury aplikace Rust Editor (pro laiky)
+Vysvětlení architektury aplikace PolyCredo Editor (pro laiky)
 ======================================================
 
-Tento dokument popisuje, jak funguje aplikace Rust Editor na základě přiloženého diagramu (docs/diagram.svg).
+Tento dokument popisuje, jak funguje aplikace PolyCredo Editor na základě přiloženého diagramu (docs/diagram.svg).
 
 1. VSTUP A SPRÁVA (Horní vrstva)
 --------------------------------

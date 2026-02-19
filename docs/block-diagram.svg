@@ -26,7 +26,7 @@
 
   <rect class="bg" x="0" y="0" width="1700" height="1100" />
 
-  <text class="title" x="850" y="58" text-anchor="middle">Rust Editor - Block Diagram</text>
+  <text class="title" x="850" y="58" text-anchor="middle">PolyCredo Editor - Block Diagram</text>
   <text class="subtitle" x="850" y="86" text-anchor="middle">single-process multi-window desktop app (eframe/egui)</text>
 
   <!-- Core -->
@@ -49,7 +49,7 @@
 
   <rect class="box datastore" x="1220" y="120" width="380" height="90" />
   <text class="label" x="1410" y="155" text-anchor="middle">App Data</text>
-  <text class="small" x="1410" y="180" text-anchor="middle">~/.config/rust_editor/{recent,session,settings}.json</text>
+  <text class="small" x="1410" y="180" text-anchor="middle">~/.config/polycredo-editor/{recent,session,settings}.json</text>
 
   <rect class="box service" x="90" y="250" width="380" height="170" />
   <text class="label" x="280" y="288" text-anchor="middle">Settings (src/settings.rs)</text>

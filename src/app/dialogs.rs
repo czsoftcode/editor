@@ -317,7 +317,7 @@ pub(crate) fn show_quit_confirm_dialog(ctx: &egui::Context) -> QuitDialogResult 
     modal.show(ctx, |ui| {
         ui.heading("Ukončit aplikaci");
         ui.add_space(8.0);
-        ui.label("Opravdu chcete ukončit Rust Editor?");
+        ui.label("Opravdu chcete ukončit PolyCredo Editor?");
         ui.add_space(12.0);
         ui.horizontal(|ui| {
             if ui.button("Ukončit").clicked() {

@@ -24,19 +24,22 @@ use serde_json;
 use crate::config;
 
 const IPC_MAX_WORKERS: usize = 16;
+const CONFIG_DIR_NAME: &str = "polycredo-editor";
 
 // ---------------------------------------------------------------------------
 // Cesty k souborům
 // ---------------------------------------------------------------------------
 
+fn config_root_dir() -> PathBuf {
+    dirs::config_dir().unwrap_or_else(std::env::temp_dir)
+}
+
 fn config_dir() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join("rust_editor")
+    config_root_dir().join(CONFIG_DIR_NAME)
 }
 
 fn socket_path() -> PathBuf {
-    config_dir().join("rust_editor.sock")
+    config_dir().join("polycredo-editor.sock")
 }
 
 fn recent_path() -> PathBuf {
@@ -97,17 +100,21 @@ fn save_paths(file_path: &std::path::Path, paths: &[PathBuf]) {
     }
 }
 
-fn load_paths(file_path: &std::path::Path) -> Vec<PathBuf> {
-    let Ok(content) = std::fs::read_to_string(file_path) else {
-        return vec![];
-    };
-    let Ok(strings): Result<Vec<String>, _> = serde_json::from_str(&content) else {
+fn parse_paths(content: &str) -> Vec<PathBuf> {
+    let Ok(strings): Result<Vec<String>, _> = serde_json::from_str(content) else {
         return vec![];
     };
     strings
         .into_iter()
         .filter_map(|s| normalize_project_path_str(&s))
         .collect()
+}
+
+fn load_paths(file_path: &std::path::Path) -> Vec<PathBuf> {
+    let Ok(content) = std::fs::read_to_string(file_path) else {
+        return vec![];
+    };
+    parse_paths(&content)
 }
 
 fn save_recent(recent: &[PathBuf]) {
@@ -124,7 +131,7 @@ fn load_recent() -> Vec<PathBuf> {
 
 /// Cesta k socketu konkrétního procesu (pro příkaz FOCUS).
 pub fn process_socket_path(pid: u32) -> PathBuf {
-    std::env::temp_dir().join(format!("rust_editor_{}.sock", pid))
+    std::env::temp_dir().join(format!("polycredo-editor_{}.sock", pid))
 }
 
 /// Spustí listener na per-process socketu. Vrátí kanál, na kterém main vlákno

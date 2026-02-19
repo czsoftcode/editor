@@ -648,11 +648,11 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
     if ws.show_about {
         let modal = egui::Modal::new(egui::Id::new(("about_modal", id_salt)));
         modal.show(ctx, |ui| {
-            ui.heading("Rust Editor");
+            ui.heading("PolyCredo Editor");
             ui.add_space(8.0);
             ui.label(format!("Verze: {}", env!("BUILD_VERSION")));
             ui.add_space(8.0);
-            ui.label("Jednoduchý textový editor napsaný v Rustu s eframe/egui.");
+            ui.label("AI Polyglot Code Editor");
             ui.add_space(12.0);
             if ui.button("Zavřít").clicked() {
                 ws.show_about = false;

@@ -1,6 +1,6 @@
 [package]
-name = "rust_editor"
-version = "0.2.0"
+name = "polycredo-editor"
+version = "0.3.0"
 edition = "2024"
 
 [dependencies]

@@ -1,4 +1,9 @@
-# Rust Editor
+# PolyCredo Editor
+
+> **Pracovní název:** PolyCredo Editor
+> **Produkční název:** PolyCredo Editor
+> **Primární slogan:** PolyCredo Editor — AI Polyglot Code Editor
+> **Alternativní slogan (store/listing):** PolyCredo Editor — AI Code Editor for Every Language
 
 Jednoduchý textový editor napsaný v Rustu s eframe/egui.
 
@@ -64,9 +69,9 @@ build.rs           — auto-inkrementace patch verze při release buildu
 - Build toolbar — tlačítka Build/Run/Test/Clean, parsování chyb z cargo build, klikatelný error list
 - Nedávné projekty — seznam v menu Projekt i ve startup dialogu, persistováno přes eframe storage
 - Otevření projektu — dialog „V tomto okně / V novém okně / Zrušit" při otevírání projektu, když je workspace již otevřen
-- Multi-instance správa — IPC přes Unix socket (`~/.config/rust_editor/rust_editor.sock`); příkazy: PING, QUERY, REGISTER, UNREGISTER, ADD_RECENT, RECENT; sdílené nedávné projekty v `~/.config/rust_editor/recent.json`
+- Multi-instance správa — IPC přes Unix socket (`~/.config/polycredo-editor/polycredo-editor.sock`); příkazy: PING, QUERY, REGISTER, UNREGISTER, ADD_RECENT, RECENT; sdílené nedávné projekty v `~/.config/polycredo-editor/recent.json`
 - **Single-process multi-window architektura** — jeden proces, více oken (egui `show_viewport_deferred`); každý projekt se otevře v samostatném okně; `AppShared` (za `Arc<Mutex>`) pro komunikaci mezi viewporty; kořenový viewport renderuje root workspace nebo startup dialog; sekundární workspacy jsou za `Arc<Mutex<WorkspaceState>>`
-- **Session restore** — při startu se obnoví všechna předchozí okna ze session souboru (`~/.config/rust_editor/session.json`); při ukončení se session uloží; podobný přístup jako PHPStorm
+- **Session restore** — při startu se obnoví všechna předchozí okna ze session souboru (`~/.config/polycredo-editor/session.json`); při ukončení se session uloží; podobný přístup jako PHPStorm
 - **Toast notifikace** — krátkodobé chybové hlášky v pravém dolním rohu (auto-dismiss po 4 s); propagace I/O chyb z file tree do UI
 - **Detekce smazání souboru** — FileWatcher zachycuje remove eventy; otevřená záložka se označí ⚠ červeně, autosave se zakáže
 - **Async file dialog** — výběr složky běží ve vlastním vlákně (neblokuje UI)
@@ -81,7 +86,7 @@ build.rs           — auto-inkrementace patch verze při release buildu
 - **Hledání napříč projektem (Ctrl+Shift+F)** — pure Rust implementace; výsledky ve spodním panelu s možností přejít na řádek; max 2000 výsledků
 - **Git integrace** — indikátor větve (⎇ branch) ve status baru; soubory v file tree obarveny podle git stavu (M=zlatá, A=zelená, ??=šedá, D=červená); refresh každých 5s + po Ctrl+S
 - **Vylepšený status bar** — typ souboru (Rust/PHP/Markdown/…), kódování UTF-8, git větev; vše vpravo vedle pozice kurzoru
-- **Konfigurace** — `~/.config/rust_editor/settings.json`; settings panel: dark/light téma, font editoru (10–24 px slider), AI font scale, výchozí cesta projektů; dynamická velikost fontu v gutteru a číslech řádků
+- **Konfigurace** — `~/.config/polycredo-editor/settings.json`; settings panel: dark/light téma, font editoru (10–24 px slider), AI font scale, výchozí cesta projektů; dynamická velikost fontu v gutteru a číslech řádků
 
 ## TODO
 
@@ -93,8 +98,5 @@ build.rs           — auto-inkrementace patch verze při release buildu
 - [ ] Minimap — zmenšený náhled souboru na pravé straně editoru
 - [ ] Konfigurace — settings.toml (font, velikost, téma, klávesové zkratky), dark/light téma
 - [ ] Vylepšení file tree — ikony podle typu souboru, drag & drop, filtrování/hledání
-
-
-
 
 

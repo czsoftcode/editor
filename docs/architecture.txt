@@ -104,7 +104,7 @@ Vrstva 4 — TYPY A KONFIGURACE
 
   settings.rs
     Co dělá: Načítá a ukládá uživatelské nastavení z disku
-    (~/.config/rust_editor/settings.json). Obsahuje: světlé/tmavé téma,
+    (~/.config/polycredo-editor/settings.json). Obsahuje: světlé/tmavé téma,
     velikost písma editoru, výchozí cestu pro projekty. Nastavení se
     aplikuje hned — při změně fontu se editor překreslí okamžitě.
     Analogie: Osobní preference zaměstnance uložené v šanonu.
@@ -223,12 +223,12 @@ Příklad: Kliknete na soubor v levém panelu.
 ČÁST 4 — KONFIGURACE A UKLÁDÁNÍ DAT
 ──────────────────────────────────────────────────────────────────────────────
 
-Program ukládá data do ~/.config/rust_editor/:
+Program ukládá data do ~/.config/polycredo-editor/:
 
   settings.json   — Uživatelské nastavení (téma, font, výchozí cesta).
   recent.json     — Seznam posledních projektů (max 10, sdílený mezi okny).
   session.json    — Projekty otevřené při posledním ukončení (obnova session).
-  rust_editor.sock — Unix socket pro komunikaci mezi instancemi programu.
+  polycredo-editor.sock — Unix socket pro komunikaci mezi instancemi programu.
 
 
 ──────────────────────────────────────────────────────────────────────────────
@@ -253,6 +253,6 @@ Proč jsou šipky v diagramu čárkované pro types/config?
 
 ──────────────────────────────────────────────────────────────────────────────
   Tento dokument byl vygenerován 2026-02-19.
-  Zdrojový kód: /home/stkremen/RUST/rust_editor/src/
-  Diagram: /home/stkremen/RUST/rust_editor/architecture.svg
+  Zdrojový kód: /home/stkremen/RUST/polycredo-editor/src/
+  Diagram: /home/stkremen/RUST/polycredo-editor/architecture.svg
 ──────────────────────────────────────────────────────────────────────────────

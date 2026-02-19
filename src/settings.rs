@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 const SETTINGS_FILE: &str = "settings.json";
+const CONFIG_DIR_NAME: &str = "polycredo-editor";
 
 // ---------------------------------------------------------------------------
 // Výchozí hodnoty (potřebné pro serde default attrs)
@@ -51,10 +52,14 @@ impl Default for Settings {
 }
 
 fn settings_path() -> PathBuf {
+    config_dir()
+        .join(CONFIG_DIR_NAME)
+        .join(SETTINGS_FILE)
+}
+
+fn config_dir() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("rust_editor")
-        .join(SETTINGS_FILE)
 }
 
 impl Settings {
@@ -68,7 +73,7 @@ impl Settings {
         }
     }
 
-    /// Uloží nastavení na disk (~/.config/rust_editor/settings.json).
+    /// Uloží nastavení na disk (~/.config/polycredo-editor/settings.json).
     pub fn save(&self) {
         let path = settings_path();
         if let Some(parent) = path.parent() {

@@ -34,8 +34,8 @@ fn main() -> eframe::Result<()> {
     }
 
     let title = match &root_path {
-        Some(p) => format!("Rust Editor — {}", p.display()),
-        None => "Rust Editor".to_string(),
+        Some(p) => format!("PolyCredo Editor — {}", p.display()),
+        None => "PolyCredo Editor".to_string(),
     };
 
     let options = eframe::NativeOptions {
@@ -47,7 +47,7 @@ fn main() -> eframe::Result<()> {
     };
 
     eframe::run_native(
-        "Rust Editor",
+        "polycredo-editor",
         options,
         Box::new(move |cc| Ok(Box::new(app::EditorApp::new(cc, root_path)))),
     )

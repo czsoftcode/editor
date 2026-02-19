@@ -3,7 +3,7 @@ Laicke vysvetlivky k diagramu `docs/block-diagram.svg`
 
 Co ten obrazek ukazuje
 ----------------------
-Diagram ukazuje, jak je aplikace Rust Editor poskladana:
+Diagram ukazuje, jak je aplikace PolyCredo Editor poskladana:
 - co je "hlavni ridici cast",
 - co patri do jednoho okna projektu,
 - co bezi na pozadi,

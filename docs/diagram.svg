@@ -30,7 +30,7 @@
 
   <rect class="bg" width="1600" height="1000" />
 
-  <text class="header" x="800" y="60" text-anchor="middle">Architektura aplikace Rust Editor</text>
+  <text class="header" x="800" y="60" text-anchor="middle">Architektura aplikace PolyCredo Editor</text>
   <text class="subheader" x="800" y="90" text-anchor="middle">Blokové schéma komponent a datových toků</text>
 
   <!-- Global Layers Labels -->

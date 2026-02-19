@@ -2776,6 +2776,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f3a9f18d041e6d0e102a0a46750538147e5e8992d3b4873aaafee2520b00ce3"
 
 [[package]]
+name = "polycredo-editor"
+version = "0.3.0"
+dependencies = [
+ "alacritty_terminal",
+ "arboard",
+ "dirs",
+ "eframe",
+ "egui_term",
+ "libc",
+ "notify",
+ "pulldown-cmark",
+ "rfd",
+ "serde",
+ "serde_json",
+ "syntect",
+]
+
+[[package]]
 name = "potential_utf"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3061,24 +3079,6 @@ dependencies = [
  "bitflags 2.11.0",
  "serde",
  "serde_derive",
-]
-
-[[package]]
-name = "rust_editor"
-version = "0.2.0"
-dependencies = [
- "alacritty_terminal",
- "arboard",
- "dirs",
- "eframe",
- "egui_term",
- "libc",
- "notify",
- "pulldown-cmark",
- "rfd",
- "serde",
- "serde_json",
- "syntect",
 ]
 
 [[package]]

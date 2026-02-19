@@ -199,8 +199,21 @@ impl FileTree {
         expand_to: &Option<PathBuf>,
         git_colors: &HashMap<PathBuf, eframe::egui::Color32>,
     ) {
-        let text_color = eframe::egui::Color32::from_rgb(230, 230, 230);
+        let dark_mode = ui.visuals().dark_mode;
+        let text_color = ui.visuals().text_color();
         let font_size = config::FILE_TREE_FONT_SIZE;
+
+        // Git barvy jsou navrženy pro tmavé pozadí — v light mode je ztmavíme
+        let adapt_git_color = |c: eframe::egui::Color32| -> eframe::egui::Color32 {
+            if dark_mode { c }
+            else {
+                eframe::egui::Color32::from_rgb(
+                    (c.r() as f32 * 0.55) as u8,
+                    (c.g() as f32 * 0.55) as u8,
+                    (c.b() as f32 * 0.55) as u8,
+                )
+            }
+        };
 
         if node.is_dir {
             let force_open = expand_to
@@ -253,7 +266,9 @@ impl FileTree {
                 }
             });
         } else {
-            let file_color = git_colors.get(&node.path).copied().unwrap_or(text_color);
+            let file_color = git_colors.get(&node.path).copied()
+                .map(adapt_git_color)
+                .unwrap_or(text_color);
             let file_text = eframe::egui::RichText::new(format!("\u{1F4C4} {}", &node.name))
                 .size(font_size)
                 .color(file_color);

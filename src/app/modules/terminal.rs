@@ -11,24 +11,42 @@ pub struct Terminal {
     id: u64,
     working_dir: PathBuf,
     init_command: Option<String>,
-    backend: TerminalBackend,
-    pty_receiver: Receiver<(u64, PtyEvent)>,
+    backend: Option<TerminalBackend>,
+    pty_receiver: Option<Receiver<(u64, PtyEvent)>>,
+    error: Option<String>,
     exited: bool,
     /// Akumulátor pro sub-pixelový drag scrollbaru
     scroll_drag_acc: f32,
 }
 
 impl Terminal {
-    pub fn new(id: u64, ctx: &egui::Context, working_dir: &PathBuf, init_command: Option<&str>) -> Self {
-        let (backend, pty_receiver) = Self::create_backend(id, ctx, working_dir, init_command);
-        Self {
-            id,
-            working_dir: working_dir.clone(),
-            init_command: init_command.map(|s| s.to_string()),
-            backend,
-            pty_receiver,
-            exited: false,
-            scroll_drag_acc: 0.0,
+    pub fn new(
+        id: u64,
+        ctx: &egui::Context,
+        working_dir: &PathBuf,
+        init_command: Option<&str>,
+    ) -> Self {
+        match Self::create_backend(id, ctx, working_dir, init_command) {
+            Ok((backend, pty_receiver)) => Self {
+                id,
+                working_dir: working_dir.clone(),
+                init_command: init_command.map(|s| s.to_string()),
+                backend: Some(backend),
+                pty_receiver: Some(pty_receiver),
+                error: None,
+                exited: false,
+                scroll_drag_acc: 0.0,
+            },
+            Err(err) => Self {
+                id,
+                working_dir: working_dir.clone(),
+                init_command: init_command.map(|s| s.to_string()),
+                backend: None,
+                pty_receiver: None,
+                error: Some(err),
+                exited: false,
+                scroll_drag_acc: 0.0,
+            },
         }
     }
 
@@ -37,7 +55,7 @@ impl Terminal {
         ctx: &egui::Context,
         working_dir: &PathBuf,
         init_command: Option<&str>,
-    ) -> (TerminalBackend, Receiver<(u64, PtyEvent)>) {
+    ) -> Result<(TerminalBackend, Receiver<(u64, PtyEvent)>), String> {
         let (sender, pty_receiver) = std::sync::mpsc::channel();
 
         #[cfg(unix)]
@@ -55,7 +73,7 @@ impl Terminal {
                 ..Default::default()
             },
         )
-        .expect("Nelze vytvořit terminálový backend");
+        .map_err(|e| format!("Nelze vytvořit terminálový backend: {e}"))?;
 
         if let Some(cmd) = init_command {
             let cmd_with_newline = format!("{}\n", cmd);
@@ -64,7 +82,7 @@ impl Terminal {
             ));
         }
 
-        (backend, pty_receiver)
+        Ok((backend, pty_receiver))
     }
 
     pub fn restart_with_command(&mut self, ctx: &egui::Context, init_command: Option<&str>) {
@@ -73,32 +91,66 @@ impl Terminal {
     }
 
     fn restart(&mut self, ctx: &egui::Context) {
-        let (backend, pty_receiver) = Self::create_backend(
+        match Self::create_backend(
             self.id,
             ctx,
             &self.working_dir,
             self.init_command.as_deref(),
-        );
-        self.backend = backend;
-        self.pty_receiver = pty_receiver;
-        self.exited = false;
-        self.scroll_drag_acc = 0.0;
+        ) {
+            Ok((backend, pty_receiver)) => {
+                self.backend = Some(backend);
+                self.pty_receiver = Some(pty_receiver);
+                self.error = None;
+                self.exited = false;
+                self.scroll_drag_acc = 0.0;
+            }
+            Err(err) => {
+                self.backend = None;
+                self.pty_receiver = None;
+                self.error = Some(err);
+                self.exited = false;
+                self.scroll_drag_acc = 0.0;
+            }
+        }
     }
 
     pub fn send_command(&mut self, command: &str) {
         let cmd = format!("{}\n", command);
-        self.backend.process_command(
-            egui_term::BackendCommand::Write(cmd.as_bytes().to_vec()),
-        );
+        if let Some(backend) = &mut self.backend {
+            backend.process_command(egui_term::BackendCommand::Write(cmd.as_bytes().to_vec()));
+        }
     }
 
     /// Vykreslí terminál. Vrací `true` pokud uživatel klikl do oblasti terminálu.
     pub fn ui(&mut self, ui: &mut egui::Ui, focused: bool, font_size: f32) -> bool {
         // Zpracovat události z PTY
-        while let Ok((_, event)) = self.pty_receiver.try_recv() {
-            if let PtyEvent::Exit = event {
-                self.exited = true;
+        if let Some(pty_receiver) = &self.pty_receiver {
+            while let Ok((_, event)) = pty_receiver.try_recv() {
+                if let PtyEvent::Exit = event {
+                    self.exited = true;
+                }
             }
+        }
+
+        if let Some(err) = &self.error {
+            let mut restart = false;
+            ui.vertical_centered(|ui| {
+                ui.add_space(20.0);
+                ui.colored_label(
+                    egui::Color32::from_rgb(230, 120, 120),
+                    "Terminál není dostupný.",
+                );
+                ui.add_space(4.0);
+                ui.label(err);
+                ui.add_space(8.0);
+                if ui.button("Zkusit znovu").clicked() {
+                    restart = true;
+                }
+            });
+            if restart {
+                self.restart(ui.ctx());
+            }
+            return false;
         }
 
         if self.exited {
@@ -119,28 +171,38 @@ impl Terminal {
 
         let term_height = ui.available_height();
         let term_width = (ui.available_width() - config::TERMINAL_SCROLLBAR_WIDTH).max(10.0);
+        if self.backend.is_none() {
+            return false;
+        }
 
         let term_font = egui_term::TerminalFont::new(egui_term::FontSettings {
             font_type: egui::FontId::monospace(font_size),
         });
-        let terminal = TerminalView::new(ui, &mut self.backend)
-            .set_focus(focused)
-            .set_font(term_font)
-            .set_size(egui::Vec2::new(term_width, term_height));
+        let terminal = {
+            let Some(backend) = self.backend.as_mut() else {
+                return false;
+            };
+            TerminalView::new(ui, backend)
+                .set_focus(focused)
+                .set_font(term_font)
+                .set_size(egui::Vec2::new(term_width, term_height))
+        };
 
         let response = ui.add(terminal);
 
         // Neaktivní terminál: ztmavení + dutý kurzor místo plného bloku
         if !focused {
             let painter = ui.painter_at(response.rect);
-            let content = self.backend.last_content();
+            let Some(content) = self.backend.as_ref().map(|b| b.last_content()) else {
+                return false;
+            };
             let cell_w = content.terminal_size.cell_width as f32;
             let cell_h = content.terminal_size.cell_height as f32;
 
             let cursor_rect = if cell_w > 0.0 && cell_h > 0.0 {
                 let col = content.grid.cursor.point.column.0 as f32;
-                let line = (content.grid.cursor.point.line.0
-                    + content.grid.display_offset() as i32) as f32;
+                let line = (content.grid.cursor.point.line.0 + content.grid.display_offset() as i32)
+                    as f32;
                 let cx = response.rect.min.x + cell_w * col;
                 let cy = response.rect.min.y + cell_h * line;
                 Some(egui::Rect::from_min_size(
@@ -152,9 +214,17 @@ impl Terminal {
             };
 
             if let Some(rect) = cursor_rect {
-                painter.rect_filled(rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0x18, 0x18, 0x18));
+                painter.rect_filled(
+                    rect,
+                    egui::CornerRadius::ZERO,
+                    egui::Color32::from_rgb(0x18, 0x18, 0x18),
+                );
             }
-            painter.rect_filled(response.rect, egui::CornerRadius::ZERO, egui::Color32::from_black_alpha(60));
+            painter.rect_filled(
+                response.rect,
+                egui::CornerRadius::ZERO,
+                egui::Color32::from_black_alpha(60),
+            );
             if let Some(rect) = cursor_rect {
                 painter.rect_stroke(
                     rect,
@@ -168,7 +238,11 @@ impl Terminal {
         // Kontext menu
         let menu_size = 15.0;
         response.context_menu(|ui| {
-            let selected = self.backend.selectable_content();
+            let selected = self
+                .backend
+                .as_ref()
+                .map(|b| b.selectable_content())
+                .unwrap_or_default();
             let has_selection = !selected.trim().is_empty();
 
             if ui
@@ -188,9 +262,11 @@ impl Terminal {
             {
                 if let Ok(mut clipboard) = arboard::Clipboard::new() {
                     if let Ok(text) = clipboard.get_text() {
-                        self.backend.process_command(
-                            egui_term::BackendCommand::Write(text.as_bytes().to_vec()),
-                        );
+                        if let Some(backend) = &mut self.backend {
+                            backend.process_command(egui_term::BackendCommand::Write(
+                                text.as_bytes().to_vec(),
+                            ));
+                        }
                     }
                 }
                 ui.close_menu();
@@ -204,6 +280,9 @@ impl Terminal {
     }
 
     fn draw_scrollbar(&mut self, ui: &mut egui::Ui, term_rect: egui::Rect, height: f32) {
+        let Some(backend) = self.backend.as_mut() else {
+            return;
+        };
         let sb_rect = egui::Rect::from_min_size(
             egui::Pos2::new(term_rect.max.x, term_rect.min.y),
             egui::Vec2::new(config::TERMINAL_SCROLLBAR_WIDTH, height),
@@ -212,9 +291,13 @@ impl Terminal {
         let painter = ui.painter_at(sb_rect);
 
         // Pozadí scrollbaru
-        painter.rect_filled(sb_rect, egui::CornerRadius::ZERO, egui::Color32::from_rgb(0x18, 0x18, 0x18));
+        painter.rect_filled(
+            sb_rect,
+            egui::CornerRadius::ZERO,
+            egui::Color32::from_rgb(0x18, 0x18, 0x18),
+        );
 
-        let content = self.backend.last_content();
+        let content = backend.last_content();
         let history_size = content.grid.history_size();
         let screen_lines = content.grid.screen_lines();
         let display_offset = content.grid.display_offset();
@@ -222,7 +305,11 @@ impl Terminal {
         if history_size == 0 {
             // Žádná historie — scrollbar jako dekorace (plný track = vše viditelné)
             let thumb_rect = sb_rect.shrink2(egui::Vec2::new(2.0, 0.0));
-            painter.rect_filled(thumb_rect, egui::CornerRadius::same(3), egui::Color32::from_gray(60));
+            painter.rect_filled(
+                thumb_rect,
+                egui::CornerRadius::same(3),
+                egui::Color32::from_gray(60),
+            );
             ui.allocate_rect(sb_rect, egui::Sense::hover());
             return;
         }
@@ -263,7 +350,7 @@ impl Terminal {
             let line_delta = (self.scroll_drag_acc * lines_per_pixel) as i32;
             if line_delta != 0 {
                 self.scroll_drag_acc -= line_delta as f32 / lines_per_pixel;
-                self.backend.process_command(egui_term::BackendCommand::Scroll(line_delta));
+                backend.process_command(egui_term::BackendCommand::Scroll(line_delta));
             }
         } else {
             self.scroll_drag_acc = 0.0;
@@ -274,9 +361,9 @@ impl Terminal {
             if let Some(pos) = sb_response.interact_pointer_pos() {
                 let page = screen_lines as i32;
                 if pos.y < thumb_rect.min.y {
-                    self.backend.process_command(egui_term::BackendCommand::Scroll(page));
+                    backend.process_command(egui_term::BackendCommand::Scroll(page));
                 } else if pos.y > thumb_rect.max.y {
-                    self.backend.process_command(egui_term::BackendCommand::Scroll(-page));
+                    backend.process_command(egui_term::BackendCommand::Scroll(-page));
                 }
             }
         }

@@ -3,7 +3,14 @@ use std::path::{Path, PathBuf};
 
 use crate::config;
 
-const IGNORED_DIRS: &[&str] = &[".git", "target", "node_modules", ".idea", ".vscode", "__pycache__"];
+const IGNORED_DIRS: &[&str] = &[
+    ".git",
+    "target",
+    "node_modules",
+    ".idea",
+    ".vscode",
+    "__pycache__",
+];
 
 pub struct FileNode {
     pub name: String,
@@ -177,7 +184,15 @@ impl FileTree {
         let expand_to = self.expand_to.take();
         if let Some(root) = &mut self.root {
             let has_clipboard = self.clipboard.is_some();
-            Self::show_node(ui, root, &mut selected, &mut action, has_clipboard, &expand_to, &self.git_colors);
+            Self::show_node(
+                ui,
+                root,
+                &mut selected,
+                &mut action,
+                has_clipboard,
+                &expand_to,
+                &self.git_colors,
+            );
         }
 
         if let Some(act) = action {
@@ -205,8 +220,9 @@ impl FileTree {
 
         // Git barvy jsou navrženy pro tmavé pozadí — v light mode je ztmavíme
         let adapt_git_color = |c: eframe::egui::Color32| -> eframe::egui::Color32 {
-            if dark_mode { c }
-            else {
+            if dark_mode {
+                c
+            } else {
                 eframe::egui::Color32::from_rgb(
                     (c.r() as f32 * 0.55) as u8,
                     (c.g() as f32 * 0.55) as u8,
@@ -223,50 +239,78 @@ impl FileTree {
             let header_text = eframe::egui::RichText::new(format!("\u{1F4C1} {}", &node.name))
                 .size(font_size)
                 .color(text_color);
-            let mut header = eframe::egui::CollapsingHeader::new(header_text)
-                .default_open(node.expanded);
+            let mut header =
+                eframe::egui::CollapsingHeader::new(header_text).default_open(node.expanded);
             if force_open {
                 header = header.open(Some(true));
             }
             let response = header.show(ui, |ui| {
-                    node.load_children();
-                    for child in &mut node.children {
-                        Self::show_node(ui, child, selected, action, has_clipboard, expand_to, git_colors);
-                    }
-                });
+                node.load_children();
+                for child in &mut node.children {
+                    Self::show_node(
+                        ui,
+                        child,
+                        selected,
+                        action,
+                        has_clipboard,
+                        expand_to,
+                        git_colors,
+                    );
+                }
+            });
 
             let header_response = response.header_response;
             header_response.context_menu(|ui| {
                 let menu_size = 15.0;
-                if ui.button(eframe::egui::RichText::new("Nový soubor").size(menu_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Nový soubor").size(menu_size))
+                    .clicked()
+                {
                     *action = Some(ContextAction::NewFile(node.path.clone()));
                     ui.close_menu();
                 }
-                if ui.button(eframe::egui::RichText::new("Nový adresář").size(menu_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Nový adresář").size(menu_size))
+                    .clicked()
+                {
                     *action = Some(ContextAction::NewDir(node.path.clone()));
                     ui.close_menu();
                 }
-                if ui.button(eframe::egui::RichText::new("Přejmenovat").size(menu_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Přejmenovat").size(menu_size))
+                    .clicked()
+                {
                     *action = Some(ContextAction::Rename(node.path.clone()));
                     ui.close_menu();
                 }
-                if ui.button(eframe::egui::RichText::new("Kopírovat").size(menu_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Kopírovat").size(menu_size))
+                    .clicked()
+                {
                     *action = Some(ContextAction::Copy(node.path.clone()));
                     ui.close_menu();
                 }
                 if has_clipboard {
-                    if ui.button(eframe::egui::RichText::new("Vložit").size(menu_size)).clicked() {
+                    if ui
+                        .button(eframe::egui::RichText::new("Vložit").size(menu_size))
+                        .clicked()
+                    {
                         *action = Some(ContextAction::Paste(node.path.clone()));
                         ui.close_menu();
                     }
                 }
-                if ui.button(eframe::egui::RichText::new("Smazat").size(menu_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Smazat").size(menu_size))
+                    .clicked()
+                {
                     *action = Some(ContextAction::Delete(node.path.clone()));
                     ui.close_menu();
                 }
             });
         } else {
-            let file_color = git_colors.get(&node.path).copied()
+            let file_color = git_colors
+                .get(&node.path)
+                .copied()
                 .map(adapt_git_color)
                 .unwrap_or(text_color);
             let file_text = eframe::egui::RichText::new(format!("\u{1F4C4} {}", &node.name))
@@ -279,15 +323,24 @@ impl FileTree {
 
             label.context_menu(|ui| {
                 let menu_size = 15.0;
-                if ui.button(eframe::egui::RichText::new("Přejmenovat").size(menu_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Přejmenovat").size(menu_size))
+                    .clicked()
+                {
                     *action = Some(ContextAction::Rename(node.path.clone()));
                     ui.close_menu();
                 }
-                if ui.button(eframe::egui::RichText::new("Kopírovat").size(menu_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Kopírovat").size(menu_size))
+                    .clicked()
+                {
                     *action = Some(ContextAction::Copy(node.path.clone()));
                     ui.close_menu();
                 }
-                if ui.button(eframe::egui::RichText::new("Smazat").size(menu_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Smazat").size(menu_size))
+                    .clicked()
+                {
                     *action = Some(ContextAction::Delete(node.path.clone()));
                     ui.close_menu();
                 }
@@ -332,8 +385,12 @@ impl FileTree {
                         std::fs::copy(&source, &dest).map(|_| ())
                     };
                     match result {
-                        Ok(()) => { self.needs_reload = true; }
-                        Err(e) => { self.pending_error = Some(format!("Nelze vložit: {e}")); }
+                        Ok(()) => {
+                            self.needs_reload = true;
+                        }
+                        Err(e) => {
+                            self.pending_error = Some(format!("Nelze vložit: {e}"));
+                        }
                     }
                 }
             }
@@ -374,9 +431,7 @@ impl FileTree {
                         .font(eframe::egui::TextStyle::Body)
                         .desired_width(200.0),
                 );
-                if response.lost_focus()
-                    && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter))
-                {
+                if response.lost_focus() && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter)) {
                     should_create = true;
                 }
                 if !response.has_focus() {
@@ -385,10 +440,16 @@ impl FileTree {
             });
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                if ui.button(eframe::egui::RichText::new("Vytvořit").size(dlg_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Vytvořit").size(dlg_size))
+                    .clicked()
+                {
                     should_create = true;
                 }
-                if ui.button(eframe::egui::RichText::new("Zrušit").size(dlg_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Zrušit").size(dlg_size))
+                    .clicked()
+                {
                     self.new_item_parent = None;
                 }
             });
@@ -403,8 +464,12 @@ impl FileTree {
                 let new_path = parent.join(self.new_item_buffer.trim());
                 if self.new_item_is_dir {
                     match std::fs::create_dir(&new_path) {
-                        Ok(()) => { self.expand_to = Some(new_path); }
-                        Err(e) => { self.pending_error = Some(format!("Nelze vytvořit adresář: {e}")); }
+                        Ok(()) => {
+                            self.expand_to = Some(new_path);
+                        }
+                        Err(e) => {
+                            self.pending_error = Some(format!("Nelze vytvořit adresář: {e}"));
+                        }
                     }
                 } else {
                     match std::fs::write(&new_path, "") {
@@ -412,7 +477,9 @@ impl FileTree {
                             self.pending_created_file = Some(new_path.clone());
                             self.expand_to = Some(new_path);
                         }
-                        Err(e) => { self.pending_error = Some(format!("Nelze vytvořit soubor: {e}")); }
+                        Err(e) => {
+                            self.pending_error = Some(format!("Nelze vytvořit soubor: {e}"));
+                        }
                     }
                 }
                 self.needs_reload = true;
@@ -440,9 +507,7 @@ impl FileTree {
                         .font(eframe::egui::TextStyle::Body)
                         .desired_width(200.0),
                 );
-                if response.lost_focus()
-                    && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter))
-                {
+                if response.lost_focus() && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter)) {
                     should_rename = true;
                 }
                 if !response.has_focus() {
@@ -451,10 +516,16 @@ impl FileTree {
             });
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                if ui.button(eframe::egui::RichText::new("Přejmenovat").size(dlg_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Přejmenovat").size(dlg_size))
+                    .clicked()
+                {
                     should_rename = true;
                 }
-                if ui.button(eframe::egui::RichText::new("Zrušit").size(dlg_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Zrušit").size(dlg_size))
+                    .clicked()
+                {
                     self.rename_target = None;
                 }
             });
@@ -469,8 +540,12 @@ impl FileTree {
                 if let Some(parent) = target.parent() {
                     let new_path = parent.join(self.rename_buffer.trim());
                     match std::fs::rename(target, &new_path) {
-                        Ok(()) => { self.needs_reload = true; }
-                        Err(e) => { self.pending_error = Some(format!("Nelze přejmenovat: {e}")); }
+                        Ok(()) => {
+                            self.needs_reload = true;
+                        }
+                        Err(e) => {
+                            self.pending_error = Some(format!("Nelze přejmenovat: {e}"));
+                        }
                     }
                 }
             }
@@ -496,13 +571,22 @@ impl FileTree {
         let modal_response = modal.show(ui.ctx(), |ui| {
             ui.heading("Potvrdit smazání");
             ui.add_space(8.0);
-            ui.label(eframe::egui::RichText::new(format!("Opravdu smazat?\n{}", path_display)).size(dlg_size));
+            ui.label(
+                eframe::egui::RichText::new(format!("Opravdu smazat?\n{}", path_display))
+                    .size(dlg_size),
+            );
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                if ui.button(eframe::egui::RichText::new("Ano").size(dlg_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Ano").size(dlg_size))
+                    .clicked()
+                {
                     should_delete = true;
                 }
-                if ui.button(eframe::egui::RichText::new("Ne").size(dlg_size)).clicked() {
+                if ui
+                    .button(eframe::egui::RichText::new("Ne").size(dlg_size))
+                    .clicked()
+                {
                     self.delete_confirm = None;
                 }
             });
@@ -524,7 +608,9 @@ impl FileTree {
                         self.pending_deleted = Some(path);
                         self.needs_reload = true;
                     }
-                    Err(e) => { self.pending_error = Some(format!("Nelze smazat: {e}")); }
+                    Err(e) => {
+                        self.pending_error = Some(format!("Nelze smazat: {e}"));
+                    }
                 }
             }
         }
@@ -532,12 +618,23 @@ impl FileTree {
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+    let src_meta = std::fs::symlink_metadata(src)?;
+    if src_meta.file_type().is_symlink() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "symbolické odkazy se nekopírují",
+        ));
+    }
     std::fs::create_dir(dst)?;
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
         let src_path = entry.path();
         let dst_path = dst.join(entry.file_name());
-        if src_path.is_dir() {
+        let meta = std::fs::symlink_metadata(&src_path)?;
+        if meta.file_type().is_symlink() {
+            continue;
+        }
+        if meta.is_dir() {
             copy_dir_recursive(&src_path, &dst_path)?;
         } else {
             std::fs::copy(&src_path, &dst_path)?;

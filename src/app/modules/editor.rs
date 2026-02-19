@@ -699,7 +699,7 @@ impl Editor {
         }
     }
 
-    pub fn status_bar(&self, ui: &mut egui::Ui) {
+    pub fn status_bar(&self, ui: &mut egui::Ui, git_branch: Option<&str>) {
         let tab = match self.active() {
             Some(t) => t,
             None => return,
@@ -710,26 +710,34 @@ impl Editor {
             format!("{}:{}", rc.row + 1, rc.column + 1)
         });
 
+        let file_type = ext_to_file_type(&self.extension());
+
         ui.horizontal(|ui| {
             ui.label(tab.path.to_string_lossy().to_string());
             ui.separator();
             match tab.save_status {
                 SaveStatus::None => {}
-                SaveStatus::Modified => {
-                    ui.label("Neuloženo");
-                }
-                SaveStatus::Saving => {
-                    ui.label("Ukládání...");
-                }
-                SaveStatus::Saved => {
-                    ui.label("Uloženo");
-                }
+                SaveStatus::Modified => { ui.label("Neuloženo"); }
+                SaveStatus::Saving  => { ui.label("Ukládání…"); }
+                SaveStatus::Saved   => { ui.label("Uloženo"); }
             }
-            if let Some(pos) = cursor_text {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if let Some(pos) = cursor_text {
                     ui.label(egui::RichText::new(pos).monospace());
-                });
-            }
+                    ui.separator();
+                }
+                if let Some(branch) = git_branch {
+                    ui.label(
+                        egui::RichText::new(format!("\u{2387} {}", branch))
+                            .color(egui::Color32::from_rgb(100, 210, 130)),
+                    );
+                    ui.separator();
+                }
+                ui.label(egui::RichText::new("UTF-8").weak());
+                ui.separator();
+                ui.label(egui::RichText::new(file_type).weak());
+            });
         });
         ui.separator();
     }
@@ -1415,6 +1423,35 @@ impl Editor {
                 }
             }
         }
+    }
+}
+
+fn ext_to_file_type(ext: &str) -> &'static str {
+    match ext {
+        "rs"                => "Rust",
+        "php"               => "PHP",
+        "js" | "mjs"        => "JavaScript",
+        "ts"                => "TypeScript",
+        "tsx"               => "TSX",
+        "jsx"               => "JSX",
+        "md" | "markdown"   => "Markdown",
+        "html" | "htm"      => "HTML",
+        "css"               => "CSS",
+        "scss"              => "SCSS",
+        "json"              => "JSON",
+        "toml"              => "TOML",
+        "yaml" | "yml"      => "YAML",
+        "sh" | "bash"       => "Shell",
+        "py"                => "Python",
+        "c"                 => "C",
+        "cpp" | "cc" | "cxx" => "C++",
+        "h" | "hpp"         => "C/C++ Header",
+        "go"                => "Go",
+        "java"              => "Java",
+        "xml"               => "XML",
+        "sql"               => "SQL",
+        "txt"               => "Text",
+        _                   => "Plain text",
     }
 }
 

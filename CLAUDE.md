@@ -79,17 +79,14 @@ build.rs           — auto-inkrementace patch verze při release buildu
 - **Status bar řádek:sloupec** — aktuální pozice kurzoru zobrazena vpravo ve status baru
 - **Ctrl+P — fuzzy file picker** — rychlé otevření souboru projektu; subsequence fuzzy matching; navigace šipkami; ignoruje target, .git, node_modules aj.
 - **Hledání napříč projektem (Ctrl+Shift+F)** — pure Rust implementace; výsledky ve spodním panelu s možností přejít na řádek; max 2000 výsledků
+- **Git integrace** — indikátor větve (⎇ branch) ve status baru; soubory v file tree obarveny podle git stavu (M=zlatá, A=zelená, ??=šedá, D=červená); refresh každých 5s + po Ctrl+S
+- **Vylepšený status bar** — typ souboru (Rust/PHP/Markdown/…), kódování UTF-8, git větev; vše vpravo vedle pozice kurzoru
 
 ## TODO
 
 ### Nejbližší kroky
 
-- [ ] Git integrace — indikátor větve ve status baru, barevný stav souborů ve stromu
-
-### Střední priorita
-
-- [ ] Git integrace — stav souborů ve stromu (barevně), commit/push/pull/diff, indikátor větve ve status baru
-- [ ] Vylepšený status bar — kódování, typ souboru, git větev
+- [ ] Konfigurace — settings.toml / egui settings panel (font size, téma, výchozí cesta)
 
 ### Pokročilé
 

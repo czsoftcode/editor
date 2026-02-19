@@ -119,6 +119,13 @@ pub(crate) struct WorkspaceState {
     pub file_picker: Option<FilePicker>,
     /// Hledání napříč projektem
     pub project_search: ProjectSearch,
+    /// Git — aktuální větev
+    pub git_branch: Option<String>,
+    pub git_branch_rx: Option<mpsc::Receiver<Option<String>>>,
+    /// Git — stav souborů (absolutní cesta → barva pro file tree)
+    pub git_status_rx: Option<mpsc::Receiver<std::collections::HashMap<PathBuf, egui::Color32>>>,
+    /// Časovač pro periodický refresh gitu
+    pub git_last_refresh: std::time::Instant,
 }
 
 // ---------------------------------------------------------------------------
@@ -148,6 +155,8 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
     let mut file_tree = FileTree::new();
     file_tree.load(&root_path);
     let project_watcher = ProjectWatcher::new(&root_path);
+    let git_branch_rx = fetch_git_branch(&root_path);
+    let git_status_rx = fetch_git_status(&root_path);
 
     WorkspaceState {
         file_tree,
@@ -174,6 +183,10 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         folder_pick_rx: None,
         file_picker: None,
         project_search: ProjectSearch::default(),
+        git_branch: None,
+        git_branch_rx: Some(git_branch_rx),
+        git_status_rx: Some(git_status_rx),
+        git_last_refresh: std::time::Instant::now(),
     }
 }
 
@@ -277,6 +290,31 @@ fn process_background_events(ws: &mut WorkspaceState) {
         if let Ok(results) = rx.try_recv() {
             ws.project_search.results = results;
             ws.project_search.rx = None;
+        }
+    }
+
+    // Git: načítání větve
+    if let Some(rx) = &ws.git_branch_rx {
+        if let Ok(branch) = rx.try_recv() {
+            ws.git_branch = branch;
+            ws.git_branch_rx = None;
+        }
+    }
+    // Git: načítání stavu souborů
+    if let Some(rx) = &ws.git_status_rx {
+        if let Ok(colors) = rx.try_recv() {
+            ws.file_tree.set_git_colors(colors);
+            ws.git_status_rx = None;
+        }
+    }
+    // Git: periodický refresh každých 5 sekund
+    if ws.git_last_refresh.elapsed().as_secs() >= 5 {
+        ws.git_last_refresh = std::time::Instant::now();
+        if ws.git_branch_rx.is_none() {
+            ws.git_branch_rx = Some(fetch_git_branch(&ws.root_path));
+        }
+        if ws.git_status_rx.is_none() {
+            ws.git_status_rx = Some(fetch_git_status(&ws.root_path));
         }
     }
 
@@ -808,6 +846,73 @@ fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
 }
 
 // ---------------------------------------------------------------------------
+// Git — načítání větve a stavu souborů v pozadí
+// ---------------------------------------------------------------------------
+
+fn fetch_git_branch(root: &PathBuf) -> mpsc::Receiver<Option<String>> {
+    let (tx, rx) = mpsc::channel();
+    let root = root.clone();
+    std::thread::spawn(move || {
+        let branch = std::process::Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .current_dir(&root)
+            .output()
+            .ok()
+            .and_then(|o| {
+                if o.status.success() {
+                    String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                } else {
+                    None
+                }
+            });
+        let _ = tx.send(branch);
+    });
+    rx
+}
+
+fn git_status_color(x: char, y: char) -> egui::Color32 {
+    match (x, y) {
+        ('?', '?') => egui::Color32::from_rgb(150, 150, 150), // untracked — šedá
+        ('D', _) | (_, 'D') => egui::Color32::from_rgb(210, 80, 80),  // smazáno — červená
+        ('A', _) => egui::Color32::from_rgb(100, 200, 110),            // přidáno — zelená
+        _ => egui::Color32::from_rgb(220, 180, 60),                    // upraveno — zlatá
+    }
+}
+
+fn fetch_git_status(root: &PathBuf) -> mpsc::Receiver<std::collections::HashMap<PathBuf, egui::Color32>> {
+    let (tx, rx) = mpsc::channel();
+    let root = root.clone();
+    std::thread::spawn(move || {
+        let mut colors = std::collections::HashMap::new();
+        if let Ok(output) = std::process::Command::new("git")
+            .args(["status", "--porcelain"])
+            .current_dir(&root)
+            .output()
+        {
+            if output.status.success() {
+                for line in String::from_utf8_lossy(&output.stdout).lines() {
+                    if line.len() < 4 { continue; }
+                    let mut chars = line.chars();
+                    let x = chars.next().unwrap_or(' ');
+                    let y = chars.next().unwrap_or(' ');
+                    let path_str = &line[3..];
+                    // Zpracování přejmenování: "old -> new"
+                    let path_str = if let Some(arrow) = path_str.find(" -> ") {
+                        &path_str[arrow + 4..]
+                    } else {
+                        path_str
+                    };
+                    let abs = root.join(path_str.trim_matches('"'));
+                    colors.insert(abs, git_status_color(x, y));
+                }
+            }
+        }
+        let _ = tx.send(colors);
+    });
+    rx
+}
+
+// ---------------------------------------------------------------------------
 // Fuzzy matching a sběr souborů projektu
 // ---------------------------------------------------------------------------
 
@@ -1048,7 +1153,13 @@ pub(crate) fn render_workspace(
     ctx.request_repaint_after(std::time::Duration::from_millis(config::REPAINT_INTERVAL_MS));
 
     // Klávesové zkratky
-    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) { ws.editor.save(); }
+    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
+        ws.editor.save();
+        // Po uložení okamžitě aktualizujeme git status
+        if ws.git_status_rx.is_none() {
+            ws.git_status_rx = Some(fetch_git_status(&ws.root_path));
+        }
+    }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) { ws.editor.clear(); }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::B)) {
         if let Some(t) = &mut ws.build_terminal { t.send_command("cargo build 2>&1"); }
@@ -1091,7 +1202,7 @@ pub(crate) fn render_workspace(
     // Status bar (musí být před SidePanel)
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
-        .show(ctx, |ui| { ws.editor.status_bar(ui); });
+        .show(ctx, |ui| { ws.editor.status_bar(ui, ws.git_branch.as_deref()); });
 
     let dialog_open = ws.file_tree.has_open_dialog();
 

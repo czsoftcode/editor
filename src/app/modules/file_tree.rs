@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::config;
@@ -99,6 +100,8 @@ pub struct FileTree {
     pending_deleted: Option<PathBuf>,
     expand_to: Option<PathBuf>,
     pending_error: Option<String>,
+    /// Barvy souborů podle git stavu (absolutní cesty → barva)
+    git_colors: HashMap<PathBuf, eframe::egui::Color32>,
 }
 
 impl FileTree {
@@ -124,7 +127,13 @@ impl FileTree {
             pending_deleted: None,
             expand_to: None,
             pending_error: None,
+            git_colors: HashMap::new(),
         }
+    }
+
+    /// Nastaví mapování absolutních cest na barvy z git status.
+    pub fn set_git_colors(&mut self, colors: HashMap<PathBuf, eframe::egui::Color32>) {
+        self.git_colors = colors;
     }
 
     /// Vyzvedne případnou chybu I/O operace (pro zobrazení v toast notifikaci).
@@ -168,7 +177,7 @@ impl FileTree {
         let expand_to = self.expand_to.take();
         if let Some(root) = &mut self.root {
             let has_clipboard = self.clipboard.is_some();
-            Self::show_node(ui, root, &mut selected, &mut action, has_clipboard, &expand_to);
+            Self::show_node(ui, root, &mut selected, &mut action, has_clipboard, &expand_to, &self.git_colors);
         }
 
         if let Some(act) = action {
@@ -188,6 +197,7 @@ impl FileTree {
         action: &mut Option<ContextAction>,
         has_clipboard: bool,
         expand_to: &Option<PathBuf>,
+        git_colors: &HashMap<PathBuf, eframe::egui::Color32>,
     ) {
         let text_color = eframe::egui::Color32::from_rgb(230, 230, 230);
         let font_size = config::FILE_TREE_FONT_SIZE;
@@ -208,7 +218,7 @@ impl FileTree {
             let response = header.show(ui, |ui| {
                     node.load_children();
                     for child in &mut node.children {
-                        Self::show_node(ui, child, selected, action, has_clipboard, expand_to);
+                        Self::show_node(ui, child, selected, action, has_clipboard, expand_to, git_colors);
                     }
                 });
 
@@ -243,9 +253,10 @@ impl FileTree {
                 }
             });
         } else {
+            let file_color = git_colors.get(&node.path).copied().unwrap_or(text_color);
             let file_text = eframe::egui::RichText::new(format!("\u{1F4C4} {}", &node.name))
                 .size(font_size)
-                .color(text_color);
+                .color(file_color);
             let label = ui.selectable_label(false, file_text);
             if label.clicked() {
                 *selected = Some(node.path.clone());

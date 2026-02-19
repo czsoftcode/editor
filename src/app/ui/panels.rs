@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use eframe::egui;
 
-use super::{FocusedPanel, Toast, WorkspaceState, open_file_in_ws, run_build_check};
+use super::super::build_runner::run_build_check;
+use super::super::types::{FocusedPanel, Toast};
+use super::workspace::{WorkspaceState, open_file_in_ws};
 use crate::config;
 
 /// Vykreslí levý panel (strom souborů + build terminál). Vrací true pokud bylo kliknuto do terminálu.

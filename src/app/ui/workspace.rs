@@ -10,26 +10,21 @@ type FolderPickResult = (Option<PathBuf>, bool);
 
 use eframe::egui;
 
-use super::build_runner::{BuildError, run_build_check};
+use super::super::build_runner::{BuildError, run_build_check};
 use super::dialogs::{WizardState, show_project_wizard};
-use super::modules::editor::Editor;
-use super::modules::file_tree::FileTree;
-use super::modules::terminal::Terminal;
-use super::types::{
+use super::editor::Editor;
+use super::file_tree::FileTree;
+use super::terminal::Terminal;
+use super::super::types::{
     AiTool, AppAction, AppShared, FocusedPanel, PersistentState, Toast, default_wizard_path,
 };
 use crate::config;
 use crate::watcher::{FileWatcher, ProjectWatcher};
 
-mod ai_panel;
-mod background;
-mod panels;
-mod search_picker;
-
-use ai_panel::render_ai_panel;
-use background::{fetch_git_branch, fetch_git_status, process_background_events};
-use panels::{render_left_panel, render_toasts};
-use search_picker::{collect_project_files, render_file_picker, render_project_search_dialog};
+use super::ai_panel::render_ai_panel;
+use super::background::{fetch_git_branch, fetch_git_status, process_background_events};
+use super::panels::{render_left_panel, render_toasts};
+use super::search_picker::{collect_project_files, render_file_picker, render_project_search_dialog};
 
 // ---------------------------------------------------------------------------
 // FilePicker — Ctrl+P rychlé otevření souboru
@@ -58,13 +53,13 @@ impl FilePicker {
         }
     }
 
-    fn update_filter(&mut self) {
+    pub(super) fn update_filter(&mut self) {
         let q = self.query.to_lowercase();
         self.filtered = self
             .files
             .iter()
             .enumerate()
-            .filter(|(_, p)| search_picker::fuzzy_match(&q, &p.to_string_lossy()))
+            .filter(|(_, p)| super::search_picker::fuzzy_match(&q, &p.to_string_lossy()))
             .map(|(i, _)| i)
             .collect();
         self.selected = 0;
@@ -198,7 +193,7 @@ pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
     }
 }
 
-fn spawn_file_index_scan(root: PathBuf) -> mpsc::Receiver<Vec<PathBuf>> {
+pub(super) fn spawn_file_index_scan(root: PathBuf) -> mpsc::Receiver<Vec<PathBuf>> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let _ = tx.send(collect_project_files(&root));
@@ -225,7 +220,7 @@ fn is_command_available(command: &str) -> bool {
     }
 }
 
-fn spawn_ai_tool_check() -> mpsc::Receiver<HashMap<AiTool, bool>> {
+pub(super) fn spawn_ai_tool_check() -> mpsc::Receiver<HashMap<AiTool, bool>> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let mut status = HashMap::new();

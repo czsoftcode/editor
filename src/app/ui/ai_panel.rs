@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use eframe::egui;
 
-use super::{AiTool, FocusedPanel, WorkspaceState, spawn_ai_tool_check};
-use super::super::modules::terminal::Terminal;
+use super::super::types::{AiTool, FocusedPanel};
+use super::terminal::Terminal;
+use super::workspace::{WorkspaceState, spawn_ai_tool_check};
 use crate::config;
 
 // ---------------------------------------------------------------------------

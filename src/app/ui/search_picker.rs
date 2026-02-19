@@ -6,7 +6,7 @@ use std::sync::mpsc;
 
 use eframe::egui;
 
-use super::{SearchResult, WorkspaceState};
+use super::workspace::{SearchResult, WorkspaceState};
 
 const EXCLUDED_DIRS: &[&str] = &[
     "target",

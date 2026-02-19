@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 
-use super::types::{AppShared, ProjectType, default_wizard_path, path_env};
+use super::super::types::{AppShared, ProjectType, default_wizard_path, path_env};
 
 // ---------------------------------------------------------------------------
 // WizardState — stav průvodce novým projektem

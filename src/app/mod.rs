@@ -4,17 +4,15 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 mod build_runner;
-mod dialogs;
-pub(crate) mod modules;
 mod types;
-mod workspace;
+pub(crate) mod ui;
 
-use dialogs::{
+use types::*;
+use ui::dialogs::{
     QuitDialogResult, StartupAction, WizardState, show_close_project_confirm_dialog,
     show_project_wizard, show_quit_confirm_dialog, show_startup_dialog,
 };
-use types::*;
-use workspace::{
+use ui::workspace::{
     SecondaryWorkspace, WorkspaceState, init_workspace, render_workspace, ws_to_panel_state,
 };
 

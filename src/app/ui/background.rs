@@ -6,7 +6,8 @@ use std::sync::{mpsc, Arc};
 
 use eframe::egui;
 
-use super::{Toast, WorkspaceState, spawn_file_index_scan};
+use super::super::types::Toast;
+use super::workspace::{WorkspaceState, spawn_file_index_scan, spawn_ai_tool_check};
 use crate::watcher::{FileEvent, FsChange};
 
 /// Zpracuje události z watcherů, build výsledky a autosave.
@@ -117,7 +118,7 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
     if ws.ai_tool_last_check.elapsed().as_secs() >= crate::config::AI_TOOL_CHECK_INTERVAL_SECS
         && ws.ai_tool_check_rx.is_none()
     {
-        ws.ai_tool_check_rx = Some(super::spawn_ai_tool_check());
+        ws.ai_tool_check_rx = Some(spawn_ai_tool_check());
     }
 
     // Git: načítání větve

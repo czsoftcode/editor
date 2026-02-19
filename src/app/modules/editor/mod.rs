@@ -379,6 +379,10 @@ impl Editor {
             Some(t) => t,
             None => return,
         };
+        let primary_color = egui::Color32::from_rgb(235, 240, 248);
+        let secondary_color = egui::Color32::from_rgb(195, 205, 220);
+        let status_warn_color = egui::Color32::from_rgb(255, 200, 120);
+        let status_ok_color = egui::Color32::from_rgb(170, 230, 185);
 
         let cursor_text = tab.last_cursor_range.map(|cr| {
             let rc = cr.primary.rcursor;
@@ -388,36 +392,37 @@ impl Editor {
         let file_type = ext_to_file_type(&self.extension());
 
         ui.horizontal(|ui| {
-            ui.label(tab.path.to_string_lossy().to_string());
+            ui.label(
+                egui::RichText::new(tab.path.to_string_lossy().to_string()).color(primary_color),
+            );
             ui.separator();
             match tab.save_status {
                 SaveStatus::None => {}
                 SaveStatus::Modified => {
-                    ui.label("Neuloženo");
+                    ui.label(egui::RichText::new("Neuloženo").color(status_warn_color));
                 }
                 SaveStatus::Saving => {
-                    ui.label("Ukládání…");
+                    ui.label(egui::RichText::new("Ukládání…").color(secondary_color));
                 }
                 SaveStatus::Saved => {
-                    ui.label("Uloženo");
+                    ui.label(egui::RichText::new("Uloženo").color(status_ok_color));
                 }
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if let Some(pos) = cursor_text {
-                    ui.label(egui::RichText::new(pos).monospace());
+                    ui.label(egui::RichText::new(pos).monospace().color(primary_color));
                     ui.separator();
                 }
                 if let Some(branch) = git_branch {
                     ui.label(
-                        egui::RichText::new(format!("\u{2387} {}", branch))
-                            .color(egui::Color32::from_rgb(100, 210, 130)),
+                        egui::RichText::new(format!("\u{2387} {}", branch)).color(status_ok_color),
                     );
                     ui.separator();
                 }
-                ui.label(egui::RichText::new("UTF-8").weak());
+                ui.label(egui::RichText::new("UTF-8").color(secondary_color));
                 ui.separator();
-                ui.label(egui::RichText::new(file_type).weak());
+                ui.label(egui::RichText::new(file_type).color(secondary_color));
             });
         });
         ui.separator();

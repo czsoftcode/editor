@@ -31,6 +31,18 @@ fn goto_centered_scroll_offset(
     centered.clamp(0.0, max_scroll)
 }
 
+fn restore_saved_cursor(
+    ctx: &egui::Context,
+    edit_id: egui::Id,
+    cursor_range: Option<egui::text::CursorRange>,
+) {
+    if let Some(saved) = cursor_range {
+        let mut state = egui::text_edit::TextEditState::load(ctx, edit_id).unwrap_or_default();
+        state.cursor.set_char_range(Some(saved.as_ccursor_range()));
+        state.store(ctx, edit_id);
+    }
+}
+
 impl Editor {
     // --- Tab bar ---
 
@@ -252,6 +264,7 @@ impl Editor {
                     .sum::<usize>()
             })
         });
+        let has_jump = jump_char_idx.is_some();
 
         let font_size = Self::current_editor_font_size(ui);
         let font_id = egui::FontId::monospace(font_size);
@@ -271,6 +284,18 @@ impl Editor {
                 )));
             state.store(ui.ctx(), edit_id);
             ui.memory_mut(|m| m.request_focus(edit_id));
+        }
+
+        let should_request_editor_focus = self.focus_editor_requested
+            && !dialog_open
+            && !self.show_search
+            && !self.show_goto_line;
+        if should_request_editor_focus {
+            if !has_jump {
+                restore_saved_cursor(ui.ctx(), edit_id, self.tabs[idx].last_cursor_range);
+            }
+            ui.memory_mut(|m| m.request_focus(edit_id));
+            self.focus_editor_requested = false;
         }
 
         let mut clicked = false;
@@ -367,6 +392,15 @@ impl Editor {
         let current_match = self.current_match;
         let tab_path = self.tabs[idx].path.clone();
         let edit_id = egui::Id::new("editor_text").with(&tab_path);
+        let should_request_editor_focus = self.focus_editor_requested
+            && !dialog_open
+            && !self.show_search
+            && !self.show_goto_line;
+        if should_request_editor_focus {
+            restore_saved_cursor(ui.ctx(), edit_id, self.tabs[idx].last_cursor_range);
+            ui.memory_mut(|m| m.request_focus(edit_id));
+            self.focus_editor_requested = false;
+        }
 
         let mut clicked = false;
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;

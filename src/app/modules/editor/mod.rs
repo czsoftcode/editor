@@ -63,6 +63,7 @@ pub struct Editor {
     pub(super) show_goto_line: bool,
     pub(super) goto_line_input: String,
     pub(super) goto_line_focus_requested: bool,
+    pub(super) focus_editor_requested: bool,
 }
 
 impl Editor {
@@ -85,6 +86,7 @@ impl Editor {
             show_goto_line: false,
             goto_line_input: String::new(),
             goto_line_focus_requested: false,
+            focus_editor_requested: false,
         }
     }
 
@@ -138,6 +140,7 @@ impl Editor {
     pub fn open_file(&mut self, path: &PathBuf) {
         if let Some(idx) = self.tabs.iter().position(|t| t.path == *path) {
             self.active_tab = Some(idx);
+            self.focus_editor_requested = true;
             self.update_search();
             return;
         }
@@ -157,6 +160,7 @@ impl Editor {
                 };
                 self.tabs.push(tab);
                 self.active_tab = Some(self.tabs.len() - 1);
+                self.focus_editor_requested = true;
             }
             Err(e) => {
                 let tab = Tab {
@@ -172,6 +176,7 @@ impl Editor {
                 };
                 self.tabs.push(tab);
                 self.active_tab = Some(self.tabs.len() - 1);
+                self.focus_editor_requested = true;
             }
         }
         self.update_search();
@@ -227,6 +232,10 @@ impl Editor {
 
     pub fn jump_to_line(&mut self, line: usize) {
         self.pending_jump = Some(line.max(1));
+    }
+
+    pub fn request_editor_focus(&mut self) {
+        self.focus_editor_requested = true;
     }
 
     // --- File operations ---
@@ -289,6 +298,7 @@ impl Editor {
         match tab_action {
             Some(TabAction::Switch(idx)) => {
                 self.active_tab = Some(idx);
+                self.focus_editor_requested = true;
                 self.update_search();
             }
             Some(TabAction::Close(idx)) => {

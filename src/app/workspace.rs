@@ -1612,6 +1612,7 @@ pub(crate) fn render_workspace(
             ws.focused_panel == FocusedPanel::Claude || ws.focused_panel == FocusedPanel::Build;
         if in_terminal {
             ws.focused_panel = FocusedPanel::Editor;
+            ws.editor.request_editor_focus();
         }
     }
 

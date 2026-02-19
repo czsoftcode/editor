@@ -334,50 +334,51 @@ fn render_menu_bar(
     ctx: &egui::Context,
     ws: &WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
 ) -> MenuActions {
     let mut actions = MenuActions::default();
     let recent_snapshot = shared.lock().unwrap().recent_projects.clone();
 
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
         egui::menu::bar(ui, |ui| {
-            ui.menu_button("Soubor", |ui| {
-                if ui.button("Otevřít složku…").clicked() {
+            ui.menu_button(i18n.get("menu-file"), |ui| {
+                if ui.button(i18n.get("menu-file-open-folder")).clicked() {
                     actions.open_folder = true;
                     ui.close_menu();
                 }
                 if ui
-                    .add(egui::Button::new("Uložit").shortcut_text("Ctrl+S"))
+                    .add(egui::Button::new(i18n.get("menu-file-save")).shortcut_text("Ctrl+S"))
                     .clicked()
                 {
                     actions.save = true;
                     ui.close_menu();
                 }
                 if ui
-                    .add(egui::Button::new("Zavřít soubor").shortcut_text("Ctrl+W"))
+                    .add(egui::Button::new(i18n.get("menu-file-close-tab")).shortcut_text("Ctrl+W"))
                     .clicked()
                 {
                     actions.close_file = true;
                     ui.close_menu();
                 }
                 ui.separator();
-                if ui.button("Ukončit").clicked() {
+                if ui.button(i18n.get("menu-file-quit")).clicked() {
                     actions.quit = true;
                     ui.close_menu();
                 }
             });
 
-            ui.menu_button("Projekt", |ui| {
-                if ui.button("Otevřít projekt…").clicked() {
+            ui.menu_button(i18n.get("menu-project"), |ui| {
+                if ui.button(i18n.get("menu-project-open")).clicked() {
                     actions.open_project = true;
                     ui.close_menu();
                 }
-                if ui.button("Nový projekt…").clicked() {
+                if ui.button(i18n.get("menu-project-new")).clicked() {
                     actions.new_project = true;
                     ui.close_menu();
                 }
                 if !recent_snapshot.is_empty() {
                     ui.separator();
-                    ui.menu_button("Nedávné projekty", |ui| {
+                    ui.menu_button(i18n.get("menu-project-recent"), |ui| {
                         for path in &recent_snapshot {
                             let name = path
                                 .file_name()
@@ -396,44 +397,47 @@ fn render_menu_bar(
                 }
             });
 
-            ui.menu_button("Upravit", |ui| {
+            ui.menu_button(i18n.get("menu-edit"), |ui| {
                 ui.add_enabled(
                     false,
-                    egui::Button::new("Kopírovat").shortcut_text("Ctrl+C"),
+                    egui::Button::new(i18n.get("menu-edit-copy")).shortcut_text("Ctrl+C"),
                 );
-                ui.add_enabled(false, egui::Button::new("Vložit").shortcut_text("Ctrl+V"));
                 ui.add_enabled(
                     false,
-                    egui::Button::new("Vybrat vše").shortcut_text("Ctrl+A"),
+                    egui::Button::new(i18n.get("menu-edit-paste")).shortcut_text("Ctrl+V"),
+                );
+                ui.add_enabled(
+                    false,
+                    egui::Button::new(i18n.get("menu-edit-select-all")).shortcut_text("Ctrl+A"),
                 );
                 ui.separator();
                 if ui
-                    .add(egui::Button::new("Hledat…").shortcut_text("Ctrl+F"))
+                    .add(egui::Button::new(i18n.get("menu-edit-find")).shortcut_text("Ctrl+F"))
                     .clicked()
                 {
                     ui.close_menu();
                 }
                 if ui
-                    .add(egui::Button::new("Hledat a nahradit…").shortcut_text("Ctrl+H"))
+                    .add(egui::Button::new(i18n.get("menu-edit-replace")).shortcut_text("Ctrl+H"))
                     .clicked()
                 {
                     ui.close_menu();
                 }
                 if ui
-                    .add(egui::Button::new("Přejít na řádek…").shortcut_text("Ctrl+G"))
+                    .add(egui::Button::new(i18n.get("menu-edit-goto-line")).shortcut_text("Ctrl+G"))
                     .clicked()
                 {
                     ui.close_menu();
                 }
                 if ui
-                    .add(egui::Button::new("Otevřít soubor…").shortcut_text("Ctrl+P"))
+                    .add(egui::Button::new(i18n.get("menu-edit-open-file")).shortcut_text("Ctrl+P"))
                     .clicked()
                 {
                     actions.open_file_picker = true;
                     ui.close_menu();
                 }
                 if ui
-                    .add(egui::Button::new("Hledat v projektu…").shortcut_text("Ctrl+Shift+F"))
+                    .add(egui::Button::new(i18n.get("menu-edit-project-search")).shortcut_text("Ctrl+Shift+F"))
                     .clicked()
                 {
                     actions.project_search = true;
@@ -441,14 +445,14 @@ fn render_menu_bar(
                 }
                 ui.separator();
                 if ui
-                    .add(egui::Button::new("Build").shortcut_text("Ctrl+B"))
+                    .add(egui::Button::new(i18n.get("menu-edit-build")).shortcut_text("Ctrl+B"))
                     .clicked()
                 {
                     actions.build = true;
                     ui.close_menu();
                 }
                 if ui
-                    .add(egui::Button::new("Run").shortcut_text("Ctrl+R"))
+                    .add(egui::Button::new(i18n.get("menu-edit-run")).shortcut_text("Ctrl+R"))
                     .clicked()
                 {
                     actions.run = true;
@@ -456,52 +460,52 @@ fn render_menu_bar(
                 }
             });
 
-            ui.menu_button("Zobrazit", |ui| {
-                let left_label = if ws.show_left_panel {
-                    "✓ Soubory"
-                } else {
-                    "  Soubory"
-                };
-                if ui.button(left_label).clicked() {
+            ui.menu_button(i18n.get("menu-view"), |ui| {
+                let files_label = format!(
+                    "{} {}",
+                    if ws.show_left_panel { "✓" } else { " " },
+                    i18n.get("menu-view-files")
+                );
+                if ui.button(files_label).clicked() {
                     actions.toggle_left = true;
                     ui.close_menu();
                 }
-                let build_label = if ws.show_build_terminal {
-                    "✓ Build terminál"
-                } else {
-                    "  Build terminál"
-                };
+                let build_label = format!(
+                    "{} {}",
+                    if ws.show_build_terminal { "✓" } else { " " },
+                    i18n.get("menu-view-build-terminal")
+                );
                 if ui.button(build_label).clicked() {
                     actions.toggle_build = true;
                     ui.close_menu();
                 }
-                let right_label = if ws.show_right_panel {
-                    "✓ AI terminál"
-                } else {
-                    "  AI terminál"
-                };
+                let right_label = format!(
+                    "{} {}",
+                    if ws.show_right_panel { "✓" } else { " " },
+                    i18n.get("menu-view-ai-panel")
+                );
                 if ui.button(right_label).clicked() {
                     actions.toggle_right = true;
                     ui.close_menu();
                 }
-                let float_label = if ws.claude_float {
-                    "✓ Plovoucí AI terminál"
-                } else {
-                    "  Plovoucí AI terminál"
-                };
+                let float_label = format!(
+                    "{} {}",
+                    if ws.claude_float { "✓" } else { " " },
+                    i18n.get("menu-view-ai-float")
+                );
                 if ui.button(float_label).clicked() {
                     actions.toggle_float = true;
                     ui.close_menu();
                 }
             });
 
-            ui.menu_button("Nápověda", |ui| {
-                if ui.button("Nastavení…").clicked() {
+            ui.menu_button(i18n.get("menu-help"), |ui| {
+                if ui.button(i18n.get("menu-help-settings")).clicked() {
                     actions.settings = true;
                     ui.close_menu();
                 }
                 ui.separator();
-                if ui.button("O aplikaci").clicked() {
+                if ui.button(i18n.get("menu-help-about")).clicked() {
                     actions.about = true;
                     ui.close_menu();
                 }
@@ -517,12 +521,13 @@ fn process_menu_actions(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     actions: MenuActions,
+    i18n: &crate::i18n::I18n,
 ) -> Option<PathBuf> {
     if actions.quit {
         shared.lock().unwrap().actions.push(AppAction::QuitAll);
     }
     if actions.save {
-        if let Some(err) = ws.editor.save() {
+        if let Some(err) = ws.editor.save(i18n) {
             ws.toasts.push(Toast::error(err));
         }
     }
@@ -606,9 +611,9 @@ fn process_menu_actions(
             .unwrap_or_else(|| PathBuf::from("/"))
             .join("MyProject");
         if let Err(e) = std::fs::create_dir_all(&projects_dir) {
-            ws.toasts.push(Toast::error(format!(
-                "Nelze připravit adresář projektů: {e}"
-            )));
+            let mut args = fluent_bundle::FluentArgs::new();
+            args.set("reason", e.to_string());
+            ws.toasts.push(Toast::error(i18n.get_args("error-projects-dir-prepare", &args)));
         }
         let (tx, rx) = mpsc::channel();
         ws.folder_pick_rx = Some(rx);
@@ -639,7 +644,12 @@ fn process_menu_actions(
 }
 
 /// Vykreslí modální dialogy (O aplikaci, Nastavení, Nový projekt).
-fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
+fn render_dialogs(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
     // Salt zajišťuje jedinečnost modal ID v rámci egui Context, který je sdílený
     // mezi všemi okny (viewporty). Bez saltu by dvě okna se stejným dialogem
     // sdílela stav (otevřeno/zavřeno, hodnoty formuláře).
@@ -648,13 +658,15 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
     if ws.show_about {
         let modal = egui::Modal::new(egui::Id::new(("about_modal", id_salt)));
         modal.show(ctx, |ui| {
-            ui.heading("PolyCredo Editor");
+            ui.heading(i18n.get("about-title"));
             ui.add_space(8.0);
-            ui.label(format!("Verze: {}", env!("BUILD_VERSION")));
+            let mut ver_args = fluent_bundle::FluentArgs::new();
+            ver_args.set("version", env!("BUILD_VERSION"));
+            ui.label(i18n.get_args("about-version", &ver_args));
             ui.add_space(8.0);
-            ui.label("AI Polyglot Code Editor");
+            ui.label(i18n.get("about-description"));
             ui.add_space(12.0);
-            if ui.button("Zavřít").clicked() {
+            if ui.button(i18n.get("about-close")).clicked() {
                 ws.show_about = false;
             }
         });
@@ -683,21 +695,40 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
 
         let modal = egui::Modal::new(egui::Id::new(("settings_modal", id_salt)));
         modal.show(ctx, |ui| {
-            ui.heading("Nastavení");
+            ui.heading(i18n.get("settings-title"));
             ui.add_space(10.0);
 
             let draft = ws.settings_draft.as_mut().unwrap();
 
+            // Jazyk
+            ui.strong(i18n.get("settings-language"));
+            ui.add_space(4.0);
+            egui::ComboBox::from_id_salt("settings_lang_combo")
+                .selected_text(crate::i18n::lang_display_name(&draft.lang))
+                .width(160.0)
+                .show_ui(ui, |ui| {
+                    for &lang in crate::i18n::SUPPORTED_LANGS {
+                        let is_selected = draft.lang == lang;
+                        if ui
+                            .selectable_label(is_selected, crate::i18n::lang_display_name(lang))
+                            .clicked()
+                        {
+                            draft.lang = lang.to_string();
+                        }
+                    }
+                });
+            ui.add_space(10.0);
+
             // Téma
-            ui.strong("Téma");
+            ui.strong(i18n.get("settings-theme"));
             ui.horizontal(|ui| {
-                ui.radio_value(&mut draft.dark_theme, true, "Tmavé");
-                ui.radio_value(&mut draft.dark_theme, false, "Světlé");
+                ui.radio_value(&mut draft.dark_theme, true, i18n.get("settings-theme-dark"));
+                ui.radio_value(&mut draft.dark_theme, false, i18n.get("settings-theme-light"));
             });
             ui.add_space(10.0);
 
             // Font editoru
-            ui.strong("Editor — velikost fontu");
+            ui.strong(i18n.get("settings-editor-font"));
             ui.add_space(4.0);
             ui.add(
                 egui::Slider::new(&mut draft.editor_font_size, 10.0..=24.0)
@@ -708,7 +739,7 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
             ui.add_space(10.0);
 
             // AI terminál font scale (per-workspace, mimo global settings)
-            ui.strong("AI terminál — velikost fontu");
+            ui.strong(i18n.get("settings-ai-font"));
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 for &scale in &[100u32, 125, 150, 200] {
@@ -718,7 +749,7 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
             ui.add_space(10.0);
 
             // Výchozí cesta projektů
-            ui.strong("Výchozí cesta projektů");
+            ui.strong(i18n.get("settings-default-path"));
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 ui.add(
@@ -733,10 +764,10 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
             ui.add_space(14.0);
 
             ui.horizontal(|ui| {
-                if ui.button("Uložit").clicked() {
+                if ui.button(i18n.get("btn-save")).clicked() {
                     do_save = true;
                 }
-                if ui.button("Zavřít").clicked() {
+                if ui.button(i18n.get("btn-close")).clicked() {
                     do_close = true;
                 }
             });
@@ -761,7 +792,12 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
             let draft = ws.settings_draft.take().unwrap();
             draft.save();
             ws.wizard.path = draft.default_project_path.clone();
-            shared.lock().unwrap().settings = draft;
+            let new_lang = draft.lang.clone();
+            {
+                let mut s = shared.lock().unwrap();
+                s.settings = draft;
+                s.i18n = std::sync::Arc::new(crate::i18n::I18n::new(&new_lang));
+            }
             ws.show_settings = false;
             ws.settings_folder_pick_rx = None;
         } else if do_close {
@@ -779,6 +815,7 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
             &mut ws.show_new_project,
             &wizard_modal_id,
             shared,
+            i18n,
             |path, sh| {
                 let mut sh = sh.lock().unwrap();
                 sh.actions.push(AppAction::AddRecent(path.clone()));
@@ -796,38 +833,38 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
 
         let mut action: Option<ExternalConflictAction> = None;
 
+        let mut msg_args = fluent_bundle::FluentArgs::new();
+        msg_args.set("name", filename.clone());
+
         egui::Modal::new(egui::Id::new(("external_change_conflict_modal", id_salt))).show(ctx, |ui| {
             ui.set_min_width(400.0);
-            ui.heading("Soubor zmenen externe");
+            ui.heading(i18n.get("conflict-title"));
             ui.add_space(8.0);
-            ui.label(format!(
-                "Soubor \"{}\" byl zmenen jinym programem, ale obsahuje neulosene zmeny v editoru.",
-                filename
-            ));
+            ui.label(i18n.get_args("conflict-message", &msg_args));
             ui.add_space(4.0);
             ui.label(
-                egui::RichText::new("Vyberte, ktera verze ma vyhrat:")
+                egui::RichText::new(i18n.get("conflict-choose"))
                     .color(egui::Color32::from_rgb(180, 180, 180)),
             );
             ui.add_space(12.0);
             ui.horizontal(|ui| {
                 if ui
-                    .button("Nacist z disku")
-                    .on_hover_text("Zahodit zmeny v editoru a nacist verzi ulosenou na disku")
+                    .button(i18n.get("conflict-load-disk"))
+                    .on_hover_text(i18n.get("conflict-hover-disk"))
                     .clicked()
                 {
                     action = Some(ExternalConflictAction::ReloadFromDisk);
                 }
                 if ui
-                    .button("Zachovat moje")
-                    .on_hover_text("Ponechat zmeny v editoru; soubor na disku bude prepsán pri ulozeni")
+                    .button(i18n.get("conflict-keep-editor"))
+                    .on_hover_text(i18n.get("conflict-hover-keep"))
                     .clicked()
                 {
                     action = Some(ExternalConflictAction::KeepEditorVersion);
                 }
                 if ui
-                    .button("Ignorovat")
-                    .on_hover_text("Zavrit upozorneni bez zmeny")
+                    .button(i18n.get("conflict-dismiss"))
+                    .on_hover_text(i18n.get("conflict-hover-dismiss"))
                     .clicked()
                 {
                     action = Some(ExternalConflictAction::Dismiss);
@@ -842,7 +879,7 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
             }
             Some(ExternalConflictAction::KeepEditorVersion) => {
                 // Uložíme hned, aby soubor na disku odpovídal editoru.
-                ws.editor.save_path(&conflict_path);
+                ws.editor.save_path(&conflict_path, i18n);
                 ws.external_change_conflict = None;
             }
             Some(ExternalConflictAction::Dismiss) => {
@@ -869,6 +906,10 @@ pub(crate) fn render_workspace(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
 ) -> Option<PathBuf> {
+    // Extrahujeme i18n z shared (krátkodobý lock, poté pracujeme jen s Arc)
+    let i18n_arc = { std::sync::Arc::clone(&shared.lock().unwrap().i18n) };
+    let i18n = &*i18n_arc;
+
     // Lazy init terminálů
     if ws.claude_tabs.is_empty() {
         let root = ws.root_path.clone();
@@ -881,7 +922,7 @@ pub(crate) fn render_workspace(
     }
 
     // Události na pozadí (watcher, build, autosave)
-    process_background_events(ws);
+    process_background_events(ws, i18n);
 
     // Pravidelné překreslování pro autosave a watcher
     ctx.request_repaint_after(std::time::Duration::from_millis(
@@ -890,7 +931,7 @@ pub(crate) fn render_workspace(
 
     // Klávesové zkratky
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        if let Some(err) = ws.editor.save() {
+        if let Some(err) = ws.editor.save(i18n) {
             ws.toasts.push(Toast::error(err));
         }
         // Po uložení okamžitě aktualizujeme git status
@@ -932,38 +973,38 @@ pub(crate) fn render_workspace(
     }
 
     // Menu bar + zpracování akcí
-    let actions = render_menu_bar(ctx, ws, shared);
-    let open_here_path = process_menu_actions(ws, shared, actions);
+    let actions = render_menu_bar(ctx, ws, shared, i18n);
+    let open_here_path = process_menu_actions(ws, shared, actions, i18n);
 
     // Modální dialogy
-    render_dialogs(ctx, ws, shared);
+    render_dialogs(ctx, ws, shared, i18n);
 
     // File picker (Ctrl+P)
-    if let Some(path) = render_file_picker(ctx, ws) {
+    if let Some(path) = render_file_picker(ctx, ws, i18n) {
         open_file_in_ws(ws, path);
     }
 
     // Hledání napříč projektem
-    render_project_search_dialog(ctx, ws);
+    render_project_search_dialog(ctx, ws, i18n);
 
     // Status bar (musí být před SidePanel)
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
         .show(ctx, |ui| {
-            ws.editor.status_bar(ui, ws.git_branch.as_deref());
+            ws.editor.status_bar(ui, ws.git_branch.as_deref(), i18n);
         });
 
     let dialog_open = ws.file_tree.has_open_dialog();
 
     // Panely (pořadí: pravý, levý, centrální)
-    let ai_clicked = render_ai_panel(ctx, ws, dialog_open);
-    let left_clicked = render_left_panel(ctx, ws, dialog_open);
+    let ai_clicked = render_ai_panel(ctx, ws, dialog_open, i18n);
+    let left_clicked = render_left_panel(ctx, ws, dialog_open, i18n);
 
     // Zapamatovat aktivní záložku před renderem — kvůli detekci přepnutí tabu
     let prev_active_path = ws.editor.active_path().cloned();
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        if ws.editor.ui(ui, dialog_open) {
+        if ws.editor.ui(ui, dialog_open, i18n) {
             ws.focused_panel = FocusedPanel::Editor;
         }
     });

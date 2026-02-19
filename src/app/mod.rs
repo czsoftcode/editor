@@ -127,11 +127,13 @@ impl EditorApp {
             .collect();
 
         let settings = crate::settings::Settings::load();
+        let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
 
         let shared = Arc::new(Mutex::new(AppShared {
             recent_projects,
             actions: Vec::new(),
             settings,
+            i18n,
         }));
 
         // Aktualizovat lokální cache nedávných
@@ -311,7 +313,10 @@ impl EditorApp {
                     if close_requested.load(Ordering::SeqCst) {
                         let modal_id = format!("close_project_modal_{vid:?}");
                         let project_path = ws.root_path.display().to_string();
-                        match show_close_project_confirm_dialog(ctx, &modal_id, &project_path) {
+                        let i18n_arc = {
+                            std::sync::Arc::clone(&shared_arc.lock().unwrap().i18n)
+                        };
+                        match show_close_project_confirm_dialog(ctx, &modal_id, &project_path, &*i18n_arc) {
                             QuitDialogResult::Confirmed => {
                                 close_requested.store(false, Ordering::SeqCst);
                                 shared_arc
@@ -332,7 +337,8 @@ impl EditorApp {
     }
 
     fn show_quit_confirm_dialog(&mut self, ctx: &egui::Context) {
-        match show_quit_confirm_dialog(ctx) {
+        let i18n_arc = { std::sync::Arc::clone(&self.shared.lock().unwrap().i18n) };
+        match show_quit_confirm_dialog(ctx, &*i18n_arc) {
             QuitDialogResult::Confirmed => {
                 self.save_session();
                 self.quit_confirmed = true;
@@ -353,7 +359,8 @@ impl EditorApp {
         };
 
         let project_path = ws.root_path.display().to_string();
-        match show_close_project_confirm_dialog(ctx, "close_project_root_modal", &project_path) {
+        let i18n_arc = { std::sync::Arc::clone(&self.shared.lock().unwrap().i18n) };
+        match show_close_project_confirm_dialog(ctx, "close_project_root_modal", &project_path, &*i18n_arc) {
             QuitDialogResult::Confirmed => {
                 self.save_session();
                 self.root_ws = None;
@@ -370,7 +377,13 @@ impl EditorApp {
     }
 
     fn do_startup_dialog(&mut self, ctx: &egui::Context) {
-        let recent_snapshot = self.shared.lock().unwrap().recent_projects.clone();
+        let (recent_snapshot, i18n_arc) = {
+            let shared = self.shared.lock().unwrap();
+            (
+                shared.recent_projects.clone(),
+                std::sync::Arc::clone(&shared.i18n),
+            )
+        };
         match show_startup_dialog(
             ctx,
             &mut self.path_buffer,
@@ -378,6 +391,7 @@ impl EditorApp {
             &recent_snapshot,
             &mut self.startup_browse_rx,
             &self.missing_session_paths,
+            &*i18n_arc,
         ) {
             StartupAction::OpenPath(path) => {
                 self.open_workspace_from_startup(ctx, path);
@@ -409,6 +423,7 @@ impl EditorApp {
 
     fn do_startup_wizard(&mut self, ctx: &egui::Context) {
         let shared = Arc::clone(&self.shared);
+        let i18n_arc = { std::sync::Arc::clone(&self.shared.lock().unwrap().i18n) };
         let mut success_path: Option<PathBuf> = None;
         show_project_wizard(
             ctx,
@@ -416,6 +431,7 @@ impl EditorApp {
             &mut self.show_startup_wizard,
             "startup_wizard_modal",
             &shared,
+            &*i18n_arc,
             |path, _sh| {
                 success_path = Some(path);
             },
@@ -495,13 +511,14 @@ impl eframe::App for EditorApp {
             // Dočasně vyjmout root_ws, aby bylo možné volat &mut self
             let mut ws = self.root_ws.take().unwrap();
             // Jednorázové info toasty o projektech, které nebylo možné obnovit ze session
-            for path in self.missing_session_paths.drain(..) {
-                let name = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| path.to_string_lossy().into_owned());
-                ws.toasts
-                    .push(Toast::info(format!("Projekt '{name}' nebyl obnoven — složka neexistuje")));
+            if !self.missing_session_paths.is_empty() {
+                let i18n_arc = { std::sync::Arc::clone(&self.shared.lock().unwrap().i18n) };
+                let i18n = &*i18n_arc;
+                for path in self.missing_session_paths.drain(..) {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("path", path.to_string_lossy().into_owned());
+                    ws.toasts.push(Toast::info(i18n.get_args("error-session-restore", &args)));
+                }
             }
             let reinit = render_workspace(ctx, &mut ws, &self.shared);
             if let Some(new_path) = reinit {

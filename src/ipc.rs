@@ -74,7 +74,7 @@ fn save_paths(file_path: &std::path::Path, paths: &[PathBuf]) {
     if let Some(parent) = file_path.parent() {
         if let Err(e) = std::fs::create_dir_all(parent) {
             eprintln!(
-                "ipc: nelze vytvořit config adresář {}: {e}",
+                "ipc: cannot create config directory {}: {e}",
                 parent.display()
             );
             return;
@@ -82,17 +82,17 @@ fn save_paths(file_path: &std::path::Path, paths: &[PathBuf]) {
     }
     let strings: Vec<&str> = paths.iter().filter_map(|p| p.to_str()).collect();
     let Ok(content) = serde_json::to_string(&strings) else {
-        eprintln!("ipc: serializace cest selhala");
+        eprintln!("ipc: path serialization failed");
         return;
     };
     let tmp = file_path.with_extension("tmp");
     if let Err(e) = std::fs::write(&tmp, content) {
-        eprintln!("ipc: nelze zapsat tmp soubor {}: {e}", tmp.display());
+        eprintln!("ipc: cannot write tmp file {}: {e}", tmp.display());
         return;
     }
     if let Err(e) = std::fs::rename(&tmp, file_path) {
         eprintln!(
-            "ipc: nelze atomicky přejmenovat {} -> {}: {e}",
+            "ipc: cannot atomically rename {} -> {}: {e}",
             tmp.display(),
             file_path.display()
         );
@@ -332,7 +332,7 @@ impl IpcServer {
         if let Some(parent) = sock.parent() {
             if let Err(e) = std::fs::create_dir_all(parent) {
                 eprintln!(
-                    "ipc: nelze vytvořit socket adresář {}: {e}",
+                    "ipc: cannot create socket directory {}: {e}",
                     parent.display()
                 );
                 return None;
@@ -347,7 +347,7 @@ impl IpcServer {
         // Odstranit případný starý (nefunkční) socket
         if let Err(e) = std::fs::remove_file(&sock) {
             if e.kind() != std::io::ErrorKind::NotFound {
-                eprintln!("ipc: nelze odstranit starý socket {}: {e}", sock.display());
+                eprintln!("ipc: cannot remove old socket {}: {e}", sock.display());
             }
         }
 
@@ -371,7 +371,7 @@ impl Drop for IpcServer {
         if let Err(e) = std::fs::remove_file(&self.sock_path) {
             if e.kind() != std::io::ErrorKind::NotFound {
                 eprintln!(
-                    "ipc: nelze odstranit socket {}: {e}",
+                    "ipc: cannot remove socket {}: {e}",
                     self.sock_path.display()
                 );
             }

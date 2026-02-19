@@ -76,7 +76,7 @@ impl Terminal {
                 ..Default::default()
             },
         )
-        .map_err(|e| format!("Nelze vytvořit terminálový backend: {e}"))?;
+        .map_err(|e| format!("Cannot create terminal backend: {e}"))?;
 
         if let Some(cmd) = init_command {
             let cmd_with_newline = format!("{}\n", cmd);
@@ -120,7 +120,7 @@ impl Terminal {
     }
 
     /// Vykreslí terminál. Vrací `true` pokud uživatel klikl do oblasti terminálu.
-    pub fn ui(&mut self, ui: &mut egui::Ui, focused: bool, font_size: f32) -> bool {
+    pub fn ui(&mut self, ui: &mut egui::Ui, focused: bool, font_size: f32, i18n: &crate::i18n::I18n) -> bool {
         // Zpracovat události z PTY — limit za snímek, zbytek se dočerpá příští snímek.
         // Bez limitu by burst výstupu (cargo build, grep apod.) zablokoval UI na desítky ms.
         if let Some(pty_receiver) = &self.pty_receiver {
@@ -141,12 +141,12 @@ impl Terminal {
                 ui.add_space(20.0);
                 ui.colored_label(
                     egui::Color32::from_rgb(230, 120, 120),
-                    "Terminál není dostupný.",
+                    i18n.get("terminal-unavailable"),
                 );
                 ui.add_space(4.0);
                 ui.label(err);
                 ui.add_space(8.0);
-                if ui.button("Zkusit znovu").clicked() {
+                if ui.button(i18n.get("terminal-retry")).clicked() {
                     restart = true;
                 }
             });
@@ -245,7 +245,7 @@ impl Terminal {
             if ui
                 .add_enabled(
                     has_selection,
-                    egui::Button::new(egui::RichText::new("Kopírovat").size(menu_size)),
+                    egui::Button::new(egui::RichText::new(i18n.get("btn-copy")).size(menu_size)),
                 )
                 .clicked()
             {
@@ -254,7 +254,7 @@ impl Terminal {
             }
 
             if ui
-                .button(egui::RichText::new("Vložit").size(menu_size))
+                .button(egui::RichText::new(i18n.get("btn-paste")).size(menu_size))
                 .clicked()
             {
                 if let Ok(mut clipboard) = arboard::Clipboard::new() {
@@ -279,7 +279,7 @@ impl Terminal {
                 ui.add_space(6.0);
                 ui.colored_label(
                     egui::Color32::from_rgb(200, 180, 80),
-                    "[Proces skoncil — stisknete R pro restart]",
+                    i18n.get("terminal-exited"),
                 );
             });
         }

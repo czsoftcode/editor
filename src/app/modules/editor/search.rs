@@ -109,7 +109,7 @@ impl Editor {
 
     // --- Search bar UI ---
 
-    pub(super) fn search_bar(&mut self, ui: &mut egui::Ui) {
+    pub(super) fn search_bar(&mut self, ui: &mut egui::Ui, i18n: &crate::i18n::I18n) {
         let match_count = self.search_matches.len();
         let current_idx = self.current_match;
         let focus_requested = self.search_focus_requested;
@@ -122,7 +122,7 @@ impl Editor {
         let mut query_changed = false;
 
         ui.horizontal(|ui| {
-            ui.label("Hledat:");
+            ui.label(i18n.get("search-label"));
             let response = ui.add(
                 egui::TextEdit::singleline(&mut self.search_query)
                     .desired_width(200.0)
@@ -157,7 +157,7 @@ impl Editor {
             }
 
             if !self.show_replace {
-                if ui.small_button("Nahradit\u{2026}").clicked() {
+                if ui.small_button(i18n.get("search-replace-expand")).clicked() {
                     self.show_replace = true;
                 }
             }
@@ -168,12 +168,12 @@ impl Editor {
 
         if self.show_replace {
             ui.horizontal(|ui| {
-                ui.label("Nahradit:");
+                ui.label(i18n.get("replace-label"));
                 ui.add(egui::TextEdit::singleline(&mut self.replace_query).desired_width(200.0));
-                if ui.small_button("Nahradit").clicked() {
+                if ui.small_button(i18n.get("search-replace-one")).clicked() {
                     do_replace = true;
                 }
-                if ui.small_button("Nahradit v\u{0161}e").clicked() {
+                if ui.small_button(i18n.get("search-replace-all")).clicked() {
                     do_replace_all = true;
                 }
             });

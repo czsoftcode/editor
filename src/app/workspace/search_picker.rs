@@ -86,7 +86,11 @@ fn collect_files_recursive(
 }
 
 /// render_file_picker — modal pro Ctrl+P
-pub(super) fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -> Option<PathBuf> {
+pub(super) fn render_file_picker(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    i18n: &crate::i18n::I18n,
+) -> Option<PathBuf> {
     let picker = ws.file_picker.as_mut()?;
 
     // Globální klávesy pro navigaci (čteme před renderem, aby fungovaly i při focus na TextEdit)
@@ -121,12 +125,12 @@ pub(super) fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -
         let modal = egui::Modal::new(egui::Id::new("file_picker_modal"));
         modal.show(ctx, |ui| {
             ui.set_min_width(520.0);
-            ui.heading("Otevřít soubor");
+            ui.heading(i18n.get("file-picker-heading"));
             ui.add_space(6.0);
 
             let resp = ui.add(
                 egui::TextEdit::singleline(&mut picker.query)
-                    .hint_text("Hledat… (fuzzy)")
+                    .hint_text(i18n.get("file-picker-placeholder"))
                     .desired_width(500.0)
                     .id(egui::Id::new("file_picker_input")),
             );
@@ -138,9 +142,14 @@ pub(super) fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -
             }
 
             let count_label = if picker.query.is_empty() {
-                format!("{} souborů", total)
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("count", total as i64);
+                i18n.get_args("file-picker-count", &args)
             } else {
-                format!("{}/{} souborů", picker.filtered.len(), total)
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("filtered", picker.filtered.len() as i64);
+                args.set("total", total as i64);
+                i18n.get_args("file-picker-count-filtered", &args)
             };
             ui.add_space(2.0);
             ui.label(egui::RichText::new(count_label).weak().size(11.0));
@@ -166,13 +175,12 @@ pub(super) fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -
                         }
                     }
                     if picker.filtered.len() > max_show {
+                        let mut args = fluent_bundle::FluentArgs::new();
+                        args.set("count", (picker.filtered.len() - max_show) as i64);
                         ui.label(
-                            egui::RichText::new(format!(
-                                "… a {} dalších",
-                                picker.filtered.len() - max_show
-                            ))
-                            .weak()
-                            .size(11.0),
+                            egui::RichText::new(i18n.get_args("file-picker-more", &args))
+                                .weak()
+                                .size(11.0),
                         );
                     }
                 });
@@ -231,7 +239,11 @@ fn run_project_search(
 }
 
 /// Dialog pro zadání hledaného výrazu.
-pub(super) fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState) {
+pub(super) fn render_project_search_dialog(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    i18n: &crate::i18n::I18n,
+) {
     if !ws.project_search.show_input {
         return;
     }
@@ -242,11 +254,11 @@ pub(super) fn render_project_search_dialog(ctx: &egui::Context, ws: &mut Workspa
 
     let modal = egui::Modal::new(egui::Id::new("project_search_modal"));
     modal.show(ctx, |ui| {
-        ui.heading("Hledat v projektu");
+        ui.heading(i18n.get("project-search-heading"));
         ui.add_space(8.0);
         let resp = ui.add(
             egui::TextEdit::singleline(&mut ws.project_search.query)
-                .hint_text("Hledaný výraz…")
+                .hint_text(i18n.get("project-search-hint"))
                 .desired_width(380.0)
                 .id(egui::Id::new("project_search_input")),
         );
@@ -258,10 +270,10 @@ pub(super) fn render_project_search_dialog(ctx: &egui::Context, ws: &mut Workspa
         }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.button("Hledat").clicked() {
+            if ui.button(i18n.get("project-search-btn")).clicked() {
                 start_search = true;
             }
-            if ui.button("Zrušit").clicked() {
+            if ui.button(i18n.get("btn-cancel")).clicked() {
                 close = true;
             }
         });

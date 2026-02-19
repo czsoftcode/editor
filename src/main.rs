@@ -1,6 +1,7 @@
 mod app;
 mod config;
 mod highlighter;
+pub mod i18n;
 mod ipc;
 mod settings;
 mod watcher;

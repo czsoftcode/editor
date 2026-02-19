@@ -10,6 +10,7 @@ pub(super) fn render_left_panel(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
     dialog_open: bool,
+    i18n: &crate::i18n::I18n,
 ) -> bool {
     if !ws.show_left_panel {
         return false;
@@ -31,12 +32,12 @@ pub(super) fn render_left_panel(
 
             egui::Frame::NONE.show(ui, |ui| {
                 ui.set_max_height(tree_height);
-                ui.heading("Soubory");
+                ui.heading(i18n.get("panel-files"));
                 ui.separator();
                 egui::ScrollArea::both()
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        let result = ws.file_tree.ui(ui);
+                        let result = ws.file_tree.ui(ui, i18n);
                         if let Some(err) = ws.file_tree.take_error() {
                             ws.toasts.push(Toast::error(err));
                         }
@@ -54,7 +55,7 @@ pub(super) fn render_left_panel(
 
             if ws.show_build_terminal {
                 ui.separator();
-                render_build_panel(ui, ws, dialog_open, focused, &mut any_clicked);
+                render_build_panel(ui, ws, dialog_open, focused, &mut any_clicked, i18n);
             }
         });
     any_clicked
@@ -67,28 +68,29 @@ fn render_build_panel(
     dialog_open: bool,
     focused: FocusedPanel,
     any_clicked: &mut bool,
+    i18n: &crate::i18n::I18n,
 ) {
     ui.horizontal(|ui| {
-        ui.strong("Build");
+        ui.strong(i18n.get("panel-build"));
         ui.separator();
-        if ui.small_button("\u{25B6} Build").clicked() {
+        if ui.small_button(i18n.get("btn-build")).clicked() {
             if let Some(t) = &mut ws.build_terminal {
                 t.send_command("cargo build 2>&1");
             }
             ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
             ws.build_errors.clear();
         }
-        if ui.small_button("\u{25B6} Run").clicked() {
+        if ui.small_button(i18n.get("btn-run")).clicked() {
             if let Some(t) = &mut ws.build_terminal {
                 t.send_command("cargo run 2>&1");
             }
         }
-        if ui.small_button("\u{25B6} Test").clicked() {
+        if ui.small_button(i18n.get("btn-test")).clicked() {
             if let Some(t) = &mut ws.build_terminal {
                 t.send_command("cargo test 2>&1");
             }
         }
-        if ui.small_button("\u{2716} Clean").clicked() {
+        if ui.small_button(i18n.get("btn-clean")).clicked() {
             if let Some(t) = &mut ws.build_terminal {
                 t.send_command("cargo clean");
             }
@@ -98,7 +100,7 @@ fn render_build_panel(
 
     if !dialog_open {
         if let Some(terminal) = &mut ws.build_terminal {
-            if terminal.ui(ui, focused == FocusedPanel::Build, config::EDITOR_FONT_SIZE) {
+            if terminal.ui(ui, focused == FocusedPanel::Build, config::EDITOR_FONT_SIZE, i18n) {
                 ws.focused_panel = FocusedPanel::Build;
                 *any_clicked = true;
             }
@@ -107,8 +109,10 @@ fn render_build_panel(
 
     if !ws.build_errors.is_empty() {
         ui.separator();
+        let mut err_args = fluent_bundle::FluentArgs::new();
+        err_args.set("count", ws.build_errors.len() as i64);
         ui.label(
-            egui::RichText::new(format!("Chyby ({})", ws.build_errors.len()))
+            egui::RichText::new(i18n.get_args("panel-build-errors", &err_args))
                 .strong()
                 .size(12.0),
         );
@@ -148,14 +152,13 @@ fn render_build_panel(
         ui.separator();
         ui.horizontal(|ui| {
             if loading {
-                ui.label(egui::RichText::new("Hledání…").weak().size(12.0));
+                ui.label(egui::RichText::new(i18n.get("project-search-loading")).weak().size(12.0));
             } else {
+                let mut search_args = fluent_bundle::FluentArgs::new();
+                search_args.set("query", ws.project_search.query.clone());
+                search_args.set("count", ws.project_search.results.len() as i64);
                 ui.label(
-                    egui::RichText::new(format!(
-                        "Výsledky hledání „{}\" ({})",
-                        ws.project_search.query,
-                        ws.project_search.results.len()
-                    ))
+                    egui::RichText::new(i18n.get_args("project-search-result-label", &search_args))
                     .strong()
                     .size(12.0),
                 );

@@ -176,7 +176,7 @@ impl FileTree {
         self.root = Some(root);
     }
 
-    pub fn ui(&mut self, ui: &mut eframe::egui::Ui) -> FileTreeResult {
+    pub fn ui(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) -> FileTreeResult {
         let mut result = FileTreeResult::default();
 
         if self.needs_reload {
@@ -203,14 +203,15 @@ impl FileTree {
                 has_clipboard,
                 &expand_to,
                 &self.git_colors,
+                i18n,
             );
         }
 
         if let Some(act) = action {
-            self.handle_action(act);
+            self.handle_action(act, i18n);
         }
 
-        self.show_dialogs(ui);
+        self.show_dialogs(ui, i18n);
 
         result.selected = selected;
         result
@@ -224,6 +225,7 @@ impl FileTree {
         has_clipboard: bool,
         expand_to: &Option<PathBuf>,
         git_colors: &HashMap<PathBuf, eframe::egui::Color32>,
+        i18n: &crate::i18n::I18n,
     ) {
         let dark_mode = ui.visuals().dark_mode;
         let text_color = ui.visuals().text_color();
@@ -266,6 +268,7 @@ impl FileTree {
                         has_clipboard,
                         expand_to,
                         git_colors,
+                        i18n,
                     );
                 }
             });
@@ -274,28 +277,28 @@ impl FileTree {
             header_response.context_menu(|ui| {
                 let menu_size = 15.0;
                 if ui
-                    .button(eframe::egui::RichText::new("Nový soubor").size(menu_size))
+                    .button(eframe::egui::RichText::new(i18n.get("file-tree-new-file")).size(menu_size))
                     .clicked()
                 {
                     *action = Some(ContextAction::NewFile(node.path.clone()));
                     ui.close_menu();
                 }
                 if ui
-                    .button(eframe::egui::RichText::new("Nový adresář").size(menu_size))
+                    .button(eframe::egui::RichText::new(i18n.get("file-tree-new-dir")).size(menu_size))
                     .clicked()
                 {
                     *action = Some(ContextAction::NewDir(node.path.clone()));
                     ui.close_menu();
                 }
                 if ui
-                    .button(eframe::egui::RichText::new("Přejmenovat").size(menu_size))
+                    .button(eframe::egui::RichText::new(i18n.get("file-tree-rename")).size(menu_size))
                     .clicked()
                 {
                     *action = Some(ContextAction::Rename(node.path.clone()));
                     ui.close_menu();
                 }
                 if ui
-                    .button(eframe::egui::RichText::new("Kopírovat").size(menu_size))
+                    .button(eframe::egui::RichText::new(i18n.get("file-tree-copy")).size(menu_size))
                     .clicked()
                 {
                     *action = Some(ContextAction::Copy(node.path.clone()));
@@ -303,7 +306,7 @@ impl FileTree {
                 }
                 if has_clipboard {
                     if ui
-                        .button(eframe::egui::RichText::new("Vložit").size(menu_size))
+                        .button(eframe::egui::RichText::new(i18n.get("file-tree-paste")).size(menu_size))
                         .clicked()
                     {
                         *action = Some(ContextAction::Paste(node.path.clone()));
@@ -311,7 +314,7 @@ impl FileTree {
                     }
                 }
                 if ui
-                    .button(eframe::egui::RichText::new("Smazat").size(menu_size))
+                    .button(eframe::egui::RichText::new(i18n.get("file-tree-delete")).size(menu_size))
                     .clicked()
                 {
                     *action = Some(ContextAction::Delete(node.path.clone()));
@@ -335,21 +338,21 @@ impl FileTree {
             label.context_menu(|ui| {
                 let menu_size = 15.0;
                 if ui
-                    .button(eframe::egui::RichText::new("Přejmenovat").size(menu_size))
+                    .button(eframe::egui::RichText::new(i18n.get("file-tree-rename")).size(menu_size))
                     .clicked()
                 {
                     *action = Some(ContextAction::Rename(node.path.clone()));
                     ui.close_menu();
                 }
                 if ui
-                    .button(eframe::egui::RichText::new("Kopírovat").size(menu_size))
+                    .button(eframe::egui::RichText::new(i18n.get("file-tree-copy")).size(menu_size))
                     .clicked()
                 {
                     *action = Some(ContextAction::Copy(node.path.clone()));
                     ui.close_menu();
                 }
                 if ui
-                    .button(eframe::egui::RichText::new("Smazat").size(menu_size))
+                    .button(eframe::egui::RichText::new(i18n.get("file-tree-delete")).size(menu_size))
                     .clicked()
                 {
                     *action = Some(ContextAction::Delete(node.path.clone()));
@@ -359,7 +362,7 @@ impl FileTree {
         }
     }
 
-    fn handle_action(&mut self, action: ContextAction) {
+    fn handle_action(&mut self, action: ContextAction, i18n: &crate::i18n::I18n) {
         match action {
             ContextAction::NewFile(parent) => {
                 self.new_item_parent = Some(parent);
@@ -400,7 +403,9 @@ impl FileTree {
                             self.needs_reload = true;
                         }
                         Err(e) => {
-                            self.pending_error = Some(format!("Nelze vložit: {e}"));
+                            let mut args = fluent_bundle::FluentArgs::new();
+                            args.set("reason", e.to_string());
+                            self.pending_error = Some(i18n.get_args("file-tree-paste-error", &args));
                         }
                     }
                 }
@@ -411,21 +416,21 @@ impl FileTree {
         }
     }
 
-    fn show_dialogs(&mut self, ui: &mut eframe::egui::Ui) {
-        self.show_new_item_dialog(ui);
-        self.show_rename_dialog(ui);
-        self.show_delete_dialog(ui);
+    fn show_dialogs(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) {
+        self.show_new_item_dialog(ui, i18n);
+        self.show_rename_dialog(ui, i18n);
+        self.show_delete_dialog(ui, i18n);
     }
 
-    fn show_new_item_dialog(&mut self, ui: &mut eframe::egui::Ui) {
+    fn show_new_item_dialog(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) {
         if self.new_item_parent.is_none() {
             return;
         }
 
         let title = if self.new_item_is_dir {
-            "Nový adresář"
+            i18n.get("file-tree-new-dir")
         } else {
-            "Nový soubor"
+            i18n.get("file-tree-new-file")
         };
 
         let mut should_create = false;
@@ -433,10 +438,10 @@ impl FileTree {
         let modal = eframe::egui::Modal::new(eframe::egui::Id::new("new_item_modal"));
         let modal_response = modal.show(ui.ctx(), |ui| {
             let dlg_size = 15.0;
-            ui.heading(title);
+            ui.heading(&title);
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                ui.label(eframe::egui::RichText::new("Název:").size(dlg_size));
+                ui.label(eframe::egui::RichText::new(i18n.get("btn-name-label")).size(dlg_size));
                 let response = ui.add(
                     eframe::egui::TextEdit::singleline(&mut self.new_item_buffer)
                         .font(eframe::egui::TextStyle::Body)
@@ -452,13 +457,13 @@ impl FileTree {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 if ui
-                    .button(eframe::egui::RichText::new("Vytvořit").size(dlg_size))
+                    .button(eframe::egui::RichText::new(i18n.get("btn-create")).size(dlg_size))
                     .clicked()
                 {
                     should_create = true;
                 }
                 if ui
-                    .button(eframe::egui::RichText::new("Zrušit").size(dlg_size))
+                    .button(eframe::egui::RichText::new(i18n.get("btn-cancel")).size(dlg_size))
                     .clicked()
                 {
                     self.new_item_parent = None;
@@ -473,22 +478,22 @@ impl FileTree {
         if should_create && !self.new_item_buffer.trim().is_empty() {
             let name = self.new_item_buffer.trim();
             if !is_safe_filename(name) {
-                self.pending_error = Some(
-                    "Neplatny nazev: nesmi obsahovat /, \\ ani ..".to_string(),
-                );
+                self.pending_error = Some(i18n.get("file-tree-unsafe-name"));
             } else if let Some(parent) = &self.new_item_parent {
                 let new_path = parent.join(name);
                 // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
                 if !new_path.starts_with(&self.root_path) {
-                    self.pending_error =
-                        Some("Cesta by vedla mimo projekt".to_string());
+                    self.pending_error = Some(i18n.get("file-tree-outside-project"));
                 } else if self.new_item_is_dir {
                     match std::fs::create_dir(&new_path) {
                         Ok(()) => {
                             self.expand_to = Some(new_path);
                         }
                         Err(e) => {
-                            self.pending_error = Some(format!("Nelze vytvorit adresar: {e}"));
+                            let mut args = fluent_bundle::FluentArgs::new();
+                            args.set("reason", e.to_string());
+                            self.pending_error =
+                                Some(i18n.get_args("file-tree-create-dir-error", &args));
                         }
                     }
                     self.needs_reload = true;
@@ -499,7 +504,10 @@ impl FileTree {
                             self.expand_to = Some(new_path);
                         }
                         Err(e) => {
-                            self.pending_error = Some(format!("Nelze vytvorit soubor: {e}"));
+                            let mut args = fluent_bundle::FluentArgs::new();
+                            args.set("reason", e.to_string());
+                            self.pending_error =
+                                Some(i18n.get_args("file-tree-create-file-error", &args));
                         }
                     }
                     self.needs_reload = true;
@@ -509,7 +517,7 @@ impl FileTree {
         }
     }
 
-    fn show_rename_dialog(&mut self, ui: &mut eframe::egui::Ui) {
+    fn show_rename_dialog(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) {
         if self.rename_target.is_none() {
             return;
         }
@@ -519,10 +527,10 @@ impl FileTree {
         let modal = eframe::egui::Modal::new(eframe::egui::Id::new("rename_modal"));
         let modal_response = modal.show(ui.ctx(), |ui| {
             let dlg_size = 15.0;
-            ui.heading("Přejmenovat");
+            ui.heading(i18n.get("file-tree-rename"));
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                ui.label(eframe::egui::RichText::new("Nový název:").size(dlg_size));
+                ui.label(eframe::egui::RichText::new(i18n.get("btn-name-label")).size(dlg_size));
                 let response = ui.add(
                     eframe::egui::TextEdit::singleline(&mut self.rename_buffer)
                         .font(eframe::egui::TextStyle::Body)
@@ -538,13 +546,13 @@ impl FileTree {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 if ui
-                    .button(eframe::egui::RichText::new("Přejmenovat").size(dlg_size))
+                    .button(eframe::egui::RichText::new(i18n.get("btn-rename")).size(dlg_size))
                     .clicked()
                 {
                     should_rename = true;
                 }
                 if ui
-                    .button(eframe::egui::RichText::new("Zrušit").size(dlg_size))
+                    .button(eframe::egui::RichText::new(i18n.get("btn-cancel")).size(dlg_size))
                     .clicked()
                 {
                     self.rename_target = None;
@@ -559,23 +567,23 @@ impl FileTree {
         if should_rename && !self.rename_buffer.trim().is_empty() {
             let name = self.rename_buffer.trim();
             if !is_safe_filename(name) {
-                self.pending_error = Some(
-                    "Neplatny nazev: nesmi obsahovat /, \\ ani ..".to_string(),
-                );
+                self.pending_error = Some(i18n.get("file-tree-unsafe-name"));
             } else if let Some(target) = &self.rename_target {
                 if let Some(parent) = target.parent() {
                     let new_path = parent.join(name);
                     // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
                     if !new_path.starts_with(&self.root_path) {
-                        self.pending_error =
-                            Some("Cesta by vedla mimo projekt".to_string());
+                        self.pending_error = Some(i18n.get("file-tree-outside-project"));
                     } else {
                         match std::fs::rename(target, &new_path) {
                             Ok(()) => {
                                 self.needs_reload = true;
                             }
                             Err(e) => {
-                                self.pending_error = Some(format!("Nelze prejmenovat: {e}"));
+                                let mut args = fluent_bundle::FluentArgs::new();
+                                args.set("reason", e.to_string());
+                                self.pending_error =
+                                    Some(i18n.get_args("file-tree-rename-error", &args));
                             }
                         }
                     }
@@ -585,7 +593,7 @@ impl FileTree {
         }
     }
 
-    fn show_delete_dialog(&mut self, ui: &mut eframe::egui::Ui) {
+    fn show_delete_dialog(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) {
         if self.delete_confirm.is_none() {
             return;
         }
@@ -599,24 +607,25 @@ impl FileTree {
         let mut should_delete = false;
         let dlg_size = 15.0;
 
+        let mut args = fluent_bundle::FluentArgs::new();
+        args.set("name", path_display.clone());
+        let confirm_msg = i18n.get_args("file-tree-confirm-delete", &args);
+
         let modal = eframe::egui::Modal::new(eframe::egui::Id::new("delete_modal"));
         let modal_response = modal.show(ui.ctx(), |ui| {
-            ui.heading("Potvrdit smazání");
+            ui.heading(&confirm_msg);
             ui.add_space(8.0);
-            ui.label(
-                eframe::egui::RichText::new(format!("Opravdu smazat?\n{}", path_display))
-                    .size(dlg_size),
-            );
+            ui.label(eframe::egui::RichText::new(&path_display).size(dlg_size));
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 if ui
-                    .button(eframe::egui::RichText::new("Ano").size(dlg_size))
+                    .button(eframe::egui::RichText::new(i18n.get("btn-delete")).size(dlg_size))
                     .clicked()
                 {
                     should_delete = true;
                 }
                 if ui
-                    .button(eframe::egui::RichText::new("Ne").size(dlg_size))
+                    .button(eframe::egui::RichText::new(i18n.get("btn-cancel")).size(dlg_size))
                     .clicked()
                 {
                     self.delete_confirm = None;
@@ -641,7 +650,10 @@ impl FileTree {
                         self.needs_reload = true;
                     }
                     Err(e) => {
-                        self.pending_error = Some(format!("Nelze smazat: {e}"));
+                        let mut err_args = fluent_bundle::FluentArgs::new();
+                        err_args.set("reason", e.to_string());
+                        self.pending_error =
+                            Some(i18n.get_args("file-tree-delete-error", &err_args));
                     }
                 }
             }
@@ -654,7 +666,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
     if src_meta.file_type().is_symlink() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "symbolické odkazy se nekopírují",
+            "symbolic links are not copied",
         ));
     }
     std::fs::create_dir(dst)?;

@@ -10,7 +10,7 @@ use super::{Toast, WorkspaceState, spawn_file_index_scan};
 use crate::watcher::{FileEvent, FsChange};
 
 /// Zpracuje události z watcherů, build výsledky a autosave.
-pub(super) fn process_background_events(ws: &mut WorkspaceState) {
+pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
     for event in ws.watcher.try_recv() {
         match event {
             FileEvent::Changed(changed_path) => {
@@ -38,8 +38,10 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState) {
                     .file_name()
                     .map(|n| n.to_string_lossy().into_owned())
                     .unwrap_or_else(|| removed_path.to_string_lossy().into_owned());
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("path", name);
                 ws.toasts
-                    .push(Toast::error(format!("Soubor byl smazán z disku: {name}")));
+                    .push(Toast::error(i18n.get_args("error-file-deleted", &args)));
             }
         }
     }
@@ -145,7 +147,7 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState) {
 
     // Autosave je pozastavený, pokud čeká dialog o externím konfliktu.
     if ws.external_change_conflict.is_none() {
-        if let Some(err) = ws.editor.try_autosave() {
+        if let Some(err) = ws.editor.try_autosave(i18n) {
             ws.toasts.push(Toast::error(err));
         }
     }

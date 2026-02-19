@@ -160,7 +160,7 @@ impl Editor {
             }
             Err(e) => {
                 let tab = Tab {
-                    content: format!("Chyba při čtení souboru: {}", e),
+                    content: format!("Error reading file: {}", e),
                     last_saved_content: String::new(),
                     path: path.clone(),
                     modified: false,
@@ -268,18 +268,18 @@ impl Editor {
     }
 
     /// Pokusí se autosave aktivní záložky. Vrací chybovou zprávu pokud zápis selhal.
-    pub fn try_autosave(&mut self) -> Option<String> {
+    pub fn try_autosave(&mut self, i18n: &crate::i18n::I18n) -> Option<String> {
         let should_save = self.active().is_some_and(|t| {
             !t.deleted
                 && t.modified
                 && t.last_edit
                     .is_some_and(|e| e.elapsed().as_millis() >= AUTOSAVE_DELAY_MS)
         });
-        if should_save { self.save() } else { None }
+        if should_save { self.save(i18n) } else { None }
     }
 
     /// Uloží aktivní záložku. Vrací chybovou zprávu pokud zápis selhal, jinak None.
-    pub fn save(&mut self) -> Option<String> {
+    pub fn save(&mut self, i18n: &crate::i18n::I18n) -> Option<String> {
         let tab = self.active_mut()?;
         tab.save_status = SaveStatus::Saving;
         match std::fs::write(&tab.path, &tab.content) {
@@ -292,18 +292,18 @@ impl Editor {
             }
             Err(e) => {
                 tab.save_status = SaveStatus::Modified;
-                Some(format!(
-                    "Chyba ukladani \"{}\": {}",
-                    tab.path.file_name().unwrap_or_default().to_string_lossy(),
-                    e
-                ))
+                let name = tab.path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("name", name);
+                args.set("reason", e.to_string());
+                Some(i18n.get_args("error-file-save", &args))
             }
         }
     }
 
     /// Uloží konkrétní záložku identifikovanou cestou (bez ohledu na aktivní záložku).
     /// Vrací chybovou zprávu pokud zápis selhal, jinak None.
-    pub fn save_path(&mut self, path: &PathBuf) -> Option<String> {
+    pub fn save_path(&mut self, path: &PathBuf, i18n: &crate::i18n::I18n) -> Option<String> {
         let tab = self.tabs.iter_mut().find(|t| t.path == *path)?;
         tab.save_status = SaveStatus::Saving;
         match std::fs::write(&tab.path, &tab.content) {
@@ -316,11 +316,11 @@ impl Editor {
             }
             Err(e) => {
                 tab.save_status = SaveStatus::Modified;
-                Some(format!(
-                    "Chyba ukladani \"{}\": {}",
-                    tab.path.file_name().unwrap_or_default().to_string_lossy(),
-                    e
-                ))
+                let name = tab.path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("name", name);
+                args.set("reason", e.to_string());
+                Some(i18n.get_args("error-file-save", &args))
             }
         }
     }
@@ -328,10 +328,10 @@ impl Editor {
     // --- UI entry point ---
 
     /// Vrací `true` pokud uživatel klikl do editoru.
-    pub fn ui(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
+    pub fn ui(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
         if self.tabs.is_empty() {
             ui.centered_and_justified(|ui| {
-                ui.label("Otevřete soubor z adresářového stromu vlevo");
+                ui.label(i18n.get("editor-empty-hint"));
             });
             return false;
         }
@@ -404,20 +404,20 @@ impl Editor {
         }
 
         if self.show_search {
-            self.search_bar(ui);
+            self.search_bar(ui, i18n);
         }
         if self.show_goto_line {
-            self.goto_line_bar(ui);
+            self.goto_line_bar(ui, i18n);
         }
 
         if self.is_markdown() {
-            self.ui_markdown_split(ui, dialog_open)
+            self.ui_markdown_split(ui, dialog_open, i18n)
         } else {
-            self.ui_normal(ui, dialog_open)
+            self.ui_normal(ui, dialog_open, i18n)
         }
     }
 
-    pub fn status_bar(&self, ui: &mut egui::Ui, git_branch: Option<&str>) {
+    pub fn status_bar(&self, ui: &mut egui::Ui, git_branch: Option<&str>, i18n: &crate::i18n::I18n) {
         let tab = match self.active() {
             Some(t) => t,
             None => return,
@@ -442,13 +442,13 @@ impl Editor {
             match tab.save_status {
                 SaveStatus::None => {}
                 SaveStatus::Modified => {
-                    ui.label(egui::RichText::new("Neuloženo").color(status_warn_color));
+                    ui.label(egui::RichText::new(i18n.get("statusbar-unsaved")).color(status_warn_color));
                 }
                 SaveStatus::Saving => {
-                    ui.label(egui::RichText::new("Ukládání…").color(secondary_color));
+                    ui.label(egui::RichText::new(i18n.get("statusbar-saving")).color(secondary_color));
                 }
                 SaveStatus::Saved => {
-                    ui.label(egui::RichText::new("Uloženo").color(status_ok_color));
+                    ui.label(egui::RichText::new(i18n.get("statusbar-saved")).color(status_ok_color));
                 }
             }
 
@@ -463,7 +463,7 @@ impl Editor {
                     );
                     ui.separator();
                 }
-                ui.label(egui::RichText::new("UTF-8").color(secondary_color));
+                ui.label(egui::RichText::new(i18n.get("statusbar-encoding")).color(secondary_color));
                 ui.separator();
                 ui.label(egui::RichText::new(file_type).color(secondary_color));
             });

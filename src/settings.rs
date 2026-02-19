@@ -13,6 +13,9 @@ fn default_editor_font_size() -> f32 {
 fn default_dark_theme() -> bool {
     true
 }
+fn default_lang() -> String {
+    crate::i18n::detect_system_lang()
+}
 
 pub fn default_project_path() -> String {
     dirs::home_dir()
@@ -39,6 +42,11 @@ pub struct Settings {
     /// Výchozí adresář pro nové projekty.
     #[serde(default = "default_project_path")]
     pub default_project_path: String,
+
+    /// Kód jazyka UI (BCP 47, např. "cs", "en").
+    /// Prázdný řetězec nebo nepodporovaný jazyk → autodetekce ze systému.
+    #[serde(default = "default_lang")]
+    pub lang: String,
 }
 
 impl Default for Settings {
@@ -47,6 +55,7 @@ impl Default for Settings {
             editor_font_size: default_editor_font_size(),
             dark_theme: default_dark_theme(),
             default_project_path: default_project_path(),
+            lang: default_lang(),
         }
     }
 }
@@ -78,16 +87,16 @@ impl Settings {
         let path = settings_path();
         if let Some(parent) = path.parent() {
             if let Err(e) = std::fs::create_dir_all(parent) {
-                eprintln!("settings: nelze vytvořit adresář {}: {e}", parent.display());
+                eprintln!("settings: cannot create directory {}: {e}", parent.display());
                 return;
             }
         }
         if let Ok(json) = serde_json::to_string_pretty(self) {
             if let Err(e) = std::fs::write(&path, json) {
-                eprintln!("settings: nelze zapsat {}: {e}", path.display());
+                eprintln!("settings: cannot write {}: {e}", path.display());
             }
         } else {
-            eprintln!("settings: serializace JSON selhala");
+            eprintln!("settings: JSON serialization failed");
         }
     }
 

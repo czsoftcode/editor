@@ -175,14 +175,14 @@ impl Editor {
 
     // --- Goto-line bar ---
 
-    pub(super) fn goto_line_bar(&mut self, ui: &mut egui::Ui) {
+    pub(super) fn goto_line_bar(&mut self, ui: &mut egui::Ui, i18n: &crate::i18n::I18n) {
         let mut do_jump = false;
         let mut do_close = false;
         let mut input_has_focus = false;
         let mut jump_by_enter = false;
 
         ui.horizontal(|ui| {
-            ui.label("Přejít na řádek:");
+            ui.label(i18n.get("goto-line-prompt"));
             let response = ui.add(
                 egui::TextEdit::singleline(&mut self.goto_line_input)
                     .desired_width(80.0)
@@ -233,7 +233,7 @@ impl Editor {
 
     // --- Normální editor ---
 
-    pub(super) fn ui_normal(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
+    pub(super) fn ui_normal(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
             None => return false,
@@ -368,7 +368,7 @@ impl Editor {
         }
 
         if let Some(response) = &saved_response {
-            self.show_editor_context_menu(response);
+            self.show_editor_context_menu(response, i18n);
         }
         if content_changed && self.show_search {
             self.update_search();
@@ -379,7 +379,7 @@ impl Editor {
 
     // --- Markdown split view ---
 
-    pub(super) fn ui_markdown_split(&mut self, ui: &mut egui::Ui, dialog_open: bool) -> bool {
+    pub(super) fn ui_markdown_split(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
             None => return false,
@@ -517,7 +517,7 @@ impl Editor {
             egui::vec2(available.x, bottom_h),
             egui::Layout::top_down(egui::Align::LEFT),
             |ui| {
-                ui.label(egui::RichText::new("Náhled").strong());
+                ui.label(egui::RichText::new(i18n.get("editor-preview-label")).strong());
                 ui.separator();
 
                 let preview_frame = egui::Frame::new()
@@ -537,7 +537,7 @@ impl Editor {
         );
 
         if let Some(response) = &saved_response {
-            self.show_editor_context_menu(response);
+            self.show_editor_context_menu(response, i18n);
         }
         if content_changed && self.show_search {
             self.update_search();
@@ -548,7 +548,7 @@ impl Editor {
 
     // --- Context menu ---
 
-    pub(super) fn show_editor_context_menu(&mut self, response: &egui::text_edit::TextEditOutput) {
+    pub(super) fn show_editor_context_menu(&mut self, response: &egui::text_edit::TextEditOutput, i18n: &crate::i18n::I18n) {
         let idx = match self.active_tab {
             Some(i) => i,
             None => return,
@@ -582,7 +582,7 @@ impl Editor {
             if ui
                 .add_enabled(
                     has_selection,
-                    egui::Button::new(egui::RichText::new("Kopírovat").size(menu_size)),
+                    egui::Button::new(egui::RichText::new(i18n.get("btn-copy")).size(menu_size)),
                 )
                 .clicked()
             {
@@ -593,7 +593,7 @@ impl Editor {
             }
 
             if ui
-                .button(egui::RichText::new("Vložit").size(menu_size))
+                .button(egui::RichText::new(i18n.get("btn-paste")).size(menu_size))
                 .clicked()
             {
                 if let Ok(mut clipboard) = arboard::Clipboard::new() {

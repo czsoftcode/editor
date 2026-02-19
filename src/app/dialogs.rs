@@ -83,6 +83,7 @@ pub(crate) fn show_project_wizard(
     show: &mut bool,
     modal_id: &str,
     shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
     on_success: impl FnOnce(PathBuf, &Arc<Mutex<AppShared>>),
 ) {
     if !*show {
@@ -122,26 +123,26 @@ pub(crate) fn show_project_wizard(
     let mut request_browse = false;
 
     modal.show(ctx, |ui| {
-        ui.heading("Nový projekt");
+        ui.heading(i18n.get("wizard-title"));
         ui.add_space(12.0);
 
-        ui.label("Typ projektu:");
+        ui.label(i18n.get("wizard-project-type"));
         ui.horizontal(|ui| {
-            ui.radio_value(&mut state.project_type, ProjectType::Rust, "Rust");
-            ui.radio_value(&mut state.project_type, ProjectType::Symfony, "Symfony");
+            ui.radio_value(&mut state.project_type, ProjectType::Rust, i18n.get("wizard-type-rust"));
+            ui.radio_value(&mut state.project_type, ProjectType::Symfony, i18n.get("wizard-type-symfony"));
         });
         ui.add_space(8.0);
 
         ui.horizontal(|ui| {
-            ui.label("Název:");
+            ui.label(i18n.get("btn-name-label"));
             ui.add(egui::TextEdit::singleline(&mut state.name).desired_width(250.0));
         });
         ui.add_space(4.0);
 
         ui.horizontal(|ui| {
-            ui.label("Pracovní adresář:");
+            ui.label(i18n.get("wizard-project-path"));
             ui.add(egui::TextEdit::singleline(&mut state.path).desired_width(200.0));
-            if ui.button("Procházet…").clicked() {
+            if ui.button(i18n.get("btn-browse")).clicked() {
                 request_browse = true;
             }
         });
@@ -158,7 +159,7 @@ pub(crate) fn show_project_wizard(
                 ui.add_space(4.0);
                 ui.colored_label(
                     egui::Color32::from_rgb(0xe0, 0x70, 0x10),
-                    "Název smí obsahovat pouze písmena, číslice, _ a - (nesmí začínat pomlčkou).",
+                    i18n.get("wizard-name-hint"),
                 );
             } else {
                 let preview = PathBuf::from(state.path.trim())
@@ -166,7 +167,7 @@ pub(crate) fn show_project_wizard(
                     .join(&display_name);
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label("Vytvoří se v:");
+                    ui.label(i18n.get("settings-creates-in"));
                     ui.monospace(preview.to_string_lossy().to_string());
                 });
             }
@@ -176,7 +177,7 @@ pub(crate) fn show_project_wizard(
         ui.horizontal(|ui| {
             let can_create = name_valid && !state.path.trim().is_empty() && !state.creating;
             if ui
-                .add_enabled(can_create, egui::Button::new("Vytvořit"))
+                .add_enabled(can_create, egui::Button::new(i18n.get("btn-create")))
                 .clicked()
             {
                 create_project = Some((
@@ -185,13 +186,13 @@ pub(crate) fn show_project_wizard(
                     state.path.trim().to_string(),
                 ));
             }
-            if ui.button("Zrušit").clicked() {
+            if ui.button(i18n.get("btn-cancel")).clicked() {
                 close_dialog = true;
             }
         });
         if state.creating {
             ui.add_space(6.0);
-            ui.label(egui::RichText::new("Vytváření projektu…").weak());
+            ui.label(egui::RichText::new(i18n.get("wizard-creating")).weak());
         }
 
         if !state.error.is_empty() {
@@ -217,7 +218,9 @@ pub(crate) fn show_project_wizard(
         state.creating = true;
         let (tx, rx) = mpsc::channel();
         state.create_rx = Some(rx);
+        let i18n_arc = std::sync::Arc::clone(&shared.lock().unwrap().i18n);
         std::thread::spawn(move || {
+            let i18n = &*i18n_arc;
             let name = if project_type == ProjectType::Rust {
                 raw_name.to_lowercase()
             } else {
@@ -225,9 +228,11 @@ pub(crate) fn show_project_wizard(
             };
             let type_dir = PathBuf::from(&base_path).join(project_type.subdir());
             if let Err(e) = std::fs::create_dir_all(&type_dir) {
-                let _ = tx.send(ProjectCreateResult::Error(format!(
-                    "Nelze vytvořit adresář projektu: {e}"
-                )));
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("reason", e.to_string());
+                let _ = tx.send(ProjectCreateResult::Error(
+                    i18n.get_args("error-project-dir-create", &args)
+                ));
                 return;
             }
 
@@ -258,11 +263,17 @@ pub(crate) fn show_project_wizard(
                     } else if !stdout.is_empty() {
                         stdout.to_string()
                     } else {
-                        format!("Příkaz selhal s kódem: {}", output.status)
+                        let mut args = fluent_bundle::FluentArgs::new();
+                        args.set("code", output.status.to_string());
+                        i18n.get_args("error-cmd-failed", &args)
                     };
                     ProjectCreateResult::Error(msg)
                 }
-                Err(e) => ProjectCreateResult::Error(format!("Nepodařilo se spustit příkaz: {e}")),
+                Err(e) => {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("reason", e.to_string());
+                    ProjectCreateResult::Error(i18n.get_args("error-cmd-start", &args))
+                }
             };
             let _ = tx.send(result);
         });
@@ -309,21 +320,24 @@ pub(crate) fn render_recent_project_list(
 
 /// Zobrazí dialog pro potvrzení ukončení aplikace.
 /// Vrátí `true` pokud uživatel potvrdil ukončení.
-pub(crate) fn show_quit_confirm_dialog(ctx: &egui::Context) -> QuitDialogResult {
+pub(crate) fn show_quit_confirm_dialog(
+    ctx: &egui::Context,
+    i18n: &crate::i18n::I18n,
+) -> QuitDialogResult {
     let modal = egui::Modal::new(egui::Id::new("quit_confirm_modal"));
     let mut confirmed = false;
     let mut cancelled = false;
 
     modal.show(ctx, |ui| {
-        ui.heading("Ukončit aplikaci");
+        ui.heading(i18n.get("quit-title"));
         ui.add_space(8.0);
-        ui.label("Opravdu chcete ukončit PolyCredo Editor?");
+        ui.label(i18n.get("quit-message"));
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            if ui.button("Ukončit").clicked() {
+            if ui.button(i18n.get("quit-confirm")).clicked() {
                 confirmed = true;
             }
-            if ui.button("Zrušit").clicked() {
+            if ui.button(i18n.get("quit-cancel")).clicked() {
                 cancelled = true;
             }
         });
@@ -343,22 +357,23 @@ pub(crate) fn show_close_project_confirm_dialog(
     ctx: &egui::Context,
     modal_id: &str,
     project_path: &str,
+    i18n: &crate::i18n::I18n,
 ) -> QuitDialogResult {
     let modal = egui::Modal::new(egui::Id::new(modal_id));
     let mut confirmed = false;
     let mut cancelled = false;
 
     modal.show(ctx, |ui| {
-        ui.heading("Zavřít projekt");
+        ui.heading(i18n.get("close-project-title"));
         ui.add_space(8.0);
-        ui.label("Opravdu chcete zavřít tento projekt?");
+        ui.label(i18n.get("close-project-message"));
         ui.monospace(project_path);
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            if ui.button("Zavřít projekt").clicked() {
+            if ui.button(i18n.get("close-project-confirm")).clicked() {
                 confirmed = true;
             }
-            if ui.button("Zrušit").clicked() {
+            if ui.button(i18n.get("close-project-cancel")).clicked() {
                 cancelled = true;
             }
         });
@@ -398,6 +413,7 @@ pub(crate) fn show_startup_dialog(
     recent_projects: &[PathBuf],
     browse_rx: &mut Option<mpsc::Receiver<Option<PathBuf>>>,
     missing_session: &[PathBuf],
+    i18n: &crate::i18n::I18n,
 ) -> StartupAction {
     let mut should_open = false;
     let mut should_quit = false;
@@ -411,11 +427,11 @@ pub(crate) fn show_startup_dialog(
     let modal = egui::Modal::new(egui::Id::new("startup_modal"));
     modal.show(ctx, |ui| {
         let dlg_size = 15.0;
-        ui.heading("Otevřít projekt");
+        ui.heading(i18n.get("open-project-title"));
         ui.add_space(12.0);
 
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Cesta:").size(dlg_size));
+            ui.label(egui::RichText::new(i18n.get("startup-path-label")).size(dlg_size));
             let response = ui.add(
                 egui::TextEdit::singleline(path_buffer)
                     .font(egui::TextStyle::Body)
@@ -431,19 +447,19 @@ pub(crate) fn show_startup_dialog(
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             if ui
-                .button(egui::RichText::new("Otevřít").size(dlg_size))
+                .button(egui::RichText::new(i18n.get("btn-open")).size(dlg_size))
                 .clicked()
             {
                 should_open = true;
             }
             if ui
-                .button(egui::RichText::new("Procházet…").size(dlg_size))
+                .button(egui::RichText::new(i18n.get("btn-browse")).size(dlg_size))
                 .clicked()
             {
                 request_browse = true;
             }
             if ui
-                .button(egui::RichText::new("Ukončit").size(dlg_size))
+                .button(egui::RichText::new(i18n.get("startup-quit")).size(dlg_size))
                 .clicked()
             {
                 should_quit = true;
@@ -453,7 +469,7 @@ pub(crate) fn show_startup_dialog(
         ui.separator();
         ui.add_space(4.0);
         if ui
-            .button(egui::RichText::new("Založit nový projekt…").size(dlg_size))
+            .button(egui::RichText::new(i18n.get("startup-new-project")).size(dlg_size))
             .clicked()
         {
             open_wizard = true;
@@ -465,7 +481,7 @@ pub(crate) fn show_startup_dialog(
             ui.add_space(4.0);
             ui.colored_label(
                 egui::Color32::from_rgb(220, 170, 60),
-                egui::RichText::new("Tyto projekty z minule session nebylo mozne obnovit:").size(dlg_size - 1.0),
+                egui::RichText::new(i18n.get("startup-missing-session-label")).size(dlg_size - 1.0),
             );
             ui.add_space(2.0);
             for path in missing_session {
@@ -478,7 +494,7 @@ pub(crate) fn show_startup_dialog(
             ui.add_space(8.0);
             ui.separator();
             ui.add_space(4.0);
-            ui.label(egui::RichText::new("Ned\u{00e1}vn\u{00e9} projekty:").size(dlg_size));
+            ui.label(egui::RichText::new(i18n.get("startup-recent-projects")).size(dlg_size));
             ui.add_space(4.0);
             open_recent = render_recent_project_list(ui, recent_projects, dlg_size);
         }

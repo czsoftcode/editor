@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use crate::config;
+
 const IGNORED_DIRS: &[&str] = &[".git", "target", "node_modules", ".idea", ".vscode", "__pycache__"];
 
 pub struct FileNode {
@@ -96,6 +98,7 @@ pub struct FileTree {
     pending_created_file: Option<PathBuf>,
     pending_deleted: Option<PathBuf>,
     expand_to: Option<PathBuf>,
+    pending_error: Option<String>,
 }
 
 impl FileTree {
@@ -120,7 +123,13 @@ impl FileTree {
             pending_created_file: None,
             pending_deleted: None,
             expand_to: None,
+            pending_error: None,
         }
+    }
+
+    /// Vyzvedne případnou chybu I/O operace (pro zobrazení v toast notifikaci).
+    pub fn take_error(&mut self) -> Option<String> {
+        self.pending_error.take()
     }
 
     pub fn request_reload(&mut self) {
@@ -181,7 +190,7 @@ impl FileTree {
         expand_to: &Option<PathBuf>,
     ) {
         let text_color = eframe::egui::Color32::from_rgb(230, 230, 230);
-        let font_size = 16.0;
+        let font_size = config::FILE_TREE_FONT_SIZE;
 
         if node.is_dir {
             let force_open = expand_to
@@ -291,12 +300,15 @@ impl FileTree {
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
                     let dest = target_dir.join(&file_name);
-                    if source.is_dir() {
-                        let _ = copy_dir_recursive(&source, &dest);
+                    let result = if source.is_dir() {
+                        copy_dir_recursive(&source, &dest)
                     } else {
-                        let _ = std::fs::copy(&source, &dest);
+                        std::fs::copy(&source, &dest).map(|_| ())
+                    };
+                    match result {
+                        Ok(()) => { self.needs_reload = true; }
+                        Err(e) => { self.pending_error = Some(format!("Nelze vložit: {e}")); }
                     }
-                    self.needs_reload = true;
                 }
             }
             ContextAction::Delete(path) => {
@@ -364,12 +376,18 @@ impl FileTree {
             if let Some(parent) = &self.new_item_parent {
                 let new_path = parent.join(self.new_item_buffer.trim());
                 if self.new_item_is_dir {
-                    let _ = std::fs::create_dir(&new_path);
-                    self.expand_to = Some(new_path);
+                    match std::fs::create_dir(&new_path) {
+                        Ok(()) => { self.expand_to = Some(new_path); }
+                        Err(e) => { self.pending_error = Some(format!("Nelze vytvořit adresář: {e}")); }
+                    }
                 } else {
-                    let _ = std::fs::write(&new_path, "");
-                    self.pending_created_file = Some(new_path.clone());
-                    self.expand_to = Some(new_path);
+                    match std::fs::write(&new_path, "") {
+                        Ok(()) => {
+                            self.pending_created_file = Some(new_path.clone());
+                            self.expand_to = Some(new_path);
+                        }
+                        Err(e) => { self.pending_error = Some(format!("Nelze vytvořit soubor: {e}")); }
+                    }
                 }
                 self.needs_reload = true;
             }
@@ -424,8 +442,10 @@ impl FileTree {
             if let Some(target) = &self.rename_target {
                 if let Some(parent) = target.parent() {
                     let new_path = parent.join(self.rename_buffer.trim());
-                    let _ = std::fs::rename(target, &new_path);
-                    self.needs_reload = true;
+                    match std::fs::rename(target, &new_path) {
+                        Ok(()) => { self.needs_reload = true; }
+                        Err(e) => { self.pending_error = Some(format!("Nelze přejmenovat: {e}")); }
+                    }
                 }
             }
             self.rename_target = None;
@@ -468,13 +488,18 @@ impl FileTree {
 
         if should_delete {
             if let Some(path) = self.delete_confirm.take() {
-                if path.is_dir() {
-                    let _ = std::fs::remove_dir_all(&path);
+                let result = if path.is_dir() {
+                    std::fs::remove_dir_all(&path)
                 } else {
-                    let _ = std::fs::remove_file(&path);
+                    std::fs::remove_file(&path)
+                };
+                match result {
+                    Ok(()) => {
+                        self.pending_deleted = Some(path);
+                        self.needs_reload = true;
+                    }
+                    Err(e) => { self.pending_error = Some(format!("Nelze smazat: {e}")); }
                 }
-                self.pending_deleted = Some(path);
-                self.needs_reload = true;
             }
         }
     }

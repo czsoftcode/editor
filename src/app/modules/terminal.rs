@@ -5,7 +5,7 @@ use alacritty_terminal::grid::Dimensions;
 use eframe::egui;
 use egui_term::{BackendSettings, PtyEvent, TerminalBackend, TerminalView};
 
-const SCROLLBAR_WIDTH: f32 = 10.0;
+use crate::config;
 
 pub struct Terminal {
     id: u64,
@@ -118,7 +118,7 @@ impl Terminal {
         }
 
         let term_height = ui.available_height();
-        let term_width = (ui.available_width() - SCROLLBAR_WIDTH).max(10.0);
+        let term_width = (ui.available_width() - config::TERMINAL_SCROLLBAR_WIDTH).max(10.0);
 
         let term_font = egui_term::TerminalFont::new(egui_term::FontSettings {
             font_type: egui::FontId::monospace(font_size),
@@ -206,7 +206,7 @@ impl Terminal {
     fn draw_scrollbar(&mut self, ui: &mut egui::Ui, term_rect: egui::Rect, height: f32) {
         let sb_rect = egui::Rect::from_min_size(
             egui::Pos2::new(term_rect.max.x, term_rect.min.y),
-            egui::Vec2::new(SCROLLBAR_WIDTH, height),
+            egui::Vec2::new(config::TERMINAL_SCROLLBAR_WIDTH, height),
         );
 
         let painter = ui.painter_at(sb_rect);
@@ -240,7 +240,7 @@ impl Terminal {
 
         let thumb_rect = egui::Rect::from_min_size(
             egui::Pos2::new(sb_rect.min.x + 2.0, thumb_top),
-            egui::Vec2::new(SCROLLBAR_WIDTH - 4.0, thumb_h),
+            egui::Vec2::new(config::TERMINAL_SCROLLBAR_WIDTH - 4.0, thumb_h),
         );
 
         // Interakce

@@ -2,10 +2,15 @@ use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
+pub enum FileEvent {
+    Changed(PathBuf),
+    Removed(PathBuf),
+}
+
 pub struct FileWatcher {
     _watcher: Option<RecommendedWatcher>,
-    receiver: mpsc::Receiver<PathBuf>,
-    sender: mpsc::Sender<PathBuf>,
+    receiver: mpsc::Receiver<FileEvent>,
+    sender: mpsc::Sender<FileEvent>,
     watched_path: Option<PathBuf>,
 }
 
@@ -33,9 +38,16 @@ impl FileWatcher {
         let tx = self.sender.clone();
         let watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
             if let Ok(event) = res {
-                if event.kind.is_modify() || event.kind.is_create() {
-                    for p in event.paths {
-                        let _ = tx.send(p);
+                for p in event.paths {
+                    let ev = if event.kind.is_remove() {
+                        Some(FileEvent::Removed(p))
+                    } else if event.kind.is_modify() || event.kind.is_create() {
+                        Some(FileEvent::Changed(p))
+                    } else {
+                        None
+                    };
+                    if let Some(ev) = ev {
+                        let _ = tx.send(ev);
                     }
                 }
             }
@@ -54,12 +66,12 @@ impl FileWatcher {
         }
     }
 
-    pub fn try_recv(&self) -> Option<PathBuf> {
-        let mut last = None;
-        while let Ok(path) = self.receiver.try_recv() {
-            last = Some(path);
+    pub fn try_recv(&self) -> Vec<FileEvent> {
+        let mut events = Vec::new();
+        while let Ok(ev) = self.receiver.try_recv() {
+            events.push(ev);
         }
-        last
+        events
     }
 }
 

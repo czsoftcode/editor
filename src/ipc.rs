@@ -20,6 +20,8 @@ use std::sync::{Arc, Mutex};
 
 use serde_json;
 
+use crate::config;
+
 // ---------------------------------------------------------------------------
 // Cesty k souborům
 // ---------------------------------------------------------------------------
@@ -190,7 +192,7 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
             let mut st = state.lock().unwrap();
             st.recent.retain(|p| p != &path);
             st.recent.insert(0, path);
-            st.recent.truncate(10);
+            st.recent.truncate(config::MAX_RECENT_PROJECTS);
             save_recent(&st.recent);
         }
         return vec!["OK".into()];

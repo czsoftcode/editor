@@ -14,6 +14,7 @@ use dialogs::{WizardState, show_project_wizard, show_quit_confirm_dialog, QuitDi
 use workspace::{WorkspaceState, SecondaryWorkspace, ws_to_panel_state, init_workspace,
                 render_workspace};
 
+use crate::config;
 use crate::ipc::{self, Ipc, IpcServer};
 
 use eframe::egui;
@@ -117,7 +118,7 @@ impl EditorApp {
                 s.recent_projects.retain(|rp| rp != p);
                 s.recent_projects.insert(0, p.clone());
             }
-            s.recent_projects.truncate(10);
+            s.recent_projects.truncate(config::MAX_RECENT_PROJECTS);
         }
 
         let home = dirs::home_dir()
@@ -176,7 +177,7 @@ impl EditorApp {
         let mut shared = self.shared.lock().unwrap();
         shared.recent_projects.retain(|p| p != &path);
         shared.recent_projects.insert(0, path);
-        shared.recent_projects.truncate(10);
+        shared.recent_projects.truncate(config::MAX_RECENT_PROJECTS);
     }
 
     fn open_in_new_window(&mut self, path: PathBuf, ctx: &egui::Context) {
@@ -239,7 +240,7 @@ impl EditorApp {
                 vid,
                 egui::ViewportBuilder::default()
                     .with_title(title)
-                    .with_inner_size([1200.0, 800.0]),
+                    .with_inner_size([config::WINDOW_DEFAULT_WIDTH, config::WINDOW_DEFAULT_HEIGHT]),
                 move |ctx, _class| {
                     // Zavření sekundárního okna — informovat root viewport
                     if ctx.input(|i| i.viewport().close_requested()) {

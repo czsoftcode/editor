@@ -4,6 +4,7 @@ use std::time::Instant;
 use eframe::egui;
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
+use crate::config;
 use crate::highlighter::Highlighter;
 
 const AUTOSAVE_DELAY_MS: u128 = 500;
@@ -25,6 +26,7 @@ struct Tab {
     content: String,
     path: PathBuf,
     modified: bool,
+    deleted: bool,
     last_edit: Option<Instant>,
     save_status: SaveStatus,
     last_saved_content: String,
@@ -129,6 +131,7 @@ impl Editor {
                     content,
                     path: path.clone(),
                     modified: false,
+                    deleted: false,
                     last_edit: None,
                     save_status: SaveStatus::None,
                     scroll_offset: 0.0,
@@ -143,6 +146,7 @@ impl Editor {
                     last_saved_content: String::new(),
                     path: path.clone(),
                     modified: false,
+                    deleted: false,
                     last_edit: None,
                     save_status: SaveStatus::None,
                     scroll_offset: 0.0,
@@ -192,6 +196,18 @@ impl Editor {
         }
     }
 
+    /// Označí záložky pro daný soubor jako smazané — zakáže autosave a zobrazí indikátor.
+    pub fn notify_file_deleted(&mut self, path: &PathBuf) {
+        for tab in &mut self.tabs {
+            if tab.path == *path {
+                tab.deleted = true;
+                tab.modified = false;
+                tab.last_edit = None;
+                tab.save_status = SaveStatus::None;
+            }
+        }
+    }
+
     // --- File operations ---
 
     pub fn reload_from_disk(&mut self) {
@@ -211,7 +227,8 @@ impl Editor {
         let should_save = self
             .active()
             .is_some_and(|t| {
-                t.modified
+                !t.deleted
+                    && t.modified
                     && t.last_edit
                         .is_some_and(|e| e.elapsed().as_millis() >= AUTOSAVE_DELAY_MS)
             });
@@ -247,29 +264,37 @@ impl Editor {
             return;
         }
 
-        let content = match self.active() {
-            Some(t) => t.content.clone(),
+        // Zkopírujeme pouze dotaz (malý string) a hledáme přes referenci na obsah souboru,
+        // abychom se vyhnuli klonování celého obsahu (potenciálně megabajty dat).
+        let query = self.search_query.clone();
+        let query_len = query.len();
+
+        let active_idx = match self.active_tab {
+            Some(i) => i,
+            None => return,
+        };
+        let content = match self.tabs.get(active_idx) {
+            Some(t) => &t.content,
             None => return,
         };
 
-        let query_len = self.search_query.len();
         if query_len > content.len() {
             return;
         }
 
+        let mut matches = Vec::new();
         let mut start = 0;
         while start + query_len <= content.len() {
-            if content[start..start + query_len].eq_ignore_ascii_case(&self.search_query) {
-                self.search_matches.push((start, start + query_len));
-                start += 1;
-            } else {
-                start += 1;
+            if content[start..start + query_len].eq_ignore_ascii_case(&query) {
+                matches.push((start, start + query_len));
             }
+            start += 1;
             while start < content.len() && !content.is_char_boundary(start) {
                 start += 1;
             }
         }
 
+        self.search_matches = matches;
         if !self.search_matches.is_empty() {
             self.current_match = Some(0);
         }
@@ -396,20 +421,26 @@ impl Editor {
     }
 
     fn tab_bar(&mut self, ui: &mut egui::Ui, action: &mut Option<TabAction>) {
-        let btn_w = 22.0;
+        let btn_w = config::TAB_BTN_WIDTH;
         let initial_scroll = self.tab_scroll_x;
         let active_tab = self.active_tab;
         let tab_count = self.tabs.len();
         let need_scroll = self.scroll_to_active;
 
         // Záložková data vytáhneme před closure, abychom se vyhnuli vnořeným &mut borrow konfliktům
-        let tab_data: Vec<(String, bool)> = self.tabs.iter()
+        let tab_data: Vec<(String, bool, bool)> = self.tabs.iter()
             .map(|t| {
                 let name = t.path.file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_else(|| "???".to_string());
-                let label = if t.modified { format!("{} \u{25CF}", name) } else { name };
-                (label, t.modified)
+                let label = if t.deleted {
+                    format!("{} \u{26A0}", name)  // ⚠ smazán
+                } else if t.modified {
+                    format!("{} \u{25CF}", name)  // ● neuloženo
+                } else {
+                    name
+                };
+                (label, t.modified, t.deleted)
             })
             .collect();
 
@@ -439,10 +470,13 @@ impl Editor {
                 .max_width(avail_w)
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
-                        for (idx, (label, _)) in tab_data.iter().enumerate() {
+                        for (idx, (label, _, deleted)) in tab_data.iter().enumerate() {
                             let is_active = active_tab == Some(idx);
-                            let mut text = egui::RichText::new(label).size(13.0);
+                            let mut text = egui::RichText::new(label).size(config::UI_FONT_SIZE);
                             if is_active { text = text.strong(); }
+                            if *deleted {
+                                text = text.color(egui::Color32::from_rgb(200, 100, 80));
+                            }
 
                             let r = ui.selectable_label(is_active, text);
                             if is_active { active_rect = Some(r.rect); }
@@ -484,10 +518,10 @@ impl Editor {
         });
 
         if scroll_left {
-            new_scroll_x = (new_scroll_x - 150.0).max(0.0);
+            new_scroll_x = (new_scroll_x - config::TAB_SCROLL_STEP).max(0.0);
         }
         if scroll_right {
-            new_scroll_x += 150.0;
+            new_scroll_x += config::TAB_SCROLL_STEP;
         }
 
         self.tab_scroll_x = new_scroll_x;
@@ -968,7 +1002,7 @@ impl Editor {
     }
 
     fn gutter_width(ui: &egui::Ui, line_count: usize) -> f32 {
-        let font_id = egui::FontId::monospace(14.0);
+        let font_id = egui::FontId::monospace(config::EDITOR_FONT_SIZE);
         let digits = ((line_count.max(1) as f64).log10().floor() as usize) + 1;
         let char_width = ui.fonts(|f| f.glyph_width(&font_id, '0'));
         (digits as f32) * char_width + 12.0
@@ -979,7 +1013,7 @@ impl Editor {
         output: &egui::text_edit::TextEditOutput,
         gutter_rect: egui::Rect,
     ) {
-        let font_id = egui::FontId::monospace(14.0);
+        let font_id = egui::FontId::monospace(config::EDITOR_FONT_SIZE);
         let gutter_color = egui::Color32::from_rgb(130, 130, 130);
         let highlight_color = egui::Color32::from_rgba_unmultiplied(80, 65, 15, 50);
         let painter = ui.painter();

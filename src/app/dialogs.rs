@@ -199,6 +199,33 @@ pub(crate) fn show_project_wizard(
 }
 
 // ---------------------------------------------------------------------------
+// Sdílené UI helpery
+// ---------------------------------------------------------------------------
+
+/// Vykreslí seznam nedávných projektů jako klikatelné položky.
+/// Vrátí cestu na projekt, na který uživatel klikl.
+pub(crate) fn render_recent_project_list(
+    ui: &mut egui::Ui,
+    recent_projects: &[PathBuf],
+    item_size: f32,
+) -> Option<PathBuf> {
+    let mut selected = None;
+    for path in recent_projects {
+        let name = path.file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| path.to_string_lossy().into_owned());
+        let resp = ui.add(
+            egui::Label::new(egui::RichText::new(&name).size(item_size))
+                .sense(egui::Sense::click()),
+        ).on_hover_text(path.to_string_lossy());
+        if resp.clicked() {
+            selected = Some(path.clone());
+        }
+    }
+    selected
+}
+
+// ---------------------------------------------------------------------------
 // show_quit_confirm_dialog
 // ---------------------------------------------------------------------------
 
@@ -302,18 +329,7 @@ pub(crate) fn show_startup_dialog(
             ui.add_space(4.0);
             ui.label(egui::RichText::new("Nedávné projekty:").size(dlg_size));
             ui.add_space(4.0);
-            for path in recent_projects {
-                let name = path.file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| path.to_string_lossy().into_owned());
-                let resp = ui.add(
-                    egui::Label::new(egui::RichText::new(&name).size(dlg_size))
-                        .sense(egui::Sense::click()),
-                ).on_hover_text(path.to_string_lossy());
-                if resp.clicked() {
-                    open_recent = Some(path.clone());
-                }
-            }
+            open_recent = render_recent_project_list(ui, recent_projects, dlg_size);
         }
     });
 

@@ -90,6 +90,31 @@ pub(crate) struct AppShared {
 }
 
 // ---------------------------------------------------------------------------
+// Toast — krátkodobá notifikace v UI
+// ---------------------------------------------------------------------------
+
+pub(crate) struct Toast {
+    pub message: String,
+    pub created: std::time::Instant,
+    pub is_error: bool,
+}
+
+impl Toast {
+    pub(crate) fn error(message: impl Into<String>) -> Self {
+        Self { message: message.into(), created: std::time::Instant::now(), is_error: true }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn info(message: impl Into<String>) -> Self {
+        Self { message: message.into(), created: std::time::Instant::now(), is_error: false }
+    }
+
+    pub(crate) fn is_expired(&self) -> bool {
+        self.created.elapsed().as_secs() >= 4
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Pomocné free funkce
 // ---------------------------------------------------------------------------
 

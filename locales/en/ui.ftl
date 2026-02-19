@@ -152,3 +152,5 @@ conflict-dismiss = Dismiss
 conflict-hover-disk = Discard editor changes and load the version saved on disk
 conflict-hover-keep = Keep editor changes; the disk file will be overwritten on save
 conflict-hover-dismiss = Close notification without changes
+
+svg-open-external = ⧉ Open preview in viewer

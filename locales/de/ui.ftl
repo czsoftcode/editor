@@ -152,3 +152,5 @@ conflict-dismiss = Schließen
 conflict-hover-disk = Editor-Änderungen verwerfen und die auf der Festplatte gespeicherte Version laden
 conflict-hover-keep = Editor-Änderungen behalten; die Datei auf der Festplatte wird beim Speichern überschrieben
 conflict-hover-dismiss = Benachrichtigung ohne Änderungen schließen
+
+svg-open-external = ⧉ Vorschau im Betrachter öffnen

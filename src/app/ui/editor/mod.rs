@@ -58,7 +58,6 @@ pub struct Editor {
     pub(super) current_match: Option<usize>,
     pub(super) search_focus_requested: bool,
     pub(super) md_split_ratio: f32,
-    pub(super) svg_split_ratio: f32,
     pub(super) tab_scroll_x: f32,
     pub(super) scroll_to_active: bool,
     /// Čekající skok na řádek (1-based)
@@ -83,7 +82,6 @@ impl Editor {
             current_match: None,
             search_focus_requested: false,
             md_split_ratio: 0.5,
-            svg_split_ratio: 0.5,
             tab_scroll_x: 0.0,
             scroll_to_active: false,
             pending_jump: None,
@@ -524,9 +522,19 @@ impl Editor {
             self.ui_binary(ui, i18n)
         } else if self.is_markdown() {
             self.ui_markdown_split(ui, dialog_open, i18n)
-        } else if self.is_svg() {
-            self.ui_svg_split(ui, dialog_open, i18n)
         } else {
+            if self.is_svg() {
+                if let Some(path) = self.active_path().cloned() {
+                    ui.horizontal(|ui| {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.button(i18n.get("svg-open-external")).clicked() {
+                                let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
+                            }
+                        });
+                    });
+                    ui.separator();
+                }
+            }
             self.ui_normal(ui, dialog_open, i18n)
         }
     }

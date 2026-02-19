@@ -154,3 +154,5 @@ conflict-dismiss = Ignorovat
 conflict-hover-disk = Zahodit změny v editoru a načíst verzi uloženou na disku
 conflict-hover-keep = Ponechat změny v editoru; soubor na disku bude přepsán při uložení
 conflict-hover-dismiss = Zavřít upozornění bez změny
+
+svg-open-external = ⧉ Otevřít náhled v prohlížeči

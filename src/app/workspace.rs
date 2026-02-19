@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
@@ -164,6 +164,7 @@ pub(crate) struct WorkspaceState {
 pub(crate) struct SecondaryWorkspace {
     pub viewport_id: egui::ViewportId,
     pub state: Arc<Mutex<WorkspaceState>>,
+    pub close_requested: Arc<AtomicBool>,
 }
 
 // ---------------------------------------------------------------------------

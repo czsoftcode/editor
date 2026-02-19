@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
@@ -9,8 +10,8 @@ mod types;
 mod workspace;
 
 use dialogs::{
-    QuitDialogResult, StartupAction, WizardState, show_project_wizard, show_quit_confirm_dialog,
-    show_startup_dialog,
+    QuitDialogResult, StartupAction, WizardState, show_close_project_confirm_dialog,
+    show_project_wizard, show_quit_confirm_dialog, show_startup_dialog,
 };
 use types::*;
 use workspace::{
@@ -50,6 +51,8 @@ pub struct EditorApp {
     // --- Ukončení aplikace ---
     show_quit_confirm: bool,
     quit_confirmed: bool,
+    // --- Zavření aktivního projektu v kořenovém okně ---
+    show_close_project_confirm: bool,
 
     _ipc_server: Option<IpcServer>,
     focus_rx: mpsc::Receiver<()>,
@@ -108,6 +111,7 @@ impl EditorApp {
                 SecondaryWorkspace {
                     viewport_id: vid,
                     state: Arc::new(Mutex::new(init_workspace(p.clone(), &panel_state))),
+                    close_requested: Arc::new(AtomicBool::new(false)),
                 }
             })
             .collect();
@@ -155,6 +159,7 @@ impl EditorApp {
             startup_wizard,
             show_quit_confirm: false,
             quit_confirmed: false,
+            show_close_project_confirm: false,
             _ipc_server: ipc_server,
             focus_rx,
         }
@@ -219,6 +224,7 @@ impl EditorApp {
         self.secondary.push(SecondaryWorkspace {
             viewport_id: vid,
             state: Arc::new(Mutex::new(ws)),
+            close_requested: Arc::new(AtomicBool::new(false)),
         });
         Ipc::register(&path);
         self.push_recent(path);
@@ -242,6 +248,7 @@ impl EditorApp {
                     self.push_recent(path);
                 }
                 AppAction::QuitAll => {
+                    self.show_close_project_confirm = false;
                     self.show_quit_confirm = true;
                 }
             }
@@ -252,6 +259,7 @@ impl EditorApp {
         for sw in &self.secondary {
             let ws_arc = Arc::clone(&sw.state);
             let shared_arc = Arc::clone(&self.shared);
+            let close_requested = Arc::clone(&sw.close_requested);
             let vid = sw.viewport_id;
 
             let title = sw
@@ -266,15 +274,10 @@ impl EditorApp {
                     .with_title(title)
                     .with_inner_size([config::WINDOW_DEFAULT_WIDTH, config::WINDOW_DEFAULT_HEIGHT]),
                 move |ctx, _class| {
-                    // Zavření sekundárního okna — informovat root viewport
+                    // Zavření sekundárního okna — zobrazit potvrzení v daném viewportu
                     if ctx.input(|i| i.viewport().close_requested()) {
                         ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                        shared_arc
-                            .lock()
-                            .unwrap()
-                            .actions
-                            .push(AppAction::CloseWorkspace(vid));
-                        return;
+                        close_requested.store(true, Ordering::SeqCst);
                     }
 
                     let mut ws = ws_arc.lock().unwrap();
@@ -291,6 +294,25 @@ impl EditorApp {
                             .unwrap()
                             .actions
                             .push(AppAction::AddRecent(new_path_clone));
+                    }
+
+                    if close_requested.load(Ordering::SeqCst) {
+                        let modal_id = format!("close_project_modal_{vid:?}");
+                        let project_path = ws.root_path.display().to_string();
+                        match show_close_project_confirm_dialog(ctx, &modal_id, &project_path) {
+                            QuitDialogResult::Confirmed => {
+                                close_requested.store(false, Ordering::SeqCst);
+                                shared_arc
+                                    .lock()
+                                    .unwrap()
+                                    .actions
+                                    .push(AppAction::CloseWorkspace(vid));
+                            }
+                            QuitDialogResult::Cancelled => {
+                                close_requested.store(false, Ordering::SeqCst);
+                            }
+                            QuitDialogResult::Open => {}
+                        }
                     }
                 },
             );
@@ -312,6 +334,27 @@ impl EditorApp {
         }
     }
 
+    fn show_close_project_confirm_dialog(&mut self, ctx: &egui::Context) {
+        let Some(ws) = self.root_ws.as_ref() else {
+            self.show_close_project_confirm = false;
+            return;
+        };
+
+        let project_path = ws.root_path.display().to_string();
+        match show_close_project_confirm_dialog(ctx, "close_project_root_modal", &project_path) {
+            QuitDialogResult::Confirmed => {
+                self.save_session();
+                self.root_ws = None;
+                self.show_close_project_confirm = false;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Title("Rust Editor".to_string()));
+            }
+            QuitDialogResult::Cancelled => {
+                self.show_close_project_confirm = false;
+            }
+            QuitDialogResult::Open => {}
+        }
+    }
+
     fn do_startup_dialog(&mut self, ctx: &egui::Context) {
         let recent_snapshot = self.shared.lock().unwrap().recent_projects.clone();
         match show_startup_dialog(
@@ -326,6 +369,10 @@ impl EditorApp {
             }
             StartupAction::OpenWizard => {
                 self.show_startup_wizard = true;
+            }
+            StartupAction::QuitApp => {
+                self.show_close_project_confirm = false;
+                self.show_quit_confirm = true;
             }
             StartupAction::None => {}
         }
@@ -399,11 +446,9 @@ impl eframe::App for EditorApp {
             if self.quit_confirmed {
                 // Potvrzeno — nechat zavřít
             } else if self.root_ws.is_some() {
-                // Zavřít aktuální workspace (přejít na startup)
+                // Otevřený projekt — vyžádat potvrzení zavření projektu.
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                self.save_session();
-                self.root_ws = None;
-                ctx.send_viewport_cmd(egui::ViewportCommand::Title("Rust Editor".to_string()));
+                self.show_close_project_confirm = true;
             } else {
                 // Startup dialog — ukončit aplikaci
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
@@ -445,6 +490,11 @@ impl eframe::App for EditorApp {
         self.register_deferred_viewports(ctx);
 
         // Dialog potvrzení ukončení
+        if self.show_close_project_confirm {
+            self.show_close_project_confirm_dialog(ctx);
+        }
+
+        // Dialog potvrzení ukončení aplikace
         if self.show_quit_confirm {
             self.show_quit_confirm_dialog(ctx);
         }

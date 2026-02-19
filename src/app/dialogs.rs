@@ -338,6 +338,41 @@ pub(crate) fn show_quit_confirm_dialog(ctx: &egui::Context) -> QuitDialogResult 
     }
 }
 
+/// Zobrazí dialog pro potvrzení zavření otevřeného projektu.
+pub(crate) fn show_close_project_confirm_dialog(
+    ctx: &egui::Context,
+    modal_id: &str,
+    project_path: &str,
+) -> QuitDialogResult {
+    let modal = egui::Modal::new(egui::Id::new(modal_id));
+    let mut confirmed = false;
+    let mut cancelled = false;
+
+    modal.show(ctx, |ui| {
+        ui.heading("Zavřít projekt");
+        ui.add_space(8.0);
+        ui.label("Opravdu chcete zavřít tento projekt?");
+        ui.monospace(project_path);
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            if ui.button("Zavřít projekt").clicked() {
+                confirmed = true;
+            }
+            if ui.button("Zrušit").clicked() {
+                cancelled = true;
+            }
+        });
+    });
+
+    if confirmed {
+        QuitDialogResult::Confirmed
+    } else if cancelled {
+        QuitDialogResult::Cancelled
+    } else {
+        QuitDialogResult::Open
+    }
+}
+
 pub(crate) enum QuitDialogResult {
     Confirmed,
     Cancelled,
@@ -353,6 +388,7 @@ pub(crate) enum StartupAction {
     None,
     OpenPath(PathBuf),
     OpenWizard,
+    QuitApp,
 }
 
 pub(crate) fn show_startup_dialog(
@@ -363,6 +399,7 @@ pub(crate) fn show_startup_dialog(
     browse_rx: &mut Option<mpsc::Receiver<Option<PathBuf>>>,
 ) -> StartupAction {
     let mut should_open = false;
+    let mut should_quit = false;
     let mut request_browse = false;
     let mut open_recent: Option<PathBuf> = None;
 
@@ -404,6 +441,12 @@ pub(crate) fn show_startup_dialog(
             {
                 request_browse = true;
             }
+            if ui
+                .button(egui::RichText::new("Ukončit").size(dlg_size))
+                .clicked()
+            {
+                should_quit = true;
+            }
         });
         ui.add_space(4.0);
         ui.separator();
@@ -427,6 +470,9 @@ pub(crate) fn show_startup_dialog(
 
     if open_wizard {
         return StartupAction::OpenWizard;
+    }
+    if should_quit {
+        return StartupAction::QuitApp;
     }
 
     if request_browse && browse_rx.is_none() {

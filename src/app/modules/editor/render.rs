@@ -232,8 +232,10 @@ impl Editor {
         let fname = self.filename();
         let search_matches = self.search_matches.clone();
         let current_match = self.current_match;
+        let tab_path = self.tabs[idx].path.clone();
+        let current_scroll_y = self.tabs[idx].scroll_offset;
 
-        let edit_id = egui::Id::new("editor_text").with(idx);
+        let edit_id = egui::Id::new("editor_text").with(&tab_path);
         let line_count_for_jump = self
             .tabs
             .get(idx)
@@ -274,65 +276,71 @@ impl Editor {
         let mut clicked = false;
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
         let mut content_changed = false;
+        let mut updated_scroll_y: Option<f32> = None;
 
         let frame = egui::Frame::new()
             .fill(bg)
             .inner_margin(egui::Margin::same(8));
 
         frame.show(ui, |ui| {
-            let mut scroll = egui::ScrollArea::both().auto_shrink([false, false]);
-            if let Some(y) = desired_scroll_y {
-                scroll = scroll.vertical_scroll_offset(y);
-            }
-            scroll.show(ui, |ui| {
-                let highlighter = &self.highlighter;
-                let tab = &mut self.tabs[idx];
+            let scroll_y = desired_scroll_y.unwrap_or(current_scroll_y);
+            let scroll_output = egui::ScrollArea::both()
+                .id_salt(("editor_scroll", &tab_path))
+                .auto_shrink([false, false])
+                .vertical_scroll_offset(scroll_y)
+                .show(ui, |ui| {
+                    let highlighter = &self.highlighter;
+                    let tab = &mut self.tabs[idx];
 
-                let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                    let mut job = highlighter.highlight(
-                        text,
-                        &ext,
-                        &fname,
-                        Self::current_editor_font_size(ui),
-                    );
-                    job.wrap.max_width = wrap_width;
-                    apply_search_highlights(&mut job, &search_matches, current_match);
-                    ui.fonts(|f| f.layout_job(job))
-                };
+                    let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                        let mut job = highlighter.highlight(
+                            text,
+                            &ext,
+                            &fname,
+                            Self::current_editor_font_size(ui),
+                        );
+                        job.wrap.max_width = wrap_width;
+                        apply_search_highlights(&mut job, &search_matches, current_match);
+                        ui.fonts(|f| f.layout_job(job))
+                    };
 
-                let line_count = editor_line_count(&tab.content);
-                let gutter_width = Self::gutter_width(ui, line_count);
+                    let line_count = editor_line_count(&tab.content);
+                    let gutter_width = Self::gutter_width(ui, line_count);
 
-                ui.horizontal_top(|ui| {
-                    let (gutter_rect, _) = ui.allocate_exact_size(
-                        egui::vec2(gutter_width, ui.available_height()),
-                        egui::Sense::hover(),
-                    );
+                    ui.horizontal_top(|ui| {
+                        let (gutter_rect, _) = ui.allocate_exact_size(
+                            egui::vec2(gutter_width, ui.available_height()),
+                            egui::Sense::hover(),
+                        );
 
-                    let response = egui::TextEdit::multiline(&mut tab.content)
-                        .id(edit_id)
-                        .font(egui::TextStyle::Monospace)
-                        .code_editor()
-                        .interactive(!dialog_open)
-                        .desired_width(f32::INFINITY)
-                        .layouter(&mut layouter)
-                        .show(ui);
+                        let response = egui::TextEdit::multiline(&mut tab.content)
+                            .id(edit_id)
+                            .font(egui::TextStyle::Monospace)
+                            .code_editor()
+                            .interactive(!dialog_open)
+                            .desired_width(f32::INFINITY)
+                            .layouter(&mut layouter)
+                            .show(ui);
 
-                    Self::paint_line_numbers(ui, &response, gutter_rect);
+                        Self::paint_line_numbers(ui, &response, gutter_rect);
 
-                    if response.response.clicked() || response.response.has_focus() {
-                        clicked = true;
-                    }
-                    if response.response.changed() {
-                        tab.modified = true;
-                        tab.last_edit = Some(Instant::now());
-                        tab.save_status = SaveStatus::Modified;
-                        content_changed = true;
-                    }
-                    saved_response = Some(response);
+                        if response.response.clicked() || response.response.has_focus() {
+                            clicked = true;
+                        }
+                        if response.response.changed() {
+                            tab.modified = true;
+                            tab.last_edit = Some(Instant::now());
+                            tab.save_status = SaveStatus::Modified;
+                            content_changed = true;
+                        }
+                        saved_response = Some(response);
+                    });
                 });
-            });
+            updated_scroll_y = Some(scroll_output.state.offset.y);
         });
+        if let Some(scroll_y) = updated_scroll_y {
+            self.tabs[idx].scroll_offset = scroll_y;
+        }
 
         if let Some(response) = &saved_response {
             self.show_editor_context_menu(response);
@@ -357,6 +365,8 @@ impl Editor {
         let fname = self.filename();
         let search_matches = self.search_matches.clone();
         let current_match = self.current_match;
+        let tab_path = self.tabs[idx].path.clone();
+        let edit_id = egui::Id::new("editor_text").with(&tab_path);
 
         let mut clicked = false;
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
@@ -386,7 +396,7 @@ impl Editor {
                     let tab = &mut self.tabs[idx];
 
                     let scroll_output = egui::ScrollArea::both()
-                        .id_salt("md_editor_scroll")
+                        .id_salt(("md_editor_scroll", &tab_path))
                         .auto_shrink([false, false])
                         .vertical_scroll_offset(tab.scroll_offset)
                         .show(ui, |ui| {
@@ -413,6 +423,7 @@ impl Editor {
                                 );
 
                                 let response = egui::TextEdit::multiline(&mut tab.content)
+                                    .id(edit_id)
                                     .font(egui::TextStyle::Monospace)
                                     .code_editor()
                                     .interactive(!dialog_open)

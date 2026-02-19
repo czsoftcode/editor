@@ -22,6 +22,17 @@ fn main() -> eframe::Result<()> {
         p.canonicalize().unwrap_or(p)
     });
 
+    // Single-process multi-window architektura:
+    // Pokud primární instance již běží, delegujeme na ni a skončíme.
+    if ipc::Ipc::ping() {
+        if let Some(ref path) = root_path {
+            ipc::Ipc::open_in_new_window(path);
+        } else {
+            ipc::Ipc::focus_main();
+        }
+        return Ok(());
+    }
+
     let title = match &root_path {
         Some(p) => format!("Rust Editor — {}", p.display()),
         None => "Rust Editor".to_string(),

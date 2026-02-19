@@ -397,6 +397,7 @@ pub(crate) fn show_startup_dialog(
     show_wizard: bool,
     recent_projects: &[PathBuf],
     browse_rx: &mut Option<mpsc::Receiver<Option<PathBuf>>>,
+    missing_session: &[PathBuf],
 ) -> StartupAction {
     let mut should_open = false;
     let mut should_quit = false;
@@ -458,11 +459,26 @@ pub(crate) fn show_startup_dialog(
             open_wizard = true;
         }
 
+        if !missing_session.is_empty() {
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(4.0);
+            ui.colored_label(
+                egui::Color32::from_rgb(220, 170, 60),
+                egui::RichText::new("Tyto projekty z minule session nebylo mozne obnovit:").size(dlg_size - 1.0),
+            );
+            ui.add_space(2.0);
+            for path in missing_session {
+                let label = path.to_string_lossy();
+                ui.label(egui::RichText::new(format!("  {label}")).size(dlg_size - 2.0).color(egui::Color32::from_gray(160)));
+            }
+        }
+
         if !recent_projects.is_empty() {
             ui.add_space(8.0);
             ui.separator();
             ui.add_space(4.0);
-            ui.label(egui::RichText::new("Nedávné projekty:").size(dlg_size));
+            ui.label(egui::RichText::new("Ned\u{00e1}vn\u{00e9} projekty:").size(dlg_size));
             ui.add_space(4.0);
             open_recent = render_recent_project_list(ui, recent_projects, dlg_size);
         }

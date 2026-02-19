@@ -7,6 +7,9 @@ use egui_term::{BackendSettings, PtyEvent, TerminalBackend, TerminalView};
 
 use crate::config;
 
+#[cfg(unix)]
+use libc;
+
 pub struct Terminal {
     id: u64,
     working_dir: PathBuf,
@@ -118,11 +121,16 @@ impl Terminal {
 
     /// Vykreslí terminál. Vrací `true` pokud uživatel klikl do oblasti terminálu.
     pub fn ui(&mut self, ui: &mut egui::Ui, focused: bool, font_size: f32) -> bool {
-        // Zpracovat události z PTY
+        // Zpracovat události z PTY — limit za snímek, zbytek se dočerpá příští snímek.
+        // Bez limitu by burst výstupu (cargo build, grep apod.) zablokoval UI na desítky ms.
         if let Some(pty_receiver) = &self.pty_receiver {
-            while let Ok((_, event)) = pty_receiver.try_recv() {
-                if let PtyEvent::Exit = event {
-                    self.exited = true;
+            for _ in 0..config::TERMINAL_MAX_EVENTS_PER_FRAME {
+                match pty_receiver.try_recv() {
+                    Ok((_, PtyEvent::Exit)) => {
+                        self.exited = true;
+                    }
+                    Ok(_) => {}
+                    Err(_) => break,
                 }
             }
         }
@@ -148,23 +156,16 @@ impl Terminal {
             return false;
         }
 
-        if self.exited {
-            let mut restart = false;
-            ui.vertical_centered(|ui| {
-                ui.add_space(20.0);
-                ui.label("Terminál ukončen.");
-                ui.add_space(8.0);
-                if ui.button("Restartovat").clicked() {
-                    restart = true;
-                }
-            });
-            if restart {
-                self.restart(ui.ctx());
-            }
-            return false;
+        // Klávesa R restartuje terminál po exitu (musí být focused)
+        if self.exited && focused && ui.input(|i| i.key_pressed(egui::Key::R)) {
+            self.restart(ui.ctx());
+            return true;
         }
 
-        let term_height = ui.available_height();
+        // Při exitu rezervujeme spodní pruh pro exit banner; terminál stále zobrazujeme
+        // aby uživatel viděl historii výstupu.
+        let exit_banner_height = if self.exited { 24.0 } else { 0.0 };
+        let term_height = (ui.available_height() - exit_banner_height).max(1.0);
         let term_width = (ui.available_width() - config::TERMINAL_SCROLLBAR_WIDTH).max(10.0);
         if self.backend.is_none() {
             return false;
@@ -178,7 +179,8 @@ impl Terminal {
                 return false;
             };
             TerminalView::new(ui, backend)
-                .set_focus(focused)
+                // Po exitu terminál defokusujeme — zobrazí se jen history, bez kurzoru
+                .set_focus(focused && !self.exited)
                 .set_font(term_font)
                 .set_size(egui::Vec2::new(term_width, term_height))
         };
@@ -271,7 +273,36 @@ impl Terminal {
         // Scrollbar
         self.draw_scrollbar(ui, response.rect, term_height);
 
+        // Exit banner — zobrazí se pod terminálovou historií
+        if self.exited {
+            ui.horizontal(|ui| {
+                ui.add_space(6.0);
+                ui.colored_label(
+                    egui::Color32::from_rgb(200, 180, 80),
+                    "[Proces skoncil — stisknete R pro restart]",
+                );
+            });
+        }
+
         response.hovered()
+    }
+
+    /// Explicitně ukončí procesní skupinu shellu (Unix). Volá se z Drop implicitně.
+    /// Používá SIGTERM na -pid (celá procesní skupina), takže cargo run a podobné
+    /// potomky skončí spolu se shellem — nepřežijí jako sirotci.
+    #[cfg(unix)]
+    fn kill_process_group(&self) {
+        if self.exited {
+            return;
+        }
+        if let Some(backend) = &self.backend {
+            let pid = backend.child_pid as libc::pid_t;
+            if pid > 1 {
+                unsafe {
+                    libc::kill(-pid, libc::SIGTERM);
+                }
+            }
+        }
     }
 
     fn draw_scrollbar(&mut self, ui: &mut egui::Ui, term_rect: egui::Rect, height: f32) {
@@ -362,5 +393,12 @@ impl Terminal {
                 }
             }
         }
+    }
+}
+
+impl Drop for Terminal {
+    fn drop(&mut self) {
+        #[cfg(unix)]
+        self.kill_process_group();
     }
 }

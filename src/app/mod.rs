@@ -56,6 +56,12 @@ pub struct EditorApp {
 
     _ipc_server: Option<IpcServer>,
     focus_rx: mpsc::Receiver<()>,
+    /// Příchozí požadavky od sekundárních instancí na otevření projektu v novém okně.
+    open_request_rx: Option<mpsc::Receiver<PathBuf>>,
+
+    /// Projekty ze session, které nebylo možné obnovit (složka neexistuje).
+    /// Zobrazí se jako toast nebo varování ve startup dialogu.
+    missing_session_paths: Vec<PathBuf>,
 }
 
 // ---------------------------------------------------------------------------
@@ -69,20 +75,24 @@ impl EditorApp {
             .and_then(|s| eframe::get_value(s, STORAGE_KEY))
             .unwrap_or_default();
 
-        let ipc_server = IpcServer::start();
+        let (ipc_server, open_request_rx) = match IpcServer::start() {
+            Some((server, rx)) => (Some(server), Some(rx)),
+            None => (None, None),
+        };
         let focus_rx = ipc::start_process_listener();
 
         // Načíst nedávné projekty
         let recent_projects = Ipc::recent();
 
         // Určit seznam projektů k otevření
-        let paths_to_open: Vec<PathBuf> = if let Some(p) = root_path {
-            // CLI argument — otevřít jen tento projekt
-            vec![p]
-        } else {
-            // Session restore
-            ipc::load_session()
-        };
+        let (paths_to_open, missing_session_paths): (Vec<PathBuf>, Vec<PathBuf>) =
+            if let Some(p) = root_path {
+                // CLI argument — otevřít jen tento projekt
+                (vec![p], vec![])
+            } else {
+                // Session restore: rozlišíme nalezené a chybějící projekty
+                ipc::load_session_checked()
+            };
 
         // Registrovat všechny projekty
         for p in &paths_to_open {
@@ -162,6 +172,8 @@ impl EditorApp {
             show_close_project_confirm: false,
             _ipc_server: ipc_server,
             focus_rx,
+            open_request_rx,
+            missing_session_paths,
         }
     }
 
@@ -363,6 +375,7 @@ impl EditorApp {
             self.show_startup_wizard,
             &recent_snapshot,
             &mut self.startup_browse_rx,
+            &self.missing_session_paths,
         ) {
             StartupAction::OpenPath(path) => {
                 self.open_workspace_from_startup(ctx, path);
@@ -386,6 +399,8 @@ impl EditorApp {
         Ipc::register(&path);
         self.push_recent(path.clone());
         let ps = self.current_panel_state();
+        // Uživatel otevřel nový projekt — chybějící session projekty nejsou relevantní
+        self.missing_session_paths.clear();
         self.root_ws = Some(init_workspace(path, &ps));
         self.save_session();
     }
@@ -441,6 +456,16 @@ impl eframe::App for EditorApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         }
 
+        // Požadavky od sekundárních instancí na otevření projektu v novém okně
+        let ipc_open_paths: Vec<PathBuf> = self
+            .open_request_rx
+            .as_ref()
+            .map(|rx| rx.try_iter().collect())
+            .unwrap_or_default();
+        for path in ipc_open_paths {
+            self.open_in_new_window(path, ctx);
+        }
+
         // Zachytit křížek kořenového okna
         if ctx.input(|i| i.viewport().close_requested()) {
             if self.quit_confirmed {
@@ -467,6 +492,15 @@ impl eframe::App for EditorApp {
         } else {
             // Dočasně vyjmout root_ws, aby bylo možné volat &mut self
             let mut ws = self.root_ws.take().unwrap();
+            // Jednorázové info toasty o projektech, které nebylo možné obnovit ze session
+            for path in self.missing_session_paths.drain(..) {
+                let name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| path.to_string_lossy().into_owned());
+                ws.toasts
+                    .push(Toast::info(format!("Projekt '{name}' nebyl obnoven — složka neexistuje")));
+            }
             let reinit = render_workspace(ctx, &mut ws, &self.shared);
             if let Some(new_path) = reinit {
                 let panel = ws_to_panel_state(&ws);

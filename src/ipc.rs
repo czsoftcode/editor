@@ -166,12 +166,13 @@ fn focus_process_window(pid: u32) -> bool {
 // Server
 // ---------------------------------------------------------------------------
 
-#[derive(Default)]
 struct ServerState {
     /// Mapování cesta → PID otevřeného projektu
     registered: HashMap<PathBuf, u32>,
     /// Nedávné projekty (max 10)
     recent: Vec<PathBuf>,
+    /// Kanál pro předávání požadavků na otevření projektu primární instanci.
+    open_tx: std::sync::mpsc::Sender<PathBuf>,
 }
 
 fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
@@ -242,6 +243,40 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
         return vec!["OK".into()];
     }
 
+    // SAVE_SESSION <json-array> — serializovaný zápis session.json přes server.
+    // Server drží state mutex během zápisu, takže souběžné volání z více procesů
+    // nemůže zapsat do session.tmp najednou.
+    if let Some(json) = line.strip_prefix("SAVE_SESSION ") {
+        let paths: Vec<PathBuf> = serde_json::from_str::<Vec<String>>(json)
+            .unwrap_or_default()
+            .into_iter()
+            .map(PathBuf::from)
+            .collect();
+        let _guard = state.lock().unwrap();
+        save_paths(&session_path(), &paths);
+        return vec!["OK".into()];
+    }
+
+    // OPEN_IN_NEW_WINDOW /abs/path — sekundární instance žádá primára o otevření projektu.
+    if let Some(path_str) = line.strip_prefix("OPEN_IN_NEW_WINDOW ") {
+        if let Some(path) = normalize_project_path_str(path_str) {
+            let st = state.lock().unwrap();
+            let _ = st.open_tx.send(path);
+        }
+        return vec!["OK".into()];
+    }
+
+    // FOCUS_MAIN — sekundární instance bez argumentů žádá primára o přivedení do popředí.
+    if line == "FOCUS_MAIN" {
+        let pid_opt = state.lock().unwrap().registered.values().next().copied();
+        if let Some(pid) = pid_opt {
+            if focus_process_window(pid) {
+                return vec!["OK".into()];
+            }
+        }
+        return vec!["ERR no registered window".into()];
+    }
+
     vec!["ERR unknown command".into()]
 }
 
@@ -282,8 +317,10 @@ pub struct IpcServer {
 
 impl IpcServer {
     /// Pokusí se stát primární instancí.
-    /// Vrací `Some(IpcServer)` pokud se to podaří, `None` pokud primár již existuje.
-    pub fn start() -> Option<Self> {
+    /// Vrací `Some((IpcServer, Receiver<PathBuf>))` pokud se to podaří —
+    /// Receiver přináší cesty k otevření v novém okně od sekundárních instancí.
+    /// Vrací `None` pokud primár již existuje.
+    pub fn start() -> Option<(Self, std::sync::mpsc::Receiver<PathBuf>)> {
         let sock = socket_path();
         if let Some(parent) = sock.parent() {
             if let Err(e) = std::fs::create_dir_all(parent) {
@@ -309,14 +346,16 @@ impl IpcServer {
 
         let listener = UnixListener::bind(&sock).ok()?;
 
+        let (open_tx, open_rx) = std::sync::mpsc::channel();
         let state = Arc::new(Mutex::new(ServerState {
             registered: HashMap::new(),
             recent: load_recent(),
+            open_tx,
         }));
 
         std::thread::spawn(move || server_loop(listener, state));
 
-        Some(IpcServer { sock_path: sock })
+        Some((IpcServer { sock_path: sock }, open_rx))
     }
 }
 
@@ -418,6 +457,22 @@ impl Ipc {
         let _ = Self::send_one(&cmd);
     }
 
+    /// Pošle primární instanci požadavek na otevření projektu v novém okně.
+    pub fn open_in_new_window(path: &Path) -> bool {
+        let Some(path) = normalize_project_path(path) else {
+            return false;
+        };
+        let cmd = format!("OPEN_IN_NEW_WINDOW {}", path.display());
+        Self::send_one(&cmd).map(|r| r == "OK").unwrap_or(false)
+    }
+
+    /// Požádá primární instanci o přivedení do popředí.
+    pub fn focus_main() -> bool {
+        Self::send_one("FOCUS_MAIN")
+            .map(|r| r == "OK")
+            .unwrap_or(false)
+    }
+
     /// Vrátí seznam nedávných projektů ze serveru.
     pub fn recent() -> Vec<PathBuf> {
         Self::send_multi("RECENT")
@@ -426,6 +481,17 @@ impl Ipc {
             .filter(|p| p.is_dir())
             .collect()
     }
+
+    /// Uloží session přes IPC server (serializovaný zápis — bez race condition).
+    /// Vrací true pokud server přijal příkaz.
+    fn save_session_via_ipc(paths: &[PathBuf]) -> bool {
+        let strings: Vec<&str> = paths.iter().filter_map(|p| p.to_str()).collect();
+        let Ok(json) = serde_json::to_string(&strings) else {
+            return false;
+        };
+        let cmd = format!("SAVE_SESSION {json}");
+        Self::send_one(&cmd).map(|r| r == "OK").unwrap_or(false)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -433,11 +499,31 @@ impl Ipc {
 // ---------------------------------------------------------------------------
 
 /// Uloží seznam aktuálně otevřených projektů do session souboru.
+/// Pokud běží IPC server, zápis jde přes něj (serializovaný — bez race condition).
+/// Jinak (první/jediná instance) zapíše přímo.
 pub fn save_session(paths: &[PathBuf]) {
-    save_paths(&session_path(), paths);
+    if !Ipc::save_session_via_ipc(paths) {
+        save_paths(&session_path(), paths);
+    }
 }
 
-/// Načte seznam projektů uložených v session souboru.
-pub fn load_session() -> Vec<PathBuf> {
-    load_paths(&session_path())
+/// Načte session a rozdělí cesty na existující adresáře a chybějící/smazané.
+/// Vrátí `(existující, chybějící)`.
+pub fn load_session_checked() -> (Vec<PathBuf>, Vec<PathBuf>) {
+    let Ok(content) = std::fs::read_to_string(session_path()) else {
+        return (vec![], vec![]);
+    };
+    let Ok(strings): Result<Vec<String>, _> = serde_json::from_str(&content) else {
+        return (vec![], vec![]);
+    };
+    let mut found = Vec::new();
+    let mut missing = Vec::new();
+    for s in strings {
+        if let Some(canonical) = normalize_project_path_str(&s) {
+            found.push(canonical);
+        } else {
+            missing.push(PathBuf::from(s));
+        }
+    }
+    (found, missing)
 }

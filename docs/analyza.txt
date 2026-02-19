@@ -1,0 +1,445 @@
+════════════════════════════════════════════════════════════════════════════════
+--- Claude ---
+════════════════════════════════════════════════════════════════════════════════
+
+Logická analýza kódu — nalezené nedostatky
+Datum: 2026-02-19
+
+════════════════════════════════════════════════════════════════════════════════
+KRITICKÉ — může způsobit ztrátu dat
+════════════════════════════════════════════════════════════════════════════════
+
+1. Autosave potichu přepíše external změny
+   Soubor:  src/app/workspace/background.rs:19
+
+   Kód:
+     if a == b && !ws.editor.is_modified() {
+         ws.editor.reload_from_disk();
+     }
+
+   Problém:
+     Pokud máte v editoru neuložené změny a zároveň nějaký externí nástroj
+     (Git, formatter, jiný editor…) změní soubor na disku — reload se
+     neprovede, protože podmínka is_modified() je true. Autosave pak za
+     500 ms potichu přepíše verzi na disku svou starší verzí.
+     Uživatel nevidí žádné varování.
+
+   Správné chování:
+     Zobrazit dialog „Soubor byl změněn externě — sloučit / přepsat / zahodit?"
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - editor/mod.rs: přidány metody tab_path_for_canonical(), is_path_modified(),
+       reload_path_from_disk(), save_path() pro operace nad libovolnou záložkou
+     - workspace.rs: přidáno pole external_change_conflict: Option<PathBuf>
+       a modal dialog se třemi tlačítky (Načíst z disku / Zachovat moje / Ignorovat)
+     - background.rs: při FileEvent::Changed se konflikt detekuje a uloží do
+       external_change_conflict místo tichého ignorování; autosave je pozastaven
+       dokud dialog čeká na odpověď uživatele
+
+────────────────────────────────────────────────────────────────────────────────
+
+2. Ctrl+S na smazaný soubor selže potichu
+   Soubor:  src/app/modules/editor/mod.rs:268-280
+
+   Kód:
+     Err(_) => {
+         tab.save_status = SaveStatus::Modified;
+     }
+
+   Problém:
+     Autosave sice kontroluje !t.deleted, ale manuální Ctrl+S ne.
+     Pokud je soubor označen ⚠ (smazán z disku) a uživatel stiskne Ctrl+S,
+     fs::write selže a error se tiše zahodí. Uživatel vidí jen ● v záložce
+     a neví, že data nebyla nikam uložena.
+
+   Správné chování:
+     Při selhání uložení zobrazit toast notifikaci s chybou nebo varováním.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - editor/mod.rs: save() a save_path() nyní vracejí Option<String>
+       (None = ok, Some(msg) = chybová zpráva); try_autosave() tuto hodnotu
+       propaguje volajícímu
+     - workspace.rs Ctrl+S: if let Some(err) = ws.editor.save() →
+       ws.toasts.push(Toast::error(err))
+     - workspace.rs process_menu_actions (menu Soubor → Uložit): stejný vzor
+     - background.rs try_autosave: chyba se propaguje do ws.toasts
+
+════════════════════════════════════════════════════════════════════════════════
+STŘEDNÍ — nekonzistentní stav nebo špatné UX
+════════════════════════════════════════════════════════════════════════════════
+
+3. Sdílené modal ID v multi-window
+   Soubor:  src/app/workspace.rs:753
+
+   Kód:
+     "ws_new_project_modal"   // hardcoded stejné pro všechna okna
+
+   Problém:
+     Všechna sekundární okna sdílí jeden egui Context. Pokud by uživatel
+     otevřel dialog „Nový projekt" ve dvou oknech najednou, oba by sdílely
+     stejný modal stav — formulář by se mohl mixovat nebo jeden dialog
+     by zhasl druhý.
+
+   Oprava:
+     Do ID přidat cestu projektu nebo ViewportId.
+     Např. format!("ws_new_project_{}", ws.root_path.display())
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - workspace.rs render_dialogs: na začátku funkce se vypočítá
+       let id_salt = ws.root_path.as_os_str()
+     - všechna 4 modal ID v render_dialogs nyní obsahují salt:
+         about_modal       → egui::Id::new(("about_modal", id_salt))
+         settings_modal    → egui::Id::new(("settings_modal", id_salt))
+         ws_new_project    → format!("ws_new_project_modal_{}", root_path.display())
+         ext_conflict      → egui::Id::new(("external_change_conflict_modal", id_salt))
+     - každé okno má unikátní modal ID → žádné sdílení stavu mezi okny
+
+────────────────────────────────────────────────────────────────────────────────
+
+4. IPC — race condition při zápisu session.json / recent.json
+   Soubor:  src/ipc.rs (funkce save_paths)
+
+   Problém:
+     Zápis probíhá přes atomický rename (tmp → json), což je správně,
+     ale file locking není implementován. Při rychlém otevírání/zavírání
+     více oken si dvě instance mohou navzájem přepsat soubor a poslední
+     zápis vyhraje — přijdete o část nedávných projektů nebo session.
+     V praxi vzácné, ale možné.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - Analýza ukázala: recent.json je již bezpečný — všechny zápisy jdou
+       přes process_command pod state.lock() v IPC serveru.
+     - session.json byl skutečný problém — více procesů volalo save_session()
+       přímo, sdílely stejný session.tmp a zápis nebyl koordinovaný.
+     - ipc.rs: přidán příkaz SAVE_SESSION <json> do process_command; server
+       drží state mutex během zápisu → souběžné volání ze dvou procesů se
+       serializuje.
+     - ipc.rs: přidána privátní metoda Ipc::save_session_via_ipc(paths)
+       která odešle příkaz a vrátí bool.
+     - ipc.rs: veřejná funkce save_session() nově routuje přes IPC server;
+       přímý zápis slouží jen jako záloha pokud server neodpovídá
+       (případ kdy je tento proces primární instancí a server ještě nespustil).
+
+────────────────────────────────────────────────────────────────────────────────
+
+5. Git refresh vlákna — thread leak
+   Soubor:  src/app/workspace/background.rs:120-130
+
+   Problém:
+     fetch_git_branch() a fetch_git_status() spouštějí vlákno.
+     Pokud se workspace zavře dřív, než vlákno skončí, Receiver je dropnut,
+     ale vlákno (a git status proces) doběhne a zapíše do mrtvého kanálu.
+     Při rychlém otevírání/zavírání projektů se vlákna hromadí.
+     Nejde o memory leak v pravém slova smyslu (vlákna doběhnou a zaniknou),
+     ale může to zpomalit editor při intenzivním použití.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - workspace.rs: přidáno pole git_cancel: Arc<AtomicBool> do WorkspaceState.
+     - workspace.rs: implementován Drop pro WorkspaceState — při zániku workspacu se nastaví git_cancel = true; vlákna obdrží signál a ukončí git proces.
+     - background.rs: fetch_git_branch() a fetch_git_status() přijímají
+       Arc<AtomicBool> cancel; místo blocking .output() používají
+       Command::spawn() + try_wait() poll smyčku (25 ms interval).
+     - Při cancel.load() == true vlákno volá child.kill() a vrátí se bez odeslání výsledku — git proces je ukončen co nejdříve.
+     - Všechna volání fetch_git_* aktualizována (init_workspace, background.rs
+       periodický refresh, workspace.rs Ctrl+S refresh) — předávají
+       Arc::clone(&ws.git_cancel).
+
+────────────────────────────────────────────────────────────────────────────────
+
+6. Terminal — tichý exit bez oznámení
+   Soubor:  src/app/modules/terminal.rs
+
+   Problém:
+     Pokud build terminál nebo AI terminál ukončí svůj proces (cargo doběhne,
+     AI session vyprší), nastaví se exited = true, ale terminál mlčky zamrzne.
+     Uživatel nevidí žádné hlášení a může si myslet, že terminál stále běží.
+
+   Správné chování:
+     Zobrazit hlášku „[Proces skončil — stiskněte R pro restart]" v terminálu.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - terminal.rs: odstraněno nahrazení terminálu statickým panelem po exitu.
+       Terminálová historie zůstane viditelná — uživatel stále vidí výstup
+       (např. co cargo vypsal před ukončením).
+     - terminal.rs: pod historií se zobrazí žlutý banner:
+       "[Proces skoncil — stisknete R pro restart]"
+     - terminal.rs: klávesa R při focused terminálu spustí restart (volá
+       self.restart()).
+     - TerminalView se po exitu renderuje s set_focus(false) — viditelná history, bez aktivního kurzoru.
+
+════════════════════════════════════════════════════════════════════════════════
+KOSMETICKÉ — neohrožuje data, ale matoucí UX
+════════════════════════════════════════════════════════════════════════════════
+
+7. Session restore bez smazaných projektů
+   Soubor:  src/ipc.rs (funkce load_session)
+
+   Problém:
+     Cesty k neexistujícím projektům se tiše filtrují. Pokud jste měli
+     3 projekty a 2 složky smazali, editor se spustí přímo na startup dialog
+     bez jakéhokoliv vysvětlení. Uživatel neví, proč se session neobnovila.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - ipc.rs: přidána funkce load_session_checked() → vrací (nalezené, chybějící);
+       původní load_session() odstraněna.
+     - app/mod.rs: přidáno pole missing_session_paths: Vec<PathBuf>; při startu
+       se naplní z load_session_checked().
+     - Případ A — alespoň jeden projekt obnoven: chybějící projekty se při první
+       renderizaci root workspace zobrazí jako info toasty:
+       "Projekt '<název>' nebyl obnoven — složka neexistuje".
+     - Případ B — žádný projekt nebyl obnoven (vše smazáno): startup dialog
+       zobrazí žlutou sekci se seznamem cest, které nelze obnovit.
+     - Otevření projektu ze startup dialogu (open_workspace_from_startup) vymaže
+       missing_session_paths — toast se neobjeví pro nově otevřený projekt.
+
+════════════════════════════════════════════════════════════════════════════════
+ — původně hlášeno, po ověření v kódu bezpečné
+════════════════════════════════════════════════════════════════════════════════
+
+- File picker selected — index out of bounds
+  update_filter() na workspace.rs:70 vždy resetuje selected = 0.
+  Panic nehrozí.
+
+- Search replace_current — špatné byte offsets
+  update_search() na search.rs:90 přepočítá všechny pozice od začátku.
+  Funguje správně.
+
+════════════════════════════════════════════════════════════════════════════════
+SHRNUTÍ PRIORIT
+════════════════════════════════════════════════════════════════════════════════
+
+  Priorita  Problém                                     Riziko
+  ────────────────────────────────────────────────────────────────
+  [1] KRIT  Autosave přepíše external změny             ztráta dat
+  [2] KRIT  Ctrl+S na smazaný soubor selže tiše         ztráta dat
+  [3] STŘE  Sdílené modal ID ve více oknech             UI glitch
+  [4] STŘE  IPC race condition na JSON souborech        vzácná ztráta session
+  [5] STŘE  Git thread leak                             výkon
+  [6] STŘE  Terminal tichý exit                         matoucí UX
+  [7] KOSM  Session restore bez vysvětlení              matoucí UX
+
+
+════════════════════════════════════════════════════════════════════════════════
+--- Codex ---
+════════════════════════════════════════════════════════════════════════════════
+
+Doplneni logicke analyzy (aktualni stav kodu):
+
+C1. [VYSOKA] Unik operaci mimo koren projektu ve FileTree
+   Soubory: src/app/modules/file_tree.rs:464, src/app/modules/file_tree.rs:541
+   Problem:
+   Vytvoreni souboru/adresare i prejmenovani sklada cestu jako parent.join(user_input)
+   bez validace vstupu. Vstup typu ../neco nebo obsahujici / umozni zapis/prejmenovani
+   mimo otevreny projekt.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - file_tree.rs: pridana helper funkce is_safe_filename(name) — odmitne vstup
+       obsahujici '/', '\\', null byte, nebo rovny "." / "..".
+     - show_new_item_dialog: vstup validovan pres is_safe_filename() pred joinovanim;
+       pri chybe se nastavi pending_error a operace se neprovede.
+     - show_rename_dialog: stejna validace.
+     - Druha vrstva obrany: vysledna cesta se overi pomoci starts_with(&self.root_path)
+       — pokud by new_path vedla mimo koren projektu, operace se zablokuje
+       s chybou "Cesta by vedla mimo projekt".
+
+────────────────────────────────────────────────────────────────────────────────
+
+C2. [VYSOKA] Neni vynucena architektura single-process multi-window
+   Soubory: src/app/mod.rs:72, src/main.rs:38, src/ipc.rs:386
+   Problem:
+   Kdyz IpcServer::start() vrati None (primarni instance uz bezi), aplikace se stejne
+   normalne spusti jako dalsi proces. Ipc::query() je dead code, takze fokus handoff
+   mezi procesy se reálně nepouziva. Duledek: vice procesu muze prepisovat shared
+   session/recent data.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - main.rs: pred run_native() se zavola Ipc::ping(); pokud primarni instance
+       bezi, sekundarna instance deleguje a okamzite skonci:
+         - s path argumentem → Ipc::open_in_new_window(path)
+         - bez argumentu    → Ipc::focus_main()
+     - ipc.rs: pridany prikazy OPEN_IN_NEW_WINDOW /path a FOCUS_MAIN.
+     - ipc.rs: ServerState ziskal pole open_tx: Sender<PathBuf>; pri OPEN_IN_NEW_WINDOW
+       server posle cestu pres kanal primarnimu procesu.
+     - ipc.rs: IpcServer::start() nyne vraci Option<(IpcServer, Receiver<PathBuf>)>.
+     - ipc.rs: pridany klientske metody Ipc::open_in_new_window() a Ipc::focus_main().
+     - app/mod.rs: pridano pole open_request_rx: Option<Receiver<PathBuf>>;
+       v update() se polluje pres try_iter() a kazda prijata cesta se otevre
+       jako nove okno pres existujici open_in_new_window().
+
+────────────────────────────────────────────────────────────────────────────────
+
+C3. [STREDNI] Watcher se neprepina pri prepnuti tabu
+   Soubory: src/app/workspace.rs:276, src/app/modules/editor/mod.rs:299
+   Problem:
+   FileWatcher se nastavuje jen pri open_file_in_ws(), ne pri samotnem switchi tabu.
+   Kdyz jsou taby z ruznych adresaru, externi zmeny aktivniho tabu se nemusi zachytit.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - workspace.rs: pred volanim editor.ui() se ulozi prev_active_path =
+       ws.editor.active_path().cloned().
+     - Po uzavreni CentralPanel closure se porovna s new_active_path; pokud se
+       lisí (uzivatel prepnul tab), vola se ws.watcher.watch(parent) pro adresar
+       nove aktivni zalozky.
+     - Reseni je minimalni — zadna zmena Editor API; pouziva existujici verejnou
+       metodu active_path() ktera mela dead_code varovani (ted je vyuzita).
+
+────────────────────────────────────────────────────────────────────────────────
+
+C4. [STREDNI] Automaticke otevirani novych souboru z watcheru
+   Soubor: src/app/workspace/background.rs:43, src/app/workspace/background.rs:65
+   Problem:
+   Kazdy FsChange::Created(file) muze otevrit soubor v editoru. To vede k nahodnemu
+   otevirani generovanych/technickych souboru a rusi workflow.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+     - background.rs: odstranen kod ktery pri FsChange::Created volal
+       open_file_in_ws(ws, path) — soubor se uz automaticky neotevre v editoru.
+     - Strom se stale rozbalí na novy soubor (request_reload_and_expand) tak,
+       aby byl soubor videt, ale otevreni je na uzivateli.
+     - open_file_in_ws odstranen z importu background.rs (byl by unused).
+
+
+════════════════════════════════════════════════════════════════════════════════
+--- Gemini ---
+════════════════════════════════════════════════════════════════════════════════
+
+LOGICKÁ ANALÝZA A POTENCIÁLNÍ NEDOSTATKY
+=======================================
+
+G1. Správa sezení a konkurenční zápis (Race Conditions)
+Aplikace podporuje více oken, ale všechna sdílejí jeden konfigurační soubor sezení. Pokud běží více nezávislých procesů editoru, mohou si navzájem přepisovat `session.json`, protože zápis není atomický ani chráněný zámkem na úrovni souborového systému.
+
+────────────────────────────────────────────────────────────────────────────────
+   HOTOVO — pokryto opravami #4 a C2:
+────────────────────────────────────────────────────────────────────────────────
+     - Fix #4: session.json se zapisuje výhradně přes IPC server pod state.lock()
+       — souběžné zápisy z více procesů jsou serializovány.
+     - Fix C2: sekundární instance se vůbec nespustí jako samostatný proces
+       (deleguje na primára a exituje) — celá kategorie souběžných procesů
+       zapisujících do sdílených souborů je eliminována.
+
+────────────────────────────────────────────────────────────────────────────────
+
+G2. Životní cyklus vláken na pozadí (Thread Leaks)
+Vlákna spouštěná přes `std::thread::spawn` (Git status, indexace, AI tool check) jsou typu "fire and forget". Při rychlém zavírání a otevírání projektů mohou stará vlákna stále běžet na pozadí a zbytečně konzumovat CPU a I/O, protože neexistuje mechanismus pro jejich předčasné ukončení (cancellation).
+
+────────────────────────────────────────────────────────────────────────────────
+   ČÁSTEČNĚ HOTOVO — viz fix #5:
+────────────────────────────────────────────────────────────────────────────────
+     - Git vlákna (fetch_git_branch, fetch_git_status): opraveno v fix #5 —
+       Arc<AtomicBool> cancel flag + child.kill() při zániku workspace.
+     - Zbývající vlákna (spawn_file_index_scan, ai_tool_check_rx) jsou bounded
+       — dokončí se rychle a jejich Receiver se přirozeně dropne při zániku
+       workspace; vlákno pak tiše skončí. Nejde o reálný leak.
+
+────────────────────────────────────────────────────────────────────────────────
+
+G3. Náročnost vykreslování (UI Performance)
+Vynucené překreslování v každém snímku (kvůli terminálu a autosave) v kombinaci s "immediate mode" architekturou egui může vést k vysokému vytížení CPU u velkých projektů. Každý snímek prochází všechny aktivní kanály a stavy, což by mělo být lépe kešováno.
+
+────────────────────────────────────────────────────────────────────────────────
+   OPRAVENO 2026-02-19 (praktické optimalizace):
+────────────────────────────────────────────────────────────────────────────────
+     - config.rs: REPAINT_INTERVAL_MS snížen z 250 ms na 500 ms — halvuje
+       timer-driven CPU zátěž; terminál si řídí vlastní repaints přes
+       ctx.request_repaint(), takže odezva terminálu není dotčena.
+     - config.rs: přidána konstanta TERMINAL_MAX_EVENTS_PER_FRAME = 256.
+     - terminal.rs: PTY event smyčka omezena na max 256 eventů za snímek;
+       při burstu výstupu (cargo build, grep) se zbytek dočerpá příští snímek
+       místo blokování UI smyčky na desítky ms.
+     - Markdown parse (pulldown_cmark) a syntax highlighting nejsou výkonnostním
+       bottleneckem — pulldown_cmark je O(n) a velmi rychlý; egui widget
+       konstrukce je v immediate mode povinná každý snímek a nelze ji vynechat.
+
+────────────────────────────────────────────────────────────────────────────────
+
+G4. Robustnost IPC (Inter-Process Communication)
+Unix sockety pro detekci běžící instance jsou náchylné na "zombie" soubory socketů po pádu aplikace. Pokud soubor socketu zůstane na disku, nová instance se může mylně domnívat, že jiný editor již běží, a odmítne se spustit.
+
+────────────────────────────────────────────────────────────────────────────────
+   HOTOVO — bylo vyřešeno již před touto analýzou:
+────────────────────────────────────────────────────────────────────────────────
+     - IpcServer::start() volá Ipc::ping() před bindováním socketu.
+     - Pokud ping selže (stale socket — process je mrtvý, connection refused),
+       ping vrátí false; kód pak odstraní starý soubor socketu a nabinduje nový.
+     - Nová instance tedy zombie souborem zablokována není.
+
+────────────────────────────────────────────────────────────────────────────────
+
+G5. Správa dceřiných procesů v PTY
+Při ukončení aplikace neprobíhá explicitní rekurzivní ukončování celých procesních skupin spuštěných v terminálech (AI panel, Build panel). To může vést k tomu, že procesy jako `cargo run` nebo AI nástroje zůstanou běžet na pozadí jako sirotci (orphans).
+
+────────────────────────────────────────────────────────────────────────────────
+OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+  vendor/egui_term/src/backend/mod.rs
+    — Přidáno pole `#[cfg(unix)] pub child_pid: u32` do `TerminalBackend`
+    — Před předáním `pty` do `EventLoop::new()` se extrahuje `pty.child().id()`
+      (metoda `Pty::child()` vrací `&std::process::Child`, odkud `id()` dá PID shellu)
+    — PID je součástí `Ok(Self { ..., child_pid })` při konstrukci
+
+  src/app/modules/terminal.rs
+    — Přidán `use libc` (unix-only, podmínění `#[cfg(unix)]`)
+    — Přidána privátní metoda `kill_process_group(&self)`:
+        • Pokud `self.exited` → nic nedělá (shell sám skončil)
+        • Jinak `libc::kill(-pid, libc::SIGTERM)` na celou procesní skupinu
+        • Ochrana `pid > 1` zabraňuje kill(-1, SIGTERM) na init/PID1
+    — Přidáno `impl Drop for Terminal` volající `kill_process_group()`
+
+  Cargo.toml
+    — Přidána závislost `libc = "0.2"`
+
+  Mechanismus:
+    Když je workspace zavřen (okno / ukončení editoru), Rust RAII zavolá
+    `Drop for Terminal` pro každý terminal v `claude_tabs` a `build_terminal`.
+    SIGTERM je poslán celé procesní skupině (`-pid`), takže cargo run, aider,
+    claude cli a jejich potomci dostanou signál k čistému ukončení ještě před
+    tím, než `TerminalBackend::drop()` pošle `Msg::Shutdown` a zavře PTY master
+    fd (který by jinak vyslal SIGHUP — méně spolehlivé pro background procesy).
+
+────────────────────────────────────────────────────────────────────────────────
+
+G6. Statická detekce nástrojů
+Kontrola dostupnosti AI nástrojů probíhá pouze při inicializaci pracovního prostoru. Pokud je nástroj nainstalován během běhu aplikace, editor jej nerozpozná bez restartu daného okna.
+
+────────────────────────────────────────────────────────────────────────────────
+OPRAVENO 2026-02-19:
+────────────────────────────────────────────────────────────────────────────────
+  src/config.rs
+    — Přidána konstanta `AI_TOOL_CHECK_INTERVAL_SECS: u64 = 60`
+
+  src/app/workspace.rs
+    — Přidáno pole `ai_tool_last_check: std::time::Instant` do `WorkspaceState`
+    — Inicializováno na `Instant::now()` v `init_workspace()`
+
+  src/app/workspace/background.rs
+    — Po přijetí výsledku z `ai_tool_check_rx` se aktualizuje `ai_tool_last_check`
+    — Přidán periodický re-check: pokud `elapsed() >= 60s` a žádný check neběží,
+      spustí se nový `spawn_ai_tool_check()` na pozadí
+
+  Poznámka:
+    Manuální tlačítko ↻ v AI panelu bylo přítomno již dříve; automatický re-check
+    jej doplňuje — uživatel nemusí vědět o existenci tlačítka a nástroj se detekuje
+    automaticky do ~60 sekund po instalaci.

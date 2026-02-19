@@ -3072,6 +3072,7 @@ dependencies = [
  "dirs",
  "eframe",
  "egui_term",
+ "libc",
  "notify",
  "pulldown-cmark",
  "rfd",

@@ -2,7 +2,9 @@
 pub const MAX_RECENT_PROJECTS: usize = 10;
 
 /// Interval překreslování UI pro autosave a watcher (v ms).
-pub const REPAINT_INTERVAL_MS: u64 = 250;
+/// Terminál a watcher si řídí vlastní repaints přes ctx.request_repaint() —
+/// tento interval slouží jen jako záloha pro polling kanalů na pozadí.
+pub const REPAINT_INTERVAL_MS: u64 = 500;
 
 /// Základní velikost fontu editoru (monospace).
 pub const EDITOR_FONT_SIZE: f32 = 14.0;
@@ -41,3 +43,11 @@ pub const TERMINAL_SCROLLBAR_WIDTH: f32 = 10.0;
 
 /// Maximální výška build error listu v levém panelu.
 pub const BUILD_ERROR_LIST_MAX_HEIGHT: f32 = 150.0;
+
+/// Maximální počet PTY eventů zpracovaných za jeden snímek UI.
+/// Brání blokování UI při burstu výstupu terminálového procesu.
+pub const TERMINAL_MAX_EVENTS_PER_FRAME: usize = 256;
+
+/// Interval automatické re-detekce AI CLI nástrojů (claude, aider, …) v sekundách.
+/// Detekce probíhá na pozadí a je nenápadná; manuální re-check zajišťuje tlačítko ↻.
+pub const AI_TOOL_CHECK_INTERVAL_SECS: u64 = 60;

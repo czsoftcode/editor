@@ -157,6 +157,21 @@ pub(crate) struct WorkspaceState {
     pub ai_tool_available: HashMap<AiTool, bool>,
     /// Asynchronní kontrola dostupnosti AI CLI nástrojů
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<AiTool, bool>>>,
+    /// Čas poslední (automatické) re-detekce AI CLI nástrojů
+    pub ai_tool_last_check: std::time::Instant,
+    /// Čekající konflikt: soubor byl změněn externě, ale záložka má neuložené změny.
+    /// Hodnota = cesta ke konfliktu; None = žádný konflikt.
+    pub external_change_conflict: Option<PathBuf>,
+    /// Zrušovací příznak pro git refresh vlákna.
+    /// Při drop workspacu se nastaví na true → vlákna ukončí git proces a nezpracují výsledek.
+    pub git_cancel: Arc<AtomicBool>,
+}
+
+impl Drop for WorkspaceState {
+    fn drop(&mut self) {
+        // Signalizujeme git refresh vláknům, aby ukončila git proces a nevracela výsledek.
+        self.git_cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -226,8 +241,9 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
     let mut file_tree = FileTree::new();
     file_tree.load(&root_path);
     let project_watcher = ProjectWatcher::new(&root_path);
-    let git_branch_rx = fetch_git_branch(&root_path);
-    let git_status_rx = fetch_git_status(&root_path);
+    let git_cancel = Arc::new(AtomicBool::new(false));
+    let git_branch_rx = fetch_git_branch(&root_path, Arc::clone(&git_cancel));
+    let git_status_rx = fetch_git_status(&root_path, Arc::clone(&git_cancel));
     let file_index_rx = spawn_file_index_scan(root_path.clone());
     let ai_tool_check_rx = spawn_ai_tool_check();
     let mut wizard = WizardState::default();
@@ -270,6 +286,9 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         settings_folder_pick_rx: None,
         ai_tool_available: HashMap::new(),
         ai_tool_check_rx: Some(ai_tool_check_rx),
+        ai_tool_last_check: std::time::Instant::now(),
+        external_change_conflict: None,
+        git_cancel,
     }
 }
 
@@ -503,7 +522,9 @@ fn process_menu_actions(
         shared.lock().unwrap().actions.push(AppAction::QuitAll);
     }
     if actions.save {
-        ws.editor.save();
+        if let Some(err) = ws.editor.save() {
+            ws.toasts.push(Toast::error(err));
+        }
     }
     if actions.close_file {
         ws.editor.clear();
@@ -619,8 +640,13 @@ fn process_menu_actions(
 
 /// Vykreslí modální dialogy (O aplikaci, Nastavení, Nový projekt).
 fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
+    // Salt zajišťuje jedinečnost modal ID v rámci egui Context, který je sdílený
+    // mezi všemi okny (viewporty). Bez saltu by dvě okna se stejným dialogem
+    // sdílela stav (otevřeno/zavřeno, hodnoty formuláře).
+    let id_salt = ws.root_path.as_os_str();
+
     if ws.show_about {
-        let modal = egui::Modal::new(egui::Id::new("about_modal"));
+        let modal = egui::Modal::new(egui::Id::new(("about_modal", id_salt)));
         modal.show(ctx, |ui| {
             ui.heading("Rust Editor");
             ui.add_space(8.0);
@@ -655,7 +681,7 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
         let mut request_settings_browse = false;
         let mut browse_start_dir: Option<String> = None;
 
-        let modal = egui::Modal::new(egui::Id::new("settings_modal"));
+        let modal = egui::Modal::new(egui::Id::new(("settings_modal", id_salt)));
         modal.show(ctx, |ui| {
             ui.heading("Nastavení");
             ui.add_space(10.0);
@@ -746,11 +772,12 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
     }
 
     if ws.show_new_project {
+        let wizard_modal_id = format!("ws_new_project_modal_{}", ws.root_path.display());
         show_project_wizard(
             ctx,
             &mut ws.wizard,
             &mut ws.show_new_project,
-            "ws_new_project_modal",
+            &wizard_modal_id,
             shared,
             |path, sh| {
                 let mut sh = sh.lock().unwrap();
@@ -759,6 +786,77 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
             },
         );
     }
+
+    // Dialog: soubor byl změněn externě, záložka má neuložené změny.
+    if let Some(conflict_path) = ws.external_change_conflict.clone() {
+        let filename = conflict_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| conflict_path.to_string_lossy().into_owned());
+
+        let mut action: Option<ExternalConflictAction> = None;
+
+        egui::Modal::new(egui::Id::new(("external_change_conflict_modal", id_salt))).show(ctx, |ui| {
+            ui.set_min_width(400.0);
+            ui.heading("Soubor zmenen externe");
+            ui.add_space(8.0);
+            ui.label(format!(
+                "Soubor \"{}\" byl zmenen jinym programem, ale obsahuje neulosene zmeny v editoru.",
+                filename
+            ));
+            ui.add_space(4.0);
+            ui.label(
+                egui::RichText::new("Vyberte, ktera verze ma vyhrat:")
+                    .color(egui::Color32::from_rgb(180, 180, 180)),
+            );
+            ui.add_space(12.0);
+            ui.horizontal(|ui| {
+                if ui
+                    .button("Nacist z disku")
+                    .on_hover_text("Zahodit zmeny v editoru a nacist verzi ulosenou na disku")
+                    .clicked()
+                {
+                    action = Some(ExternalConflictAction::ReloadFromDisk);
+                }
+                if ui
+                    .button("Zachovat moje")
+                    .on_hover_text("Ponechat zmeny v editoru; soubor na disku bude prepsán pri ulozeni")
+                    .clicked()
+                {
+                    action = Some(ExternalConflictAction::KeepEditorVersion);
+                }
+                if ui
+                    .button("Ignorovat")
+                    .on_hover_text("Zavrit upozorneni bez zmeny")
+                    .clicked()
+                {
+                    action = Some(ExternalConflictAction::Dismiss);
+                }
+            });
+        });
+
+        match action {
+            Some(ExternalConflictAction::ReloadFromDisk) => {
+                ws.editor.reload_path_from_disk(&conflict_path);
+                ws.external_change_conflict = None;
+            }
+            Some(ExternalConflictAction::KeepEditorVersion) => {
+                // Uložíme hned, aby soubor na disku odpovídal editoru.
+                ws.editor.save_path(&conflict_path);
+                ws.external_change_conflict = None;
+            }
+            Some(ExternalConflictAction::Dismiss) => {
+                ws.external_change_conflict = None;
+            }
+            None => {}
+        }
+    }
+}
+
+enum ExternalConflictAction {
+    ReloadFromDisk,
+    KeepEditorVersion,
+    Dismiss,
 }
 
 // ---------------------------------------------------------------------------
@@ -792,10 +890,12 @@ pub(crate) fn render_workspace(
 
     // Klávesové zkratky
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        ws.editor.save();
+        if let Some(err) = ws.editor.save() {
+            ws.toasts.push(Toast::error(err));
+        }
         // Po uložení okamžitě aktualizujeme git status
         if ws.git_status_rx.is_none() {
-            ws.git_status_rx = Some(fetch_git_status(&ws.root_path));
+            ws.git_status_rx = Some(fetch_git_status(&ws.root_path, Arc::clone(&ws.git_cancel)));
         }
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) {
@@ -859,11 +959,25 @@ pub(crate) fn render_workspace(
     let ai_clicked = render_ai_panel(ctx, ws, dialog_open);
     let left_clicked = render_left_panel(ctx, ws, dialog_open);
 
+    // Zapamatovat aktivní záložku před renderem — kvůli detekci přepnutí tabu
+    let prev_active_path = ws.editor.active_path().cloned();
+
     egui::CentralPanel::default().show(ctx, |ui| {
         if ws.editor.ui(ui, dialog_open) {
             ws.focused_panel = FocusedPanel::Editor;
         }
     });
+
+    // Pokud se přepnula záložka, přepnout FileWatcher na adresář nové záložky.
+    // Zajistí zachycení externích změn i při tabech z různých adresářů.
+    let new_active_path = ws.editor.active_path().cloned();
+    if new_active_path != prev_active_path {
+        if let Some(path) = &new_active_path {
+            if let Some(parent) = path.parent() {
+                ws.watcher.watch(parent);
+            }
+        }
+    }
 
     // Focus follows mouse — vrátit fokus editoru pokud terminál nebyl aktivně kliknut
     if !ai_clicked && !left_clicked {

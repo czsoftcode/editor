@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1100" viewBox="0 0 1700 1100">
+  <defs>
+    <style>
+      .bg { fill: #f7f8fb; }
+      .title { font: 700 34px "Segoe UI", Arial, sans-serif; fill: #1f2937; }
+      .subtitle { font: 400 17px "Segoe UI", Arial, sans-serif; fill: #475569; }
+      .box { stroke: #334155; stroke-width: 2; rx: 14; ry: 14; }
+      .core { fill: #dbeafe; }
+      .workspace { fill: #dcfce7; }
+      .service { fill: #fef3c7; }
+      .module { fill: #ffffff; }
+      .external { fill: #fde2e2; }
+      .datastore { fill: #ede9fe; }
+      .label { font: 700 18px "Segoe UI", Arial, sans-serif; fill: #0f172a; }
+      .small { font: 400 14px "Segoe UI", Arial, sans-serif; fill: #334155; }
+      .tiny { font: 400 13px "Segoe UI", Arial, sans-serif; fill: #475569; }
+      .edge { stroke: #1e293b; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .edge-bidir { stroke: #1e293b; stroke-width: 2.2; fill: none; marker-end: url(#arrow); marker-start: url(#arrow); }
+      .edge-async { stroke: #1e293b; stroke-width: 2; stroke-dasharray: 9 7; fill: none; marker-end: url(#arrow); }
+      .edge-note { font: 400 12px "Segoe UI", Arial, sans-serif; fill: #0f172a; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e293b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1700" height="1100" />
+
+  <text class="title" x="850" y="58" text-anchor="middle">Rust Editor - Block Diagram</text>
+  <text class="subtitle" x="850" y="86" text-anchor="middle">single-process multi-window desktop app (eframe/egui)</text>
+
+  <!-- Core -->
+  <rect class="box core" x="620" y="120" width="460" height="90" />
+  <text class="label" x="850" y="155" text-anchor="middle">main.rs</text>
+  <text class="small" x="850" y="180" text-anchor="middle">eframe::run_native + env init + root path</text>
+
+  <rect class="box core" x="540" y="250" width="620" height="150" />
+  <text class="label" x="850" y="288" text-anchor="middle">EditorApp (src/app/mod.rs)</text>
+  <text class="small" x="850" y="315" text-anchor="middle">startup flow, session restore, multi-window orchestration</text>
+  <text class="small" x="850" y="338" text-anchor="middle">shared state + viewport lifecycle + app-level dialogs</text>
+  <text class="tiny" x="850" y="362" text-anchor="middle">root workspace + secondary workspaces</text>
+
+  <!-- IPC + persistence -->
+  <rect class="box service" x="1220" y="250" width="380" height="240" />
+  <text class="label" x="1410" y="288" text-anchor="middle">IPC Layer (src/ipc.rs)</text>
+  <text class="small" x="1410" y="315" text-anchor="middle">Unix socket server/client</text>
+  <text class="small" x="1410" y="338" text-anchor="middle">QUERY / REGISTER / RECENT / FOCUS</text>
+  <text class="small" x="1410" y="361" text-anchor="middle">single instance focus + project registry</text>
+
+  <rect class="box datastore" x="1220" y="120" width="380" height="90" />
+  <text class="label" x="1410" y="155" text-anchor="middle">App Data</text>
+  <text class="small" x="1410" y="180" text-anchor="middle">~/.config/rust_editor/{recent,session,settings}.json</text>
+
+  <rect class="box service" x="90" y="250" width="380" height="170" />
+  <text class="label" x="280" y="288" text-anchor="middle">Settings (src/settings.rs)</text>
+  <text class="small" x="280" y="315" text-anchor="middle">load/save JSON + apply theme/font</text>
+  <text class="small" x="280" y="338" text-anchor="middle">default project path</text>
+
+  <!-- Workspace -->
+  <rect class="box workspace" x="250" y="450" width="960" height="500" />
+  <text class="label" x="730" y="488" text-anchor="middle">WorkspaceState (src/app/workspace.rs) - per window</text>
+  <text class="small" x="730" y="514" text-anchor="middle">menu/actions, background processing, keybindings, panel composition</text>
+
+  <rect class="box module" x="300" y="550" width="260" height="150" />
+  <text class="label" x="430" y="586" text-anchor="middle">FileTree</text>
+  <text class="tiny" x="430" y="612" text-anchor="middle">src/app/modules/file_tree.rs</text>
+  <text class="tiny" x="430" y="636" text-anchor="middle">project tree + file ops</text>
+
+  <rect class="box module" x="600" y="550" width="260" height="150" />
+  <text class="label" x="730" y="586" text-anchor="middle">Editor</text>
+  <text class="tiny" x="730" y="612" text-anchor="middle">src/app/modules/editor/*</text>
+  <text class="tiny" x="730" y="636" text-anchor="middle">tabs, autosave, search, markdown</text>
+
+  <rect class="box module" x="600" y="725" width="260" height="110" />
+  <text class="label" x="730" y="760" text-anchor="middle">Highlighter</text>
+  <text class="tiny" x="730" y="784" text-anchor="middle">src/highlighter.rs (syntect)</text>
+
+  <rect class="box module" x="900" y="550" width="260" height="150" />
+  <text class="label" x="1030" y="586" text-anchor="middle">Build Panel</text>
+  <text class="tiny" x="1030" y="612" text-anchor="middle">build_runner + Terminal</text>
+  <text class="tiny" x="1030" y="636" text-anchor="middle">cargo build/run/test + diagnostics</text>
+
+  <rect class="box module" x="300" y="725" width="260" height="160" />
+  <text class="label" x="430" y="760" text-anchor="middle">AI Panel</text>
+  <text class="tiny" x="430" y="784" text-anchor="middle">workspace/ai_panel.rs</text>
+  <text class="tiny" x="430" y="808" text-anchor="middle">multi-tab PTY terminal + AI tool picker</text>
+
+  <rect class="box module" x="900" y="725" width="260" height="160" />
+  <text class="label" x="1030" y="760" text-anchor="middle">Background Workers</text>
+  <text class="tiny" x="1030" y="784" text-anchor="middle">workspace/background.rs</text>
+  <text class="tiny" x="1030" y="808" text-anchor="middle">git branch/status + search/file index</text>
+
+  <!-- Watchers + externals -->
+  <rect class="box service" x="1260" y="560" width="320" height="180" />
+  <text class="label" x="1420" y="598" text-anchor="middle">Watchers (src/watcher.rs)</text>
+  <text class="small" x="1420" y="624" text-anchor="middle">FileWatcher + ProjectWatcher</text>
+  <text class="small" x="1420" y="647" text-anchor="middle">notify events: changed/created/removed</text>
+
+  <rect class="box external" x="70" y="760" width="360" height="190" />
+  <text class="label" x="250" y="798" text-anchor="middle">External Processes</text>
+  <text class="small" x="250" y="824" text-anchor="middle">cargo / rustc</text>
+  <text class="small" x="250" y="847" text-anchor="middle">git</text>
+  <text class="small" x="250" y="870" text-anchor="middle">claude, codex, copilot, gemini, aider...</text>
+
+  <rect class="box external" x="1260" y="780" width="320" height="170" />
+  <text class="label" x="1420" y="818" text-anchor="middle">Project Filesystem</text>
+  <text class="small" x="1420" y="844" text-anchor="middle">source files + directories</text>
+  <text class="small" x="1420" y="867" text-anchor="middle">file tree, editor buffers, fs changes</text>
+
+  <!-- Edges -->
+  <path class="edge" d="M850 210 L850 250" />
+  <text class="edge-note" x="865" y="236">creates app</text>
+
+  <path class="edge" d="M850 400 L850 450" />
+  <text class="edge-note" x="866" y="430">init/render workspace</text>
+
+  <path class="edge-bidir" d="M1160 325 L1220 325" />
+  <text class="edge-note" x="1182" y="310">commands</text>
+
+  <path class="edge-bidir" d="M1410 250 L1410 210" />
+  <text class="edge-note" x="1422" y="232">recent/session</text>
+
+  <path class="edge-bidir" d="M540 318 L470 318" />
+  <text class="edge-note" x="486" y="303">apply/load</text>
+
+  <path class="edge" d="M280 420 L280 450 L470 450" />
+  <text class="edge-note" x="298" y="438">theme/fonts/default path</text>
+
+  <path class="edge" d="M730 700 L730 725" />
+  <text class="edge-note" x="742" y="716">syntax colors</text>
+
+  <path class="edge" d="M860 625 L900 625" />
+  <text class="edge-note" x="865" y="608">build/run + errors</text>
+
+  <path class="edge" d="M560 805 L600 805" />
+  <text class="edge-note" x="568" y="788">edits/open</text>
+
+  <path class="edge" d="M860 805 L900 805" />
+  <text class="edge-note" x="864" y="787">async updates</text>
+
+  <path class="edge-bidir" d="M1210 680 L1260 650" />
+  <text class="edge-note" x="1218" y="644">poll events</text>
+
+  <path class="edge-bidir" d="M1260 840 L1210 840" />
+  <text class="edge-note" x="1218" y="826">read/write files</text>
+
+  <path class="edge-bidir" d="M1260 620 L1210 720" />
+  <text class="edge-note" x="1220" y="706">file system notifications</text>
+
+  <path class="edge-async" d="M430 860 L300 860" />
+  <text class="edge-note" x="306" y="845">AI CLI in PTY</text>
+
+  <path class="edge-async" d="M1030 700 L250 760" />
+  <text class="edge-note" x="640" y="748">cargo/git subprocesses</text>
+
+  <path class="edge-async" d="M1410 560 L1410 490" />
+  <text class="edge-note" x="1422" y="526">IPC + socket files</text>
+
+  <rect x="70" y="1000" width="440" height="70" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" rx="10" ry="10" />
+  <text class="small" x="90" y="1028">Legend:</text>
+  <text class="tiny" x="90" y="1050">solid arrow = direct call/data flow</text>
+  <text class="tiny" x="290" y="1050">dashed arrow = async/background flow</text>
+  <line x1="290" y1="1044" x2="370" y2="1044" stroke="#1e293b" stroke-width="2" stroke-dasharray="9 7" />
+  <line x1="90" y1="1044" x2="170" y2="1044" stroke="#1e293b" stroke-width="2" />
+</svg>

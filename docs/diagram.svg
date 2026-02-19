@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap');
+      .bg { fill: #fcfdfe; }
+      .header { font: 700 32px 'Inter', sans-serif; fill: #111827; }
+      .subheader { font: 400 16px 'Inter', sans-serif; fill: #6b7280; }
+      .group-label { font: 700 14px 'Inter', sans-serif; fill: #4b5563; text-transform: uppercase; letter-spacing: 0.05em; }
+      
+      .box { stroke-width: 1.5; rx: 12; ry: 12; }
+      .box-core { fill: #eef2ff; stroke: #6366f1; }
+      .box-ws { fill: #f0fdf4; stroke: #22c55e; }
+      .box-module { fill: #ffffff; stroke: #cbd5e1; }
+      .box-service { fill: #fffbeb; stroke: #f59e0b; }
+      .box-external { fill: #fff1f2; stroke: #f43f5e; }
+      .box-data { fill: #f5f3ff; stroke: #8b5cf6; }
+
+      .label { font: 700 16px 'Inter', sans-serif; fill: #1e293b; }
+      .desc { font: 400 13px 'Inter', sans-serif; fill: #475569; }
+      .path { font: 400 11px 'monospace'; fill: #94a3b8; }
+
+      .arrow { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .arrow-dashed { stroke: #64748b; stroke-width: 2; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrowhead); }
+      .arrow-bidir { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrowhead); marker-start: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1600" height="1000" />
+
+  <text class="header" x="800" y="60" text-anchor="middle">Architektura aplikace Rust Editor</text>
+  <text class="subheader" x="800" y="90" text-anchor="middle">Blokové schéma komponent a datových toků</text>
+
+  <!-- Global Layers Labels -->
+  <text class="group-label" x="100" y="160">Vstup &amp; Správa</text>
+  <line x1="100" y1="170" x2="1500" y2="170" stroke="#e2e8f0" stroke-width="1" />
+
+  <text class="group-label" x="100" y="420">Pracovní prostory (Okna projektů)</text>
+  <line x1="100" y1="430" x2="1500" y2="430" stroke="#e2e8f0" stroke-width="1" />
+
+  <text class="group-label" x="100" y="800">Služby a Externí svět</text>
+  <line x1="100" y1="810" x2="1500" y2="810" stroke="#e2e8f0" stroke-width="1" />
+
+  <!-- CORE LAYER -->
+  <g transform="translate(650, 200)">
+    <rect class="box box-core" width="300" height="80" />
+    <text class="label" x="150" y="35" text-anchor="middle">Hlavní vstup (main.rs)</text>
+    <text class="desc" x="150" y="55" text-anchor="middle">Inicializace, CLI argumenty</text>
+    <text class="path" x="150" y="72" text-anchor="middle">eframe::run_native</text>
+  </g>
+
+  <g transform="translate(550, 310)">
+    <rect class="box box-core" width="500" height="100" />
+    <text class="label" x="250" y="35" text-anchor="middle">Správce aplikace (EditorApp)</text>
+    <text class="desc" x="250" y="55" text-anchor="middle">Orchestrace více oken, obnova sezení</text>
+    <text class="desc" x="250" y="75" text-anchor="middle">Dialogy (Start, Ukončení, Nový projekt)</text>
+    <text class="path" x="250" y="92" text-anchor="middle">src/app/mod.rs</text>
+  </g>
+
+  <!-- WORKSPACE LAYER -->
+  <rect class="box box-ws" x="200" y="460" width="1200" height="320" />
+  <text class="label" x="800" y="490" text-anchor="middle">Stav pracovního prostoru (WorkspaceState)</text>
+  <text class="path" x="800" y="508" text-anchor="middle">src/app/workspace.rs</text>
+
+  <!-- Workspace Modules -->
+  <g transform="translate(250, 540)">
+    <rect class="box box-module" width="240" height="120" />
+    <text class="label" x="120" y="35" text-anchor="middle">Průzkumník souborů</text>
+    <text class="desc" x="120" y="60" text-anchor="middle">Navigace, operace</text>
+    <text class="desc" x="120" y="80" text-anchor="middle">se soubory</text>
+    <text class="path" x="120" y="105" text-anchor="middle">file_tree.rs</text>
+  </g>
+
+  <g transform="translate(530, 540)">
+    <rect class="box box-module" width="340" height="120" />
+    <text class="label" x="170" y="35" text-anchor="middle">Editor kódu</text>
+    <text class="desc" x="170" y="60" text-anchor="middle">Záložky, automatické ukládání,</text>
+    <text class="desc" x="170" y="80" text-anchor="middle">zvýrazňování syntaxe</text>
+    <text class="path" x="170" y="105" text-anchor="middle">src/app/modules/editor/*</text>
+  </g>
+
+  <g transform="translate(910, 540)">
+    <rect class="box box-module" width="220" height="120" />
+    <text class="label" x="110" y="35" text-anchor="middle">AI Terminál</text>
+    <text class="desc" x="110" y="60" text-anchor="middle">Claude Code, Aider</text>
+    <text class="desc" x="110" y="80" text-anchor="middle">PTY integrace</text>
+    <text class="path" x="110" y="105" text-anchor="middle">ai_panel.rs</text>
+  </g>
+
+  <g transform="translate(1170, 540)">
+    <rect class="box box-module" width="200" height="120" />
+    <text class="label" x="100" y="35" text-anchor="middle">Build Systém</text>
+    <text class="desc" x="100" y="60" text-anchor="middle">Cargo integrace,</text>
+    <text class="desc" x="100" y="80" text-anchor="middle">diagnostika chyb</text>
+    <text class="path" x="100" y="105" text-anchor="middle">build_runner.rs</text>
+  </g>
+
+  <!-- Background tasks inside WS -->
+  <g transform="translate(450, 700)">
+    <rect class="box box-service" width="700" height="50" />
+    <text class="label" x="350" y="32" text-anchor="middle">Úlohy na pozadí (Git status, Indexace souborů, Watcher)</text>
+    <text class="path" x="350" y="45" text-anchor="middle" visibility="hidden">background.rs</text>
+  </g>
+
+  <!-- SERVICES LAYER -->
+  <g transform="translate(150, 840)">
+    <rect class="box box-data" width="280" height="100" />
+    <text class="label" x="140" y="35" text-anchor="middle">Nastavení a Témata</text>
+    <text class="desc" x="140" y="60" text-anchor="middle">Persistence v JSON</text>
+    <text class="path" x="140" y="85" text-anchor="middle">settings.rs | config.rs</text>
+  </g>
+
+  <g transform="translate(480, 840)">
+    <rect class="box box-data" width="280" height="100" />
+    <text class="label" x="140" y="35" text-anchor="middle">IPC Komunikace</text>
+    <text class="desc" x="140" y="60" text-anchor="middle">Unix sockety, registrace</text>
+    <text class="path" x="140" y="85" text-anchor="middle">ipc.rs</text>
+  </g>
+
+  <g transform="translate(810, 840)">
+    <rect class="box box-external" width="300" height="100" />
+    <text class="label" x="150" y="35" text-anchor="middle">Externí nástroje</text>
+    <text class="desc" x="150" y="60" text-anchor="middle">Cargo, Git, Rustc</text>
+    <text class="desc" x="150" y="80" text-anchor="middle">AI CLI (Claude, Aider...)</text>
+  </g>
+
+  <g transform="translate(1160, 840)">
+    <rect class="box box-external" width="300" height="100" />
+    <text class="label" x="150" y="35" text-anchor="middle">Souborový systém</text>
+    <text class="desc" x="150" y="60" text-anchor="middle">Projektové soubory</text>
+    <text class="desc" x="150" y="80" text-anchor="middle">Monitorování změn (notify)</text>
+  </g>
+
+  <!-- CONNECTIONS -->
+  <path class="arrow" d="M800,280 L800,310" />
+  <path class="arrow" d="M800,410 L800,460" />
+  
+  <path class="arrow-bidir" d="M290,840 L290,410" />
+  <path class="arrow-bidir" d="M620,840 L620,410" />
+
+  <path class="arrow-dashed" d="M960,840 L960,750" />
+  <path class="arrow-dashed" d="M1310,840 L1310,780" />
+
+  <!-- Legend -->
+  <g transform="translate(1200, 50)">
+    <rect x="0" y="0" width="350" height="100" fill="#fff" stroke="#e2e8f0" rx="8" />
+    <text class="group-label" x="20" y="25">Legenda</text>
+    
+    <line x1="20" y1="50" x2="60" y2="50" class="arrow" />
+    <text class="desc" x="70" y="55">Přímé volání / Synchronní tok</text>
+    
+    <line x1="20" y1="80" x2="60" y2="80" class="arrow-dashed" />
+    <text class="desc" x="70" y="85">Asynchronní / Pozadí</text>
+  </g>
+
+</svg>

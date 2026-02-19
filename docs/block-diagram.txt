@@ -1,0 +1,119 @@
+Laicke vysvetlivky k diagramu `docs/block-diagram.svg`
+======================================================
+
+Co ten obrazek ukazuje
+----------------------
+Diagram ukazuje, jak je aplikace Rust Editor poskladana:
+- co je "hlavni ridici cast",
+- co patri do jednoho okna projektu,
+- co bezi na pozadi,
+- kam se ukladaji data,
+- a kde aplikace vola externi nastroje (cargo, git, AI CLI).
+
+Jak cist barvy
+--------------
+- Modra: jadro aplikace (start + hlavni rizeni).
+- Zelena: casti jednoho otevreneho projektu (workspace).
+- Zluta: podpurne sluzby (IPC, watchery, nastaveni).
+- Fialova: ulozena data (JSON soubory v config adresari).
+- Cervena: vnejsi svet (filesystem, externi prikazy).
+- Bila: vnitrni moduly (editor, file tree, terminaly...).
+
+Jak cist sipky
+--------------
+- Plna sipka = primy tok (volani funkce nebo data hned ted).
+- Prerusovana sipka = asynchronni tok (bezi na pozadi, prijde pozdeji).
+- Sipka na obe strany = obousmerna komunikace (dotaz + odpoved).
+
+Hlavni casti jednoduse
+----------------------
+1) `main.rs`
+- Vstupni bod aplikace.
+- Spusti graficke okno a vytvori `EditorApp`.
+
+2) `EditorApp` (`src/app/mod.rs`)
+- Hlavni "koordinator" cele aplikace.
+- Resi start obrazovku, otevreni projektu, vice oken, ukonceni aplikace.
+- Predava praci konkretnimu workspace.
+
+3) `WorkspaceState` (`src/app/workspace.rs`)
+- Stav jednoho otevreneho projektu (jednoho okna).
+- Sklada UI z panelu: soubory, editor, build, AI terminal.
+- Zpracovava akce uzivatele (zkratky, menu) a udalosti z pozadi.
+
+Co je uvnitr workspace
+----------------------
+1) `FileTree`
+- Strom slozek a souboru projektu.
+- Umoznuje otevrit, vytvorit, prejmenovat, smazat soubor/slozku.
+
+2) `Editor`
+- Karty se soubory, psani textu, hledani, autosave.
+- U markdownu umi i preview.
+
+3) `Highlighter`
+- Barvi syntax (napr. Rust, TOML, Markdown), aby byl kod citelny.
+
+4) Build panel + terminal
+- Spousti `cargo build`, `cargo run`, `cargo test`.
+- Ukazuje vystup a seznam chyb s moznosti skoku na radek.
+
+5) AI panel + terminaly
+- Samostatne terminalove zalozky pro AI CLI nastroje.
+- Napr. `claude`, `codex`, `copilot`, `gemini`, `aider`.
+
+6) Background workers
+- Tiche ulohy na pozadi:
+  - git branch/status,
+  - indexace souboru pro Ctrl+P,
+  - projektove vyhledavani,
+  - zpracovani udalosti watcheru.
+
+Watchery (`src/watcher.rs`)
+---------------------------
+- Sleduji zmeny na disku.
+- Kdyz se neco zmeni/smaze/vytvori mimo editor, workspace o tom vi
+  a umi zaktualizovat strom, otevrene karty a notifikace.
+
+IPC vrstva (`src/ipc.rs`)
+-------------------------
+- Umoznuje domluvu mezi instancemi aplikace pres Unix socket.
+- Prakticky dopad:
+  - kontrola, jestli projekt uz neni otevreny,
+  - predani fokusu existujicimu oknu,
+  - evidence nedavnych projektu a session.
+
+Settings (`src/settings.rs`)
+----------------------------
+- Globalni nastaveni aplikace:
+  - tema (svetle/tmave),
+  - velikost fontu editoru,
+  - vychozi cesta pro nove projekty.
+- Nastaveni se uklada do JSON.
+
+App data (JSON soubory)
+-----------------------
+- `recent.json`: nedavne projekty.
+- `session.json`: co bylo otevrene pri poslednim behu.
+- `settings.json`: uzivatelske nastaveni.
+
+External processes a filesystem
+-------------------------------
+- Editor spousti externi prikazy (`cargo`, `git`, AI CLI) jako podprocesy.
+- Pracuje s realnymi soubory projektu na disku.
+- Watchery hlasí zmeny, aby UI zustalo aktualni.
+
+Typicky prubeh bez detailu
+--------------------------
+1) Aplikace se spusti (`main.rs` -> `EditorApp`).
+2) Otevre se projekt a vznikne `WorkspaceState`.
+3) Uzivatel upravuje soubory v `Editor`.
+4) Pri build/run jdou prikazy do terminalu a vrati vysledek.
+5) Zmeny na disku hlasi watchery a workspace aktualizuje UI.
+6) Nedavne projekty/session/nastaveni se ukladaji do JSON.
+
+Proc je to rozdelene takto
+--------------------------
+- Lepsi stabilita: UI, background ulohy a IPC nejsou smichane.
+- Lepsi prehlednost: kazdy modul ma jasnou roli.
+- Snadnejsi rozsireni: nove panely/funkce se daji pridat po modulech.

@@ -104,10 +104,6 @@ impl Editor {
         self.active().map(|t| &t.path)
     }
 
-    pub fn is_modified(&self) -> bool {
-        self.active().is_some_and(|t| t.modified)
-    }
-
     pub(super) fn extension(&self) -> String {
         self.active()
             .and_then(|t| t.path.extension())
@@ -240,8 +236,26 @@ impl Editor {
 
     // --- File operations ---
 
-    pub fn reload_from_disk(&mut self) {
-        if let Some(tab) = self.active_mut() {
+    /// Vrací true pokud záložka pro danou cestu existuje a má neuložené změny.
+    pub fn is_path_modified(&self, path: &PathBuf) -> bool {
+        self.tabs.iter().any(|t| t.path == *path && t.modified)
+    }
+
+    /// Najde cestu záložky, jejíž kanonizovaná cesta odpovídá `canonical`.
+    /// Vrací původní (nekanonizovanou) cestu záložky, pokud existuje.
+    pub fn tab_path_for_canonical(&self, canonical: &PathBuf) -> Option<PathBuf> {
+        self.tabs.iter().find_map(|t| {
+            t.path
+                .canonicalize()
+                .ok()
+                .filter(|c| c == canonical)
+                .map(|_| t.path.clone())
+        })
+    }
+
+    /// Načte konkrétní záložku (podle cesty) z disku — bez ohledu na aktivní záložku.
+    pub fn reload_path_from_disk(&mut self, path: &PathBuf) {
+        if let Some(tab) = self.tabs.iter_mut().find(|t| t.path == *path) {
             if let Ok(content) = std::fs::read_to_string(&tab.path) {
                 tab.content = content.clone();
                 tab.last_saved_content = content;
@@ -253,31 +267,60 @@ impl Editor {
         self.update_search();
     }
 
-    pub fn try_autosave(&mut self) {
+    /// Pokusí se autosave aktivní záložky. Vrací chybovou zprávu pokud zápis selhal.
+    pub fn try_autosave(&mut self) -> Option<String> {
         let should_save = self.active().is_some_and(|t| {
             !t.deleted
                 && t.modified
                 && t.last_edit
                     .is_some_and(|e| e.elapsed().as_millis() >= AUTOSAVE_DELAY_MS)
         });
-        if should_save {
-            self.save();
+        if should_save { self.save() } else { None }
+    }
+
+    /// Uloží aktivní záložku. Vrací chybovou zprávu pokud zápis selhal, jinak None.
+    pub fn save(&mut self) -> Option<String> {
+        let tab = self.active_mut()?;
+        tab.save_status = SaveStatus::Saving;
+        match std::fs::write(&tab.path, &tab.content) {
+            Ok(()) => {
+                tab.last_saved_content = tab.content.clone();
+                tab.modified = false;
+                tab.last_edit = None;
+                tab.save_status = SaveStatus::Saved;
+                None
+            }
+            Err(e) => {
+                tab.save_status = SaveStatus::Modified;
+                Some(format!(
+                    "Chyba ukladani \"{}\": {}",
+                    tab.path.file_name().unwrap_or_default().to_string_lossy(),
+                    e
+                ))
+            }
         }
     }
 
-    pub fn save(&mut self) {
-        if let Some(tab) = self.active_mut() {
-            tab.save_status = SaveStatus::Saving;
-            match std::fs::write(&tab.path, &tab.content) {
-                Ok(()) => {
-                    tab.last_saved_content = tab.content.clone();
-                    tab.modified = false;
-                    tab.last_edit = None;
-                    tab.save_status = SaveStatus::Saved;
-                }
-                Err(_) => {
-                    tab.save_status = SaveStatus::Modified;
-                }
+    /// Uloží konkrétní záložku identifikovanou cestou (bez ohledu na aktivní záložku).
+    /// Vrací chybovou zprávu pokud zápis selhal, jinak None.
+    pub fn save_path(&mut self, path: &PathBuf) -> Option<String> {
+        let tab = self.tabs.iter_mut().find(|t| t.path == *path)?;
+        tab.save_status = SaveStatus::Saving;
+        match std::fs::write(&tab.path, &tab.content) {
+            Ok(()) => {
+                tab.last_saved_content = tab.content.clone();
+                tab.modified = false;
+                tab.last_edit = None;
+                tab.save_status = SaveStatus::Saved;
+                None
+            }
+            Err(e) => {
+                tab.save_status = SaveStatus::Modified;
+                Some(format!(
+                    "Chyba ukladani \"{}\": {}",
+                    tab.path.file_name().unwrap_or_default().to_string_lossy(),
+                    e
+                ))
             }
         }
     }

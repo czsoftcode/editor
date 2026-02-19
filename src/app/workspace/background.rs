@@ -1,10 +1,12 @@
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::PathBuf;
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 
 use eframe::egui;
 
-use super::{Toast, WorkspaceState, open_file_in_ws, spawn_file_index_scan};
+use super::{Toast, WorkspaceState, spawn_file_index_scan};
 use crate::watcher::{FileEvent, FsChange};
 
 /// Zpracuje události z watcherů, build výsledky a autosave.
@@ -12,12 +14,20 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState) {
     for event in ws.watcher.try_recv() {
         match event {
             FileEvent::Changed(changed_path) => {
-                if let Some(editor_path) = ws.editor.active_path() {
-                    if let (Ok(a), Ok(b)) =
-                        (changed_path.canonicalize(), editor_path.canonicalize())
+                // Porovnáme kanonizovanou cestu se všemi záložkami editoru.
+                if let Ok(changed_canonical) = changed_path.canonicalize() {
+                    if let Some(tab_path) =
+                        ws.editor.tab_path_for_canonical(&changed_canonical)
                     {
-                        if a == b && !ws.editor.is_modified() {
-                            ws.editor.reload_from_disk();
+                        if ws.editor.is_path_modified(&tab_path) {
+                            // Záložka má neuložené změny → zobrazit dialog.
+                            // Nepřepisujeme existující konflikt (mohl by ještě čekat).
+                            if ws.external_change_conflict.is_none() {
+                                ws.external_change_conflict = Some(tab_path);
+                            }
+                        } else {
+                            // Žádné neuložené změny → bezpečně načíst z disku.
+                            ws.editor.reload_path_from_disk(&tab_path);
                         }
                     }
                 }
@@ -37,13 +47,13 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState) {
     let fs_changes = ws.project_watcher.poll();
     if !fs_changes.is_empty() {
         let mut need_reload = false;
-        let mut open_file: Option<PathBuf> = None;
+        let mut created_file: Option<PathBuf> = None;
         for change in &fs_changes {
             match change {
                 FsChange::Created(path) => {
                     need_reload = true;
                     if path.is_file() {
-                        open_file = Some(path.clone());
+                        created_file = Some(path.clone());
                     }
                 }
                 FsChange::Removed(path) => {
@@ -56,14 +66,12 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState) {
             }
         }
         if need_reload {
-            if let Some(ref path) = open_file {
+            // Rozbalit strom na nový soubor, ale neotevírat ho v editoru automaticky.
+            if let Some(ref path) = created_file {
                 ws.file_tree.request_reload_and_expand(path);
             } else {
                 ws.file_tree.request_reload();
             }
-        }
-        if let Some(path) = open_file {
-            open_file_in_ws(ws, path);
         }
         if ws.file_index_rx.is_none() {
             ws.file_index_rx = Some(spawn_file_index_scan(ws.root_path.clone()));
@@ -100,7 +108,14 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState) {
         if let Ok(status) = rx.try_recv() {
             ws.ai_tool_available = status;
             ws.ai_tool_check_rx = None;
+            ws.ai_tool_last_check = std::time::Instant::now();
         }
+    }
+    // Periodický re-check AI CLI nástrojů (claude, aider, …)
+    if ws.ai_tool_last_check.elapsed().as_secs() >= crate::config::AI_TOOL_CHECK_INTERVAL_SECS
+        && ws.ai_tool_check_rx.is_none()
+    {
+        ws.ai_tool_check_rx = Some(super::spawn_ai_tool_check());
     }
 
     // Git: načítání větve
@@ -121,35 +136,67 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState) {
     if ws.git_last_refresh.elapsed().as_secs() >= 5 {
         ws.git_last_refresh = std::time::Instant::now();
         if ws.git_branch_rx.is_none() {
-            ws.git_branch_rx = Some(fetch_git_branch(&ws.root_path));
+            ws.git_branch_rx = Some(fetch_git_branch(&ws.root_path, Arc::clone(&ws.git_cancel)));
         }
         if ws.git_status_rx.is_none() {
-            ws.git_status_rx = Some(fetch_git_status(&ws.root_path));
+            ws.git_status_rx = Some(fetch_git_status(&ws.root_path, Arc::clone(&ws.git_cancel)));
         }
     }
 
-    ws.editor.try_autosave();
+    // Autosave je pozastavený, pokud čeká dialog o externím konfliktu.
+    if ws.external_change_conflict.is_none() {
+        if let Some(err) = ws.editor.try_autosave() {
+            ws.toasts.push(Toast::error(err));
+        }
+    }
 }
 
-pub(super) fn fetch_git_branch(root: &PathBuf) -> mpsc::Receiver<Option<String>> {
+pub(super) fn fetch_git_branch(
+    root: &PathBuf,
+    cancel: Arc<AtomicBool>,
+) -> mpsc::Receiver<Option<String>> {
     let (tx, rx) = mpsc::channel();
     let root = root.clone();
     std::thread::spawn(move || {
-        let branch = std::process::Command::new("git")
+        let Ok(mut child) = std::process::Command::new("git")
             .args(["rev-parse", "--abbrev-ref", "HEAD"])
             .current_dir(&root)
-            .output()
-            .ok()
-            .and_then(|o| {
-                if o.status.success() {
-                    String::from_utf8(o.stdout)
-                        .ok()
-                        .map(|s| s.trim().to_string())
-                } else {
-                    None
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+        else {
+            let _ = tx.send(None);
+            return;
+        };
+        loop {
+            if cancel.load(Ordering::Relaxed) {
+                let _ = child.kill();
+                return;
+            }
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    if cancel.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    let branch = if status.success() {
+                        child.stdout.take().and_then(|mut s| {
+                            let mut buf = String::new();
+                            s.read_to_string(&mut buf).ok()?;
+                            Some(buf.trim().to_string())
+                        })
+                    } else {
+                        None
+                    };
+                    let _ = tx.send(branch);
+                    return;
                 }
-            });
-        let _ = tx.send(branch);
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(25)),
+                Err(_) => {
+                    let _ = tx.send(None);
+                    return;
+                }
+            }
+        }
     });
     rx
 }
@@ -163,43 +210,73 @@ fn git_status_color(x: char, y: char) -> egui::Color32 {
     }
 }
 
-pub(super) fn fetch_git_status(root: &PathBuf) -> mpsc::Receiver<HashMap<PathBuf, egui::Color32>> {
+pub(super) fn fetch_git_status(
+    root: &PathBuf,
+    cancel: Arc<AtomicBool>,
+) -> mpsc::Receiver<HashMap<PathBuf, egui::Color32>> {
     let (tx, rx) = mpsc::channel();
     let root = root.clone();
     std::thread::spawn(move || {
-        let mut colors = HashMap::new();
-        if let Ok(output) = std::process::Command::new("git")
+        let Ok(mut child) = std::process::Command::new("git")
             .args(["status", "--porcelain=v1", "-z", "--untracked-files=all"])
             .current_dir(&root)
-            .output()
-        {
-            if output.status.success() {
-                let entries: Vec<&[u8]> = output
-                    .stdout
-                    .split(|b| *b == 0)
-                    .filter(|chunk| !chunk.is_empty())
-                    .collect();
-                let mut i = 0usize;
-                while i < entries.len() {
-                    let entry = entries[i];
-                    if entry.len() < 4 {
-                        i += 1;
-                        continue;
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+        else {
+            let _ = tx.send(HashMap::new());
+            return;
+        };
+        loop {
+            if cancel.load(Ordering::Relaxed) {
+                let _ = child.kill();
+                return;
+            }
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    if cancel.load(Ordering::Relaxed) {
+                        return;
                     }
-                    let x = entry[0] as char;
-                    let y = entry[1] as char;
-                    let mut path_bytes = &entry[3..];
-                    if matches!(x, 'R' | 'C') && i + 1 < entries.len() {
-                        i += 1;
-                        path_bytes = entries[i];
+                    let mut colors = HashMap::new();
+                    if status.success() {
+                        if let Some(mut stdout) = child.stdout.take() {
+                            let mut raw = Vec::new();
+                            if stdout.read_to_end(&mut raw).is_ok() {
+                                let entries: Vec<&[u8]> = raw
+                                    .split(|b| *b == 0)
+                                    .filter(|chunk| !chunk.is_empty())
+                                    .collect();
+                                let mut i = 0usize;
+                                while i < entries.len() {
+                                    let entry = entries[i];
+                                    if entry.len() < 4 {
+                                        i += 1;
+                                        continue;
+                                    }
+                                    let x = entry[0] as char;
+                                    let y = entry[1] as char;
+                                    let mut path_bytes = &entry[3..];
+                                    if matches!(x, 'R' | 'C') && i + 1 < entries.len() {
+                                        i += 1;
+                                        path_bytes = entries[i];
+                                    }
+                                    let rel = String::from_utf8_lossy(path_bytes);
+                                    colors.insert(root.join(rel.as_ref()), git_status_color(x, y));
+                                    i += 1;
+                                }
+                            }
+                        }
                     }
-                    let rel = String::from_utf8_lossy(path_bytes);
-                    colors.insert(root.join(rel.as_ref()), git_status_color(x, y));
-                    i += 1;
+                    let _ = tx.send(colors);
+                    return;
+                }
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(25)),
+                Err(_) => {
+                    let _ = tx.send(HashMap::new());
+                    return;
                 }
             }
         }
-        let _ = tx.send(colors);
     });
     rx
 }

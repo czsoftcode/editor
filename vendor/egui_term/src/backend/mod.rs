@@ -140,6 +140,9 @@ pub struct TerminalBackend {
     size: TerminalSize,
     notifier: Notifier,
     last_content: RenderableContent,
+    /// PID shellu spuštěného v PTY (pouze Unix). Slouží k ukončení procesní skupiny při dropu.
+    #[cfg(unix)]
+    pub child_pid: u32,
 }
 
 impl TerminalBackend {
@@ -169,6 +172,8 @@ impl TerminalBackend {
             hovered_hyperlink: None,
         };
         let term = Arc::new(FairMutex::new(term));
+        #[cfg(unix)]
+        let child_pid = pty.child().id();
         let pty_event_loop =
             EventLoop::new(term.clone(), event_proxy, pty, false, false)?;
         let notifier = Notifier(pty_event_loop.channel());
@@ -197,6 +202,8 @@ impl TerminalBackend {
             size: terminal_size,
             notifier,
             last_content: initial_content,
+            #[cfg(unix)]
+            child_pid,
         })
     }
 

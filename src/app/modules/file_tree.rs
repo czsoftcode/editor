@@ -85,6 +85,17 @@ enum ContextAction {
     Delete(PathBuf),
 }
 
+/// Ověří, že název souboru nebo adresáře je bezpečný — bez path separátorů,
+/// bez traversal komponent a bez null bytů.
+fn is_safe_filename(name: &str) -> bool {
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.contains('\0')
+}
+
 #[derive(Default)]
 pub struct FileTreeResult {
     pub selected: Option<PathBuf>,
@@ -460,17 +471,27 @@ impl FileTree {
         }
 
         if should_create && !self.new_item_buffer.trim().is_empty() {
-            if let Some(parent) = &self.new_item_parent {
-                let new_path = parent.join(self.new_item_buffer.trim());
-                if self.new_item_is_dir {
+            let name = self.new_item_buffer.trim();
+            if !is_safe_filename(name) {
+                self.pending_error = Some(
+                    "Neplatny nazev: nesmi obsahovat /, \\ ani ..".to_string(),
+                );
+            } else if let Some(parent) = &self.new_item_parent {
+                let new_path = parent.join(name);
+                // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
+                if !new_path.starts_with(&self.root_path) {
+                    self.pending_error =
+                        Some("Cesta by vedla mimo projekt".to_string());
+                } else if self.new_item_is_dir {
                     match std::fs::create_dir(&new_path) {
                         Ok(()) => {
                             self.expand_to = Some(new_path);
                         }
                         Err(e) => {
-                            self.pending_error = Some(format!("Nelze vytvořit adresář: {e}"));
+                            self.pending_error = Some(format!("Nelze vytvorit adresar: {e}"));
                         }
                     }
+                    self.needs_reload = true;
                 } else {
                     match std::fs::write(&new_path, "") {
                         Ok(()) => {
@@ -478,11 +499,11 @@ impl FileTree {
                             self.expand_to = Some(new_path);
                         }
                         Err(e) => {
-                            self.pending_error = Some(format!("Nelze vytvořit soubor: {e}"));
+                            self.pending_error = Some(format!("Nelze vytvorit soubor: {e}"));
                         }
                     }
+                    self.needs_reload = true;
                 }
-                self.needs_reload = true;
             }
             self.new_item_parent = None;
         }
@@ -536,15 +557,26 @@ impl FileTree {
         }
 
         if should_rename && !self.rename_buffer.trim().is_empty() {
-            if let Some(target) = &self.rename_target {
+            let name = self.rename_buffer.trim();
+            if !is_safe_filename(name) {
+                self.pending_error = Some(
+                    "Neplatny nazev: nesmi obsahovat /, \\ ani ..".to_string(),
+                );
+            } else if let Some(target) = &self.rename_target {
                 if let Some(parent) = target.parent() {
-                    let new_path = parent.join(self.rename_buffer.trim());
-                    match std::fs::rename(target, &new_path) {
-                        Ok(()) => {
-                            self.needs_reload = true;
-                        }
-                        Err(e) => {
-                            self.pending_error = Some(format!("Nelze přejmenovat: {e}"));
+                    let new_path = parent.join(name);
+                    // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
+                    if !new_path.starts_with(&self.root_path) {
+                        self.pending_error =
+                            Some("Cesta by vedla mimo projekt".to_string());
+                    } else {
+                        match std::fs::rename(target, &new_path) {
+                            Ok(()) => {
+                                self.needs_reload = true;
+                            }
+                            Err(e) => {
+                                self.pending_error = Some(format!("Nelze prejmenovat: {e}"));
+                            }
                         }
                     }
                 }

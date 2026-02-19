@@ -93,3 +93,8 @@ build.rs           — auto-inkrementace patch verze při release buildu
 - [ ] Minimap — zmenšený náhled souboru na pravé straně editoru
 - [ ] Konfigurace — settings.toml (font, velikost, téma, klávesové zkratky), dark/light téma
 - [ ] Vylepšení file tree — ikony podle typu souboru, drag & drop, filtrování/hledání
+
+
+
+
+

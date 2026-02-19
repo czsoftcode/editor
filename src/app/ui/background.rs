@@ -4,6 +4,20 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 
+/// Spustí uzávěr v novém vlákně a vrátí Receiver s výsledkem.
+/// Nahrazuje opakující se pattern `let (tx, rx) = channel(); thread::spawn(|| tx.send(f())); rx`.
+pub(crate) fn spawn_task<T, F>(f: F) -> mpsc::Receiver<T>
+where
+    T: Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
+{
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(f());
+    });
+    rx
+}
+
 use eframe::egui;
 
 use super::super::types::Toast;
@@ -154,54 +168,51 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
     }
 }
 
+/// Polling na dokončení podprocesu (25 ms intervaly) s podporou zrušení.
+/// Po ukončení procesu přečte stdout a vrátí bajty.
+/// Vrátí None pokud byl cancel, chyba nebo neúspěšný exit kód.
+fn wait_for_child_stdout(
+    mut child: std::process::Child,
+    cancel: &Arc<AtomicBool>,
+) -> Option<Vec<u8>> {
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            return None;
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if cancel.load(Ordering::Relaxed) || !status.success() {
+                    return None;
+                }
+                return child.stdout.take().and_then(|mut s| {
+                    let mut buf = Vec::new();
+                    s.read_to_end(&mut buf).ok()?;
+                    Some(buf)
+                });
+            }
+            Ok(None) => std::thread::sleep(std::time::Duration::from_millis(25)),
+            Err(_) => return None,
+        }
+    }
+}
+
 pub(super) fn fetch_git_branch(
     root: &PathBuf,
     cancel: Arc<AtomicBool>,
 ) -> mpsc::Receiver<Option<String>> {
-    let (tx, rx) = mpsc::channel();
     let root = root.clone();
-    std::thread::spawn(move || {
-        let Ok(mut child) = std::process::Command::new("git")
+    spawn_task(move || {
+        let child = std::process::Command::new("git")
             .args(["rev-parse", "--abbrev-ref", "HEAD"])
             .current_dir(&root)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
             .spawn()
-        else {
-            let _ = tx.send(None);
-            return;
-        };
-        loop {
-            if cancel.load(Ordering::Relaxed) {
-                let _ = child.kill();
-                return;
-            }
-            match child.try_wait() {
-                Ok(Some(status)) => {
-                    if cancel.load(Ordering::Relaxed) {
-                        return;
-                    }
-                    let branch = if status.success() {
-                        child.stdout.take().and_then(|mut s| {
-                            let mut buf = String::new();
-                            s.read_to_string(&mut buf).ok()?;
-                            Some(buf.trim().to_string())
-                        })
-                    } else {
-                        None
-                    };
-                    let _ = tx.send(branch);
-                    return;
-                }
-                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(25)),
-                Err(_) => {
-                    let _ = tx.send(None);
-                    return;
-                }
-            }
-        }
-    });
-    rx
+            .ok()?;
+        let bytes = wait_for_child_stdout(child, &cancel)?;
+        Some(String::from_utf8(bytes).ok()?.trim().to_string())
+    })
 }
 
 fn git_status_color(x: char, y: char) -> egui::Color32 {
@@ -213,73 +224,49 @@ fn git_status_color(x: char, y: char) -> egui::Color32 {
     }
 }
 
+fn parse_git_status(root: &PathBuf, raw: &[u8]) -> HashMap<PathBuf, egui::Color32> {
+    let mut colors = HashMap::new();
+    let entries: Vec<&[u8]> = raw
+        .split(|b| *b == 0)
+        .filter(|chunk| !chunk.is_empty())
+        .collect();
+    let mut i = 0usize;
+    while i < entries.len() {
+        let entry = entries[i];
+        if entry.len() < 4 {
+            i += 1;
+            continue;
+        }
+        let x = entry[0] as char;
+        let y = entry[1] as char;
+        let mut path_bytes = &entry[3..];
+        if matches!(x, 'R' | 'C') && i + 1 < entries.len() {
+            i += 1;
+            path_bytes = entries[i];
+        }
+        let rel = String::from_utf8_lossy(path_bytes);
+        colors.insert(root.join(rel.as_ref()), git_status_color(x, y));
+        i += 1;
+    }
+    colors
+}
+
 pub(super) fn fetch_git_status(
     root: &PathBuf,
     cancel: Arc<AtomicBool>,
 ) -> mpsc::Receiver<HashMap<PathBuf, egui::Color32>> {
-    let (tx, rx) = mpsc::channel();
     let root = root.clone();
-    std::thread::spawn(move || {
-        let Ok(mut child) = std::process::Command::new("git")
+    spawn_task(move || {
+        let child = std::process::Command::new("git")
             .args(["status", "--porcelain=v1", "-z", "--untracked-files=all"])
             .current_dir(&root)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
             .spawn()
-        else {
-            let _ = tx.send(HashMap::new());
-            return;
-        };
-        loop {
-            if cancel.load(Ordering::Relaxed) {
-                let _ = child.kill();
-                return;
-            }
-            match child.try_wait() {
-                Ok(Some(status)) => {
-                    if cancel.load(Ordering::Relaxed) {
-                        return;
-                    }
-                    let mut colors = HashMap::new();
-                    if status.success() {
-                        if let Some(mut stdout) = child.stdout.take() {
-                            let mut raw = Vec::new();
-                            if stdout.read_to_end(&mut raw).is_ok() {
-                                let entries: Vec<&[u8]> = raw
-                                    .split(|b| *b == 0)
-                                    .filter(|chunk| !chunk.is_empty())
-                                    .collect();
-                                let mut i = 0usize;
-                                while i < entries.len() {
-                                    let entry = entries[i];
-                                    if entry.len() < 4 {
-                                        i += 1;
-                                        continue;
-                                    }
-                                    let x = entry[0] as char;
-                                    let y = entry[1] as char;
-                                    let mut path_bytes = &entry[3..];
-                                    if matches!(x, 'R' | 'C') && i + 1 < entries.len() {
-                                        i += 1;
-                                        path_bytes = entries[i];
-                                    }
-                                    let rel = String::from_utf8_lossy(path_bytes);
-                                    colors.insert(root.join(rel.as_ref()), git_status_color(x, y));
-                                    i += 1;
-                                }
-                            }
-                        }
-                    }
-                    let _ = tx.send(colors);
-                    return;
-                }
-                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(25)),
-                Err(_) => {
-                    let _ = tx.send(HashMap::new());
-                    return;
-                }
-            }
-        }
-    });
-    rx
+            .ok();
+        let raw = child
+            .and_then(|c| wait_for_child_stdout(c, &cancel))
+            .unwrap_or_default();
+        parse_git_status(&root, &raw)
+    })
 }

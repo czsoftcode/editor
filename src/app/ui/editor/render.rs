@@ -5,7 +5,8 @@ use eframe::egui;
 use crate::config;
 
 use super::search::apply_search_highlights;
-use super::{Editor, SaveStatus, TabAction};
+use crate::app::ui::widgets::tab_bar::TabBarAction;
+use super::{Editor, SaveStatus};
 
 fn editor_line_count(content: &str) -> usize {
     content.lines().count().max(1) + usize::from(content.ends_with('\n'))
@@ -46,7 +47,7 @@ fn restore_saved_cursor(
 impl Editor {
     // --- Tab bar ---
 
-    pub(super) fn tab_bar(&mut self, ui: &mut egui::Ui, action: &mut Option<TabAction>) {
+    pub(super) fn tab_bar(&mut self, ui: &mut egui::Ui, action: &mut Option<TabBarAction>) {
         let btn_w = config::TAB_BTN_WIDTH;
         let initial_scroll = self.tab_scroll_x;
         let active_tab = self.active_tab;
@@ -90,7 +91,7 @@ impl Editor {
             }
 
             let avail_w = (ui.available_width() - btn_w - ui.spacing().item_spacing.x).max(50.0);
-            let mut tab_action: Option<TabAction> = None;
+            let mut tab_action: Option<TabBarAction> = None;
 
             let out = egui::ScrollArea::horizontal()
                 .id_salt("tab_scroll")
@@ -114,13 +115,13 @@ impl Editor {
                                 active_rect = Some(r.rect);
                             }
                             if r.clicked() {
-                                tab_action = Some(TabAction::Switch(idx));
+                                tab_action = Some(TabBarAction::Switch(idx));
                             }
                             if r.clicked_by(egui::PointerButton::Middle) {
-                                tab_action = Some(TabAction::Close(idx));
+                                tab_action = Some(TabBarAction::Close(idx));
                             }
                             if ui.small_button("\u{00D7}").clicked() {
-                                tab_action = Some(TabAction::Close(idx));
+                                tab_action = Some(TabBarAction::Close(idx));
                             }
                             if idx + 1 < tab_count {
                                 ui.separator();

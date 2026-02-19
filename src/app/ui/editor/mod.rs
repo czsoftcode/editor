@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use eframe::egui;
 
+use crate::app::ui::widgets::tab_bar::TabBarAction;
 use crate::highlighter::Highlighter;
 
 mod markdown;
@@ -21,11 +22,6 @@ pub enum SaveStatus {
     Modified,
     Saving,
     Saved,
-}
-
-enum TabAction {
-    Switch(usize),
-    Close(usize),
 }
 
 pub(super) struct Tab {
@@ -339,15 +335,15 @@ impl Editor {
         let mut tab_action = None;
         self.tab_bar(ui, &mut tab_action);
         match tab_action {
-            Some(TabAction::Switch(idx)) => {
+            Some(TabBarAction::Switch(idx)) => {
                 self.active_tab = Some(idx);
                 self.focus_editor_requested = true;
                 self.update_search();
             }
-            Some(TabAction::Close(idx)) => {
+            Some(TabBarAction::Close(idx)) => {
                 self.close_tab(idx);
             }
-            None => {}
+            Some(TabBarAction::New) | None => {}
         }
 
         if self.tabs.is_empty() {

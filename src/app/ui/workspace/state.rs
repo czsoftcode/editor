@@ -189,11 +189,7 @@ pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
 }
 
 pub(crate) fn spawn_file_index_scan(root: PathBuf) -> mpsc::Receiver<Vec<PathBuf>> {
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
-        let _ = tx.send(collect_project_files(&root));
-    });
-    rx
+    crate::app::ui::background::spawn_task(move || collect_project_files(&root))
 }
 
 fn is_command_available(command: &str) -> bool {
@@ -216,15 +212,13 @@ fn is_command_available(command: &str) -> bool {
 }
 
 pub(crate) fn spawn_ai_tool_check() -> mpsc::Receiver<HashMap<AiTool, bool>> {
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
+    crate::app::ui::background::spawn_task(move || {
         let mut status = HashMap::new();
         for tool in AiTool::ALL {
             status.insert(tool, is_command_available(tool.command()));
         }
-        let _ = tx.send(status);
-    });
-    rx
+        status
+    })
 }
 
 pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) -> WorkspaceState {
@@ -287,4 +281,9 @@ pub(crate) fn open_file_in_ws(ws: &mut WorkspaceState, path: PathBuf) {
     if let Some(parent) = path.parent() {
         ws.watcher.watch(parent);
     }
+}
+
+pub(crate) fn open_and_jump(ws: &mut WorkspaceState, path: PathBuf, line: usize) {
+    open_file_in_ws(ws, path);
+    ws.editor.jump_to_line(line);
 }

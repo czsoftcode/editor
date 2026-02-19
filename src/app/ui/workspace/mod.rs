@@ -5,7 +5,7 @@ pub(crate) mod state;
 // Re-exporty pro vnější volající (panels.rs, ai_panel.rs, background.rs, app/mod.rs, …)
 pub(crate) use state::{
     FilePicker, SearchResult, SecondaryWorkspace, WorkspaceState,
-    init_workspace, open_file_in_ws, ws_to_panel_state,
+    init_workspace, open_and_jump, open_file_in_ws, ws_to_panel_state,
 };
 // Viditelné pro sourozence v ui/ (background.rs, ai_panel.rs)
 pub(super) use state::{spawn_ai_tool_check, spawn_file_index_scan};

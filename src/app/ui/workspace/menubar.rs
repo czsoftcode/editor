@@ -1,5 +1,7 @@
 use std::path::PathBuf;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
+
+use crate::app::ui::background::spawn_task;
 
 use eframe::egui;
 
@@ -327,29 +329,15 @@ pub(super) fn process_menu_actions(
             args.set("reason", e.to_string());
             ws.toasts.push(Toast::error(i18n.get_args("error-projects-dir-prepare", &args)));
         }
-        let (tx, rx) = mpsc::channel();
-        ws.folder_pick_rx = Some(rx);
-        std::thread::spawn(move || {
-            let _ = tx.send((
-                rfd::FileDialog::new()
-                    .set_directory(&projects_dir)
-                    .pick_folder(),
-                true,
-            ));
-        });
+        ws.folder_pick_rx = Some(spawn_task(move || {
+            (rfd::FileDialog::new().set_directory(&projects_dir).pick_folder(), true)
+        }));
     }
     if actions.open_folder && ws.folder_pick_rx.is_none() {
         let start_dir = ws.root_path.clone();
-        let (tx, rx) = mpsc::channel();
-        ws.folder_pick_rx = Some(rx);
-        std::thread::spawn(move || {
-            let _ = tx.send((
-                rfd::FileDialog::new()
-                    .set_directory(&start_dir)
-                    .pick_folder(),
-                false,
-            ));
-        });
+        ws.folder_pick_rx = Some(spawn_task(move || {
+            (rfd::FileDialog::new().set_directory(&start_dir).pick_folder(), false)
+        }));
     }
 
     open_here_path

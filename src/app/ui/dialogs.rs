@@ -40,35 +40,17 @@ enum ProjectCreateResult {
 }
 
 fn spawn_folder_picker(start_dir: String) -> mpsc::Receiver<Option<PathBuf>> {
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
+    crate::app::ui::background::spawn_task(move || {
         let dialog = rfd::FileDialog::new();
-        let picked = if start_dir.trim().is_empty() {
+        if start_dir.trim().is_empty() {
             dialog.pick_folder()
         } else {
             dialog.set_directory(start_dir).pick_folder()
-        };
-        let _ = tx.send(picked);
-    });
-    rx
+        }
+    })
 }
 
-// ---------------------------------------------------------------------------
-// Validace názvu projektu
-// ---------------------------------------------------------------------------
-
-/// Povolené znaky: písmena, číslice, podtržítko, pomlčka.
-/// Název nesmí být prázdný ani začínat pomlčkou.
-pub(crate) fn is_valid_project_name(name: &str) -> bool {
-    if name.is_empty() {
-        return false;
-    }
-    if name.starts_with('-') {
-        return false;
-    }
-    name.chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
-}
+use crate::app::validation::is_valid_project_name;
 
 // ---------------------------------------------------------------------------
 // show_project_wizard — sjednocený wizard nového projektu
@@ -216,10 +198,8 @@ pub(crate) fn show_project_wizard(
     if let Some((project_type, raw_name, base_path)) = create_project {
         state.error.clear();
         state.creating = true;
-        let (tx, rx) = mpsc::channel();
-        state.create_rx = Some(rx);
         let i18n_arc = std::sync::Arc::clone(&shared.lock().unwrap().i18n);
-        std::thread::spawn(move || {
+        state.create_rx = Some(crate::app::ui::background::spawn_task(move || {
             let i18n = &*i18n_arc;
             let name = if project_type == ProjectType::Rust {
                 raw_name.to_lowercase()
@@ -230,10 +210,9 @@ pub(crate) fn show_project_wizard(
             if let Err(e) = std::fs::create_dir_all(&type_dir) {
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("reason", e.to_string());
-                let _ = tx.send(ProjectCreateResult::Error(
+                return ProjectCreateResult::Error(
                     i18n.get_args("error-project-dir-create", &args)
-                ));
-                return;
+                );
             }
 
             let full_path = type_dir.join(&name);
@@ -251,7 +230,7 @@ pub(crate) fn show_project_wizard(
                     .output(),
             };
 
-            let result = match output {
+            match output {
                 Ok(output) if output.status.success() => {
                     ProjectCreateResult::Success(full_path.canonicalize().unwrap_or(full_path))
                 }
@@ -274,9 +253,8 @@ pub(crate) fn show_project_wizard(
                     args.set("reason", e.to_string());
                     ProjectCreateResult::Error(i18n.get_args("error-cmd-start", &args))
                 }
-            };
-            let _ = tx.send(result);
-        });
+            }
+        }));
     }
 
     if let Some(path) = success_path {

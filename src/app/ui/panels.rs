@@ -4,7 +4,7 @@ use eframe::egui;
 
 use super::super::build_runner::run_build_check;
 use super::super::types::{FocusedPanel, Toast};
-use super::workspace::{WorkspaceState, open_file_in_ws};
+use super::workspace::{WorkspaceState, open_and_jump, open_file_in_ws};
 use crate::config;
 
 /// Vykreslí levý panel (strom souborů + build terminál). Vrací true pokud bylo kliknuto do terminálu.
@@ -142,8 +142,7 @@ fn render_build_panel(
                 }
             });
         if let Some((path, line)) = open_error_file {
-            open_file_in_ws(ws, path);
-            ws.editor.jump_to_line(line);
+            open_and_jump(ws, path, line);
         }
     }
 
@@ -193,8 +192,7 @@ fn render_build_panel(
                     }
                 });
             if let Some((path, line)) = open_result {
-                open_file_in_ws(ws, path);
-                ws.editor.jump_to_line(line);
+                open_and_jump(ws, path, line);
             }
         }
     }

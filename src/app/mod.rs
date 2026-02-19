@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 mod build_runner;
 mod types;
 pub(crate) mod ui;
+pub(crate) mod validation;
 
 use types::*;
 use ui::dialogs::{

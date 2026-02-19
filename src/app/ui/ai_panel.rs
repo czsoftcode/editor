@@ -4,18 +4,9 @@ use eframe::egui;
 
 use super::super::types::{AiTool, FocusedPanel};
 use super::terminal::Terminal;
+use super::widgets::tab_bar::{TabBarAction, TabItem, render_compact_tab_bar};
 use super::workspace::{WorkspaceState, spawn_ai_tool_check};
 use crate::config;
-
-// ---------------------------------------------------------------------------
-// Interní akce pro správu záložek terminálů
-// ---------------------------------------------------------------------------
-
-enum TermTabAction {
-    Switch(usize),
-    Close(usize),
-    New,
-}
 
 // ---------------------------------------------------------------------------
 // Pomocné funkce
@@ -126,85 +117,18 @@ fn render_ai_tool_controls(
 }
 
 /// Vykreslí záložky terminálů a vrátí požadovanou akci.
-fn render_tab_bar(
-    ui: &mut egui::Ui,
-    tab_count: usize,
-    active: usize,
-    i18n: &crate::i18n::I18n,
-) -> Option<TermTabAction> {
-    let mut action = None;
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 1.0;
-
-        for i in 0..tab_count {
-            let is_active = active == i;
-            let label = egui::RichText::new(format!(" {} ", i + 1)).monospace();
-
-            let fill = if is_active {
-                ui.visuals().extreme_bg_color
-            } else {
-                ui.visuals().faint_bg_color
-            };
-            let stroke = if is_active {
-                egui::Stroke::new(1.0, ui.visuals().selection.stroke.color)
-            } else {
-                egui::Stroke::NONE
-            };
-
-            let tab_resp = ui.add(
-                egui::Button::new(label)
-                    .fill(fill)
-                    .stroke(stroke)
-                    .min_size(egui::vec2(0.0, 18.0)),
-            );
-            if tab_resp.clicked() && !is_active {
-                action = Some(TermTabAction::Switch(i));
-            }
-
-            if tab_count > 1 {
-                let close_resp = ui
-                    .add(
-                        egui::Button::new(egui::RichText::new("×").size(11.0))
-                            .fill(egui::Color32::TRANSPARENT)
-                            .min_size(egui::vec2(14.0, 18.0)),
-                    )
-                    .on_hover_text(i18n.get("ai-tab-close-hover"));
-                if close_resp.clicked() {
-                    action = Some(TermTabAction::Close(i));
-                }
-                ui.add_space(3.0);
-            }
-        }
-
-        // Tlačítko přidat záložku
-        let add_resp = ui
-            .add(
-                egui::Button::new(egui::RichText::new("+").size(14.0))
-                    .fill(egui::Color32::TRANSPARENT)
-                    .min_size(egui::vec2(22.0, 18.0)),
-            )
-            .on_hover_text(i18n.get("ai-tab-new-hover"));
-        if add_resp.clicked() {
-            action = Some(TermTabAction::New);
-        }
-    });
-    action
-}
-
-/// Aplikuje akci záložky na workspace. Vrací true pokud byla přidána nová záložka
-/// (potřebuje ctx — volající musí poskytnout).
-fn apply_tab_action(ws: &mut WorkspaceState, action: TermTabAction, ctx: &egui::Context) {
+fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::Context) {
     match action {
-        TermTabAction::Switch(i) => {
+        TabBarAction::Switch(i) => {
             ws.claude_active_tab = i;
         }
-        TermTabAction::Close(idx) => {
+        TabBarAction::Close(idx) => {
             ws.claude_tabs.remove(idx);
             if ws.claude_active_tab >= ws.claude_tabs.len() {
                 ws.claude_active_tab = ws.claude_tabs.len().saturating_sub(1);
             }
         }
-        TermTabAction::New => {
+        TabBarAction::New => {
             let id = ws.next_claude_tab_id;
             ws.next_claude_tab_id += 1;
             let root = ws.root_path.clone();
@@ -234,7 +158,7 @@ pub(super) fn render_ai_panel(
 
     if ws.claude_float {
         let mut is_open = true;
-        let mut tab_action: Option<TermTabAction> = None;
+        let mut tab_action: Option<TabBarAction> = None;
         egui::Window::new(i18n.get("ai-panel-title"))
             .id(egui::Id::new("claude_float_win"))
             .default_size([520.0, 420.0])
@@ -255,7 +179,13 @@ pub(super) fn render_ai_panel(
                         }
                     });
                 });
-                tab_action = render_tab_bar(ui, ws.claude_tabs.len(), ws.claude_active_tab, i18n);
+                let items: Vec<TabItem> = (0..ws.claude_tabs.len())
+                    .map(|i| TabItem { label: (i + 1).to_string(), closable: ws.claude_tabs.len() > 1 })
+                    .collect();
+                tab_action = render_compact_tab_bar(
+                    ui, &items, ws.claude_active_tab, true,
+                    &i18n.get("ai-tab-close-hover"), &i18n.get("ai-tab-new-hover"),
+                );
                 ui.separator();
                 if !dialog_open {
                     if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
@@ -273,7 +203,7 @@ pub(super) fn render_ai_panel(
             ws.show_right_panel = false;
         }
     } else {
-        let mut tab_action: Option<TermTabAction> = None;
+        let mut tab_action: Option<TabBarAction> = None;
         egui::SidePanel::right("claude_panel")
             .default_width(config::AI_PANEL_DEFAULT_WIDTH)
             .width_range(config::AI_PANEL_MIN_WIDTH..=config::AI_PANEL_MAX_WIDTH)
@@ -294,7 +224,13 @@ pub(super) fn render_ai_panel(
                 ui.horizontal(|ui| {
                     render_ai_tool_controls(ui, ws, "ai_tool_combo_docked", i18n);
                 });
-                tab_action = render_tab_bar(ui, ws.claude_tabs.len(), ws.claude_active_tab, i18n);
+                let items: Vec<TabItem> = (0..ws.claude_tabs.len())
+                    .map(|i| TabItem { label: (i + 1).to_string(), closable: ws.claude_tabs.len() > 1 })
+                    .collect();
+                tab_action = render_compact_tab_bar(
+                    ui, &items, ws.claude_active_tab, true,
+                    &i18n.get("ai-tab-close-hover"), &i18n.get("ai-tab-new-hover"),
+                );
                 ui.separator();
                 if !dialog_open {
                     if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {

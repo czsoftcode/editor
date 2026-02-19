@@ -85,16 +85,8 @@ enum ContextAction {
     Delete(PathBuf),
 }
 
-/// Ověří, že název souboru nebo adresáře je bezpečný — bez path separátorů,
-/// bez traversal komponent a bez null bytů.
-fn is_safe_filename(name: &str) -> bool {
-    !name.is_empty()
-        && name != "."
-        && name != ".."
-        && !name.contains('/')
-        && !name.contains('\\')
-        && !name.contains('\0')
-}
+use crate::app::ui::widgets::modal::{ModalResult, show_modal};
+use crate::app::validation::is_safe_filename;
 
 #[derive(Default)]
 pub struct FileTreeResult {
@@ -433,87 +425,71 @@ impl FileTree {
             i18n.get("file-tree-new-file")
         };
 
-        let mut should_create = false;
-
-        let modal = eframe::egui::Modal::new(eframe::egui::Id::new("new_item_modal"));
-        let modal_response = modal.show(ui.ctx(), |ui| {
-            let dlg_size = 15.0;
-            ui.heading(&title);
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.label(eframe::egui::RichText::new(i18n.get("btn-name-label")).size(dlg_size));
-                let response = ui.add(
-                    eframe::egui::TextEdit::singleline(&mut self.new_item_buffer)
-                        .font(eframe::egui::TextStyle::Body)
-                        .desired_width(200.0),
-                );
-                if response.has_focus() && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter)) {
-                    should_create = true;
-                }
-                if !response.has_focus() {
-                    response.request_focus();
-                }
-            });
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                if ui
-                    .button(eframe::egui::RichText::new(i18n.get("btn-create")).size(dlg_size))
-                    .clicked()
-                {
-                    should_create = true;
-                }
-                if ui
-                    .button(eframe::egui::RichText::new(i18n.get("btn-cancel")).size(dlg_size))
-                    .clicked()
-                {
-                    self.new_item_parent = None;
-                }
-            });
-        });
-
-        if modal_response.should_close() {
-            self.new_item_parent = None;
-        }
-
-        if should_create && !self.new_item_buffer.trim().is_empty() {
-            let name = self.new_item_buffer.trim();
-            if !is_safe_filename(name) {
-                self.pending_error = Some(i18n.get("file-tree-unsafe-name"));
-            } else if let Some(parent) = &self.new_item_parent {
-                let new_path = parent.join(name);
-                // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
-                if !new_path.starts_with(&self.root_path) {
-                    self.pending_error = Some(i18n.get("file-tree-outside-project"));
-                } else if self.new_item_is_dir {
-                    match std::fs::create_dir(&new_path) {
-                        Ok(()) => {
-                            self.expand_to = Some(new_path);
-                        }
-                        Err(e) => {
-                            let mut args = fluent_bundle::FluentArgs::new();
-                            args.set("reason", e.to_string());
-                            self.pending_error =
-                                Some(i18n.get_args("file-tree-create-dir-error", &args));
-                        }
+        let result = show_modal(
+            ui.ctx(),
+            "new_item_modal",
+            &title,
+            &i18n.get("btn-create"),
+            &i18n.get("btn-cancel"),
+            |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(i18n.get("btn-name-label"));
+                    let response = ui.add(
+                        eframe::egui::TextEdit::singleline(&mut self.new_item_buffer)
+                            .font(eframe::egui::TextStyle::Body)
+                            .desired_width(200.0),
+                    );
+                    if !response.has_focus() {
+                        response.request_focus();
                     }
-                    self.needs_reload = true;
-                } else {
-                    match std::fs::write(&new_path, "") {
-                        Ok(()) => {
-                            self.pending_created_file = Some(new_path.clone());
-                            self.expand_to = Some(new_path);
+                });
+                let name = self.new_item_buffer.trim().to_string();
+                (!name.is_empty() && is_safe_filename(&name)).then_some(name)
+            },
+        );
+
+        match result {
+            ModalResult::Confirmed(name) => {
+                if let Some(parent) = &self.new_item_parent {
+                    let new_path = parent.join(&name);
+                    // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
+                    if !new_path.starts_with(&self.root_path) {
+                        self.pending_error = Some(i18n.get("file-tree-outside-project"));
+                    } else if self.new_item_is_dir {
+                        match std::fs::create_dir(&new_path) {
+                            Ok(()) => {
+                                self.expand_to = Some(new_path);
+                            }
+                            Err(e) => {
+                                let mut args = fluent_bundle::FluentArgs::new();
+                                args.set("reason", e.to_string());
+                                self.pending_error =
+                                    Some(i18n.get_args("file-tree-create-dir-error", &args));
+                            }
                         }
-                        Err(e) => {
-                            let mut args = fluent_bundle::FluentArgs::new();
-                            args.set("reason", e.to_string());
-                            self.pending_error =
-                                Some(i18n.get_args("file-tree-create-file-error", &args));
+                        self.needs_reload = true;
+                    } else {
+                        match std::fs::write(&new_path, "") {
+                            Ok(()) => {
+                                self.pending_created_file = Some(new_path.clone());
+                                self.expand_to = Some(new_path);
+                            }
+                            Err(e) => {
+                                let mut args = fluent_bundle::FluentArgs::new();
+                                args.set("reason", e.to_string());
+                                self.pending_error =
+                                    Some(i18n.get_args("file-tree-create-file-error", &args));
+                            }
                         }
+                        self.needs_reload = true;
                     }
-                    self.needs_reload = true;
                 }
+                self.new_item_parent = None;
             }
-            self.new_item_parent = None;
+            ModalResult::Cancelled => {
+                self.new_item_parent = None;
+            }
+            ModalResult::Pending => {}
         }
     }
 
@@ -522,74 +498,58 @@ impl FileTree {
             return;
         }
 
-        let mut should_rename = false;
+        let result = show_modal(
+            ui.ctx(),
+            "rename_modal",
+            &i18n.get("file-tree-rename"),
+            &i18n.get("btn-rename"),
+            &i18n.get("btn-cancel"),
+            |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(i18n.get("btn-name-label"));
+                    let response = ui.add(
+                        eframe::egui::TextEdit::singleline(&mut self.rename_buffer)
+                            .font(eframe::egui::TextStyle::Body)
+                            .desired_width(200.0),
+                    );
+                    if !response.has_focus() {
+                        response.request_focus();
+                    }
+                });
+                let name = self.rename_buffer.trim().to_string();
+                (!name.is_empty() && is_safe_filename(&name)).then_some(name)
+            },
+        );
 
-        let modal = eframe::egui::Modal::new(eframe::egui::Id::new("rename_modal"));
-        let modal_response = modal.show(ui.ctx(), |ui| {
-            let dlg_size = 15.0;
-            ui.heading(i18n.get("file-tree-rename"));
-            ui.add_space(8.0);
-            ui.horizontal(|ui| {
-                ui.label(eframe::egui::RichText::new(i18n.get("btn-name-label")).size(dlg_size));
-                let response = ui.add(
-                    eframe::egui::TextEdit::singleline(&mut self.rename_buffer)
-                        .font(eframe::egui::TextStyle::Body)
-                        .desired_width(200.0),
-                );
-                if response.has_focus() && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter)) {
-                    should_rename = true;
-                }
-                if !response.has_focus() {
-                    response.request_focus();
-                }
-            });
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                if ui
-                    .button(eframe::egui::RichText::new(i18n.get("btn-rename")).size(dlg_size))
-                    .clicked()
-                {
-                    should_rename = true;
-                }
-                if ui
-                    .button(eframe::egui::RichText::new(i18n.get("btn-cancel")).size(dlg_size))
-                    .clicked()
-                {
-                    self.rename_target = None;
-                }
-            });
-        });
-
-        if modal_response.should_close() {
-            self.rename_target = None;
-        }
-
-        if should_rename && !self.rename_buffer.trim().is_empty() {
-            let name = self.rename_buffer.trim();
-            if !is_safe_filename(name) {
-                self.pending_error = Some(i18n.get("file-tree-unsafe-name"));
-            } else if let Some(target) = &self.rename_target {
-                if let Some(parent) = target.parent() {
-                    let new_path = parent.join(name);
-                    // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
-                    if !new_path.starts_with(&self.root_path) {
-                        self.pending_error = Some(i18n.get("file-tree-outside-project"));
-                    } else {
-                        match std::fs::rename(target, &new_path) {
-                            Ok(()) => {
-                                self.needs_reload = true;
-                            }
-                            Err(e) => {
-                                let mut args = fluent_bundle::FluentArgs::new();
-                                args.set("reason", e.to_string());
-                                self.pending_error =
-                                    Some(i18n.get_args("file-tree-rename-error", &args));
+        match result {
+            ModalResult::Confirmed(name) => {
+                if let Some(target) = &self.rename_target {
+                    if let Some(parent) = target.parent() {
+                        let new_path = parent.join(&name);
+                        // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
+                        if !new_path.starts_with(&self.root_path) {
+                            self.pending_error = Some(i18n.get("file-tree-outside-project"));
+                        } else {
+                            match std::fs::rename(target, &new_path) {
+                                Ok(()) => {
+                                    self.needs_reload = true;
+                                }
+                                Err(e) => {
+                                    let mut args = fluent_bundle::FluentArgs::new();
+                                    args.set("reason", e.to_string());
+                                    self.pending_error =
+                                        Some(i18n.get_args("file-tree-rename-error", &args));
+                                }
                             }
                         }
                     }
                 }
+                self.rename_target = None;
             }
-            self.rename_target = None;
+            ModalResult::Cancelled => {
+                self.rename_target = None;
+            }
+            ModalResult::Pending => {}
         }
     }
 
@@ -604,59 +564,48 @@ impl FileTree {
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
 
-        let mut should_delete = false;
-        let dlg_size = 15.0;
-
         let mut args = fluent_bundle::FluentArgs::new();
         args.set("name", path_display.clone());
         let confirm_msg = i18n.get_args("file-tree-confirm-delete", &args);
 
-        let modal = eframe::egui::Modal::new(eframe::egui::Id::new("delete_modal"));
-        let modal_response = modal.show(ui.ctx(), |ui| {
-            ui.heading(&confirm_msg);
-            ui.add_space(8.0);
-            ui.label(eframe::egui::RichText::new(&path_display).size(dlg_size));
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                if ui
-                    .button(eframe::egui::RichText::new(i18n.get("btn-delete")).size(dlg_size))
-                    .clicked()
-                {
-                    should_delete = true;
-                }
-                if ui
-                    .button(eframe::egui::RichText::new(i18n.get("btn-cancel")).size(dlg_size))
-                    .clicked()
-                {
-                    self.delete_confirm = None;
-                }
-            });
-        });
+        let result = show_modal(
+            ui.ctx(),
+            "delete_modal",
+            &confirm_msg,
+            &i18n.get("btn-delete"),
+            &i18n.get("btn-cancel"),
+            |ui| {
+                ui.label(&path_display);
+                Some(())
+            },
+        );
 
-        if modal_response.should_close() {
-            self.delete_confirm = None;
-        }
-
-        if should_delete {
-            if let Some(path) = self.delete_confirm.take() {
-                let result = if path.is_dir() {
-                    std::fs::remove_dir_all(&path)
-                } else {
-                    std::fs::remove_file(&path)
-                };
-                match result {
-                    Ok(()) => {
-                        self.pending_deleted = Some(path);
-                        self.needs_reload = true;
-                    }
-                    Err(e) => {
-                        let mut err_args = fluent_bundle::FluentArgs::new();
-                        err_args.set("reason", e.to_string());
-                        self.pending_error =
-                            Some(i18n.get_args("file-tree-delete-error", &err_args));
+        match result {
+            ModalResult::Confirmed(()) => {
+                if let Some(path) = self.delete_confirm.take() {
+                    let del_result = if path.is_dir() {
+                        std::fs::remove_dir_all(&path)
+                    } else {
+                        std::fs::remove_file(&path)
+                    };
+                    match del_result {
+                        Ok(()) => {
+                            self.pending_deleted = Some(path);
+                            self.needs_reload = true;
+                        }
+                        Err(e) => {
+                            let mut err_args = fluent_bundle::FluentArgs::new();
+                            err_args.set("reason", e.to_string());
+                            self.pending_error =
+                                Some(i18n.get_args("file-tree-delete-error", &err_args));
+                        }
                     }
                 }
             }
+            ModalResult::Cancelled => {
+                self.delete_confirm = None;
+            }
+            ModalResult::Pending => {}
         }
     }
 }

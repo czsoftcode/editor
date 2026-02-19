@@ -1,4 +1,6 @@
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
+
+use crate::app::ui::background::spawn_task;
 
 use eframe::egui;
 
@@ -152,17 +154,14 @@ pub(super) fn render_dialogs(
 
         if request_settings_browse && ws.settings_folder_pick_rx.is_none() {
             let start_dir = browse_start_dir.unwrap_or_default();
-            let (tx, rx) = mpsc::channel();
-            ws.settings_folder_pick_rx = Some(rx);
-            std::thread::spawn(move || {
+            ws.settings_folder_pick_rx = Some(spawn_task(move || {
                 let dialog = rfd::FileDialog::new();
-                let picked = if start_dir.trim().is_empty() {
+                if start_dir.trim().is_empty() {
                     dialog.pick_folder()
                 } else {
                     dialog.set_directory(start_dir).pick_folder()
-                };
-                let _ = tx.send(picked);
-            });
+                }
+            }));
         }
 
         if do_save {

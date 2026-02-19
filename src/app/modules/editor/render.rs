@@ -7,6 +7,30 @@ use crate::config;
 use super::search::apply_search_highlights;
 use super::{Editor, SaveStatus, TabAction};
 
+fn editor_line_count(content: &str) -> usize {
+    content.lines().count().max(1) + usize::from(content.ends_with('\n'))
+}
+
+fn goto_centered_scroll_offset(
+    line: usize,
+    total_lines: usize,
+    row_height: f32,
+    viewport_height: f32,
+) -> f32 {
+    if row_height <= 0.0 || viewport_height <= 0.0 || total_lines == 0 {
+        return 0.0;
+    }
+
+    let max_line_index = total_lines.saturating_sub(1) as f32;
+    let line_index = (line.saturating_sub(1) as f32).min(max_line_index);
+    let line_y = line_index * row_height;
+    let centered = line_y - (viewport_height - row_height) * 0.5;
+
+    let doc_height = total_lines as f32 * row_height;
+    let max_scroll = (doc_height - viewport_height).max(0.0);
+    centered.clamp(0.0, max_scroll)
+}
+
 impl Editor {
     // --- Tab bar ---
 
@@ -210,6 +234,11 @@ impl Editor {
         let current_match = self.current_match;
 
         let edit_id = egui::Id::new("editor_text").with(idx);
+        let line_count_for_jump = self
+            .tabs
+            .get(idx)
+            .map(|tab| editor_line_count(&tab.content))
+            .unwrap_or(1);
 
         let jump_line = self.pending_jump.take();
         let jump_char_idx: Option<usize> = jump_line.and_then(|line| {
@@ -225,8 +254,10 @@ impl Editor {
         let font_size = Self::current_editor_font_size(ui);
         let font_id = egui::FontId::monospace(font_size);
         let row_height = ui.fonts(|f| f.row_height(&font_id));
-        let desired_scroll_y: Option<f32> =
-            jump_line.map(|line| (line.saturating_sub(1) as f32) * row_height);
+        let viewport_height = (ui.available_height() - 16.0).max(row_height);
+        let desired_scroll_y: Option<f32> = jump_line.map(|line| {
+            goto_centered_scroll_offset(line, line_count_for_jump, row_height, viewport_height)
+        });
 
         if let Some(char_idx) = jump_char_idx {
             let mut state =
@@ -269,8 +300,7 @@ impl Editor {
                     ui.fonts(|f| f.layout_job(job))
                 };
 
-                let line_count = tab.content.lines().count().max(1)
-                    + if tab.content.ends_with('\n') { 1 } else { 0 };
+                let line_count = editor_line_count(&tab.content);
                 let gutter_width = Self::gutter_width(ui, line_count);
 
                 ui.horizontal_top(|ui| {
@@ -626,5 +656,28 @@ impl Editor {
             }
             is_new_line = row.ends_with_newline;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::goto_centered_scroll_offset;
+
+    #[test]
+    fn goto_scroll_centers_when_possible() {
+        let offset = goto_centered_scroll_offset(50, 200, 20.0, 200.0);
+        assert!((offset - 890.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn goto_scroll_clamps_near_top() {
+        let offset = goto_centered_scroll_offset(1, 200, 20.0, 200.0);
+        assert!((offset - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn goto_scroll_clamps_near_bottom() {
+        let offset = goto_centered_scroll_offset(200, 200, 20.0, 200.0);
+        assert!((offset - 3800.0).abs() < f32::EPSILON);
     }
 }

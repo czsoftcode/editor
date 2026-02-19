@@ -112,7 +112,9 @@ pub(crate) struct WorkspaceState {
     pub editor: Editor,
     pub watcher: FileWatcher,
     pub project_watcher: ProjectWatcher,
-    pub claude_terminal: Option<Terminal>,
+    pub claude_tabs: Vec<Terminal>,
+    pub claude_active_tab: usize,
+    pub next_claude_tab_id: u64,
     pub build_terminal: Option<Terminal>,
     pub focused_panel: FocusedPanel,
     pub root_path: PathBuf,
@@ -236,7 +238,9 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         editor: Editor::new(),
         watcher: FileWatcher::new(),
         project_watcher,
-        claude_terminal: None,
+        claude_tabs: Vec::new(),
+        claude_active_tab: 0,
+        next_claude_tab_id: 100,
         build_terminal: None,
         focused_panel: FocusedPanel::Editor,
         root_path,
@@ -768,8 +772,11 @@ pub(crate) fn render_workspace(
     shared: &Arc<Mutex<AppShared>>,
 ) -> Option<PathBuf> {
     // Lazy init terminálů
-    if ws.claude_terminal.is_none() {
-        ws.claude_terminal = Some(Terminal::new(0, ctx, &ws.root_path, None));
+    if ws.claude_tabs.is_empty() {
+        let root = ws.root_path.clone();
+        let id = ws.next_claude_tab_id;
+        ws.next_claude_tab_id += 1;
+        ws.claude_tabs.push(Terminal::new(id, ctx, &root, None));
     }
     if ws.build_terminal.is_none() {
         ws.build_terminal = Some(Terminal::new(1, ctx, &ws.root_path, None));

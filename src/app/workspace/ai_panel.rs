@@ -3,7 +3,22 @@ use std::collections::HashMap;
 use eframe::egui;
 
 use super::{AiTool, FocusedPanel, WorkspaceState, spawn_ai_tool_check};
+use super::super::modules::terminal::Terminal;
 use crate::config;
+
+// ---------------------------------------------------------------------------
+// Interní akce pro správu záložek terminálů
+// ---------------------------------------------------------------------------
+
+enum TermTabAction {
+    Switch(usize),
+    Close(usize),
+    New,
+}
+
+// ---------------------------------------------------------------------------
+// Pomocné funkce
+// ---------------------------------------------------------------------------
 
 fn ai_tool_is_available(available: &HashMap<AiTool, bool>, tool: AiTool) -> bool {
     available.get(&tool).copied().unwrap_or(false)
@@ -84,11 +99,101 @@ fn render_ai_tool_controls(ui: &mut egui::Ui, ws: &mut WorkspaceState, combo_id:
         .add_enabled(can_start, egui::Button::new("\u{25B6} Spustit"))
         .on_hover_text(hover_text);
     if start_response.clicked() {
-        if let Some(terminal) = &mut ws.claude_terminal {
-            terminal.send_command(ws.claude_tool.command());
+        let cmd = ws.claude_tool.command().to_owned();
+        let active = ws.claude_active_tab;
+        if let Some(terminal) = ws.claude_tabs.get_mut(active) {
+            terminal.send_command(&cmd);
         }
     }
 }
+
+/// Vykreslí záložky terminálů a vrátí požadovanou akci.
+fn render_tab_bar(ui: &mut egui::Ui, tab_count: usize, active: usize) -> Option<TermTabAction> {
+    let mut action = None;
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 1.0;
+
+        for i in 0..tab_count {
+            let is_active = active == i;
+            let label = egui::RichText::new(format!(" {} ", i + 1)).monospace();
+
+            let fill = if is_active {
+                ui.visuals().extreme_bg_color
+            } else {
+                ui.visuals().faint_bg_color
+            };
+            let stroke = if is_active {
+                egui::Stroke::new(1.0, ui.visuals().selection.stroke.color)
+            } else {
+                egui::Stroke::NONE
+            };
+
+            let tab_resp = ui.add(
+                egui::Button::new(label)
+                    .fill(fill)
+                    .stroke(stroke)
+                    .min_size(egui::vec2(0.0, 18.0)),
+            );
+            if tab_resp.clicked() && !is_active {
+                action = Some(TermTabAction::Switch(i));
+            }
+
+            if tab_count > 1 {
+                let close_resp = ui
+                    .add(
+                        egui::Button::new(egui::RichText::new("×").size(11.0))
+                            .fill(egui::Color32::TRANSPARENT)
+                            .min_size(egui::vec2(14.0, 18.0)),
+                    )
+                    .on_hover_text("Zavřít záložku");
+                if close_resp.clicked() {
+                    action = Some(TermTabAction::Close(i));
+                }
+                ui.add_space(3.0);
+            }
+        }
+
+        // Tlačítko přidat záložku
+        let add_resp = ui
+            .add(
+                egui::Button::new(egui::RichText::new("+").size(14.0))
+                    .fill(egui::Color32::TRANSPARENT)
+                    .min_size(egui::vec2(22.0, 18.0)),
+            )
+            .on_hover_text("Nová záložka terminálu");
+        if add_resp.clicked() {
+            action = Some(TermTabAction::New);
+        }
+    });
+    action
+}
+
+/// Aplikuje akci záložky na workspace. Vrací true pokud byla přidána nová záložka
+/// (potřebuje ctx — volající musí poskytnout).
+fn apply_tab_action(ws: &mut WorkspaceState, action: TermTabAction, ctx: &egui::Context) {
+    match action {
+        TermTabAction::Switch(i) => {
+            ws.claude_active_tab = i;
+        }
+        TermTabAction::Close(idx) => {
+            ws.claude_tabs.remove(idx);
+            if ws.claude_active_tab >= ws.claude_tabs.len() {
+                ws.claude_active_tab = ws.claude_tabs.len().saturating_sub(1);
+            }
+        }
+        TermTabAction::New => {
+            let id = ws.next_claude_tab_id;
+            ws.next_claude_tab_id += 1;
+            let root = ws.root_path.clone();
+            ws.claude_tabs.push(Terminal::new(id, ctx, &root, None));
+            ws.claude_active_tab = ws.claude_tabs.len() - 1;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Veřejná funkce
+// ---------------------------------------------------------------------------
 
 /// Vykreslí pravý panel s AI terminálem. Vrací true pokud bylo kliknuto do terminálu.
 pub(super) fn render_ai_panel(
@@ -105,6 +210,7 @@ pub(super) fn render_ai_panel(
 
     if ws.claude_float {
         let mut is_open = true;
+        let mut tab_action: Option<TermTabAction> = None;
         egui::Window::new("AI terminál")
             .id(egui::Id::new("claude_float_win"))
             .default_size([520.0, 420.0])
@@ -125,9 +231,10 @@ pub(super) fn render_ai_panel(
                         }
                     });
                 });
+                tab_action = render_tab_bar(ui, ws.claude_tabs.len(), ws.claude_active_tab);
                 ui.separator();
                 if !dialog_open {
-                    if let Some(terminal) = &mut ws.claude_terminal {
+                    if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
                         if terminal.ui(ui, focused == FocusedPanel::Claude, font_size) {
                             ws.focused_panel = FocusedPanel::Claude;
                             any_clicked = true;
@@ -135,10 +242,14 @@ pub(super) fn render_ai_panel(
                     }
                 }
             });
+        if let Some(action) = tab_action {
+            apply_tab_action(ws, action, ctx);
+        }
         if !is_open {
             ws.show_right_panel = false;
         }
     } else {
+        let mut tab_action: Option<TermTabAction> = None;
         egui::SidePanel::right("claude_panel")
             .default_width(config::AI_PANEL_DEFAULT_WIDTH)
             .width_range(config::AI_PANEL_MIN_WIDTH..=config::AI_PANEL_MAX_WIDTH)
@@ -159,9 +270,10 @@ pub(super) fn render_ai_panel(
                 ui.horizontal(|ui| {
                     render_ai_tool_controls(ui, ws, "ai_tool_combo_docked");
                 });
+                tab_action = render_tab_bar(ui, ws.claude_tabs.len(), ws.claude_active_tab);
                 ui.separator();
                 if !dialog_open {
-                    if let Some(terminal) = &mut ws.claude_terminal {
+                    if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
                         if terminal.ui(ui, focused == FocusedPanel::Claude, font_size) {
                             ws.focused_panel = FocusedPanel::Claude;
                             any_clicked = true;
@@ -169,6 +281,9 @@ pub(super) fn render_ai_panel(
                     }
                 }
             });
+        if let Some(action) = tab_action {
+            apply_tab_action(ws, action, ctx);
+        }
     }
     any_clicked
 }

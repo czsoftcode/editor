@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicU64;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
@@ -86,6 +87,7 @@ pub(crate) struct ProjectSearch {
     pub results: Vec<SearchResult>,
     pub rx: Option<mpsc::Receiver<Vec<SearchResult>>>,
     pub focus_requested: bool,
+    pub cancel_epoch: Arc<AtomicU64>,
 }
 
 impl Default for ProjectSearch {
@@ -96,6 +98,7 @@ impl Default for ProjectSearch {
             results: Vec::new(),
             rx: None,
             focus_requested: false,
+            cancel_epoch: Arc::new(AtomicU64::new(0)),
         }
     }
 }

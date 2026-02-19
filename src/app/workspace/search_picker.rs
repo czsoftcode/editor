@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 
 use eframe::egui;
@@ -186,13 +188,24 @@ pub(super) fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -
 }
 
 /// Spustí hledání v pozadí (pure Rust, bez externích nástrojů).
-fn run_project_search(root: PathBuf, query: String) -> mpsc::Receiver<Vec<SearchResult>> {
+fn run_project_search(
+    root: PathBuf,
+    query: String,
+    epoch: u64,
+    cancel_epoch: Arc<AtomicU64>,
+) -> mpsc::Receiver<Vec<SearchResult>> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
+        if cancel_epoch.load(Ordering::Relaxed) != epoch {
+            return;
+        }
         let files = collect_project_files(&root);
         let q = query.to_lowercase();
         let mut results = Vec::new();
         'outer: for rel in files {
+            if cancel_epoch.load(Ordering::Relaxed) != epoch {
+                return;
+            }
             let abs = root.join(&rel);
             let Ok(content) = std::fs::read_to_string(&abs) else {
                 continue;
@@ -210,7 +223,9 @@ fn run_project_search(root: PathBuf, query: String) -> mpsc::Receiver<Vec<Search
                 }
             }
         }
-        let _ = tx.send(results);
+        if cancel_epoch.load(Ordering::Relaxed) == epoch {
+            let _ = tx.send(results);
+        }
     });
     rx
 }
@@ -256,13 +271,25 @@ pub(super) fn render_project_search_dialog(ctx: &egui::Context, ws: &mut Workspa
 
     if start_search && !ws.project_search.query.trim().is_empty() {
         ws.project_search.results.clear();
+        let epoch = ws
+            .project_search
+            .cancel_epoch
+            .fetch_add(1, Ordering::Relaxed)
+            + 1;
+        let cancel_epoch = Arc::clone(&ws.project_search.cancel_epoch);
         ws.project_search.rx = Some(run_project_search(
             ws.root_path.clone(),
             ws.project_search.query.trim().to_string(),
+            epoch,
+            cancel_epoch,
         ));
         ws.project_search.show_input = false;
     }
     if close {
+        ws.project_search
+            .cancel_epoch
+            .fetch_add(1, Ordering::Relaxed);
+        ws.project_search.rx = None;
         ws.project_search.show_input = false;
     }
 }

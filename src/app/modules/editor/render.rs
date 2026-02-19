@@ -511,7 +511,6 @@ impl Editor {
         }
 
         // Dolní polovina: Náhled
-        let preview_content = self.tabs[idx].content.clone();
         let scroll_offset = self.tabs[idx].scroll_offset;
 
         ui.allocate_ui_with_layout(
@@ -531,7 +530,7 @@ impl Editor {
                         .auto_shrink([false, false])
                         .vertical_scroll_offset(scroll_offset)
                         .show(ui, |ui| {
-                            Self::render_markdown_preview(ui, &preview_content);
+                            Self::render_markdown_preview(ui, &self.tabs[idx].content);
                         });
                 });
             },

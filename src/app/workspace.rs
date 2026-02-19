@@ -1471,7 +1471,7 @@ fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState) {
         if focus_req {
             resp.request_focus();
         }
-        if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+        if resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
             start_search = true;
         }
         ui.add_space(8.0);

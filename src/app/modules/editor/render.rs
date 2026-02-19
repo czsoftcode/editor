@@ -142,6 +142,8 @@ impl Editor {
     pub(super) fn goto_line_bar(&mut self, ui: &mut egui::Ui) {
         let mut do_jump = false;
         let mut do_close = false;
+        let mut input_has_focus = false;
+        let mut jump_by_enter = false;
 
         ui.horizontal(|ui| {
             ui.label("Přejít na řádek:");
@@ -150,9 +152,16 @@ impl Editor {
                     .desired_width(80.0)
                     .id(egui::Id::new("goto_line_input")),
             );
-            response.request_focus();
-            if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            if self.goto_line_focus_requested {
+                response.request_focus();
+            }
+            input_has_focus = response.has_focus();
+            let enter_pressed = ui.input(|i| i.key_pressed(egui::Key::Enter));
+            if enter_pressed
+                && (response.lost_focus() || input_has_focus || self.goto_line_focus_requested)
+            {
                 do_jump = true;
+                jump_by_enter = true;
             }
             if ui.button("OK").clicked() {
                 do_jump = true;
@@ -162,6 +171,14 @@ impl Editor {
             }
         });
         ui.separator();
+        if jump_by_enter {
+            ui.input_mut(|i| {
+                let _ = i.consume_key(egui::Modifiers::NONE, egui::Key::Enter);
+            });
+        }
+        if self.goto_line_focus_requested && input_has_focus {
+            self.goto_line_focus_requested = false;
+        }
 
         if do_jump {
             if let Ok(n) = self.goto_line_input.trim().parse::<usize>() {
@@ -170,9 +187,11 @@ impl Editor {
                 }
             }
             self.show_goto_line = false;
+            self.goto_line_focus_requested = false;
         }
         if do_close {
             self.show_goto_line = false;
+            self.goto_line_focus_requested = false;
         }
     }
 

@@ -431,7 +431,7 @@ impl FileTree {
                         .font(eframe::egui::TextStyle::Body)
                         .desired_width(200.0),
                 );
-                if response.lost_focus() && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter)) {
+                if response.has_focus() && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter)) {
                     should_create = true;
                 }
                 if !response.has_focus() {
@@ -507,7 +507,7 @@ impl FileTree {
                         .font(eframe::egui::TextStyle::Body)
                         .desired_width(200.0),
                 );
-                if response.lost_focus() && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter)) {
+                if response.has_focus() && ui.input(|i| i.key_pressed(eframe::egui::Key::Enter)) {
                     should_rename = true;
                 }
                 if !response.has_focus() {

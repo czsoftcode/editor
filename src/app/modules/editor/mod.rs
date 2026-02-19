@@ -62,6 +62,7 @@ pub struct Editor {
     pub(super) pending_jump: Option<usize>,
     pub(super) show_goto_line: bool,
     pub(super) goto_line_input: String,
+    pub(super) goto_line_focus_requested: bool,
 }
 
 impl Editor {
@@ -83,6 +84,7 @@ impl Editor {
             pending_jump: None,
             show_goto_line: false,
             goto_line_input: String::new(),
+            goto_line_focus_requested: false,
         }
     }
 
@@ -315,6 +317,7 @@ impl Editor {
             self.show_replace = false;
             self.search_focus_requested = true;
             self.show_goto_line = false;
+            self.goto_line_focus_requested = false;
             self.update_search();
         }
         if ctrl_h {
@@ -322,6 +325,7 @@ impl Editor {
             self.show_replace = true;
             self.search_focus_requested = true;
             self.show_goto_line = false;
+            self.goto_line_focus_requested = false;
             self.update_search();
         }
         if ctrl_g {
@@ -329,6 +333,9 @@ impl Editor {
             if self.show_goto_line {
                 self.goto_line_input.clear();
                 self.show_search = false;
+                self.goto_line_focus_requested = true;
+            } else {
+                self.goto_line_focus_requested = false;
             }
         }
         if escape {
@@ -339,6 +346,7 @@ impl Editor {
                 self.current_match = None;
             } else if self.show_goto_line {
                 self.show_goto_line = false;
+                self.goto_line_focus_requested = false;
             }
         }
 

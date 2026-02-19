@@ -85,11 +85,6 @@ impl Terminal {
         Ok((backend, pty_receiver))
     }
 
-    pub fn restart_with_command(&mut self, ctx: &egui::Context, init_command: Option<&str>) {
-        self.init_command = init_command.map(|s| s.to_string());
-        self.restart(ctx);
-    }
-
     fn restart(&mut self, ctx: &egui::Context) {
         match Self::create_backend(
             self.id,

@@ -843,12 +843,15 @@ fn render_ai_panel(ctx: &egui::Context, ws: &mut WorkspaceState, dialog_open: bo
             .open(&mut is_open)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    let prev_tool = ws.claude_tool;
                     ui.radio_value(&mut ws.claude_tool, AiTool::ClaudeCode, "Claude Code");
                     ui.radio_value(&mut ws.claude_tool, AiTool::Codex, "Codex");
-                    if ws.claude_tool != prev_tool {
+                    if ui
+                        .small_button("\u{25B6} Spustit")
+                        .on_hover_text("Spustí vybraného asistenta v terminálu")
+                        .clicked()
+                    {
                         if let Some(terminal) = &mut ws.claude_terminal {
-                            terminal.restart_with_command(ui.ctx(), Some(ws.claude_tool.command()));
+                            terminal.send_command(ws.claude_tool.command());
                         }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -892,16 +895,19 @@ fn render_ai_panel(ctx: &egui::Context, ws: &mut WorkspaceState, dialog_open: bo
                         }
                     });
                 });
-                let prev_tool = ws.claude_tool;
                 ui.horizontal(|ui| {
                     ui.radio_value(&mut ws.claude_tool, AiTool::ClaudeCode, "Claude Code");
                     ui.radio_value(&mut ws.claude_tool, AiTool::Codex, "Codex");
-                });
-                if ws.claude_tool != prev_tool {
-                    if let Some(terminal) = &mut ws.claude_terminal {
-                        terminal.restart_with_command(ui.ctx(), Some(ws.claude_tool.command()));
+                    if ui
+                        .small_button("\u{25B6} Spustit")
+                        .on_hover_text("Spustí vybraného asistenta v terminálu")
+                        .clicked()
+                    {
+                        if let Some(terminal) = &mut ws.claude_terminal {
+                            terminal.send_command(ws.claude_tool.command());
+                        }
                     }
-                }
+                });
                 ui.separator();
                 if !dialog_open {
                     if let Some(terminal) = &mut ws.claude_terminal {
@@ -1512,12 +1518,7 @@ pub(crate) fn render_workspace(
 ) -> Option<PathBuf> {
     // Lazy init terminálů
     if ws.claude_terminal.is_none() {
-        ws.claude_terminal = Some(Terminal::new(
-            0,
-            ctx,
-            &ws.root_path,
-            Some(ws.claude_tool.command()),
-        ));
+        ws.claude_terminal = Some(Terminal::new(0, ctx, &ws.root_path, None));
     }
     if ws.build_terminal.is_none() {
         ws.build_terminal = Some(Terminal::new(1, ctx, &ws.root_path, None));

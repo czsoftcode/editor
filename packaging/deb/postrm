@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -e
+
+cleanup_legacy_icons() {
+    rm -f \
+        /usr/share/icons/hicolor/*x*/apps/rust-editor.png \
+        /usr/share/icons/hicolor/*x*/apps/rust-editor.svg \
+        /usr/share/icons/hicolor/scalable/apps/rust-editor.svg \
+        /usr/share/icons/hicolor/*x*/apps/rust_editor.png \
+        /usr/share/icons/hicolor/*x*/apps/rust_editor.svg \
+        /usr/share/icons/hicolor/scalable/apps/rust_editor.svg \
+        /usr/share/pixmaps/rust-editor.png \
+        /usr/share/pixmaps/rust_editor.png
+}
+
+cleanup_legacy_icons
+
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+fi
+
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -q /usr/share/icons/hicolor >/dev/null 2>&1 || true
+fi
+
+exit 0

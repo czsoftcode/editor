@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Rust Editor
+GenericName=Code Editor
+Comment=Jednoduchý textový editor v Rustu
+Exec=rust-editor %F
+Terminal=false
+Icon=rust-editor-light
+Categories=Development;IDE;TextEditor;
+StartupNotify=true
+Keywords=editor;code;rust;ide;
+MimeType=text/plain;text/markdown;text/x-rust;text/x-python;text/x-shellscript;text/x-csrc;text/x-c++src;

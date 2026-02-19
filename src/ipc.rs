@@ -16,11 +16,14 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde_json;
 
 use crate::config;
+
+const IPC_MAX_WORKERS: usize = 16;
 
 // ---------------------------------------------------------------------------
 // Cesty k souborům
@@ -44,26 +47,67 @@ fn session_path() -> PathBuf {
     config_dir().join("session.json")
 }
 
+fn normalize_project_path(path: &Path) -> Option<PathBuf> {
+    if !path.is_absolute() {
+        return None;
+    }
+    let canonical = path.canonicalize().ok()?;
+    if canonical.is_dir() {
+        Some(canonical)
+    } else {
+        None
+    }
+}
+
+fn normalize_project_path_str(path: &str) -> Option<PathBuf> {
+    normalize_project_path(Path::new(path))
+}
+
 // ---------------------------------------------------------------------------
 // Ukládání nedávných projektů
 // ---------------------------------------------------------------------------
 
 fn save_paths(file_path: &std::path::Path, paths: &[PathBuf]) {
     if let Some(parent) = file_path.parent() {
-        let _ = std::fs::create_dir_all(parent);
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!(
+                "ipc: nelze vytvořit config adresář {}: {e}",
+                parent.display()
+            );
+            return;
+        }
     }
     let strings: Vec<&str> = paths.iter().filter_map(|p| p.to_str()).collect();
-    let Ok(content) = serde_json::to_string(&strings) else { return };
+    let Ok(content) = serde_json::to_string(&strings) else {
+        eprintln!("ipc: serializace cest selhala");
+        return;
+    };
     let tmp = file_path.with_extension("tmp");
-    if std::fs::write(&tmp, content).is_ok() {
-        let _ = std::fs::rename(&tmp, file_path);
+    if let Err(e) = std::fs::write(&tmp, content) {
+        eprintln!("ipc: nelze zapsat tmp soubor {}: {e}", tmp.display());
+        return;
+    }
+    if let Err(e) = std::fs::rename(&tmp, file_path) {
+        eprintln!(
+            "ipc: nelze atomicky přejmenovat {} -> {}: {e}",
+            tmp.display(),
+            file_path.display()
+        );
+        let _ = std::fs::remove_file(&tmp);
     }
 }
 
 fn load_paths(file_path: &std::path::Path) -> Vec<PathBuf> {
-    let Ok(content) = std::fs::read_to_string(file_path) else { return vec![] };
-    let Ok(strings): Result<Vec<String>, _> = serde_json::from_str(&content) else { return vec![] };
-    strings.into_iter().map(PathBuf::from).filter(|p| p.is_dir()).collect()
+    let Ok(content) = std::fs::read_to_string(file_path) else {
+        return vec![];
+    };
+    let Ok(strings): Result<Vec<String>, _> = serde_json::from_str(&content) else {
+        return vec![];
+    };
+    strings
+        .into_iter()
+        .filter_map(|s| normalize_project_path_str(&s))
+        .collect()
 }
 
 fn save_recent(recent: &[PathBuf]) {
@@ -92,15 +136,12 @@ pub fn start_process_listener() -> std::sync::mpsc::Receiver<()> {
     if let Ok(listener) = UnixListener::bind(&sock) {
         std::thread::spawn(move || {
             for stream in listener.incoming().flatten() {
-                let tx = tx.clone();
-                std::thread::spawn(move || {
-                    let reader = BufReader::new(&stream);
-                    if let Some(Ok(line)) = reader.lines().next() {
-                        if line.trim() == "FOCUS" {
-                            let _ = tx.send(());
-                        }
+                let reader = BufReader::new(&stream);
+                if let Some(Ok(line)) = reader.lines().next() {
+                    if line.trim() == "FOCUS" {
+                        let _ = tx.send(());
                     }
-                });
+                }
             }
         });
     }
@@ -150,7 +191,9 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
     }
 
     if let Some(path_str) = line.strip_prefix("QUERY ") {
-        let path = PathBuf::from(path_str);
+        let Some(path) = normalize_project_path_str(path_str) else {
+            return vec!["OPEN".into()];
+        };
         // Přečíst PID bez držení zámku při síťovém volání
         let pid_opt = state.lock().unwrap().registered.get(&path).copied();
         if let Some(pid) = pid_opt {
@@ -168,7 +211,9 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
     if let Some(rest) = line.strip_prefix("REGISTER ") {
         if let Some((pid_str, path_str)) = rest.split_once(' ') {
             if let Ok(pid) = pid_str.parse::<u32>() {
-                let path = PathBuf::from(path_str);
+                let Some(path) = normalize_project_path_str(path_str) else {
+                    return vec!["ERR bad REGISTER".into()];
+                };
                 let mut st = state.lock().unwrap();
                 // Přidat registraci (nečistit ostatní záznamy tohoto PID — jeden PID může
                 // vlastnit více projektů v multi-viewport architektuře)
@@ -187,8 +232,7 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
     }
 
     if let Some(path_str) = line.strip_prefix("ADD_RECENT ") {
-        let path = PathBuf::from(path_str);
-        if path.is_dir() {
+        if let Some(path) = normalize_project_path_str(path_str) {
             let mut st = state.lock().unwrap();
             st.recent.retain(|p| p != &path);
             st.recent.insert(0, path);
@@ -216,9 +260,18 @@ fn handle_connection(stream: UnixStream, state: Arc<Mutex<ServerState>>) {
 }
 
 fn server_loop(listener: UnixListener, state: Arc<Mutex<ServerState>>) {
+    let active_workers = Arc::new(AtomicUsize::new(0));
     for stream in listener.incoming().flatten() {
+        if active_workers.load(Ordering::Relaxed) >= IPC_MAX_WORKERS {
+            continue;
+        }
         let state = state.clone();
-        std::thread::spawn(move || handle_connection(stream, state));
+        let active_workers = active_workers.clone();
+        active_workers.fetch_add(1, Ordering::SeqCst);
+        std::thread::spawn(move || {
+            handle_connection(stream, state);
+            active_workers.fetch_sub(1, Ordering::SeqCst);
+        });
     }
 }
 
@@ -233,7 +286,13 @@ impl IpcServer {
     pub fn start() -> Option<Self> {
         let sock = socket_path();
         if let Some(parent) = sock.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!(
+                    "ipc: nelze vytvořit socket adresář {}: {e}",
+                    parent.display()
+                );
+                return None;
+            }
         }
 
         // Ověřit, zda primár už běží
@@ -242,7 +301,11 @@ impl IpcServer {
         }
 
         // Odstranit případný starý (nefunkční) socket
-        let _ = std::fs::remove_file(&sock);
+        if let Err(e) = std::fs::remove_file(&sock) {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                eprintln!("ipc: nelze odstranit starý socket {}: {e}", sock.display());
+            }
+        }
 
         let listener = UnixListener::bind(&sock).ok()?;
 
@@ -259,7 +322,14 @@ impl IpcServer {
 
 impl Drop for IpcServer {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.sock_path);
+        if let Err(e) = std::fs::remove_file(&self.sock_path) {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                eprintln!(
+                    "ipc: nelze odstranit socket {}: {e}",
+                    self.sock_path.display()
+                );
+            }
+        }
     }
 }
 
@@ -315,12 +385,20 @@ impl Ipc {
     /// Vrací false pokud projekt není nikde otevřen (OPEN).
     #[allow(dead_code)]
     pub fn query(path: &Path) -> bool {
+        let Some(path) = normalize_project_path(path) else {
+            return false;
+        };
         let cmd = format!("QUERY {}", path.display());
-        Self::send_one(&cmd).map(|r| r == "FOCUSED").unwrap_or(false)
+        Self::send_one(&cmd)
+            .map(|r| r == "FOCUSED")
+            .unwrap_or(false)
     }
 
     /// Zaregistruje aktuální proces jako vlastníka projektu.
     pub fn register(path: &Path) {
+        let Some(path) = normalize_project_path(path) else {
+            return;
+        };
         let cmd = format!("REGISTER {} {}", std::process::id(), path.display());
         let _ = Self::send_one(&cmd);
     }
@@ -333,6 +411,9 @@ impl Ipc {
 
     /// Přidá projekt do sdíleného seznamu nedávných projektů.
     pub fn add_recent(path: &Path) {
+        let Some(path) = normalize_project_path(path) else {
+            return;
+        };
         let cmd = format!("ADD_RECENT {}", path.display());
         let _ = Self::send_one(&cmd);
     }

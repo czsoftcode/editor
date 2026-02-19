@@ -6,8 +6,12 @@ const SETTINGS_FILE: &str = "settings.json";
 // Výchozí hodnoty (potřebné pro serde default attrs)
 // ---------------------------------------------------------------------------
 
-fn default_editor_font_size() -> f32 { 14.0 }
-fn default_dark_theme() -> bool { true }
+fn default_editor_font_size() -> f32 {
+    14.0
+}
+fn default_dark_theme() -> bool {
+    true
+}
 
 pub fn default_project_path() -> String {
     dirs::home_dir()
@@ -68,10 +72,17 @@ impl Settings {
     pub fn save(&self) {
         let path = settings_path();
         if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!("settings: nelze vytvořit adresář {}: {e}", parent.display());
+                return;
+            }
         }
         if let Ok(json) = serde_json::to_string_pretty(self) {
-            let _ = std::fs::write(path, json);
+            if let Err(e) = std::fs::write(&path, json) {
+                eprintln!("settings: nelze zapsat {}: {e}", path.display());
+            }
+        } else {
+            eprintln!("settings: serializace JSON selhala");
         }
     }
 

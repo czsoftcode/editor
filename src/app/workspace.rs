@@ -126,6 +126,8 @@ pub(crate) struct WorkspaceState {
     pub git_status_rx: Option<mpsc::Receiver<std::collections::HashMap<PathBuf, egui::Color32>>>,
     /// Časovač pro periodický refresh gitu
     pub git_last_refresh: std::time::Instant,
+    /// Draft nastavení — inicializuje se při otevření dialogu, zahazuje se při zavření
+    pub settings_draft: Option<crate::settings::Settings>,
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +189,7 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         git_branch_rx: Some(git_branch_rx),
         git_status_rx: Some(git_status_rx),
         git_last_refresh: std::time::Instant::now(),
+        settings_draft: None,
     }
 }
 
@@ -533,20 +536,26 @@ fn render_dialogs(
     }
 
     if ws.show_settings {
-        // Klonujeme aktuální settings — uživatel mění lokální kopii, Save ji zapíše do shared
-        let mut settings = shared.lock().unwrap().settings.clone();
+        // Inicializovat draft pouze jednou (při prvním otevření dialogu)
+        if ws.settings_draft.is_none() {
+            ws.settings_draft = Some(shared.lock().unwrap().settings.clone());
+        }
+
         let mut do_save = false;
+        let mut do_close = false;
 
         let modal = egui::Modal::new(egui::Id::new("settings_modal"));
         modal.show(ctx, |ui| {
             ui.heading("Nastavení");
             ui.add_space(10.0);
 
+            let draft = ws.settings_draft.as_mut().unwrap();
+
             // Téma
             ui.strong("Téma");
             ui.horizontal(|ui| {
-                ui.radio_value(&mut settings.dark_theme, true, "Tmavé");
-                ui.radio_value(&mut settings.dark_theme, false, "Světlé");
+                ui.radio_value(&mut draft.dark_theme, true, "Tmavé");
+                ui.radio_value(&mut draft.dark_theme, false, "Světlé");
             });
             ui.add_space(10.0);
 
@@ -554,7 +563,7 @@ fn render_dialogs(
             ui.strong("Editor — velikost fontu");
             ui.add_space(4.0);
             ui.add(
-                egui::Slider::new(&mut settings.editor_font_size, 10.0..=24.0)
+                egui::Slider::new(&mut draft.editor_font_size, 10.0..=24.0)
                     .step_by(1.0)
                     .suffix(" px")
                     .clamping(egui::SliderClamping::Always),
@@ -576,15 +585,15 @@ fn render_dialogs(
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 ui.add(
-                    egui::TextEdit::singleline(&mut settings.default_project_path)
+                    egui::TextEdit::singleline(&mut draft.default_project_path)
                         .desired_width(280.0),
                 );
                 if ui.button("…").clicked() {
                     if let Some(dir) = rfd::FileDialog::new()
-                        .set_directory(&settings.default_project_path)
+                        .set_directory(&draft.default_project_path)
                         .pick_folder()
                     {
-                        settings.default_project_path = dir.to_string_lossy().to_string();
+                        draft.default_project_path = dir.to_string_lossy().to_string();
                     }
                 }
             });
@@ -592,15 +601,18 @@ fn render_dialogs(
 
             ui.horizontal(|ui| {
                 if ui.button("Uložit").clicked() { do_save = true; }
-                if ui.button("Zavřít").clicked() { ws.show_settings = false; }
+                if ui.button("Zavřít").clicked() { do_close = true; }
             });
         });
 
         if do_save {
-            settings.save();
-            // Aktualizovat wizard cestu při změně výchozí cesty
-            ws.wizard.path = settings.default_project_path.clone();
-            shared.lock().unwrap().settings = settings;
+            let draft = ws.settings_draft.take().unwrap();
+            draft.save();
+            ws.wizard.path = draft.default_project_path.clone();
+            shared.lock().unwrap().settings = draft;
+            ws.show_settings = false;
+        } else if do_close {
+            ws.settings_draft = None;
             ws.show_settings = false;
         }
     }

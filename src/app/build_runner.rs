@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use std::sync::mpsc;
 
+use serde_json::Value;
+
 use super::types::path_env;
 
 // ---------------------------------------------------------------------------
@@ -24,23 +26,121 @@ pub(crate) fn run_build_check(root_path: PathBuf) -> mpsc::Receiver<Vec<BuildErr
     let env = path_env();
     std::thread::spawn(move || {
         let output = std::process::Command::new("cargo")
-            .args(["build", "--color=never"])
+            .args(["build", "--color=never", "--message-format=json"])
             .current_dir(&root_path)
             .env("PATH", &env)
             .output();
+
         if let Ok(output) = output {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let _ = tx.send(parse_build_errors(&stderr));
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let mut errors = parse_build_messages_json(&stdout);
+            if errors.is_empty() {
+                // Fallback pro případy, kdy cargo/rustc pošle jen textový výstup.
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                errors = parse_build_errors_legacy(&stderr);
+            }
+            let _ = tx.send(errors);
+        } else {
+            let _ = tx.send(Vec::new());
         }
     });
     rx
 }
 
+fn parse_build_messages_json(stdout: &str) -> Vec<BuildError> {
+    let mut errors = Vec::new();
+
+    for line in stdout.lines() {
+        let Ok(msg) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+
+        if msg
+            .get("reason")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            != "compiler-message"
+        {
+            continue;
+        }
+
+        let Some(diagnostic) = msg.get("message") else {
+            continue;
+        };
+
+        let level = diagnostic
+            .get("level")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let is_warning = matches!(level, "warning");
+        let is_error = matches!(level, "error");
+        if !is_warning && !is_error {
+            continue;
+        }
+
+        let spans = diagnostic
+            .get("spans")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        let span = spans
+            .iter()
+            .find(|s| {
+                s.get("is_primary")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            })
+            .or_else(|| spans.first());
+        let Some(span) = span else {
+            continue;
+        };
+
+        let Some(file_name) = span.get("file_name").and_then(Value::as_str) else {
+            continue;
+        };
+        if file_name.is_empty() || file_name.starts_with('<') {
+            continue;
+        }
+
+        let line_num = span
+            .get("line_start")
+            .and_then(Value::as_u64)
+            .unwrap_or(1)
+            .max(1) as usize;
+        let col = span
+            .get("column_start")
+            .and_then(Value::as_u64)
+            .unwrap_or(1)
+            .max(1) as usize;
+
+        let message = diagnostic
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        if message.is_empty() {
+            continue;
+        }
+
+        errors.push(BuildError {
+            file: PathBuf::from(file_name),
+            line: line_num,
+            _column: col,
+            message,
+            is_warning,
+        });
+    }
+
+    errors
+}
+
 // ---------------------------------------------------------------------------
-// parse_build_errors — parsuje stderr z cargo build
+// parse_build_errors_legacy — fallback parser pro textový stderr
 // ---------------------------------------------------------------------------
 
-pub(crate) fn parse_build_errors(stderr: &str) -> Vec<BuildError> {
+fn parse_build_errors_legacy(stderr: &str) -> Vec<BuildError> {
     let mut errors = Vec::new();
     let mut current_message: Option<(String, bool)> = None;
 
@@ -67,5 +167,28 @@ pub(crate) fn parse_build_errors(stderr: &str) -> Vec<BuildError> {
             }
         }
     }
+
     errors
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_json_compiler_message_error() {
+        let input = r#"{"reason":"compiler-message","message":{"level":"error","message":"cannot find value `x` in this scope","spans":[{"file_name":"src/main.rs","line_start":3,"column_start":5,"is_primary":true}]}}"#;
+        let parsed = parse_build_messages_json(input);
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].file, PathBuf::from("src/main.rs"));
+        assert_eq!(parsed[0].line, 3);
+        assert!(!parsed[0].is_warning);
+    }
+
+    #[test]
+    fn parse_json_ignores_non_compiler_messages() {
+        let input = r#"{"reason":"build-finished","success":false}"#;
+        let parsed = parse_build_messages_json(input);
+        assert!(parsed.is_empty());
+    }
 }

@@ -1,6 +1,7 @@
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 
 /// Výsledek asynchronního výběru složky.
 /// bool = true → otevřít v novém okně; false → nahradit aktuální workspace.
@@ -13,7 +14,9 @@ use super::dialogs::{WizardState, show_project_wizard};
 use super::modules::editor::Editor;
 use super::modules::file_tree::FileTree;
 use super::modules::terminal::Terminal;
-use super::types::{AiTool, AppAction, AppShared, FocusedPanel, PersistentState, Toast, default_wizard_path};
+use super::types::{
+    AiTool, AppAction, AppShared, FocusedPanel, PersistentState, Toast, default_wizard_path,
+};
 use crate::config;
 use crate::watcher::{FileEvent, FileWatcher, FsChange, ProjectWatcher};
 
@@ -46,7 +49,8 @@ impl FilePicker {
 
     fn update_filter(&mut self) {
         let q = self.query.to_lowercase();
-        self.filtered = self.files
+        self.filtered = self
+            .files
             .iter()
             .enumerate()
             .filter(|(_, p)| fuzzy_match(&q, &p.to_string_lossy()))
@@ -117,6 +121,10 @@ pub(crate) struct WorkspaceState {
     pub folder_pick_rx: Option<mpsc::Receiver<FolderPickResult>>,
     /// Ctrl+P — fuzzy file picker
     pub file_picker: Option<FilePicker>,
+    /// Cache indexu souborů pro Ctrl+P (relativní cesty)
+    pub file_index_cache: Vec<PathBuf>,
+    /// Probíhající background scan souborů
+    pub file_index_rx: Option<mpsc::Receiver<Vec<PathBuf>>>,
     /// Hledání napříč projektem
     pub project_search: ProjectSearch,
     /// Git — aktuální větev
@@ -128,6 +136,8 @@ pub(crate) struct WorkspaceState {
     pub git_last_refresh: std::time::Instant,
     /// Draft nastavení — inicializuje se při otevření dialogu, zahazuje se při zavření
     pub settings_draft: Option<crate::settings::Settings>,
+    /// Asynchronní výběr výchozí cesty projektů v dialogu nastavení
+    pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -153,12 +163,23 @@ pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
     }
 }
 
+fn spawn_file_index_scan(root: PathBuf) -> mpsc::Receiver<Vec<PathBuf>> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(collect_project_files(&root));
+    });
+    rx
+}
+
 pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) -> WorkspaceState {
     let mut file_tree = FileTree::new();
     file_tree.load(&root_path);
     let project_watcher = ProjectWatcher::new(&root_path);
     let git_branch_rx = fetch_git_branch(&root_path);
     let git_status_rx = fetch_git_status(&root_path);
+    let file_index_rx = spawn_file_index_scan(root_path.clone());
+    let mut wizard = WizardState::default();
+    wizard.path = default_wizard_path();
 
     WorkspaceState {
         file_tree,
@@ -180,16 +201,19 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         claude_tool: AiTool::ClaudeCode,
         claude_float: panel_state.claude_float,
         show_new_project: false,
-        wizard: WizardState { path: default_wizard_path(), ..WizardState::default() },
+        wizard,
         toasts: Vec::new(),
         folder_pick_rx: None,
         file_picker: None,
+        file_index_cache: Vec::new(),
+        file_index_rx: Some(file_index_rx),
         project_search: ProjectSearch::default(),
         git_branch: None,
         git_branch_rx: Some(git_branch_rx),
         git_status_rx: Some(git_status_rx),
         git_last_refresh: std::time::Instant::now(),
         settings_draft: None,
+        settings_folder_pick_rx: None,
     }
 }
 
@@ -236,7 +260,9 @@ fn process_background_events(ws: &mut WorkspaceState) {
         match event {
             FileEvent::Changed(changed_path) => {
                 if let Some(editor_path) = ws.editor.active_path() {
-                    if let (Ok(a), Ok(b)) = (changed_path.canonicalize(), editor_path.canonicalize()) {
+                    if let (Ok(a), Ok(b)) =
+                        (changed_path.canonicalize(), editor_path.canonicalize())
+                    {
                         if a == b && !ws.editor.is_modified() {
                             ws.editor.reload_from_disk();
                         }
@@ -245,10 +271,12 @@ fn process_background_events(ws: &mut WorkspaceState) {
             }
             FileEvent::Removed(removed_path) => {
                 ws.editor.notify_file_deleted(&removed_path);
-                let name = removed_path.file_name()
+                let name = removed_path
+                    .file_name()
                     .map(|n| n.to_string_lossy().into_owned())
                     .unwrap_or_else(|| removed_path.to_string_lossy().into_owned());
-                ws.toasts.push(Toast::error(format!("Soubor byl smazán z disku: {name}")));
+                ws.toasts
+                    .push(Toast::error(format!("Soubor byl smazán z disku: {name}")));
             }
         }
     }
@@ -261,13 +289,17 @@ fn process_background_events(ws: &mut WorkspaceState) {
             match change {
                 FsChange::Created(path) => {
                     need_reload = true;
-                    if path.is_file() { open_file = Some(path.clone()); }
+                    if path.is_file() {
+                        open_file = Some(path.clone());
+                    }
                 }
                 FsChange::Removed(path) => {
                     need_reload = true;
                     ws.editor.close_tabs_for_path(path);
                 }
-                FsChange::Modified => { need_reload = true; }
+                FsChange::Modified => {
+                    need_reload = true;
+                }
             }
         }
         if need_reload {
@@ -279,6 +311,22 @@ fn process_background_events(ws: &mut WorkspaceState) {
         }
         if let Some(path) = open_file {
             open_file_in_ws(ws, path);
+        }
+        if ws.file_index_rx.is_none() {
+            ws.file_index_rx = Some(spawn_file_index_scan(ws.root_path.clone()));
+        }
+    }
+
+    if let Some(rx) = &ws.file_index_rx {
+        if let Ok(files) = rx.try_recv() {
+            ws.file_index_cache = files;
+            ws.file_index_rx = None;
+            if let Some(picker) = ws.file_picker.as_mut() {
+                let query = picker.query.clone();
+                picker.files = ws.file_index_cache.clone();
+                picker.query = query;
+                picker.update_filter();
+            }
         }
     }
 
@@ -340,11 +388,17 @@ fn render_menu_bar(
                     actions.open_folder = true;
                     ui.close_menu();
                 }
-                if ui.add(egui::Button::new("Uložit").shortcut_text("Ctrl+S")).clicked() {
+                if ui
+                    .add(egui::Button::new("Uložit").shortcut_text("Ctrl+S"))
+                    .clicked()
+                {
                     actions.save = true;
                     ui.close_menu();
                 }
-                if ui.add(egui::Button::new("Zavřít soubor").shortcut_text("Ctrl+W")).clicked() {
+                if ui
+                    .add(egui::Button::new("Zavřít soubor").shortcut_text("Ctrl+W"))
+                    .clicked()
+                {
                     actions.close_file = true;
                     ui.close_menu();
                 }
@@ -368,10 +422,15 @@ fn render_menu_bar(
                     ui.separator();
                     ui.menu_button("Nedávné projekty", |ui| {
                         for path in &recent_snapshot {
-                            let name = path.file_name()
+                            let name = path
+                                .file_name()
                                 .map(|n| n.to_string_lossy().into_owned())
                                 .unwrap_or_else(|| path.to_string_lossy().into_owned());
-                            if ui.button(&name).on_hover_text(path.to_string_lossy()).clicked() {
+                            if ui
+                                .button(&name)
+                                .on_hover_text(path.to_string_lossy())
+                                .clicked()
+                            {
                                 actions.open_recent = Some(path.clone());
                                 ui.close_menu();
                             }
@@ -381,53 +440,114 @@ fn render_menu_bar(
             });
 
             ui.menu_button("Upravit", |ui| {
-                ui.add_enabled(false, egui::Button::new("Kopírovat").shortcut_text("Ctrl+C"));
+                ui.add_enabled(
+                    false,
+                    egui::Button::new("Kopírovat").shortcut_text("Ctrl+C"),
+                );
                 ui.add_enabled(false, egui::Button::new("Vložit").shortcut_text("Ctrl+V"));
-                ui.add_enabled(false, egui::Button::new("Vybrat vše").shortcut_text("Ctrl+A"));
+                ui.add_enabled(
+                    false,
+                    egui::Button::new("Vybrat vše").shortcut_text("Ctrl+A"),
+                );
                 ui.separator();
-                if ui.add(egui::Button::new("Hledat…").shortcut_text("Ctrl+F")).clicked() {
+                if ui
+                    .add(egui::Button::new("Hledat…").shortcut_text("Ctrl+F"))
+                    .clicked()
+                {
                     ui.close_menu();
                 }
-                if ui.add(egui::Button::new("Hledat a nahradit…").shortcut_text("Ctrl+H")).clicked() {
+                if ui
+                    .add(egui::Button::new("Hledat a nahradit…").shortcut_text("Ctrl+H"))
+                    .clicked()
+                {
                     ui.close_menu();
                 }
-                if ui.add(egui::Button::new("Přejít na řádek…").shortcut_text("Ctrl+G")).clicked() {
+                if ui
+                    .add(egui::Button::new("Přejít na řádek…").shortcut_text("Ctrl+G"))
+                    .clicked()
+                {
                     ui.close_menu();
                 }
-                if ui.add(egui::Button::new("Otevřít soubor…").shortcut_text("Ctrl+P")).clicked() {
+                if ui
+                    .add(egui::Button::new("Otevřít soubor…").shortcut_text("Ctrl+P"))
+                    .clicked()
+                {
                     actions.open_file_picker = true;
                     ui.close_menu();
                 }
-                if ui.add(egui::Button::new("Hledat v projektu…").shortcut_text("Ctrl+Shift+F")).clicked() {
+                if ui
+                    .add(egui::Button::new("Hledat v projektu…").shortcut_text("Ctrl+Shift+F"))
+                    .clicked()
+                {
                     actions.project_search = true;
                     ui.close_menu();
                 }
                 ui.separator();
-                if ui.add(egui::Button::new("Build").shortcut_text("Ctrl+B")).clicked() {
+                if ui
+                    .add(egui::Button::new("Build").shortcut_text("Ctrl+B"))
+                    .clicked()
+                {
                     actions.build = true;
                     ui.close_menu();
                 }
-                if ui.add(egui::Button::new("Run").shortcut_text("Ctrl+R")).clicked() {
+                if ui
+                    .add(egui::Button::new("Run").shortcut_text("Ctrl+R"))
+                    .clicked()
+                {
                     actions.run = true;
                     ui.close_menu();
                 }
             });
 
             ui.menu_button("Zobrazit", |ui| {
-                let left_label = if ws.show_left_panel { "✓ Soubory" } else { "  Soubory" };
-                if ui.button(left_label).clicked() { actions.toggle_left = true; ui.close_menu(); }
-                let build_label = if ws.show_build_terminal { "✓ Build terminál" } else { "  Build terminál" };
-                if ui.button(build_label).clicked() { actions.toggle_build = true; ui.close_menu(); }
-                let right_label = if ws.show_right_panel { "✓ AI terminál" } else { "  AI terminál" };
-                if ui.button(right_label).clicked() { actions.toggle_right = true; ui.close_menu(); }
-                let float_label = if ws.claude_float { "✓ Plovoucí AI terminál" } else { "  Plovoucí AI terminál" };
-                if ui.button(float_label).clicked() { actions.toggle_float = true; ui.close_menu(); }
+                let left_label = if ws.show_left_panel {
+                    "✓ Soubory"
+                } else {
+                    "  Soubory"
+                };
+                if ui.button(left_label).clicked() {
+                    actions.toggle_left = true;
+                    ui.close_menu();
+                }
+                let build_label = if ws.show_build_terminal {
+                    "✓ Build terminál"
+                } else {
+                    "  Build terminál"
+                };
+                if ui.button(build_label).clicked() {
+                    actions.toggle_build = true;
+                    ui.close_menu();
+                }
+                let right_label = if ws.show_right_panel {
+                    "✓ AI terminál"
+                } else {
+                    "  AI terminál"
+                };
+                if ui.button(right_label).clicked() {
+                    actions.toggle_right = true;
+                    ui.close_menu();
+                }
+                let float_label = if ws.claude_float {
+                    "✓ Plovoucí AI terminál"
+                } else {
+                    "  Plovoucí AI terminál"
+                };
+                if ui.button(float_label).clicked() {
+                    actions.toggle_float = true;
+                    ui.close_menu();
+                }
             });
 
             ui.menu_button("Nápověda", |ui| {
-                if ui.button("Nastavení…").clicked() { actions.settings = true; ui.close_menu(); }
+                if ui.button("Nastavení…").clicked() {
+                    actions.settings = true;
+                    ui.close_menu();
+                }
                 ui.separator();
-                if ui.button("O aplikaci").clicked() { actions.about = true; ui.close_menu(); }
+                if ui.button("O aplikaci").clicked() {
+                    actions.about = true;
+                    ui.close_menu();
+                }
             });
         });
     });
@@ -441,26 +561,53 @@ fn process_menu_actions(
     shared: &Arc<Mutex<AppShared>>,
     actions: MenuActions,
 ) -> Option<PathBuf> {
-    if actions.quit { shared.lock().unwrap().actions.push(AppAction::QuitAll); }
-    if actions.save { ws.editor.save(); }
-    if actions.close_file { ws.editor.clear(); }
-    if actions.toggle_left { ws.show_left_panel = !ws.show_left_panel; }
-    if actions.toggle_right { ws.show_right_panel = !ws.show_right_panel; }
-    if actions.toggle_float { ws.claude_float = !ws.claude_float; }
-    if actions.toggle_build { ws.show_build_terminal = !ws.show_build_terminal; }
-    if actions.about { ws.show_about = true; }
-    if actions.settings { ws.show_settings = true; }
-    if actions.new_project { ws.show_new_project = true; }
+    if actions.quit {
+        shared.lock().unwrap().actions.push(AppAction::QuitAll);
+    }
+    if actions.save {
+        ws.editor.save();
+    }
+    if actions.close_file {
+        ws.editor.clear();
+    }
+    if actions.toggle_left {
+        ws.show_left_panel = !ws.show_left_panel;
+    }
+    if actions.toggle_right {
+        ws.show_right_panel = !ws.show_right_panel;
+    }
+    if actions.toggle_float {
+        ws.claude_float = !ws.claude_float;
+    }
+    if actions.toggle_build {
+        ws.show_build_terminal = !ws.show_build_terminal;
+    }
+    if actions.about {
+        ws.show_about = true;
+    }
+    if actions.settings {
+        ws.show_settings = true;
+    }
+    if actions.new_project {
+        ws.show_new_project = true;
+    }
     if actions.build {
-        if let Some(t) = &mut ws.build_terminal { t.send_command("cargo build 2>&1"); }
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("cargo build 2>&1");
+        }
         ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
         ws.build_errors.clear();
     }
     if actions.run {
-        if let Some(t) = &mut ws.build_terminal { t.send_command("cargo run 2>&1"); }
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("cargo run 2>&1");
+        }
     }
     if actions.open_file_picker && ws.file_picker.is_none() {
-        let files = collect_project_files(&ws.root_path);
+        if ws.file_index_rx.is_none() {
+            ws.file_index_rx = Some(spawn_file_index_scan(ws.root_path.clone()));
+        }
+        let files = ws.file_index_cache.clone();
         ws.file_picker = Some(FilePicker::new(files));
     }
     if actions.project_search {
@@ -496,12 +643,23 @@ fn process_menu_actions(
 
     // Spuštění async file dialogu (neblokuje UI vlákno)
     if actions.open_project && ws.folder_pick_rx.is_none() {
-        let projects_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/")).join("MyProject");
-        let _ = std::fs::create_dir_all(&projects_dir);
+        let projects_dir = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("/"))
+            .join("MyProject");
+        if let Err(e) = std::fs::create_dir_all(&projects_dir) {
+            ws.toasts.push(Toast::error(format!(
+                "Nelze připravit adresář projektů: {e}"
+            )));
+        }
         let (tx, rx) = mpsc::channel();
         ws.folder_pick_rx = Some(rx);
         std::thread::spawn(move || {
-            let _ = tx.send((rfd::FileDialog::new().set_directory(&projects_dir).pick_folder(), true));
+            let _ = tx.send((
+                rfd::FileDialog::new()
+                    .set_directory(&projects_dir)
+                    .pick_folder(),
+                true,
+            ));
         });
     }
     if actions.open_folder && ws.folder_pick_rx.is_none() {
@@ -509,7 +667,12 @@ fn process_menu_actions(
         let (tx, rx) = mpsc::channel();
         ws.folder_pick_rx = Some(rx);
         std::thread::spawn(move || {
-            let _ = tx.send((rfd::FileDialog::new().set_directory(&start_dir).pick_folder(), false));
+            let _ = tx.send((
+                rfd::FileDialog::new()
+                    .set_directory(&start_dir)
+                    .pick_folder(),
+                false,
+            ));
         });
     }
 
@@ -517,11 +680,7 @@ fn process_menu_actions(
 }
 
 /// Vykreslí modální dialogy (O aplikaci, Nastavení, Nový projekt).
-fn render_dialogs(
-    ctx: &egui::Context,
-    ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
-) {
+fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
     if ws.show_about {
         let modal = egui::Modal::new(egui::Id::new("about_modal"));
         modal.show(ctx, |ui| {
@@ -531,7 +690,9 @@ fn render_dialogs(
             ui.add_space(8.0);
             ui.label("Jednoduchý textový editor napsaný v Rustu s eframe/egui.");
             ui.add_space(12.0);
-            if ui.button("Zavřít").clicked() { ws.show_about = false; }
+            if ui.button("Zavřít").clicked() {
+                ws.show_about = false;
+            }
         });
     }
 
@@ -540,9 +701,21 @@ fn render_dialogs(
         if ws.settings_draft.is_none() {
             ws.settings_draft = Some(shared.lock().unwrap().settings.clone());
         }
+        if let Some(rx) = ws.settings_folder_pick_rx.as_ref() {
+            if let Ok(picked) = rx.try_recv() {
+                ws.settings_folder_pick_rx = None;
+                if let Some(dir) = picked {
+                    if let Some(draft) = ws.settings_draft.as_mut() {
+                        draft.default_project_path = dir.to_string_lossy().to_string();
+                    }
+                }
+            }
+        }
 
         let mut do_save = false;
         let mut do_close = false;
+        let mut request_settings_browse = false;
+        let mut browse_start_dir: Option<String> = None;
 
         let modal = egui::Modal::new(egui::Id::new("settings_modal"));
         modal.show(ctx, |ui| {
@@ -589,21 +762,36 @@ fn render_dialogs(
                         .desired_width(280.0),
                 );
                 if ui.button("…").clicked() {
-                    if let Some(dir) = rfd::FileDialog::new()
-                        .set_directory(&draft.default_project_path)
-                        .pick_folder()
-                    {
-                        draft.default_project_path = dir.to_string_lossy().to_string();
-                    }
+                    request_settings_browse = true;
+                    browse_start_dir = Some(draft.default_project_path.clone());
                 }
             });
             ui.add_space(14.0);
 
             ui.horizontal(|ui| {
-                if ui.button("Uložit").clicked() { do_save = true; }
-                if ui.button("Zavřít").clicked() { do_close = true; }
+                if ui.button("Uložit").clicked() {
+                    do_save = true;
+                }
+                if ui.button("Zavřít").clicked() {
+                    do_close = true;
+                }
             });
         });
+
+        if request_settings_browse && ws.settings_folder_pick_rx.is_none() {
+            let start_dir = browse_start_dir.unwrap_or_default();
+            let (tx, rx) = mpsc::channel();
+            ws.settings_folder_pick_rx = Some(rx);
+            std::thread::spawn(move || {
+                let dialog = rfd::FileDialog::new();
+                let picked = if start_dir.trim().is_empty() {
+                    dialog.pick_folder()
+                } else {
+                    dialog.set_directory(start_dir).pick_folder()
+                };
+                let _ = tx.send(picked);
+            });
+        }
 
         if do_save {
             let draft = ws.settings_draft.take().unwrap();
@@ -611,18 +799,27 @@ fn render_dialogs(
             ws.wizard.path = draft.default_project_path.clone();
             shared.lock().unwrap().settings = draft;
             ws.show_settings = false;
+            ws.settings_folder_pick_rx = None;
         } else if do_close {
             ws.settings_draft = None;
             ws.show_settings = false;
+            ws.settings_folder_pick_rx = None;
         }
     }
 
     if ws.show_new_project {
-        show_project_wizard(ctx, &mut ws.wizard, &mut ws.show_new_project, "ws_new_project_modal", shared, |path, sh| {
-            let mut sh = sh.lock().unwrap();
-            sh.actions.push(AppAction::AddRecent(path.clone()));
-            sh.actions.push(AppAction::OpenInNewWindow(path));
-        });
+        show_project_wizard(
+            ctx,
+            &mut ws.wizard,
+            &mut ws.show_new_project,
+            "ws_new_project_modal",
+            shared,
+            |path, sh| {
+                let mut sh = sh.lock().unwrap();
+                sh.actions.push(AppAction::AddRecent(path.clone()));
+                sh.actions.push(AppAction::OpenInNewWindow(path));
+            },
+        );
     }
 }
 
@@ -655,7 +852,11 @@ fn render_ai_panel(ctx: &egui::Context, ws: &mut WorkspaceState, dialog_open: bo
                         }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.small_button("⊟").on_hover_text("Přikovat do panelu").clicked() {
+                        if ui
+                            .small_button("⊟")
+                            .on_hover_text("Přikovat do panelu")
+                            .clicked()
+                        {
                             ws.claude_float = false;
                         }
                     });
@@ -670,7 +871,9 @@ fn render_ai_panel(ctx: &egui::Context, ws: &mut WorkspaceState, dialog_open: bo
                     }
                 }
             });
-        if !is_open { ws.show_right_panel = false; }
+        if !is_open {
+            ws.show_right_panel = false;
+        }
     } else {
         egui::SidePanel::right("claude_panel")
             .default_width(config::AI_PANEL_DEFAULT_WIDTH)
@@ -680,7 +883,11 @@ fn render_ai_panel(ctx: &egui::Context, ws: &mut WorkspaceState, dialog_open: bo
                 ui.horizontal(|ui| {
                     ui.heading("AI terminál");
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.small_button("⧉").on_hover_text("Odpojit do plovoucího okna").clicked() {
+                        if ui
+                            .small_button("⧉")
+                            .on_hover_text("Odpojit do plovoucího okna")
+                            .clicked()
+                        {
                             ws.claude_float = true;
                         }
                     });
@@ -740,8 +947,12 @@ fn render_left_panel(ctx: &egui::Context, ws: &mut WorkspaceState, dialog_open: 
                         if let Some(err) = ws.file_tree.take_error() {
                             ws.toasts.push(Toast::error(err));
                         }
-                        if let Some(path) = result.selected { open_file_in_ws(ws, path); }
-                        if let Some(path) = result.created_file { open_file_in_ws(ws, path); }
+                        if let Some(path) = result.selected {
+                            open_file_in_ws(ws, path);
+                        }
+                        if let Some(path) = result.created_file {
+                            open_file_in_ws(ws, path);
+                        }
                         if let Some(deleted) = result.deleted {
                             ws.editor.close_tabs_for_path(&deleted);
                         }
@@ -768,18 +979,26 @@ fn render_build_panel(
         ui.strong("Build");
         ui.separator();
         if ui.small_button("\u{25B6} Build").clicked() {
-            if let Some(t) = &mut ws.build_terminal { t.send_command("cargo build 2>&1"); }
+            if let Some(t) = &mut ws.build_terminal {
+                t.send_command("cargo build 2>&1");
+            }
             ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
             ws.build_errors.clear();
         }
         if ui.small_button("\u{25B6} Run").clicked() {
-            if let Some(t) = &mut ws.build_terminal { t.send_command("cargo run 2>&1"); }
+            if let Some(t) = &mut ws.build_terminal {
+                t.send_command("cargo run 2>&1");
+            }
         }
         if ui.small_button("\u{25B6} Test").clicked() {
-            if let Some(t) = &mut ws.build_terminal { t.send_command("cargo test 2>&1"); }
+            if let Some(t) = &mut ws.build_terminal {
+                t.send_command("cargo test 2>&1");
+            }
         }
         if ui.small_button("\u{2716} Clean").clicked() {
-            if let Some(t) = &mut ws.build_terminal { t.send_command("cargo clean"); }
+            if let Some(t) = &mut ws.build_terminal {
+                t.send_command("cargo clean");
+            }
         }
     });
     ui.separator();
@@ -795,7 +1014,11 @@ fn render_build_panel(
 
     if !ws.build_errors.is_empty() {
         ui.separator();
-        ui.label(egui::RichText::new(format!("Chyby ({})", ws.build_errors.len())).strong().size(12.0));
+        ui.label(
+            egui::RichText::new(format!("Chyby ({})", ws.build_errors.len()))
+                .strong()
+                .size(12.0),
+        );
         let mut open_error_file: Option<(PathBuf, usize)> = None;
         egui::ScrollArea::vertical()
             .id_salt("build_errors_scroll")
@@ -808,7 +1031,8 @@ fn render_build_panel(
                     } else {
                         egui::Color32::from_rgb(230, 80, 80)
                     };
-                    let text = format!("{}:{}  {}", error.file.display(), error.line, error.message);
+                    let text =
+                        format!("{}:{}  {}", error.file.display(), error.line, error.message);
                     let r = ui.add(
                         egui::Label::new(egui::RichText::new(&text).size(11.0).color(color))
                             .sense(egui::Sense::click()),
@@ -855,7 +1079,8 @@ fn render_build_panel(
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     for result in &ws.project_search.results {
-                        let text = format!("{}:{}  {}", result.file.display(), result.line, result.text);
+                        let text =
+                            format!("{}:{}  {}", result.file.display(), result.line, result.text);
                         let r = ui.add(
                             egui::Label::new(
                                 egui::RichText::new(&text)
@@ -880,7 +1105,9 @@ fn render_build_panel(
 /// Vykreslí toast notifikace v pravém dolním rohu. Odstraní vypršelé toasty.
 fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
     ws.toasts.retain(|t| !t.is_expired());
-    if ws.toasts.is_empty() { return; }
+    if ws.toasts.is_empty() {
+        return;
+    }
 
     let screen = ctx.screen_rect();
     let toast_w = 340.0_f32;
@@ -894,9 +1121,15 @@ fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
         .show(ctx, |ui| {
             for toast in &ws.toasts {
                 let (bg, fg) = if toast.is_error {
-                    (egui::Color32::from_rgb(90, 30, 30), egui::Color32::from_rgb(255, 180, 170))
+                    (
+                        egui::Color32::from_rgb(90, 30, 30),
+                        egui::Color32::from_rgb(255, 180, 170),
+                    )
                 } else {
-                    (egui::Color32::from_rgb(30, 60, 45), egui::Color32::from_rgb(160, 230, 180))
+                    (
+                        egui::Color32::from_rgb(30, 60, 45),
+                        egui::Color32::from_rgb(160, 230, 180),
+                    )
                 };
                 egui::Frame::new()
                     .fill(bg)
@@ -904,7 +1137,11 @@ fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
                     .inner_margin(egui::Margin::symmetric(12, 10))
                     .show(ui, |ui| {
                         ui.set_min_width(toast_w);
-                        ui.label(egui::RichText::new(&toast.message).color(fg).size(config::UI_FONT_SIZE));
+                        ui.label(
+                            egui::RichText::new(&toast.message)
+                                .color(fg)
+                                .size(config::UI_FONT_SIZE),
+                        );
                     });
                 ui.add_space(padding);
             }
@@ -926,7 +1163,9 @@ fn fetch_git_branch(root: &PathBuf) -> mpsc::Receiver<Option<String>> {
             .ok()
             .and_then(|o| {
                 if o.status.success() {
-                    String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                    String::from_utf8(o.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
                 } else {
                     None
                 }
@@ -939,37 +1178,48 @@ fn fetch_git_branch(root: &PathBuf) -> mpsc::Receiver<Option<String>> {
 fn git_status_color(x: char, y: char) -> egui::Color32 {
     match (x, y) {
         ('?', '?') => egui::Color32::from_rgb(150, 150, 150), // untracked — šedá
-        ('D', _) | (_, 'D') => egui::Color32::from_rgb(210, 80, 80),  // smazáno — červená
-        ('A', _) => egui::Color32::from_rgb(100, 200, 110),            // přidáno — zelená
-        _ => egui::Color32::from_rgb(220, 180, 60),                    // upraveno — zlatá
+        ('D', _) | (_, 'D') => egui::Color32::from_rgb(210, 80, 80), // smazáno — červená
+        ('A', _) => egui::Color32::from_rgb(100, 200, 110),   // přidáno — zelená
+        _ => egui::Color32::from_rgb(220, 180, 60),           // upraveno — zlatá
     }
 }
 
-fn fetch_git_status(root: &PathBuf) -> mpsc::Receiver<std::collections::HashMap<PathBuf, egui::Color32>> {
+fn fetch_git_status(
+    root: &PathBuf,
+) -> mpsc::Receiver<std::collections::HashMap<PathBuf, egui::Color32>> {
     let (tx, rx) = mpsc::channel();
     let root = root.clone();
     std::thread::spawn(move || {
         let mut colors = std::collections::HashMap::new();
         if let Ok(output) = std::process::Command::new("git")
-            .args(["status", "--porcelain"])
+            .args(["status", "--porcelain=v1", "-z"])
             .current_dir(&root)
             .output()
         {
             if output.status.success() {
-                for line in String::from_utf8_lossy(&output.stdout).lines() {
-                    if line.len() < 4 { continue; }
-                    let mut chars = line.chars();
-                    let x = chars.next().unwrap_or(' ');
-                    let y = chars.next().unwrap_or(' ');
-                    let path_str = &line[3..];
-                    // Zpracování přejmenování: "old -> new"
-                    let path_str = if let Some(arrow) = path_str.find(" -> ") {
-                        &path_str[arrow + 4..]
-                    } else {
-                        path_str
-                    };
-                    let abs = root.join(path_str.trim_matches('"'));
-                    colors.insert(abs, git_status_color(x, y));
+                let entries: Vec<&[u8]> = output
+                    .stdout
+                    .split(|b| *b == 0)
+                    .filter(|chunk| !chunk.is_empty())
+                    .collect();
+                let mut i = 0usize;
+                while i < entries.len() {
+                    let entry = entries[i];
+                    if entry.len() < 4 {
+                        i += 1;
+                        continue;
+                    }
+                    let x = entry[0] as char;
+                    let y = entry[1] as char;
+                    let mut path_bytes = &entry[3..];
+                    // U rename/copy je cíl v následujícím NUL odděleném poli.
+                    if matches!(x, 'R' | 'C') && i + 1 < entries.len() {
+                        i += 1;
+                        path_bytes = entries[i];
+                    }
+                    let rel = String::from_utf8_lossy(path_bytes);
+                    colors.insert(root.join(rel.as_ref()), git_status_color(x, y));
+                    i += 1;
                 }
             }
         }
@@ -984,7 +1234,9 @@ fn fetch_git_status(root: &PathBuf) -> mpsc::Receiver<std::collections::HashMap<
 
 /// Subsequence fuzzy match — pattern znaky musí být v textu v pořadí, ale nemusí sousedit.
 fn fuzzy_match(pattern: &str, text: &str) -> bool {
-    if pattern.is_empty() { return true; }
+    if pattern.is_empty() {
+        return true;
+    }
     let mut text_chars = text.chars();
     for pc in pattern.chars() {
         loop {
@@ -999,28 +1251,57 @@ fn fuzzy_match(pattern: &str, text: &str) -> bool {
 }
 
 const EXCLUDED_DIRS: &[&str] = &[
-    "target", ".git", "node_modules", "vendor", ".idea", ".vscode", ".cache",
+    "target",
+    ".git",
+    "node_modules",
+    "vendor",
+    ".idea",
+    ".vscode",
+    ".cache",
 ];
 
 /// Rekurzivně sbírá soubory projektu (relativní cesty), vynechává nevýznamné adresáře.
 fn collect_project_files(root: &PathBuf) -> Vec<PathBuf> {
     let mut files = Vec::new();
-    collect_files_recursive(root, root, &mut files);
+    let mut visited = HashSet::new();
+    if let Ok(canonical_root) = root.canonicalize() {
+        visited.insert(canonical_root);
+    }
+    collect_files_recursive(root.as_path(), root.as_path(), &mut files, &mut visited);
     files.sort();
     files
 }
 
-fn collect_files_recursive(root: &PathBuf, dir: &PathBuf, files: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+fn collect_files_recursive(
+    root: &Path,
+    dir: &Path,
+    files: &mut Vec<PathBuf>,
+    visited: &mut HashSet<PathBuf>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         let name = entry.file_name();
         let name_str = name.to_string_lossy();
-        if name_str.starts_with('.') { continue; }
-        if EXCLUDED_DIRS.contains(&name_str.as_ref()) { continue; }
-        if path.is_dir() {
-            collect_files_recursive(root, &path, files);
-        } else if path.is_file() {
+        if EXCLUDED_DIRS.contains(&name_str.as_ref()) {
+            continue;
+        }
+        let Ok(meta) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+        if meta.file_type().is_symlink() {
+            continue;
+        }
+        if meta.is_dir() {
+            if let Ok(canonical) = path.canonicalize() {
+                if !visited.insert(canonical) {
+                    continue;
+                }
+            }
+            collect_files_recursive(root, &path, files, visited);
+        } else if meta.is_file() {
             if let Ok(rel) = path.strip_prefix(root) {
                 files.push(rel.to_path_buf());
             }
@@ -1036,14 +1317,18 @@ fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -> Option<Pa
     let picker = ws.file_picker.as_mut()?;
 
     // Globální klávesy pro navigaci (čteme před renderem, aby fungovaly i při focus na TextEdit)
-    let key_up    = ctx.input(|i| i.key_pressed(egui::Key::ArrowUp));
-    let key_down  = ctx.input(|i| i.key_pressed(egui::Key::ArrowDown));
+    let key_up = ctx.input(|i| i.key_pressed(egui::Key::ArrowUp));
+    let key_down = ctx.input(|i| i.key_pressed(egui::Key::ArrowDown));
     let key_enter = ctx.input(|i| i.key_pressed(egui::Key::Enter));
-    let key_esc   = ctx.input(|i| i.key_pressed(egui::Key::Escape));
+    let key_esc = ctx.input(|i| i.key_pressed(egui::Key::Escape));
 
     let filtered_len = picker.filtered.len();
-    if key_up && picker.selected > 0 { picker.selected -= 1; }
-    if key_down && picker.selected + 1 < filtered_len { picker.selected += 1; }
+    if key_up && picker.selected > 0 {
+        picker.selected -= 1;
+    }
+    if key_down && picker.selected + 1 < filtered_len {
+        picker.selected += 1;
+    }
 
     let mut selected_file: Option<PathBuf> = None;
     let mut close = key_esc;
@@ -1072,8 +1357,12 @@ fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -> Option<Pa
                     .desired_width(500.0)
                     .id(egui::Id::new("file_picker_input")),
             );
-            if focus_req { resp.request_focus(); }
-            if resp.changed() { picker.update_filter(); }
+            if focus_req {
+                resp.request_focus();
+            }
+            if resp.changed() {
+                picker.update_filter();
+            }
 
             let count_label = if picker.query.is_empty() {
                 format!("{} souborů", total)
@@ -1095,7 +1384,9 @@ fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -> Option<Pa
                             .monospace()
                             .size(12.0);
                         let r = ui.selectable_label(is_sel, text);
-                        if is_sel { r.scroll_to_me(None); }
+                        if is_sel {
+                            r.scroll_to_me(None);
+                        }
                         if r.clicked() {
                             selected_file = Some(ws.root_path.join(path));
                             close = true;
@@ -1103,9 +1394,12 @@ fn render_file_picker(ctx: &egui::Context, ws: &mut WorkspaceState) -> Option<Pa
                     }
                     if picker.filtered.len() > max_show {
                         ui.label(
-                            egui::RichText::new(format!("… a {} dalších", picker.filtered.len() - max_show))
-                                .weak()
-                                .size(11.0),
+                            egui::RichText::new(format!(
+                                "… a {} dalších",
+                                picker.filtered.len() - max_show
+                            ))
+                            .weak()
+                            .size(11.0),
                         );
                     }
                 });
@@ -1133,7 +1427,9 @@ fn run_project_search(root: PathBuf, query: String) -> mpsc::Receiver<Vec<Search
         let mut results = Vec::new();
         'outer: for rel in files {
             let abs = root.join(&rel);
-            let Ok(content) = std::fs::read_to_string(&abs) else { continue };
+            let Ok(content) = std::fs::read_to_string(&abs) else {
+                continue;
+            };
             for (idx, line) in content.lines().enumerate() {
                 if line.to_lowercase().contains(&q) {
                     results.push(SearchResult {
@@ -1141,7 +1437,9 @@ fn run_project_search(root: PathBuf, query: String) -> mpsc::Receiver<Vec<Search
                         line: idx + 1,
                         text: line.trim().to_string(),
                     });
-                    if results.len() >= 2000 { break 'outer; }
+                    if results.len() >= 2000 {
+                        break 'outer;
+                    }
                 }
             }
         }
@@ -1152,7 +1450,9 @@ fn run_project_search(root: PathBuf, query: String) -> mpsc::Receiver<Vec<Search
 
 /// Dialog pro zadání hledaného výrazu.
 fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState) {
-    if !ws.project_search.show_input { return; }
+    if !ws.project_search.show_input {
+        return;
+    }
 
     let focus_req = ws.project_search.focus_requested;
     let mut start_search = false;
@@ -1168,14 +1468,20 @@ fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState) {
                 .desired_width(380.0)
                 .id(egui::Id::new("project_search_input")),
         );
-        if focus_req { resp.request_focus(); }
+        if focus_req {
+            resp.request_focus();
+        }
         if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
             start_search = true;
         }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.button("Hledat").clicked() { start_search = true; }
-            if ui.button("Zrušit").clicked() { close = true; }
+            if ui.button("Hledat").clicked() {
+                start_search = true;
+            }
+            if ui.button("Zrušit").clicked() {
+                close = true;
+            }
         });
     });
 
@@ -1206,7 +1512,12 @@ pub(crate) fn render_workspace(
 ) -> Option<PathBuf> {
     // Lazy init terminálů
     if ws.claude_terminal.is_none() {
-        ws.claude_terminal = Some(Terminal::new(0, ctx, &ws.root_path, Some(ws.claude_tool.command())));
+        ws.claude_terminal = Some(Terminal::new(
+            0,
+            ctx,
+            &ws.root_path,
+            Some(ws.claude_tool.command()),
+        ));
     }
     if ws.build_terminal.is_none() {
         ws.build_terminal = Some(Terminal::new(1, ctx, &ws.root_path, None));
@@ -1216,7 +1527,9 @@ pub(crate) fn render_workspace(
     process_background_events(ws);
 
     // Pravidelné překreslování pro autosave a watcher
-    ctx.request_repaint_after(std::time::Duration::from_millis(config::REPAINT_INTERVAL_MS));
+    ctx.request_repaint_after(std::time::Duration::from_millis(
+        config::REPAINT_INTERVAL_MS,
+    ));
 
     // Klávesové zkratky
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
@@ -1226,19 +1539,28 @@ pub(crate) fn render_workspace(
             ws.git_status_rx = Some(fetch_git_status(&ws.root_path));
         }
     }
-    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) { ws.editor.clear(); }
+    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) {
+        ws.editor.clear();
+    }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::B)) {
-        if let Some(t) = &mut ws.build_terminal { t.send_command("cargo build 2>&1"); }
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("cargo build 2>&1");
+        }
         ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
         ws.build_errors.clear();
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R)) {
-        if let Some(t) = &mut ws.build_terminal { t.send_command("cargo run 2>&1"); }
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("cargo run 2>&1");
+        }
     }
     // Ctrl+P — fuzzy file picker
     if ctx.input(|i| i.modifiers.ctrl && !i.modifiers.shift && i.key_pressed(egui::Key::P)) {
         if ws.file_picker.is_none() {
-            let files = collect_project_files(&ws.root_path);
+            if ws.file_index_rx.is_none() {
+                ws.file_index_rx = Some(spawn_file_index_scan(ws.root_path.clone()));
+            }
+            let files = ws.file_index_cache.clone();
             ws.file_picker = Some(FilePicker::new(files));
         } else {
             ws.file_picker = None;
@@ -1268,7 +1590,9 @@ pub(crate) fn render_workspace(
     // Status bar (musí být před SidePanel)
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
-        .show(ctx, |ui| { ws.editor.status_bar(ui, ws.git_branch.as_deref()); });
+        .show(ctx, |ui| {
+            ws.editor.status_bar(ui, ws.git_branch.as_deref());
+        });
 
     let dialog_open = ws.file_tree.has_open_dialog();
 
@@ -1284,9 +1608,11 @@ pub(crate) fn render_workspace(
 
     // Focus follows mouse — vrátit fokus editoru pokud terminál nebyl aktivně kliknut
     if !ai_clicked && !left_clicked {
-        let in_terminal = ws.focused_panel == FocusedPanel::Claude
-            || ws.focused_panel == FocusedPanel::Build;
-        if in_terminal { ws.focused_panel = FocusedPanel::Editor; }
+        let in_terminal =
+            ws.focused_panel == FocusedPanel::Claude || ws.focused_panel == FocusedPanel::Build;
+        if in_terminal {
+            ws.focused_panel = FocusedPanel::Editor;
+        }
     }
 
     // Toast notifikace

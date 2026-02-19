@@ -5,9 +5,9 @@ use eframe::egui;
 
 use crate::highlighter::Highlighter;
 
-mod search;
-mod render;
 mod markdown;
+mod render;
+mod search;
 
 const AUTOSAVE_DELAY_MS: u128 = 500;
 
@@ -299,9 +299,15 @@ impl Editor {
             return false;
         }
 
-        let ctrl_f = ui.ctx().input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::F));
-        let ctrl_h = ui.ctx().input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::H));
-        let ctrl_g = ui.ctx().input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::G));
+        let ctrl_f = ui
+            .ctx()
+            .input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::F));
+        let ctrl_h = ui
+            .ctx()
+            .input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::H));
+        let ctrl_g = ui
+            .ctx()
+            .input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::G));
         let escape = ui.ctx().input(|i| i.key_pressed(egui::Key::Escape));
 
         if ctrl_f {
@@ -368,9 +374,15 @@ impl Editor {
             ui.separator();
             match tab.save_status {
                 SaveStatus::None => {}
-                SaveStatus::Modified => { ui.label("Neuloženo"); }
-                SaveStatus::Saving  => { ui.label("Ukládání…"); }
-                SaveStatus::Saved   => { ui.label("Uloženo"); }
+                SaveStatus::Modified => {
+                    ui.label("Neuloženo");
+                }
+                SaveStatus::Saving => {
+                    ui.label("Ukládání…");
+                }
+                SaveStatus::Saved => {
+                    ui.label("Uloženo");
+                }
             }
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -400,29 +412,29 @@ impl Editor {
 
 pub(super) fn ext_to_file_type(ext: &str) -> &'static str {
     match ext {
-        "rs"                => "Rust",
-        "php"               => "PHP",
-        "js" | "mjs"        => "JavaScript",
-        "ts"                => "TypeScript",
-        "tsx"               => "TSX",
-        "jsx"               => "JSX",
-        "md" | "markdown"   => "Markdown",
-        "html" | "htm"      => "HTML",
-        "css"               => "CSS",
-        "scss"              => "SCSS",
-        "json"              => "JSON",
-        "toml"              => "TOML",
-        "yaml" | "yml"      => "YAML",
-        "sh" | "bash"       => "Shell",
-        "py"                => "Python",
-        "c"                 => "C",
+        "rs" => "Rust",
+        "php" => "PHP",
+        "js" | "mjs" => "JavaScript",
+        "ts" => "TypeScript",
+        "tsx" => "TSX",
+        "jsx" => "JSX",
+        "md" | "markdown" => "Markdown",
+        "html" | "htm" => "HTML",
+        "css" => "CSS",
+        "scss" => "SCSS",
+        "json" => "JSON",
+        "toml" => "TOML",
+        "yaml" | "yml" => "YAML",
+        "sh" | "bash" => "Shell",
+        "py" => "Python",
+        "c" => "C",
         "cpp" | "cc" | "cxx" => "C++",
-        "h" | "hpp"         => "C/C++ Header",
-        "go"                => "Go",
-        "java"              => "Java",
-        "xml"               => "XML",
-        "sql"               => "SQL",
-        "txt"               => "Text",
-        _                   => "Plain text",
+        "h" | "hpp" => "C/C++ Header",
+        "go" => "Go",
+        "java" => "Java",
+        "xml" => "XML",
+        "sql" => "SQL",
+        "txt" => "Text",
+        _ => "Plain text",
     }
 }

@@ -17,7 +17,13 @@ impl Highlighter {
         }
     }
 
-    pub fn highlight(&self, text: &str, extension: &str, filename: &str, font_size: f32) -> egui::text::LayoutJob {
+    pub fn highlight(
+        &self,
+        text: &str,
+        extension: &str,
+        filename: &str,
+        font_size: f32,
+    ) -> egui::text::LayoutJob {
         let mut job = egui::text::LayoutJob::default();
 
         let is_env_file = filename.starts_with(".env");
@@ -52,7 +58,11 @@ impl Highlighter {
         for line in LinesWithEndings::from(text) {
             let ranges = h.highlight_line(line, &self.syntax_set).unwrap_or_default();
             for (style, segment) in ranges {
-                let color = egui::Color32::from_rgb(style.foreground.r, style.foreground.g, style.foreground.b);
+                let color = egui::Color32::from_rgb(
+                    style.foreground.r,
+                    style.foreground.g,
+                    style.foreground.b,
+                );
                 let mut text_format = egui::TextFormat {
                     font_id: egui::FontId::monospace(font_size),
                     color,

@@ -21,7 +21,10 @@ impl Editor {
                     let mut text = String::new();
                     while i < events.len() {
                         match &events[i] {
-                            Event::End(TagEnd::Heading(_)) => { i += 1; break; }
+                            Event::End(TagEnd::Heading(_)) => {
+                                i += 1;
+                                break;
+                            }
                             Event::Text(t) => text.push_str(t),
                             Event::Code(c) => text.push_str(c),
                             Event::SoftBreak => text.push(' '),
@@ -49,18 +52,25 @@ impl Editor {
                     let mut job = egui::text::LayoutJob::default();
                     while i < events.len() {
                         match &events[i] {
-                            Event::End(TagEnd::Paragraph) => { i += 1; break; }
-                            Event::Text(t) => {
-                                job.append(t, 0.0, egui::TextFormat {
-                                    font_id: egui::FontId::proportional(14.0),
-                                    color: text_color,
-                                    ..Default::default()
-                                });
+                            Event::End(TagEnd::Paragraph) => {
+                                i += 1;
+                                break;
                             }
-                            Event::Start(Tag::Strong)       => {}
-                            Event::End(TagEnd::Strong)      => {}
-                            Event::Start(Tag::Emphasis)     => {}
-                            Event::End(TagEnd::Emphasis)    => {}
+                            Event::Text(t) => {
+                                job.append(
+                                    t,
+                                    0.0,
+                                    egui::TextFormat {
+                                        font_id: egui::FontId::proportional(14.0),
+                                        color: text_color,
+                                        ..Default::default()
+                                    },
+                                );
+                            }
+                            Event::Start(Tag::Strong) => {}
+                            Event::End(TagEnd::Strong) => {}
+                            Event::Start(Tag::Emphasis) => {}
+                            Event::End(TagEnd::Emphasis) => {}
                             Event::Start(Tag::Strikethrough) => {}
                             Event::End(TagEnd::Strikethrough) => {}
                             Event::Start(Tag::Link { dest_url, .. }) => {
@@ -69,15 +79,19 @@ impl Editor {
                                 while i < events.len() {
                                     match &events[i] {
                                         Event::Text(t) => {
-                                            job.append(t, 0.0, egui::TextFormat {
-                                                font_id: egui::FontId::proportional(14.0),
-                                                color: egui::Color32::from_rgb(100, 160, 255),
-                                                underline: egui::Stroke::new(
-                                                    1.0,
-                                                    egui::Color32::from_rgb(100, 160, 255),
-                                                ),
-                                                ..Default::default()
-                                            });
+                                            job.append(
+                                                t,
+                                                0.0,
+                                                egui::TextFormat {
+                                                    font_id: egui::FontId::proportional(14.0),
+                                                    color: egui::Color32::from_rgb(100, 160, 255),
+                                                    underline: egui::Stroke::new(
+                                                        1.0,
+                                                        egui::Color32::from_rgb(100, 160, 255),
+                                                    ),
+                                                    ..Default::default()
+                                                },
+                                            );
                                         }
                                         Event::End(TagEnd::Link) => break,
                                         _ => {}
@@ -86,26 +100,38 @@ impl Editor {
                                 }
                             }
                             Event::Code(c) => {
-                                job.append(c, 0.0, egui::TextFormat {
-                                    font_id: egui::FontId::monospace(13.0),
-                                    color: egui::Color32::from_rgb(230, 180, 100),
-                                    background: egui::Color32::from_rgb(50, 55, 65),
-                                    ..Default::default()
-                                });
+                                job.append(
+                                    c,
+                                    0.0,
+                                    egui::TextFormat {
+                                        font_id: egui::FontId::monospace(13.0),
+                                        color: egui::Color32::from_rgb(230, 180, 100),
+                                        background: egui::Color32::from_rgb(50, 55, 65),
+                                        ..Default::default()
+                                    },
+                                );
                             }
                             Event::SoftBreak => {
-                                job.append(" ", 0.0, egui::TextFormat {
-                                    font_id: egui::FontId::proportional(14.0),
-                                    color: text_color,
-                                    ..Default::default()
-                                });
+                                job.append(
+                                    " ",
+                                    0.0,
+                                    egui::TextFormat {
+                                        font_id: egui::FontId::proportional(14.0),
+                                        color: text_color,
+                                        ..Default::default()
+                                    },
+                                );
                             }
                             Event::HardBreak => {
-                                job.append("\n", 0.0, egui::TextFormat {
-                                    font_id: egui::FontId::proportional(14.0),
-                                    color: text_color,
-                                    ..Default::default()
-                                });
+                                job.append(
+                                    "\n",
+                                    0.0,
+                                    egui::TextFormat {
+                                        font_id: egui::FontId::proportional(14.0),
+                                        color: text_color,
+                                        ..Default::default()
+                                    },
+                                );
                             }
                             _ => {}
                         }
@@ -120,7 +146,10 @@ impl Editor {
                     let mut code_text = String::new();
                     while i < events.len() {
                         match &events[i] {
-                            Event::End(TagEnd::CodeBlock) => { i += 1; break; }
+                            Event::End(TagEnd::CodeBlock) => {
+                                i += 1;
+                                break;
+                            }
                             Event::Text(t) => code_text.push_str(t),
                             _ => {}
                         }
@@ -145,16 +174,26 @@ impl Editor {
                     i += 1;
                     while i < events.len() {
                         match &events[i] {
-                            Event::End(TagEnd::List(_)) => { i += 1; break; }
+                            Event::End(TagEnd::List(_)) => {
+                                i += 1;
+                                break;
+                            }
                             Event::Start(Tag::Item) => {
                                 i += 1;
                                 let mut item_text = String::new();
                                 let mut depth = 0;
                                 while i < events.len() {
                                     match &events[i] {
-                                        Event::Start(Tag::Paragraph) if depth == 0 => { depth += 1; }
-                                        Event::End(TagEnd::Paragraph) if depth > 0 => { depth -= 1; }
-                                        Event::End(TagEnd::Item) => { i += 1; break; }
+                                        Event::Start(Tag::Paragraph) if depth == 0 => {
+                                            depth += 1;
+                                        }
+                                        Event::End(TagEnd::Paragraph) if depth > 0 => {
+                                            depth -= 1;
+                                        }
+                                        Event::End(TagEnd::Item) => {
+                                            i += 1;
+                                            break;
+                                        }
                                         Event::Text(t) => item_text.push_str(t),
                                         Event::Code(c) => {
                                             item_text.push('`');
@@ -193,7 +232,10 @@ impl Editor {
                         match &events[i] {
                             Event::Start(Tag::BlockQuote(_)) => depth += 1,
                             Event::End(TagEnd::BlockQuote(_)) if depth > 0 => depth -= 1,
-                            Event::End(TagEnd::BlockQuote(_)) => { i += 1; break; }
+                            Event::End(TagEnd::BlockQuote(_)) => {
+                                i += 1;
+                                break;
+                            }
                             Event::Text(t) => quote_text.push_str(t),
                             Event::SoftBreak => quote_text.push(' '),
                             Event::Start(Tag::Paragraph) | Event::End(TagEnd::Paragraph) => {}
@@ -203,7 +245,12 @@ impl Editor {
                     }
                     egui::Frame::new()
                         .fill(egui::Color32::from_rgb(50, 55, 65))
-                        .inner_margin(egui::Margin { left: 12, right: 8, top: 6, bottom: 6 })
+                        .inner_margin(egui::Margin {
+                            left: 12,
+                            right: 8,
+                            top: 6,
+                            bottom: 6,
+                        })
                         .show(ui, |ui| {
                             let rt = egui::RichText::new(&quote_text)
                                 .size(14.0)
@@ -218,7 +265,9 @@ impl Editor {
                     ui.add_space(4.0);
                     i += 1;
                 }
-                _ => { i += 1; }
+                _ => {
+                    i += 1;
+                }
             }
         }
     }

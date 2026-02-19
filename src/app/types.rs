@@ -102,12 +102,20 @@ pub(crate) struct Toast {
 
 impl Toast {
     pub(crate) fn error(message: impl Into<String>) -> Self {
-        Self { message: message.into(), created: std::time::Instant::now(), is_error: true }
+        Self {
+            message: message.into(),
+            created: std::time::Instant::now(),
+            is_error: true,
+        }
     }
 
     #[allow(dead_code)]
     pub(crate) fn info(message: impl Into<String>) -> Self {
-        Self { message: message.into(), created: std::time::Instant::now(), is_error: false }
+        Self {
+            message: message.into(),
+            created: std::time::Instant::now(),
+            is_error: false,
+        }
     }
 
     pub(crate) fn is_expired(&self) -> bool {
@@ -124,7 +132,12 @@ pub(crate) fn path_env() -> String {
     let current = std::env::var("PATH").unwrap_or_default();
     let cargo_bin = home.join(".cargo/bin");
     let local_bin = home.join(".local/bin");
-    format!("{}:{}:{}", cargo_bin.display(), local_bin.display(), current)
+    format!(
+        "{}:{}:{}",
+        cargo_bin.display(),
+        local_bin.display(),
+        current
+    )
 }
 
 pub(crate) fn default_wizard_path() -> String {

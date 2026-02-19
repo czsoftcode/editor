@@ -1,18 +1,21 @@
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 
-pub(crate) mod modules;
-mod types;
 mod build_runner;
 mod dialogs;
+pub(crate) mod modules;
+mod types;
 mod workspace;
 
+use dialogs::{
+    QuitDialogResult, StartupAction, WizardState, show_project_wizard, show_quit_confirm_dialog,
+    show_startup_dialog,
+};
 use types::*;
-use dialogs::{WizardState, show_project_wizard, show_quit_confirm_dialog, QuitDialogResult,
-              show_startup_dialog, StartupAction};
-use workspace::{WorkspaceState, SecondaryWorkspace, ws_to_panel_state, init_workspace,
-                render_workspace};
+use workspace::{
+    SecondaryWorkspace, WorkspaceState, init_workspace, render_workspace, ws_to_panel_state,
+};
 
 use crate::config;
 use crate::ipc::{self, Ipc, IpcServer};
@@ -38,6 +41,7 @@ pub struct EditorApp {
 
     // --- Startup dialog ---
     path_buffer: String,
+    startup_browse_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
 
     // --- Wizard nového projektu (startup screen) ---
     show_startup_wizard: bool,
@@ -57,7 +61,8 @@ pub struct EditorApp {
 
 impl EditorApp {
     pub fn new(cc: &eframe::CreationContext, root_path: Option<PathBuf>) -> Self {
-        let panel_state: PersistentState = cc.storage
+        let panel_state: PersistentState = cc
+            .storage
             .and_then(|s| eframe::get_value(s, STORAGE_KEY))
             .unwrap_or_default();
 
@@ -87,13 +92,14 @@ impl EditorApp {
         }
 
         // Inicializovat kořenový workspace
-        let root_ws = paths_to_open.first().map(|p| {
-            init_workspace(p.clone(), &panel_state)
-        });
+        let root_ws = paths_to_open
+            .first()
+            .map(|p| init_workspace(p.clone(), &panel_state));
 
         // Inicializovat sekundární workspacy ze session
         let mut counter = 0u64;
-        let secondary: Vec<SecondaryWorkspace> = paths_to_open.get(1..)
+        let secondary: Vec<SecondaryWorkspace> = paths_to_open
+            .get(1..)
             .unwrap_or(&[])
             .iter()
             .map(|p| {
@@ -134,6 +140,8 @@ impl EditorApp {
             .join("MyProject")
             .to_string_lossy()
             .to_string();
+        let mut startup_wizard = WizardState::default();
+        startup_wizard.path = projects_dir;
 
         Self {
             root_ws,
@@ -142,8 +150,9 @@ impl EditorApp {
             next_viewport_counter: counter,
             saved_panel_state: panel_state,
             path_buffer: home,
+            startup_browse_rx: None,
             show_startup_wizard: false,
-            startup_wizard: WizardState { path: projects_dir, ..WizardState::default() },
+            startup_wizard,
             show_quit_confirm: false,
             quit_confirmed: false,
             _ipc_server: ipc_server,
@@ -152,7 +161,8 @@ impl EditorApp {
     }
 
     fn current_panel_state(&self) -> PersistentState {
-        self.root_ws.as_ref()
+        self.root_ws
+            .as_ref()
             .map(ws_to_panel_state)
             .unwrap_or_else(|| self.saved_panel_state.clone())
     }
@@ -185,15 +195,24 @@ impl EditorApp {
 
     fn open_in_new_window(&mut self, path: PathBuf, ctx: &egui::Context) {
         // Zkontrolovat, zda projekt již není otevřen v tomto procesu
-        let already_open = self.root_ws.as_ref().map(|ws| ws.root_path == path).unwrap_or(false)
+        let already_open = self
+            .root_ws
+            .as_ref()
+            .map(|ws| ws.root_path == path)
+            .unwrap_or(false)
             || self.secondary.iter().any(|sw| {
-                sw.state.try_lock().ok().map(|ws| ws.root_path == path).unwrap_or(false)
+                sw.state
+                    .try_lock()
+                    .ok()
+                    .map(|ws| ws.root_path == path)
+                    .unwrap_or(false)
             });
         if already_open {
             return;
         }
 
-        let vid = egui::ViewportId::from_hash_of(format!("workspace_{}", self.next_viewport_counter));
+        let vid =
+            egui::ViewportId::from_hash_of(format!("workspace_{}", self.next_viewport_counter));
         self.next_viewport_counter += 1;
         let panel_state = self.current_panel_state();
         let ws = init_workspace(path.clone(), &panel_state);
@@ -235,7 +254,9 @@ impl EditorApp {
             let shared_arc = Arc::clone(&self.shared);
             let vid = sw.viewport_id;
 
-            let title = sw.state.try_lock()
+            let title = sw
+                .state
+                .try_lock()
                 .map(|ws| format!("Rust Editor — {}", ws.root_path.display()))
                 .unwrap_or_else(|_| "Rust Editor".to_string());
 
@@ -248,7 +269,11 @@ impl EditorApp {
                     // Zavření sekundárního okna — informovat root viewport
                     if ctx.input(|i| i.viewport().close_requested()) {
                         ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                        shared_arc.lock().unwrap().actions.push(AppAction::CloseWorkspace(vid));
+                        shared_arc
+                            .lock()
+                            .unwrap()
+                            .actions
+                            .push(AppAction::CloseWorkspace(vid));
                         return;
                     }
 
@@ -257,10 +282,15 @@ impl EditorApp {
                         let panel = ws_to_panel_state(&ws);
                         let new_path_clone = new_path.clone();
                         *ws = init_workspace(new_path, &panel);
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Title(
-                            format!("Rust Editor — {}", ws.root_path.display())
-                        ));
-                        shared_arc.lock().unwrap().actions.push(AppAction::AddRecent(new_path_clone));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
+                            "Rust Editor — {}",
+                            ws.root_path.display()
+                        )));
+                        shared_arc
+                            .lock()
+                            .unwrap()
+                            .actions
+                            .push(AppAction::AddRecent(new_path_clone));
                     }
                 },
             );
@@ -284,7 +314,13 @@ impl EditorApp {
 
     fn do_startup_dialog(&mut self, ctx: &egui::Context) {
         let recent_snapshot = self.shared.lock().unwrap().recent_projects.clone();
-        match show_startup_dialog(ctx, &mut self.path_buffer, self.show_startup_wizard, &recent_snapshot) {
+        match show_startup_dialog(
+            ctx,
+            &mut self.path_buffer,
+            self.show_startup_wizard,
+            &recent_snapshot,
+            &mut self.startup_browse_rx,
+        ) {
             StartupAction::OpenPath(path) => {
                 self.open_workspace_from_startup(ctx, path);
             }
@@ -296,9 +332,10 @@ impl EditorApp {
     }
 
     fn open_workspace_from_startup(&mut self, ctx: &egui::Context, path: PathBuf) {
-        ctx.send_viewport_cmd(egui::ViewportCommand::Title(
-            format!("Rust Editor — {}", path.display()),
-        ));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
+            "Rust Editor — {}",
+            path.display()
+        )));
         Ipc::register(&path);
         self.push_recent(path.clone());
         let ps = self.current_panel_state();
@@ -390,9 +427,10 @@ impl eframe::App for EditorApp {
                 let panel = ws_to_panel_state(&ws);
                 let new_path_clone = new_path.clone();
                 ws = init_workspace(new_path, &panel);
-                ctx.send_viewport_cmd(egui::ViewportCommand::Title(
-                    format!("Rust Editor — {}", ws.root_path.display())
-                ));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
+                    "Rust Editor — {}",
+                    ws.root_path.display()
+                )));
                 self.push_recent(new_path_clone);
                 self.save_session();
             }

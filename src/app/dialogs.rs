@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 use eframe::egui;
@@ -14,6 +15,9 @@ pub(crate) struct WizardState {
     pub path: String,
     pub project_type: ProjectType,
     pub error: String,
+    pub creating: bool,
+    browse_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
+    create_rx: Option<mpsc::Receiver<ProjectCreateResult>>,
 }
 
 impl Default for WizardState {
@@ -23,8 +27,30 @@ impl Default for WizardState {
             path: default_wizard_path(),
             project_type: ProjectType::Rust,
             error: String::new(),
+            creating: false,
+            browse_rx: None,
+            create_rx: None,
         }
     }
+}
+
+enum ProjectCreateResult {
+    Success(PathBuf),
+    Error(String),
+}
+
+fn spawn_folder_picker(start_dir: String) -> mpsc::Receiver<Option<PathBuf>> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let dialog = rfd::FileDialog::new();
+        let picked = if start_dir.trim().is_empty() {
+            dialog.pick_folder()
+        } else {
+            dialog.set_directory(start_dir).pick_folder()
+        };
+        let _ = tx.send(picked);
+    });
+    rx
 }
 
 // ---------------------------------------------------------------------------
@@ -40,7 +66,8 @@ pub(crate) fn is_valid_project_name(name: &str) -> bool {
     if name.starts_with('-') {
         return false;
     }
-    name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    name.chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
 // ---------------------------------------------------------------------------
@@ -58,11 +85,41 @@ pub(crate) fn show_project_wizard(
     shared: &Arc<Mutex<AppShared>>,
     on_success: impl FnOnce(PathBuf, &Arc<Mutex<AppShared>>),
 ) {
-    if !*show { return; }
+    if !*show {
+        return;
+    }
+
+    let mut success_path: Option<PathBuf> = None;
+    if let Some(rx) = state.browse_rx.as_ref() {
+        if let Ok(picked) = rx.try_recv() {
+            state.browse_rx = None;
+            if let Some(dir) = picked {
+                state.path = dir.to_string_lossy().to_string();
+            }
+        }
+    }
+    if let Some(rx) = state.create_rx.as_ref() {
+        if let Ok(result) = rx.try_recv() {
+            state.create_rx = None;
+            state.creating = false;
+            match result {
+                ProjectCreateResult::Success(path) => {
+                    state.error.clear();
+                    state.name.clear();
+                    *show = false;
+                    success_path = Some(path);
+                }
+                ProjectCreateResult::Error(err) => {
+                    state.error = err;
+                }
+            }
+        }
+    }
 
     let modal = egui::Modal::new(egui::Id::new(modal_id));
     let mut close_dialog = false;
     let mut create_project: Option<(ProjectType, String, String)> = None;
+    let mut request_browse = false;
 
     modal.show(ctx, |ui| {
         ui.heading("Nový projekt");
@@ -85,12 +142,7 @@ pub(crate) fn show_project_wizard(
             ui.label("Pracovní adresář:");
             ui.add(egui::TextEdit::singleline(&mut state.path).desired_width(200.0));
             if ui.button("Procházet…").clicked() {
-                if let Some(dir) = rfd::FileDialog::new()
-                    .set_directory(&state.path)
-                    .pick_folder()
-                {
-                    state.path = dir.to_string_lossy().to_string();
-                }
+                request_browse = true;
             }
         });
 
@@ -122,8 +174,11 @@ pub(crate) fn show_project_wizard(
 
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            let can_create = name_valid && !state.path.trim().is_empty();
-            if ui.add_enabled(can_create, egui::Button::new("Vytvořit")).clicked() {
+            let can_create = name_valid && !state.path.trim().is_empty() && !state.creating;
+            if ui
+                .add_enabled(can_create, egui::Button::new("Vytvořit"))
+                .clicked()
+            {
                 create_project = Some((
                     state.project_type,
                     state.name.trim().to_string(),
@@ -134,6 +189,10 @@ pub(crate) fn show_project_wizard(
                 close_dialog = true;
             }
         });
+        if state.creating {
+            ui.add_space(6.0);
+            ui.label(egui::RichText::new("Vytváření projektu…").weak());
+        }
 
         if !state.error.is_empty() {
             ui.add_space(4.0);
@@ -142,59 +201,75 @@ pub(crate) fn show_project_wizard(
     });
 
     if close_dialog {
+        state.browse_rx = None;
+        state.create_rx = None;
+        state.creating = false;
         *show = false;
         return;
     }
 
+    if request_browse && state.browse_rx.is_none() {
+        state.browse_rx = Some(spawn_folder_picker(state.path.clone()));
+    }
+
     if let Some((project_type, raw_name, base_path)) = create_project {
-        let name = if project_type == ProjectType::Rust {
-            raw_name.to_lowercase()
-        } else {
-            raw_name
-        };
-        let type_dir = PathBuf::from(&base_path).join(project_type.subdir());
-        if !type_dir.exists() {
-            let _ = std::fs::create_dir_all(&type_dir);
-        }
-        let full_path = type_dir.join(&name);
-        let env = path_env();
-
-        let result = match project_type {
-            ProjectType::Rust => std::process::Command::new("cargo")
-                .args(["new", &name])
-                .current_dir(&type_dir)
-                .env("PATH", &env)
-                .output(),
-            ProjectType::Symfony => std::process::Command::new("composer")
-                .args(["create-project", "symfony/skeleton", &name])
-                .current_dir(&type_dir)
-                .env("PATH", &env)
-                .output(),
-        };
-
         state.error.clear();
-        match result {
-            Ok(output) if output.status.success() => {
-                let path = full_path.canonicalize().unwrap_or(full_path);
-                *show = false;
-                state.name.clear();
-                on_success(path, shared);
+        state.creating = true;
+        let (tx, rx) = mpsc::channel();
+        state.create_rx = Some(rx);
+        std::thread::spawn(move || {
+            let name = if project_type == ProjectType::Rust {
+                raw_name.to_lowercase()
+            } else {
+                raw_name
+            };
+            let type_dir = PathBuf::from(&base_path).join(project_type.subdir());
+            if let Err(e) = std::fs::create_dir_all(&type_dir) {
+                let _ = tx.send(ProjectCreateResult::Error(format!(
+                    "Nelze vytvořit adresář projektu: {e}"
+                )));
+                return;
             }
-            Ok(output) => {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                state.error = if !stderr.is_empty() {
-                    stderr.to_string()
-                } else if !stdout.is_empty() {
-                    stdout.to_string()
-                } else {
-                    format!("Příkaz selhal s kódem: {}", output.status)
-                };
-            }
-            Err(e) => {
-                state.error = format!("Nepodařilo se spustit příkaz: {}", e);
-            }
-        }
+
+            let full_path = type_dir.join(&name);
+            let env = path_env();
+            let output = match project_type {
+                ProjectType::Rust => std::process::Command::new("cargo")
+                    .args(["new", &name])
+                    .current_dir(&type_dir)
+                    .env("PATH", &env)
+                    .output(),
+                ProjectType::Symfony => std::process::Command::new("composer")
+                    .args(["create-project", "symfony/skeleton", &name])
+                    .current_dir(&type_dir)
+                    .env("PATH", &env)
+                    .output(),
+            };
+
+            let result = match output {
+                Ok(output) if output.status.success() => {
+                    ProjectCreateResult::Success(full_path.canonicalize().unwrap_or(full_path))
+                }
+                Ok(output) => {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let msg = if !stderr.is_empty() {
+                        stderr.to_string()
+                    } else if !stdout.is_empty() {
+                        stdout.to_string()
+                    } else {
+                        format!("Příkaz selhal s kódem: {}", output.status)
+                    };
+                    ProjectCreateResult::Error(msg)
+                }
+                Err(e) => ProjectCreateResult::Error(format!("Nepodařilo se spustit příkaz: {e}")),
+            };
+            let _ = tx.send(result);
+        });
+    }
+
+    if let Some(path) = success_path {
+        on_success(path, shared);
     }
 }
 
@@ -211,13 +286,16 @@ pub(crate) fn render_recent_project_list(
 ) -> Option<PathBuf> {
     let mut selected = None;
     for path in recent_projects {
-        let name = path.file_name()
+        let name = path
+            .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| path.to_string_lossy().into_owned());
-        let resp = ui.add(
-            egui::Label::new(egui::RichText::new(&name).size(item_size))
-                .sense(egui::Sense::click()),
-        ).on_hover_text(path.to_string_lossy());
+        let resp = ui
+            .add(
+                egui::Label::new(egui::RichText::new(&name).size(item_size))
+                    .sense(egui::Sense::click()),
+            )
+            .on_hover_text(path.to_string_lossy());
         if resp.clicked() {
             selected = Some(path.clone());
         }
@@ -242,8 +320,12 @@ pub(crate) fn show_quit_confirm_dialog(ctx: &egui::Context) -> QuitDialogResult 
         ui.label("Opravdu chcete ukončit Rust Editor?");
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            if ui.button("Ukončit").clicked() { confirmed = true; }
-            if ui.button("Zrušit").clicked() { cancelled = true; }
+            if ui.button("Ukončit").clicked() {
+                confirmed = true;
+            }
+            if ui.button("Zrušit").clicked() {
+                cancelled = true;
+            }
         });
     });
 
@@ -278,9 +360,10 @@ pub(crate) fn show_startup_dialog(
     path_buffer: &mut String,
     show_wizard: bool,
     recent_projects: &[PathBuf],
+    browse_rx: &mut Option<mpsc::Receiver<Option<PathBuf>>>,
 ) -> StartupAction {
     let mut should_open = false;
-    let mut browse = false;
+    let mut request_browse = false;
     let mut open_recent: Option<PathBuf> = None;
 
     egui::CentralPanel::default().show(ctx, |_ui| {});
@@ -309,17 +392,26 @@ pub(crate) fn show_startup_dialog(
         });
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if ui.button(egui::RichText::new("Otevřít").size(dlg_size)).clicked() {
+            if ui
+                .button(egui::RichText::new("Otevřít").size(dlg_size))
+                .clicked()
+            {
                 should_open = true;
             }
-            if ui.button(egui::RichText::new("Procházet…").size(dlg_size)).clicked() {
-                browse = true;
+            if ui
+                .button(egui::RichText::new("Procházet…").size(dlg_size))
+                .clicked()
+            {
+                request_browse = true;
             }
         });
         ui.add_space(4.0);
         ui.separator();
         ui.add_space(4.0);
-        if ui.button(egui::RichText::new("Založit nový projekt…").size(dlg_size)).clicked() {
+        if ui
+            .button(egui::RichText::new("Založit nový projekt…").size(dlg_size))
+            .clicked()
+        {
             open_wizard = true;
         }
 
@@ -337,13 +429,16 @@ pub(crate) fn show_startup_dialog(
         return StartupAction::OpenWizard;
     }
 
-    if browse {
-        if let Some(dir) = rfd::FileDialog::new()
-            .set_directory(path_buffer.as_str())
-            .pick_folder()
-        {
-            *path_buffer = dir.to_string_lossy().to_string();
-            should_open = true;
+    if request_browse && browse_rx.is_none() {
+        *browse_rx = Some(spawn_folder_picker(path_buffer.clone()));
+    }
+    if let Some(rx) = browse_rx.as_ref() {
+        if let Ok(picked) = rx.try_recv() {
+            *browse_rx = None;
+            if let Some(dir) = picked {
+                *path_buffer = dir.to_string_lossy().to_string();
+                should_open = true;
+            }
         }
     }
 

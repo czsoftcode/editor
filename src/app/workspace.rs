@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
@@ -138,6 +138,10 @@ pub(crate) struct WorkspaceState {
     pub settings_draft: Option<crate::settings::Settings>,
     /// Asynchronní výběr výchozí cesty projektů v dialogu nastavení
     pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
+    /// Dostupnost AI CLI nástrojů (podle PATH)
+    pub ai_tool_available: HashMap<AiTool, bool>,
+    /// Asynchronní kontrola dostupnosti AI CLI nástrojů
+    pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<AiTool, bool>>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -171,6 +175,37 @@ fn spawn_file_index_scan(root: PathBuf) -> mpsc::Receiver<Vec<PathBuf>> {
     rx
 }
 
+fn is_command_available(command: &str) -> bool {
+    #[cfg(windows)]
+    {
+        return std::process::Command::new("cmd")
+            .args(["/C", "where", command])
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+    }
+    #[cfg(not(windows))]
+    {
+        std::process::Command::new("sh")
+            .args(["-lc", &format!("command -v {command} >/dev/null 2>&1")])
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    }
+}
+
+fn spawn_ai_tool_check() -> mpsc::Receiver<HashMap<AiTool, bool>> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut status = HashMap::new();
+        for tool in AiTool::ALL {
+            status.insert(tool, is_command_available(tool.command()));
+        }
+        let _ = tx.send(status);
+    });
+    rx
+}
+
 pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) -> WorkspaceState {
     let mut file_tree = FileTree::new();
     file_tree.load(&root_path);
@@ -178,6 +213,7 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
     let git_branch_rx = fetch_git_branch(&root_path);
     let git_status_rx = fetch_git_status(&root_path);
     let file_index_rx = spawn_file_index_scan(root_path.clone());
+    let ai_tool_check_rx = spawn_ai_tool_check();
     let mut wizard = WizardState::default();
     wizard.path = default_wizard_path();
 
@@ -214,6 +250,8 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         git_last_refresh: std::time::Instant::now(),
         settings_draft: None,
         settings_folder_pick_rx: None,
+        ai_tool_available: HashMap::new(),
+        ai_tool_check_rx: Some(ai_tool_check_rx),
     }
 }
 
@@ -341,6 +379,12 @@ fn process_background_events(ws: &mut WorkspaceState) {
         if let Ok(results) = rx.try_recv() {
             ws.project_search.results = results;
             ws.project_search.rx = None;
+        }
+    }
+    if let Some(rx) = &ws.ai_tool_check_rx {
+        if let Ok(status) = rx.try_recv() {
+            ws.ai_tool_available = status;
+            ws.ai_tool_check_rx = None;
         }
     }
 
@@ -823,6 +867,91 @@ fn render_dialogs(ctx: &egui::Context, ws: &mut WorkspaceState, shared: &Arc<Mut
     }
 }
 
+fn ai_tool_is_available(available: &HashMap<AiTool, bool>, tool: AiTool) -> bool {
+    available.get(&tool).copied().unwrap_or(false)
+}
+
+fn ai_tool_status_label(tool: AiTool, available: &HashMap<AiTool, bool>, checking: bool) -> String {
+    if checking {
+        format!("{} (ověřuji…)", tool.label())
+    } else if ai_tool_is_available(available, tool) {
+        format!("{} (nainstalováno)", tool.label())
+    } else {
+        format!("{} (není v PATH)", tool.label())
+    }
+}
+
+fn render_ai_tool_picker(
+    ui: &mut egui::Ui,
+    id_salt: &'static str,
+    selected: &mut AiTool,
+    available: &HashMap<AiTool, bool>,
+    checking: bool,
+) {
+    egui::ComboBox::from_id_salt(id_salt)
+        .selected_text(ai_tool_status_label(*selected, available, checking))
+        .width(190.0)
+        .show_ui(ui, |ui| {
+            for tool in AiTool::ALL {
+                ui.selectable_value(
+                    selected,
+                    tool,
+                    ai_tool_status_label(tool, available, checking),
+                );
+            }
+        });
+}
+
+fn render_ai_tool_controls(ui: &mut egui::Ui, ws: &mut WorkspaceState, combo_id: &'static str) {
+    let checking = ws.ai_tool_check_rx.is_some();
+
+    ui.label("Asistent:");
+    render_ai_tool_picker(
+        ui,
+        combo_id,
+        &mut ws.claude_tool,
+        &ws.ai_tool_available,
+        checking,
+    );
+
+    if ui
+        .small_button("↻")
+        .on_hover_text("Znovu ověřit dostupnost AI CLI nástrojů")
+        .clicked()
+        && ws.ai_tool_check_rx.is_none()
+    {
+        ws.ai_tool_check_rx = Some(spawn_ai_tool_check());
+    }
+
+    let checking = ws.ai_tool_check_rx.is_some();
+    let installed = ai_tool_is_available(&ws.ai_tool_available, ws.claude_tool);
+    let can_start = installed && !checking;
+
+    let hover_text = if checking {
+        "Ověřuji dostupnost AI CLI nástrojů…".to_string()
+    } else if installed {
+        format!(
+            "Spustí {} (`{}`) v terminálu",
+            ws.claude_tool.label(),
+            ws.claude_tool.command()
+        )
+    } else {
+        format!(
+            "Příkaz `{}` nebyl nalezen v PATH. Nainstaluj nástroj a klikni na ↻.",
+            ws.claude_tool.command()
+        )
+    };
+
+    let start_response = ui
+        .add_enabled(can_start, egui::Button::new("\u{25B6} Spustit"))
+        .on_hover_text(hover_text);
+    if start_response.clicked() {
+        if let Some(terminal) = &mut ws.claude_terminal {
+            terminal.send_command(ws.claude_tool.command());
+        }
+    }
+}
+
 /// Vykreslí pravý panel s AI terminálem. Vrací true pokud bylo kliknuto do terminálu.
 fn render_ai_panel(ctx: &egui::Context, ws: &mut WorkspaceState, dialog_open: bool) -> bool {
     if !ws.show_right_panel {
@@ -843,17 +972,7 @@ fn render_ai_panel(ctx: &egui::Context, ws: &mut WorkspaceState, dialog_open: bo
             .open(&mut is_open)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.radio_value(&mut ws.claude_tool, AiTool::ClaudeCode, "Claude Code");
-                    ui.radio_value(&mut ws.claude_tool, AiTool::Codex, "Codex");
-                    if ui
-                        .small_button("\u{25B6} Spustit")
-                        .on_hover_text("Spustí vybraného asistenta v terminálu")
-                        .clicked()
-                    {
-                        if let Some(terminal) = &mut ws.claude_terminal {
-                            terminal.send_command(ws.claude_tool.command());
-                        }
-                    }
+                    render_ai_tool_controls(ui, ws, "ai_tool_combo_float");
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .small_button("⊟")
@@ -896,17 +1015,7 @@ fn render_ai_panel(ctx: &egui::Context, ws: &mut WorkspaceState, dialog_open: bo
                     });
                 });
                 ui.horizontal(|ui| {
-                    ui.radio_value(&mut ws.claude_tool, AiTool::ClaudeCode, "Claude Code");
-                    ui.radio_value(&mut ws.claude_tool, AiTool::Codex, "Codex");
-                    if ui
-                        .small_button("\u{25B6} Spustit")
-                        .on_hover_text("Spustí vybraného asistenta v terminálu")
-                        .clicked()
-                    {
-                        if let Some(terminal) = &mut ws.claude_terminal {
-                            terminal.send_command(ws.claude_tool.command());
-                        }
-                    }
+                    render_ai_tool_controls(ui, ws, "ai_tool_combo_docked");
                 });
                 ui.separator();
                 if !dialog_open {

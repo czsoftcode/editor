@@ -26,17 +26,45 @@ impl ProjectType {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub(crate) enum AiTool {
     ClaudeCode,
     Codex,
+    CopilotCli,
+    GeminiCli,
+    Aider,
+    KiroCli,
 }
 
 impl AiTool {
+    pub(crate) const ALL: [AiTool; 6] = [
+        AiTool::ClaudeCode,
+        AiTool::Codex,
+        AiTool::CopilotCli,
+        AiTool::GeminiCli,
+        AiTool::Aider,
+        AiTool::KiroCli,
+    ];
+
+    pub(crate) fn label(&self) -> &'static str {
+        match self {
+            AiTool::ClaudeCode => "Claude Code",
+            AiTool::Codex => "Codex",
+            AiTool::CopilotCli => "Copilot CLI",
+            AiTool::GeminiCli => "Gemini CLI",
+            AiTool::Aider => "Aider",
+            AiTool::KiroCli => "Kiro CLI",
+        }
+    }
+
     pub(crate) fn command(&self) -> &'static str {
         match self {
             AiTool::ClaudeCode => "claude",
             AiTool::Codex => "codex",
+            AiTool::CopilotCli => "copilot",
+            AiTool::GeminiCli => "gemini",
+            AiTool::Aider => "aider",
+            AiTool::KiroCli => "kiro-cli",
         }
     }
 }

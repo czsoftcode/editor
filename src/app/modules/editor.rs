@@ -789,7 +789,7 @@ impl Editor {
                     let previous_content = tab.content.clone();
 
                     let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                        let mut job = highlighter.highlight(text, &ext, &fname);
+                        let mut job = highlighter.highlight(text, &ext, &fname, Self::current_editor_font_size(ui));
                         job.wrap.max_width = wrap_width;
                         apply_search_highlights(&mut job, &search_matches, current_match);
                         ui.fonts(|f| f.layout_job(job))
@@ -899,7 +899,7 @@ impl Editor {
                             let previous_content = tab.content.clone();
 
                             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                                let mut job = highlighter.highlight(text, &ext, &fname);
+                                let mut job = highlighter.highlight(text, &ext, &fname, Self::current_editor_font_size(ui));
                                 job.wrap.max_width = wrap_width;
                                 apply_search_highlights(&mut job, &search_matches, current_match);
                                 ui.fonts(|f| f.layout_job(job))

@@ -17,7 +17,7 @@ impl Highlighter {
         }
     }
 
-    pub fn highlight(&self, text: &str, extension: &str, filename: &str) -> egui::text::LayoutJob {
+    pub fn highlight(&self, text: &str, extension: &str, filename: &str, font_size: f32) -> egui::text::LayoutJob {
         let mut job = egui::text::LayoutJob::default();
 
         let is_env_file = filename.starts_with(".env");
@@ -54,12 +54,12 @@ impl Highlighter {
             for (style, segment) in ranges {
                 let color = egui::Color32::from_rgb(style.foreground.r, style.foreground.g, style.foreground.b);
                 let mut text_format = egui::TextFormat {
-                    font_id: egui::FontId::monospace(14.0),
+                    font_id: egui::FontId::monospace(font_size),
                     color,
                     ..Default::default()
                 };
                 if style.font_style.contains(FontStyle::BOLD) {
-                    text_format.font_id = egui::FontId::new(14.0, egui::FontFamily::Monospace);
+                    text_format.font_id = egui::FontId::new(font_size, egui::FontFamily::Monospace);
                 }
                 if style.font_style.contains(FontStyle::ITALIC) {
                     text_format.italics = true;

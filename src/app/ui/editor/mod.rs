@@ -34,6 +34,12 @@ pub(super) struct Tab {
     last_saved_content: String,
     scroll_offset: f32,
     last_cursor_range: Option<egui::text::CursorRange>,
+    /// Příznak, zda jde o binární soubor (ne text).
+    pub(super) is_binary: bool,
+    /// Pro obrázky: vygenerovaná textura pro egui.
+    pub(super) image_texture: Option<egui::TextureHandle>,
+    /// Surová data pro binární soubory (pokud je chceme držet v paměti).
+    pub(super) binary_data: Option<Vec<u8>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -52,6 +58,7 @@ pub struct Editor {
     pub(super) current_match: Option<usize>,
     pub(super) search_focus_requested: bool,
     pub(super) md_split_ratio: f32,
+    pub(super) svg_split_ratio: f32,
     pub(super) tab_scroll_x: f32,
     pub(super) scroll_to_active: bool,
     /// Čekající skok na řádek (1-based)
@@ -76,6 +83,7 @@ impl Editor {
             current_match: None,
             search_focus_requested: false,
             md_split_ratio: 0.5,
+            svg_split_ratio: 0.5,
             tab_scroll_x: 0.0,
             scroll_to_active: false,
             pending_jump: None,
@@ -127,6 +135,10 @@ impl Editor {
         ext == "md" || ext == "markdown"
     }
 
+    pub(super) fn is_svg(&self) -> bool {
+        self.extension() == "svg"
+    }
+
     // --- Tab management ---
 
     pub fn open_file(&mut self, path: &PathBuf) {
@@ -137,38 +149,104 @@ impl Editor {
             return;
         }
 
-        match std::fs::read_to_string(path) {
-            Ok(content) => {
-                let tab = Tab {
-                    last_saved_content: content.clone(),
-                    content,
-                    path: path.clone(),
-                    modified: false,
-                    deleted: false,
-                    last_edit: None,
-                    save_status: SaveStatus::None,
-                    scroll_offset: 0.0,
-                    last_cursor_range: None,
-                };
-                self.tabs.push(tab);
-                self.active_tab = Some(self.tabs.len() - 1);
-                self.focus_editor_requested = true;
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        // Soubory, které otevíráme v systémové aplikaci — žádná záložka
+        let is_external = matches!(ext.as_str(), "pdf" | "odt" | "docx");
+        if is_external {
+            let _ = std::process::Command::new("xdg-open").arg(path).spawn();
+            return;
+        }
+
+        let is_image = matches!(
+            ext.as_str(),
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico"
+        );
+
+        if is_image {
+            match std::fs::read(path) {
+                Ok(bytes) => {
+                    let tab = Tab {
+                        content: String::new(),
+                        last_saved_content: String::new(),
+                        path: path.clone(),
+                        modified: false,
+                        deleted: false,
+                        last_edit: None,
+                        save_status: SaveStatus::None,
+                        scroll_offset: 0.0,
+                        last_cursor_range: None,
+                        is_binary: true,
+                        image_texture: None,
+                        binary_data: Some(bytes),
+                    };
+                    self.tabs.push(tab);
+                    self.active_tab = Some(self.tabs.len() - 1);
+                    self.focus_editor_requested = true;
+                }
+                Err(e) => {
+                    let tab = Tab {
+                        content: format!("Error reading binary file: {}", e),
+                        last_saved_content: String::new(),
+                        path: path.clone(),
+                        modified: false,
+                        deleted: false,
+                        last_edit: None,
+                        save_status: SaveStatus::None,
+                        scroll_offset: 0.0,
+                        last_cursor_range: None,
+                        is_binary: false,
+                        image_texture: None,
+                        binary_data: None,
+                    };
+                    self.tabs.push(tab);
+                    self.active_tab = Some(self.tabs.len() - 1);
+                    self.focus_editor_requested = true;
+                }
             }
-            Err(e) => {
-                let tab = Tab {
-                    content: format!("Error reading file: {}", e),
-                    last_saved_content: String::new(),
-                    path: path.clone(),
-                    modified: false,
-                    deleted: false,
-                    last_edit: None,
-                    save_status: SaveStatus::None,
-                    scroll_offset: 0.0,
-                    last_cursor_range: None,
-                };
-                self.tabs.push(tab);
-                self.active_tab = Some(self.tabs.len() - 1);
-                self.focus_editor_requested = true;
+        } else {
+            match std::fs::read_to_string(path) {
+                Ok(content) => {
+                    let tab = Tab {
+                        last_saved_content: content.clone(),
+                        content,
+                        path: path.clone(),
+                        modified: false,
+                        deleted: false,
+                        last_edit: None,
+                        save_status: SaveStatus::None,
+                        scroll_offset: 0.0,
+                        last_cursor_range: None,
+                        is_binary: false,
+                        image_texture: None,
+                        binary_data: None,
+                    };
+                    self.tabs.push(tab);
+                    self.active_tab = Some(self.tabs.len() - 1);
+                    self.focus_editor_requested = true;
+                }
+                Err(e) => {
+                    let tab = Tab {
+                        content: format!("Error reading file: {}", e),
+                        last_saved_content: String::new(),
+                        path: path.clone(),
+                        modified: false,
+                        deleted: false,
+                        last_edit: None,
+                        save_status: SaveStatus::None,
+                        scroll_offset: 0.0,
+                        last_cursor_range: None,
+                        is_binary: false,
+                        image_texture: None,
+                        binary_data: None,
+                    };
+                    self.tabs.push(tab);
+                    self.active_tab = Some(self.tabs.len() - 1);
+                    self.focus_editor_requested = true;
+                }
             }
         }
         self.update_search();
@@ -252,12 +330,22 @@ impl Editor {
     /// Načte konkrétní záložku (podle cesty) z disku — bez ohledu na aktivní záložku.
     pub fn reload_path_from_disk(&mut self, path: &PathBuf) {
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.path == *path) {
-            if let Ok(content) = std::fs::read_to_string(&tab.path) {
-                tab.content = content.clone();
-                tab.last_saved_content = content;
-                tab.modified = false;
-                tab.last_edit = None;
-                tab.save_status = SaveStatus::Saved;
+            if tab.is_binary {
+                if let Ok(bytes) = std::fs::read(&tab.path) {
+                    tab.binary_data = Some(bytes);
+                    tab.image_texture = None;
+                    tab.modified = false;
+                    tab.last_edit = None;
+                    tab.save_status = SaveStatus::Saved;
+                }
+            } else {
+                if let Ok(content) = std::fs::read_to_string(&tab.path) {
+                    tab.content = content.clone();
+                    tab.last_saved_content = content;
+                    tab.modified = false;
+                    tab.last_edit = None;
+                    tab.save_status = SaveStatus::Saved;
+                }
             }
         }
         self.update_search();
@@ -278,9 +366,21 @@ impl Editor {
     pub fn save(&mut self, i18n: &crate::i18n::I18n) -> Option<String> {
         let tab = self.active_mut()?;
         tab.save_status = SaveStatus::Saving;
-        match std::fs::write(&tab.path, &tab.content) {
+        let res = if tab.is_binary {
+            if let Some(bytes) = &tab.binary_data {
+                std::fs::write(&tab.path, bytes)
+            } else {
+                Ok(())
+            }
+        } else {
+            std::fs::write(&tab.path, &tab.content)
+        };
+
+        match res {
             Ok(()) => {
-                tab.last_saved_content = tab.content.clone();
+                if !tab.is_binary {
+                    tab.last_saved_content = tab.content.clone();
+                }
                 tab.modified = false;
                 tab.last_edit = None;
                 tab.save_status = SaveStatus::Saved;
@@ -302,9 +402,21 @@ impl Editor {
     pub fn save_path(&mut self, path: &PathBuf, i18n: &crate::i18n::I18n) -> Option<String> {
         let tab = self.tabs.iter_mut().find(|t| t.path == *path)?;
         tab.save_status = SaveStatus::Saving;
-        match std::fs::write(&tab.path, &tab.content) {
+        let res = if tab.is_binary {
+            if let Some(bytes) = &tab.binary_data {
+                std::fs::write(&tab.path, bytes)
+            } else {
+                Ok(())
+            }
+        } else {
+            std::fs::write(&tab.path, &tab.content)
+        };
+
+        match res {
             Ok(()) => {
-                tab.last_saved_content = tab.content.clone();
+                if !tab.is_binary {
+                    tab.last_saved_content = tab.content.clone();
+                }
                 tab.modified = false;
                 tab.last_edit = None;
                 tab.save_status = SaveStatus::Saved;
@@ -406,8 +518,14 @@ impl Editor {
             self.goto_line_bar(ui, i18n);
         }
 
-        if self.is_markdown() {
+        let is_binary = self.active().is_some_and(|t| t.is_binary);
+
+        if is_binary {
+            self.ui_binary(ui, i18n)
+        } else if self.is_markdown() {
             self.ui_markdown_split(ui, dialog_open, i18n)
+        } else if self.is_svg() {
+            self.ui_svg_split(ui, dialog_open, i18n)
         } else {
             self.ui_normal(ui, dialog_open, i18n)
         }
@@ -497,6 +615,10 @@ pub(super) fn ext_to_file_type(ext: &str) -> &'static str {
         "xml" => "XML",
         "sql" => "SQL",
         "txt" => "Text",
+        "pdf" => "PDF Document",
+        "odt" => "ODT Document",
+        "docx" => "DOCX Document",
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "svg" => "Image",
         _ => "Plain text",
     }
 }

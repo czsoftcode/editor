@@ -69,6 +69,8 @@ pub struct EditorApp {
 
 impl EditorApp {
     pub fn new(cc: &eframe::CreationContext, root_path: Option<PathBuf>) -> Self {
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+
         let panel_state: PersistentState = cc
             .storage
             .and_then(|s| eframe::get_value(s, STORAGE_KEY))

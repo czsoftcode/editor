@@ -18,14 +18,21 @@ fn main() -> eframe::Result<()> {
         std::env::set_var("PROMPT_COMMAND", "PS1='\\$ '");
     }
 
-    let root_path = std::env::args().nth(1).map(|arg| {
-        let p = PathBuf::from(arg);
-        p.canonicalize().unwrap_or(p)
-    });
+    let args: Vec<String> = std::env::args().collect();
+    // --new-instance přeskočí IPC singleton check — umožňuje spustit nezávislou instanci
+    // pro vývoj a testování (ekvivalent --no-remote ve Firefoxu).
+    let new_instance = args.iter().any(|a| a == "--new-instance");
+    let root_path = args.into_iter().skip(1)
+        .find(|a| !a.starts_with("--"))
+        .map(|arg| {
+            let p = PathBuf::from(arg);
+            p.canonicalize().unwrap_or(p)
+        });
 
     // Single-process multi-window architektura:
     // Pokud primární instance již běží, delegujeme na ni a skončíme.
-    if ipc::Ipc::ping() {
+    // S --new-instance tento krok přeskočíme a spustíme novou nezávislou instanci.
+    if !new_instance && ipc::Ipc::ping() {
         if let Some(ref path) = root_path {
             ipc::Ipc::open_in_new_window(path);
         } else {

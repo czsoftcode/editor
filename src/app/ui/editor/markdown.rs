@@ -50,6 +50,9 @@ impl Editor {
                 Event::Start(Tag::Paragraph) => {
                     i += 1;
                     let mut job = egui::text::LayoutJob::default();
+                    let mut is_bold = false;
+                    let mut is_italic = false;
+                    let mut is_strike = false;
                     while i < events.len() {
                         match &events[i] {
                             Event::End(TagEnd::Paragraph) => {
@@ -57,22 +60,40 @@ impl Editor {
                                 break;
                             }
                             Event::Text(t) => {
+                                let font_id = if is_bold || is_italic {
+                                    egui::FontId::new(
+                                        14.0,
+                                        if is_italic {
+                                            egui::FontFamily::Name("Italic".into())
+                                        } else {
+                                            egui::FontFamily::Proportional
+                                        },
+                                    )
+                                } else {
+                                    egui::FontId::proportional(14.0)
+                                };
                                 job.append(
                                     t,
                                     0.0,
                                     egui::TextFormat {
-                                        font_id: egui::FontId::proportional(14.0),
+                                        font_id,
                                         color: text_color,
+                                        strikethrough: if is_strike {
+                                            egui::Stroke::new(1.5, text_color)
+                                        } else {
+                                            egui::Stroke::NONE
+                                        },
+                                        italics: is_italic,
                                         ..Default::default()
                                     },
                                 );
                             }
-                            Event::Start(Tag::Strong) => {}
-                            Event::End(TagEnd::Strong) => {}
-                            Event::Start(Tag::Emphasis) => {}
-                            Event::End(TagEnd::Emphasis) => {}
-                            Event::Start(Tag::Strikethrough) => {}
-                            Event::End(TagEnd::Strikethrough) => {}
+                            Event::Start(Tag::Strong) => is_bold = true,
+                            Event::End(TagEnd::Strong) => is_bold = false,
+                            Event::Start(Tag::Emphasis) => is_italic = true,
+                            Event::End(TagEnd::Emphasis) => is_italic = false,
+                            Event::Start(Tag::Strikethrough) => is_strike = true,
+                            Event::End(TagEnd::Strikethrough) => is_strike = false,
                             Event::Start(Tag::Link { dest_url, .. }) => {
                                 let _url = dest_url.to_string();
                                 i += 1;

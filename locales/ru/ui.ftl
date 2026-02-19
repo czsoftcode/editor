@@ -14,6 +14,7 @@ panel-build-errors =
 ## Кнопки сборки
 btn-build = ▶ Build
 btn-run = ▶ Run
+btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 

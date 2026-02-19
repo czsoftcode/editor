@@ -87,6 +87,15 @@ fn render_build_panel(
                 t.send_command("cargo run 2>&1");
             }
         }
+        if ui
+            .add(egui::Button::new(i18n.get("btn-run-new")).small())
+            .on_hover_text("cargo run -- --new-instance")
+            .clicked()
+        {
+            if let Some(t) = &mut ws.build_terminal {
+                t.send_command("cargo run -- --new-instance 2>&1");
+            }
+        }
         if ui.small_button(i18n.get("btn-test")).clicked() {
             if let Some(t) = &mut ws.build_terminal {
                 t.send_command("cargo test 2>&1");

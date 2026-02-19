@@ -232,6 +232,55 @@ impl Editor {
         }
     }
 
+    pub(super) fn ui_binary(&mut self, ui: &mut egui::Ui, _i18n: &crate::i18n::I18n) -> bool {
+        let idx = match self.active_tab {
+            Some(i) => i,
+            None => return false,
+        };
+        let ext = self.extension();
+
+        let is_image = matches!(
+            ext.as_str(),
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "svg"
+        );
+
+        if is_image {
+            self.render_image_preview(ui, idx);
+        } else {
+            ui.centered_and_justified(|ui| {
+                ui.vertical(|ui| {
+                    ui.heading(format!("{} File", ext.to_uppercase()));
+                    if let Some(data) = &self.tabs[idx].binary_data {
+                        ui.label(format!("Velikost: {} B", data.len()));
+                    }
+                });
+            });
+        }
+        false
+    }
+
+    fn render_image_preview(&mut self, ui: &mut egui::Ui, idx: usize) {
+        let tab = &mut self.tabs[idx];
+        let bytes = match &tab.binary_data {
+            Some(b) => b,
+            None => {
+                ui.label("No data to display.");
+                return;
+            }
+        };
+
+        egui::ScrollArea::both()
+            .id_salt("image_preview_scroll")
+            .show(ui, |ui| {
+                ui.centered_and_justified(|ui| {
+                    ui.add(
+                        egui::Image::from_bytes(format!("bytes://{}", tab.path.display()), bytes.clone())
+                            .shrink_to_fit(),
+                    );
+                });
+            });
+    }
+
     // --- Normální editor ---
 
     pub(super) fn ui_normal(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
@@ -547,6 +596,182 @@ impl Editor {
         clicked
     }
 
+    // --- SVG split view ---
+
+    pub(super) fn ui_svg_split(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
+        let idx = match self.active_tab {
+            Some(i) => i,
+            None => return false,
+        };
+
+        let bg = self.highlighter.background_color();
+        let ext = self.extension();
+        let fname = self.filename();
+        let search_matches = self.search_matches.clone();
+        let current_match = self.current_match;
+        let tab_path = self.tabs[idx].path.clone();
+        let edit_id = egui::Id::new("editor_text").with(&tab_path);
+
+        let should_request_editor_focus = self.focus_editor_requested
+            && !dialog_open
+            && !self.show_search
+            && !self.show_goto_line;
+        if should_request_editor_focus {
+            restore_saved_cursor(ui.ctx(), edit_id, self.tabs[idx].last_cursor_range);
+            ui.memory_mut(|m| m.request_focus(edit_id));
+            self.focus_editor_requested = false;
+        }
+
+        let mut clicked = false;
+        let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
+        let mut content_changed = false;
+
+        let available = ui.available_size();
+        let handle_h = 6.0_f32;
+        let top_h = (available.y * self.svg_split_ratio)
+            .max(50.0)
+            .min(available.y - handle_h - 50.0);
+        let bottom_h = (available.y - top_h - handle_h).max(50.0);
+
+        // Horní polovina: Editor
+        ui.allocate_ui_with_layout(
+            egui::vec2(available.x, top_h),
+            egui::Layout::top_down(egui::Align::LEFT),
+            |ui| {
+                ui.label(egui::RichText::new("SVG Editor").strong());
+                ui.separator();
+
+                let frame = egui::Frame::new()
+                    .fill(bg)
+                    .inner_margin(egui::Margin::same(8));
+
+                frame.show(ui, |ui| {
+                    let highlighter = &self.highlighter;
+                    let tab = &mut self.tabs[idx];
+
+                    let scroll_output = egui::ScrollArea::both()
+                        .id_salt(("svg_editor_scroll", &tab_path))
+                        .auto_shrink([false, false])
+                        .vertical_scroll_offset(tab.scroll_offset)
+                        .show(ui, |ui| {
+                            let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                                let mut job = highlighter.highlight(
+                                    text,
+                                    &ext,
+                                    &fname,
+                                    Self::current_editor_font_size(ui),
+                                );
+                                job.wrap.max_width = wrap_width;
+                                apply_search_highlights(&mut job, &search_matches, current_match);
+                                ui.fonts(|f| f.layout_job(job))
+                            };
+
+                            let line_count = tab.content.lines().count().max(1)
+                                + if tab.content.ends_with('\n') { 1 } else { 0 };
+                            let gutter_width = Self::gutter_width(ui, line_count);
+
+                            ui.horizontal_top(|ui| {
+                                let (gutter_rect, _) = ui.allocate_exact_size(
+                                    egui::vec2(gutter_width, ui.available_height()),
+                                    egui::Sense::hover(),
+                                );
+
+                                let response = egui::TextEdit::multiline(&mut tab.content)
+                                    .id(edit_id)
+                                    .font(egui::TextStyle::Monospace)
+                                    .code_editor()
+                                    .interactive(!dialog_open)
+                                    .desired_width(f32::INFINITY)
+                                    .layouter(&mut layouter)
+                                    .show(ui);
+
+                                Self::paint_line_numbers(ui, &response, gutter_rect);
+
+                                if response.response.clicked() || response.response.has_focus() {
+                                    clicked = true;
+                                }
+                                if response.response.changed() {
+                                    tab.modified = true;
+                                    tab.last_edit = Some(std::time::Instant::now());
+                                    tab.save_status = SaveStatus::Modified;
+                                    content_changed = true;
+                                }
+                                saved_response = Some(response);
+                            });
+                        });
+
+                    tab.scroll_offset = scroll_output.state.offset.y;
+                });
+            },
+        );
+
+        // Táhlo pro změnu velikosti
+        let (handle_rect, handle_response) =
+            ui.allocate_exact_size(egui::vec2(available.x, handle_h), egui::Sense::drag());
+        let handle_color = if handle_response.hovered() || handle_response.dragged() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+            egui::Color32::from_rgb(100, 140, 200)
+        } else {
+            egui::Color32::from_rgb(55, 60, 70)
+        };
+        ui.painter().rect_filled(handle_rect, 0.0, handle_color);
+        let dot_y = handle_rect.center().y;
+        let dot_r = 1.5_f32;
+        for dx in [-6.0_f32, 0.0, 6.0] {
+            ui.painter().circle_filled(
+                egui::pos2(handle_rect.center().x + dx, dot_y),
+                dot_r,
+                egui::Color32::from_rgb(160, 170, 190),
+            );
+        }
+        if handle_response.dragged() {
+            let delta = handle_response.drag_delta().y;
+            self.svg_split_ratio =
+                ((self.svg_split_ratio * available.y + delta) / available.y).clamp(0.1, 0.9);
+        }
+
+        // Dolní polovina: SVG náhled
+        ui.allocate_ui_with_layout(
+            egui::vec2(available.x, bottom_h),
+            egui::Layout::top_down(egui::Align::LEFT),
+            |ui| {
+                ui.label(egui::RichText::new(i18n.get("editor-preview-label")).strong());
+                ui.separator();
+
+                let preview_frame = egui::Frame::new()
+                    .fill(egui::Color32::from_rgb(40, 44, 52))
+                    .inner_margin(egui::Margin::same(12));
+
+                preview_frame.show(ui, |ui| {
+                    let content = &self.tabs[idx].content;
+                    let hash = svg_content_hash(content);
+                    let uri = format!("bytes://svgpreview_{}.svg", hash);
+                    let bytes: egui::load::Bytes = content.as_bytes().to_vec().into();
+
+                    egui::ScrollArea::both()
+                        .id_salt("svg_preview_scroll")
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            ui.centered_and_justified(|ui| {
+                                ui.add(
+                                    egui::Image::from_bytes(uri, bytes).shrink_to_fit(),
+                                );
+                            });
+                        });
+                });
+            },
+        );
+
+        if let Some(response) = &saved_response {
+            self.show_editor_context_menu(response, i18n);
+        }
+        if content_changed && self.show_search {
+            self.update_search();
+        }
+
+        clicked
+    }
+
     // --- Context menu ---
 
     pub(super) fn show_editor_context_menu(&mut self, response: &egui::text_edit::TextEditOutput, i18n: &crate::i18n::I18n) {
@@ -725,4 +950,17 @@ mod tests {
         let offset = goto_centered_scroll_offset(200, 200, 20.0, 200.0);
         assert!((offset - 3800.0).abs() < f32::EPSILON);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Pomocné funkce
+// ---------------------------------------------------------------------------
+
+/// Jednoduchý hash obsahu SVG pro cache-busting URI při změně kódu.
+fn svg_content_hash(s: &str) -> u64 {
+    let mut h: u64 = 5381;
+    for b in s.bytes() {
+        h = h.wrapping_mul(33).wrapping_add(b as u64);
+    }
+    h
 }

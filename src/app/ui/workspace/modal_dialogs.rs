@@ -22,16 +22,16 @@ pub(super) enum ExternalConflictAction {
 // render_dialogs
 // ---------------------------------------------------------------------------
 
-/// Vykreslí modální dialogy (O aplikaci, Nastavení, Nový projekt, Konflikt).
+/// Renders modal dialogs (About, Settings, New project, Conflict).
 pub(super) fn render_dialogs(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
 ) {
-    // Salt zajišťuje jedinečnost modal ID v rámci egui Context, který je sdílený
-    // mezi všemi okny (viewporty). Bez saltu by dvě okna se stejným dialogem
-    // sdílela stav (otevřeno/zavřeno, hodnoty formuláře).
+    // Salt ensures uniqueness of modal ID within the egui Context, which is shared
+    // between all windows (viewports). Without salt, two windows with the same dialog
+    // would share state (open/closed, form values).
     let id_salt = ws.root_path.as_os_str();
 
     if ws.show_about {
@@ -52,7 +52,7 @@ pub(super) fn render_dialogs(
     }
 
     if ws.show_settings {
-        // Inicializovat draft pouze jednou (při prvním otevření dialogu)
+        // Initialize draft only once (at the first opening of the dialog)
         if ws.settings_draft.is_none() {
             ws.settings_draft = Some(shared.lock().unwrap().settings.clone());
         }
@@ -79,7 +79,7 @@ pub(super) fn render_dialogs(
 
             let draft = ws.settings_draft.as_mut().unwrap();
 
-            // Jazyk
+            // Language
             ui.strong(i18n.get("settings-language"));
             ui.add_space(4.0);
             egui::ComboBox::from_id_salt("settings_lang_combo")
@@ -98,7 +98,7 @@ pub(super) fn render_dialogs(
                 });
             ui.add_space(10.0);
 
-            // Téma
+            // Theme
             ui.strong(i18n.get("settings-theme"));
             ui.horizontal(|ui| {
                 ui.radio_value(&mut draft.dark_theme, true, i18n.get("settings-theme-dark"));
@@ -106,7 +106,7 @@ pub(super) fn render_dialogs(
             });
             ui.add_space(10.0);
 
-            // Font editoru
+            // Editor font
             ui.strong(i18n.get("settings-editor-font"));
             ui.add_space(4.0);
             ui.add(
@@ -117,7 +117,7 @@ pub(super) fn render_dialogs(
             );
             ui.add_space(10.0);
 
-            // AI terminál font scale (per-workspace, mimo global settings)
+            // AI terminal font scale (per-workspace, outside global settings)
             ui.strong(i18n.get("settings-ai-font"));
             ui.add_space(4.0);
             ui.horizontal(|ui| {
@@ -127,7 +127,7 @@ pub(super) fn render_dialogs(
             });
             ui.add_space(10.0);
 
-            // Výchozí cesta projektů
+            // Default projects path
             ui.strong(i18n.get("settings-default-path"));
             ui.add_space(4.0);
             ui.horizontal(|ui| {
@@ -200,7 +200,7 @@ pub(super) fn render_dialogs(
         );
     }
 
-    // Dialog: soubor byl změněn externě, záložka má neuložené změny.
+    // Dialog: file was modified externally, tab has unsaved changes.
     if let Some(conflict_path) = ws.external_change_conflict.clone() {
         let filename = conflict_path
             .file_name()
@@ -254,7 +254,7 @@ pub(super) fn render_dialogs(
                 ws.external_change_conflict = None;
             }
             Some(ExternalConflictAction::KeepEditorVersion) => {
-                // Uložíme hned, aby soubor na disku odpovídal editoru.
+                // Save immediately so that file on disk matches the editor.
                 ws.editor.save_path(&conflict_path, i18n);
                 ws.external_change_conflict = None;
             }

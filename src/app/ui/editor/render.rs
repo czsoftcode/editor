@@ -251,7 +251,7 @@ impl Editor {
                 ui.vertical(|ui| {
                     ui.heading(format!("{} File", ext.to_uppercase()));
                     if let Some(data) = &self.tabs[idx].binary_data {
-                        ui.label(format!("Velikost: {} B", data.len()));
+                        ui.label(format!("Size: {} B", data.len()));
                     }
                 });
             });
@@ -281,7 +281,7 @@ impl Editor {
             });
     }
 
-    // --- Normální editor ---
+    // --- Normal editor ---
 
     pub(super) fn ui_normal(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
         let idx = match self.active_tab {
@@ -456,7 +456,7 @@ impl Editor {
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
         let mut content_changed = false;
 
-        // Tlačítko pro otevření v externím prohlížeči
+        // Button to open in an external viewer
         if let Some(path) = self.active_path().cloned() {
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -475,7 +475,7 @@ impl Editor {
             .min(available.y - handle_h - 50.0);
         let bottom_h = (available.y - top_h - handle_h).max(50.0);
 
-        // Horní polovina: Editor
+        // Top half: Editor
         ui.allocate_ui_with_layout(
             egui::vec2(available.x, top_h),
             egui::Layout::top_down(egui::Align::LEFT),
@@ -547,7 +547,7 @@ impl Editor {
             },
         );
 
-        // Táhlo pro změnu velikosti
+        // Resizing handle
         let (handle_rect, handle_response) =
             ui.allocate_exact_size(egui::vec2(available.x, handle_h), egui::Sense::drag());
         let handle_color = if handle_response.hovered() || handle_response.dragged() {
@@ -572,7 +572,7 @@ impl Editor {
                 ((self.md_split_ratio * available.y + delta) / available.y).clamp(0.1, 0.9);
         }
 
-        // Dolní polovina: Náhled
+        // Bottom half: Preview
         let scroll_offset = self.tabs[idx].scroll_offset;
 
         ui.allocate_ui_with_layout(
@@ -582,13 +582,13 @@ impl Editor {
                 ui.label(egui::RichText::new(i18n.get("editor-preview-label")).strong());
                 ui.separator();
 
-                // Návrat k tmavému motivu s dynamickým fontem
+                // Return to dark theme with dynamic font
                 let preview_frame = egui::Frame::new()
-                    .fill(egui::Color32::from_rgb(33, 37, 43)) // Tmavě šedé pozadí
+                    .fill(egui::Color32::from_rgb(33, 37, 43)) // Dark gray background
                     .inner_margin(egui::Margin::same(24));
 
                 preview_frame.show(ui, |ui| {
-                    // Dynamické přizpůsobení fontu podle nastavení editoru
+                    // Dynamic font adaptation based on editor settings
                     let font_size = Self::current_editor_font_size(ui);
                     
                     if let Some(body) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Body) {
@@ -799,4 +799,3 @@ mod tests {
         assert!((offset - 3800.0).abs() < f32::EPSILON);
     }
 }
-

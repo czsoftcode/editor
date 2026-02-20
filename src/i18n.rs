@@ -1,24 +1,24 @@
-//! Internacionalizace pomocí [Project Fluent](https://projectfluent.org/).
+//! Internationalization using [Project Fluent](https://projectfluent.org/).
 //!
-//! Překlady jsou embedovány přímo do binárky pomocí `include_str!`.
-//! Podporované jazyky: `cs`, `en` (fallback).
+//! Translations are embedded directly into the binary using `include_str!`.
+//! Supported languages: `cs`, `en` (fallback), `sk`, `de`, `ru`.
 //!
-//! Jazyk se detekuje automaticky ze systémových proměnných prostředí
-//! (`LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`). Není-li systémový jazyk
-//! podporován, použije se angličtina.
+//! The language is detected automatically from system environment variables
+//! (`LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`). If the system language
+//! is not supported, English is used.
 //!
-//! # Použití
+//! # Usage
 //!
 //! ```rust
 //! let i18n = I18n::new("cs");
 //!
-//! // Jednoduchý překlad
+//! // Simple translation
 //! let text = i18n.get("menu-file");
 //!
-//! // Překlad s proměnnými — makro tr!
+//! // Translation with variables — tr! macro
 //! let text = tr!(i18n, "about-version", version = "0.3.0");
 //!
-//! // Překlad s proměnnými — manuálně
+//! // Translation with variables — manually
 //! let mut args = fluent_bundle::FluentArgs::new();
 //! args.set("count", 3u32);
 //! let text = i18n.get_args("panel-build-errors", &args);
@@ -28,13 +28,13 @@ use fluent_bundle::{FluentArgs, FluentResource};
 use unic_langid::LanguageIdentifier;
 
 // ---------------------------------------------------------------------------
-// Podporované jazyky a embedované zdroje
+// Supported languages and embedded resources
 // ---------------------------------------------------------------------------
 
-/// Jazykové kódy (BCP 47) pro které existují překlady.
+/// Language codes (BCP 47) for which translations exist.
 pub const SUPPORTED_LANGS: &[&str] = &["cs", "en", "sk", "de", "ru"];
 
-/// Výchozí jazyk použitý jako fallback, pokud systémový jazyk není podporován.
+/// Default language used as fallback if the system language is not supported.
 pub const FALLBACK_LANG: &str = "en";
 
 const RESOURCES_CS: &[&str] = &[
@@ -85,7 +85,7 @@ pub(crate) fn resources_for(lang: &str) -> &'static [&'static str] {
 fn build_bundle(lang: &str) -> Bundle {
     let langid: LanguageIdentifier = lang
         .parse()
-        .expect("i18n: neplatný kód jazyka (musí být BCP 47)");
+        .expect("i18n: invalid language code (must be BCP 47)");
     let mut bundle = Bundle::new_concurrent(vec![langid]);
     for source in resources_for(lang) {
         match FluentResource::try_new(source.to_string()) {
@@ -97,11 +97,11 @@ fn build_bundle(lang: &str) -> Bundle {
 }
 
 // ---------------------------------------------------------------------------
-// Detekce systémového jazyka
+// System language detection
 // ---------------------------------------------------------------------------
 
-/// Vrátí lidsky čitelný název jazyka v jeho vlastní řeči.
-/// Používá se v ComboBoxu pro výběr jazyka v Nastavení.
+/// Returns a human-readable name of the language in its own tongue.
+/// Used in the ComboBox for language selection in Settings.
 pub fn lang_display_name(lang: &str) -> &'static str {
     match lang {
         "cs" => "Čeština",
@@ -113,13 +113,13 @@ pub fn lang_display_name(lang: &str) -> &'static str {
     }
 }
 
-/// Vrátí kód jazyka detekovaný ze systémových proměnných prostředí.
-/// Není-li systémový jazyk v [`SUPPORTED_LANGS`], vrátí [`FALLBACK_LANG`].
+/// Returns the language code detected from system environment variables.
+/// If the system language is not in [`SUPPORTED_LANGS`], returns [`FALLBACK_LANG`].
 ///
-/// Proměnné jsou zkoušeny v pořadí: `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`.
-/// `LANGUAGE` může být seznam oddělený `:` (např. `cs:en`) — zkouší se postupně.
+/// Variables are tried in order: `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`.
+/// `LANGUAGE` can be a list separated by `:` (e.g., `cs:en`) — they are tried sequentially.
 pub fn detect_system_lang() -> String {
-    // LANGUAGE může obsahovat více jazyků oddělených dvojtečkou
+    // LANGUAGE can contain multiple languages separated by a colon
     if let Ok(val) = std::env::var("LANGUAGE") {
         for part in val.split(':') {
             if let Some(lang) = extract_lang_code(part) {
@@ -143,8 +143,8 @@ pub fn detect_system_lang() -> String {
     FALLBACK_LANG.to_string()
 }
 
-/// Extrahuje 2-3 písmenný kód jazyka z locale řetězce.
-/// Příklady: `"cs_CZ.UTF-8"` → `"cs"`, `"en_US"` → `"en"`, `"zh_Hant"` → `"zh"`.
+/// Extracts a 2-3 letter language code from a locale string.
+/// Examples: `"cs_CZ.UTF-8"` → `"cs"`, `"en_US"` → `"en"`, `"zh_Hant"` → `"zh"`.
 fn extract_lang_code(locale: &str) -> Option<String> {
     let code = locale.split(['_', '.', '@']).next()?;
     if (2..=3).contains(&code.len()) && code.chars().all(|c| c.is_ascii_alphabetic()) {
@@ -155,28 +155,28 @@ fn extract_lang_code(locale: &str) -> Option<String> {
 }
 
 // ---------------------------------------------------------------------------
-// I18n — obálka nad FluentBundle (concurrent = Send + Sync)
+// I18n — Wrapper over FluentBundle (concurrent = Send + Sync)
 // ---------------------------------------------------------------------------
 
-/// Typ bundlu: `concurrent` varianta je `Send + Sync`, nutné pro `Arc<Mutex<AppShared>>`.
+/// Bundle type: `concurrent` variant is `Send + Sync`, required for `Arc<Mutex<AppShared>>`.
 type Bundle = fluent_bundle::concurrent::FluentBundle<FluentResource>;
 
-/// Přístup k přeloženým řetězcům.
+/// Access to translated strings.
 ///
-/// Instance je `Send + Sync` — lze ji bezpečně sdílet přes `Arc`.
+/// Instance is `Send + Sync` — can be safely shared via `Arc`.
 ///
-/// Pokud klíč chybí v primárním jazyce, použije se anglický fallback bundle.
-/// Teprve pokud klíč chybí i v angličtině, vrátí se klíč samotný.
+/// If a key is missing in the primary language, the English fallback bundle is used.
+/// Only if the key is missing in English as well, the key itself is returned.
 pub struct I18n {
     bundle: Bundle,
-    /// Anglický fallback bundle; `None` pokud je primárním jazykem angličtina.
+    /// English fallback bundle; `None` if the primary language is English.
     fallback: Option<Bundle>,
     lang: String,
 }
 
 impl I18n {
-    /// Vytvoří instanci pro daný kód jazyka.
-    /// Nepodporovaný kód se tiše vrátí na [`FALLBACK_LANG`].
+    /// Creates an instance for the given language code.
+    /// Unsupported codes silently revert to [`FALLBACK_LANG`].
     pub fn new(lang: &str) -> Self {
         let effective = if SUPPORTED_LANGS.contains(&lang) {
             lang
@@ -198,46 +198,46 @@ impl I18n {
         }
     }
 
-    /// Detekuje systémový jazyk a vytvoří odpovídající instanci.
+    /// Detects the system language and creates a corresponding instance.
     pub fn from_system() -> Self {
         Self::new(&detect_system_lang())
     }
 
-    /// Přeloží klíč bez argumentů.
-    /// Pokud klíč neexistuje, vrátí klíč samotný — chyba je tak viditelná v UI.
+    /// Translates a key without arguments.
+    /// If the key does not exist, returns the key itself — the error is thus visible in the UI.
     pub fn get(&self, key: &str) -> String {
         self.get_opt_args(key, None)
     }
 
-    /// Přeloží klíč s pojmenovanými argumenty (proměnné ve FTL: `{ $name }`).
+    /// Translates a key with named arguments (variables in FTL: `{ $name }`).
     pub fn get_args<'a>(&self, key: &str, args: &'a FluentArgs<'a>) -> String {
         self.get_opt_args(key, Some(args))
     }
 
-    /// Kód aktivního jazyka (BCP 47), např. `"cs"` nebo `"en"`.
+    /// Active language code (BCP 47), e.g., `"cs"` or `"en"`.
     pub fn lang(&self) -> &str {
         &self.lang
     }
 
-    // --- interní ---
+    // --- internal ---
 
     fn get_opt_args<'a>(&self, key: &str, args: Option<&'a FluentArgs<'a>>) -> String {
-        // 1. Zkus primární bundle
+        // 1. Try primary bundle
         if let Some(s) = Self::format_in(&self.bundle, key, args) {
             return s;
         }
-        // 2. Zkus anglický fallback bundle
+        // 2. Try English fallback bundle
         if let Some(fb) = &self.fallback {
             if let Some(s) = Self::format_in(fb, key, args) {
                 return s;
             }
         }
-        // 3. Vrátit klíč samotný — viditelná indikace chybějícího překladu
+        // 3. Return the key itself — visible indication of a missing translation
         key.to_string()
     }
 
-    /// Pokusí se přeložit `key` v daném bundlu. Vrátí `None` pokud klíč nebo
-    /// jeho hodnota (pattern) neexistuje.
+    /// Attempts to translate `key` in the given bundle. Returns `None` if the key or
+    /// its value (pattern) does not exist.
     fn format_in<'a>(bundle: &Bundle, key: &str, args: Option<&'a FluentArgs<'a>>) -> Option<String> {
         let msg = bundle.get_message(key)?;
         let pattern = msg.value()?;
@@ -247,25 +247,25 @@ impl I18n {
 }
 
 impl Default for I18n {
-    /// Výchozí instance: jazyk detekovaný ze systému.
+    /// Default instance: language detected from the system.
     fn default() -> Self {
         Self::from_system()
     }
 }
 
 // ---------------------------------------------------------------------------
-// Makro tr! — syntaktický cukr pro překlad
+// Macro tr! — syntactic sugar for translation
 // ---------------------------------------------------------------------------
 
-/// Přeloží klíč pomocí dané instance `I18n`.
+/// Translates a key using the given `I18n` instance.
 ///
-/// # Příklady
+/// # Examples
 ///
 /// ```rust
-/// // bez argumentů
+/// // without arguments
 /// let text = tr!(i18n, "menu-file");
 ///
-/// // s pojmenovanými argumenty
+/// // with named arguments
 /// let text = tr!(i18n, "about-version", version = "0.3.0");
 /// let text = tr!(i18n, "panel-build-errors", count = 5u64);
 /// ```
@@ -282,7 +282,7 @@ macro_rules! tr {
 }
 
 // ---------------------------------------------------------------------------
-// Testy
+// Tests
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
@@ -290,18 +290,18 @@ mod tests {
     use std::collections::HashSet;
     use super::*;
 
-    /// Extrahuje identifikátory zpráv z FTL zdroje.
-    /// Zahrnuje pouze řádky tvaru `ident = ...` (ne termy `-ident`, ne atributy `.attr`).
+    /// Extracts message identifiers from an FTL source.
+    /// Includes only lines of the form `ident = ...` (no terms `-ident`, no attributes `.attr`).
     fn ftl_keys(source: &str) -> HashSet<String> {
         let mut keys = HashSet::new();
         for line in source.lines() {
-            // Přeskočit prázdné řádky, komentáře a continuation řádky (odsazené)
+            // Skip empty lines, comments, and continuation lines (indented)
             if line.is_empty() || line.starts_with('#') || line.starts_with(' ') || line.starts_with('\t') {
                 continue;
             }
             let Some(eq) = line.find('=') else { continue };
             let key = line[..eq].trim();
-            // Přijmout pouze platné identifikátory zpráv (ne termy začínající `-`)
+            // Accept only valid message identifiers (no terms starting with `-`)
             if !key.is_empty()
                 && !key.starts_with('-')
                 && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
@@ -312,7 +312,7 @@ mod tests {
         keys
     }
 
-    /// Sbírá všechny klíče ze sady FTL souborů daného jazyka.
+    /// Collects all keys from the set of FTL files for a given language.
     fn all_keys_for(lang: &str) -> HashSet<String> {
         resources_for(lang)
             .iter()
@@ -324,9 +324,9 @@ mod tests {
     fn supported_langs_load_without_panic() {
         for lang in SUPPORTED_LANGS {
             let i18n = I18n::new(lang);
-            // Základní klíče musí existovat ve všech jazycích
-            assert_ne!(i18n.get("menu-file"), "menu-file", "chybí klíč menu-file v '{lang}'");
-            assert_ne!(i18n.get("panel-files"), "panel-files", "chybí klíč panel-files v '{lang}'");
+            // Basic keys must exist in all languages
+            assert_ne!(i18n.get("menu-file"), "menu-file", "missing key menu-file in '{lang}'");
+            assert_ne!(i18n.get("panel-files"), "panel-files", "missing key panel-files in '{lang}'");
         }
     }
 
@@ -338,30 +338,28 @@ mod tests {
 
     #[test]
     fn missing_key_returns_key_itself() {
-        // Klíč, který neexistuje ani v primárním, ani ve fallback bundlu
+        // Key that does not exist in primary or fallback bundle
         let i18n = I18n::new("en");
-        assert_eq!(i18n.get("neexistujici-klic-xyz"), "neexistujici-klic-xyz");
+        assert_eq!(i18n.get("nonexistent-key-xyz"), "nonexistent-key-xyz");
     }
 
     #[test]
     fn missing_key_falls_back_to_english() {
-        // Otestuje, že I18n pro jiný jazyk skutečně vrátí EN fallback.
-        // Použijeme klíč z EN bundlu — pokud by cs bundle měl fallback vypnutý,
-        // vrátil by klíč samotný. Tady ověřujeme, že I18n::new("cs") má fallback bundle.
+        // Tests that I18n for another language indeed returns the EN fallback.
         let cs = I18n::new("cs");
-        // "panel-files" existuje v cs → vrátí českou hodnotu, ne klíč
+        // "panel-files" exists in cs → returns Czech value, not the key
         assert_ne!(cs.get("panel-files"), "panel-files");
-        // Fallback bundle je přítomný pro neanglické jazyky
-        assert!(cs.fallback.is_some(), "cs I18n musí mít fallback bundle");
-        // EN instance nemá fallback bundle (sama je fallback)
+        // Fallback bundle is present for non-English languages
+        assert!(cs.fallback.is_some(), "cs I18n must have a fallback bundle");
+        // EN instance does not have a fallback bundle (it is the fallback)
         let en = I18n::new("en");
-        assert!(en.fallback.is_none(), "en I18n nemá mít fallback bundle");
+        assert!(en.fallback.is_none(), "en I18n should not have a fallback bundle");
     }
 
     #[test]
     fn all_lang_keys_match_english() {
         let en_keys = all_keys_for("en");
-        assert!(!en_keys.is_empty(), "anglické FTL soubory musí obsahovat klíče");
+        assert!(!en_keys.is_empty(), "English FTL files must contain keys");
 
         for &lang in SUPPORTED_LANGS {
             if lang == FALLBACK_LANG {
@@ -369,7 +367,7 @@ mod tests {
             }
             let lang_keys = all_keys_for(lang);
 
-            // Všechny anglické klíče musí být i v tomto jazyce
+            // All English keys must also be in this language
             let mut missing: Vec<&str> = en_keys
                 .iter()
                 .filter(|k| !lang_keys.contains(*k))
@@ -378,11 +376,11 @@ mod tests {
             missing.sort();
             assert!(
                 missing.is_empty(),
-                "Jazyk '{lang}' postrádá klíče oproti EN:\n  {}",
+                "Language '{lang}' lacks keys compared to EN:\n  {}",
                 missing.join("\n  ")
             );
 
-            // Tento jazyk nesmí mít extra klíče, které nejsou v angličtině
+            // This language must not have extra keys that are not in English
             let mut extra: Vec<&str> = lang_keys
                 .iter()
                 .filter(|k| !en_keys.contains(*k))
@@ -391,7 +389,7 @@ mod tests {
             extra.sort();
             assert!(
                 extra.is_empty(),
-                "Jazyk '{lang}' má navíc klíče oproti EN:\n  {}",
+                "Language '{lang}' has extra keys compared to EN:\n  {}",
                 extra.join("\n  ")
             );
         }

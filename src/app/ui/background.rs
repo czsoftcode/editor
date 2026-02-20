@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 
-/// Spustí uzávěr v novém vlákně a vrátí Receiver s výsledkem.
-/// Nahrazuje opakující se pattern `let (tx, rx) = channel(); thread::spawn(|| tx.send(f())); rx`.
+/// Spawns a closure in a new thread and returns a Receiver with the result.
+/// Replaces the repeating pattern `let (tx, rx) = channel(); thread::spawn(|| tx.send(f())); rx`.
 pub(crate) fn spawn_task<T, F>(f: F) -> mpsc::Receiver<T>
 where
     T: Send + 'static,
@@ -24,24 +24,24 @@ use super::super::types::Toast;
 use super::workspace::{WorkspaceState, spawn_file_index_scan, spawn_ai_tool_check};
 use crate::watcher::{FileEvent, FsChange};
 
-/// Zpracuje události z watcherů, build výsledky a autosave.
+/// Processes events from watchers, build results, and autosave.
 pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
     for event in ws.watcher.try_recv() {
         match event {
             FileEvent::Changed(changed_path) => {
-                // Porovnáme kanonizovanou cestu se všemi záložkami editoru.
+                // Compare the canonicalized path with all editor tabs.
                 if let Ok(changed_canonical) = changed_path.canonicalize() {
                     if let Some(tab_path) =
                         ws.editor.tab_path_for_canonical(&changed_canonical)
                     {
                         if ws.editor.is_path_modified(&tab_path) {
-                            // Záložka má neuložené změny → zobrazit dialog.
-                            // Nepřepisujeme existující konflikt (mohl by ještě čekat).
+                            // Tab has unsaved changes → show dialog.
+                            // Do not overwrite existing conflict (it might still be pending).
                             if ws.external_change_conflict.is_none() {
                                 ws.external_change_conflict = Some(tab_path);
                             }
                         } else {
-                            // Žádné neuložené změny → bezpečně načíst z disku.
+                            // No unsaved changes → safely reload from disk.
                             ws.editor.reload_path_from_disk(&tab_path);
                         }
                     }
@@ -83,7 +83,7 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
             }
         }
         if need_reload {
-            // Rozbalit strom na nový soubor, ale neotevírat ho v editoru automaticky.
+            // Expand the tree to the new file, but do not open it in the editor automatically.
             if let Some(ref path) = created_file {
                 ws.file_tree.request_reload_and_expand(path);
             } else {
@@ -128,28 +128,28 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
             ws.ai_tool_last_check = std::time::Instant::now();
         }
     }
-    // Periodický re-check AI CLI nástrojů (claude, aider, …)
+    // Periodic re-check of AI CLI tools (claude, aider, …)
     if ws.ai_tool_last_check.elapsed().as_secs() >= crate::config::AI_TOOL_CHECK_INTERVAL_SECS
         && ws.ai_tool_check_rx.is_none()
     {
         ws.ai_tool_check_rx = Some(spawn_ai_tool_check());
     }
 
-    // Git: načítání větve
+    // Git: loading branch
     if let Some(rx) = &ws.git_branch_rx {
         if let Ok(branch) = rx.try_recv() {
             ws.git_branch = branch;
             ws.git_branch_rx = None;
         }
     }
-    // Git: načítání stavu souborů
+    // Git: loading file status
     if let Some(rx) = &ws.git_status_rx {
         if let Ok(colors) = rx.try_recv() {
             ws.file_tree.set_git_colors(colors);
             ws.git_status_rx = None;
         }
     }
-    // Git: periodický refresh každých 5 sekund
+    // Git: periodic refresh every 5 seconds
     if ws.git_last_refresh.elapsed().as_secs() >= 5 {
         ws.git_last_refresh = std::time::Instant::now();
         if ws.git_branch_rx.is_none() {
@@ -160,7 +160,7 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
         }
     }
 
-    // Autosave je pozastavený, pokud čeká dialog o externím konfliktu.
+    // Autosave is paused if an external conflict dialog is pending.
     if ws.external_change_conflict.is_none() {
         if let Some(err) = ws.editor.try_autosave(i18n) {
             ws.toasts.push(Toast::error(err));
@@ -168,9 +168,9 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
     }
 }
 
-/// Polling na dokončení podprocesu (25 ms intervaly) s podporou zrušení.
-/// Po ukončení procesu přečte stdout a vrátí bajty.
-/// Vrátí None pokud byl cancel, chyba nebo neúspěšný exit kód.
+/// Polling for subprocess completion (25 ms intervals) with cancellation support.
+/// After the process ends, it reads stdout and returns bytes.
+/// Returns None if cancelled, error occurred, or non-zero exit code.
 fn wait_for_child_stdout(
     mut child: std::process::Child,
     cancel: &Arc<AtomicBool>,

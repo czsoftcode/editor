@@ -2,12 +2,12 @@ mod menubar;
 mod modal_dialogs;
 pub(crate) mod state;
 
-// Re-exporty pro vnější volající (panels.rs, ai_panel.rs, background.rs, app/mod.rs, …)
+// Re-exports for external callers (panels.rs, ai_panel.rs, background.rs, app/mod.rs, …)
 pub(crate) use state::{
     FilePicker, SearchResult, SecondaryWorkspace, WorkspaceState,
     init_workspace, open_and_jump, open_file_in_ws, ws_to_panel_state,
 };
-// Viditelné pro sourozence v ui/ (background.rs, ai_panel.rs)
+// Visible to siblings in ui/ (background.rs, ai_panel.rs)
 pub(super) use state::{spawn_ai_tool_check, spawn_file_index_scan};
 
 use std::path::PathBuf;
@@ -26,8 +26,8 @@ use modal_dialogs::render_dialogs;
 use crate::config;
 
 // ---------------------------------------------------------------------------
-// render_workspace — orchestrátor vykreslení jednoho pracovního prostoru
-// Vrací Some(path) pokud má být workspace reinicializován s novou cestou.
+// render_workspace — Orchestrator for rendering a single workspace
+// Returns Some(path) if the workspace should be reinitialized with a new path.
 // ---------------------------------------------------------------------------
 
 pub(crate) fn render_workspace(
@@ -35,11 +35,11 @@ pub(crate) fn render_workspace(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
 ) -> Option<PathBuf> {
-    // Extrahujeme i18n z shared (krátkodobý lock, poté pracujeme jen s Arc)
+    // Extract i18n from shared (short-term lock, then work only with Arc)
     let i18n_arc = { std::sync::Arc::clone(&shared.lock().unwrap().i18n) };
     let i18n = &*i18n_arc;
 
-    // Lazy init terminálů
+    // Lazy initialization of terminals
     if ws.claude_tabs.is_empty() {
         let root = ws.root_path.clone();
         let id = ws.next_claude_tab_id;
@@ -50,20 +50,20 @@ pub(crate) fn render_workspace(
         ws.build_terminal = Some(super::terminal::Terminal::new(1, ctx, &ws.root_path, None));
     }
 
-    // Události na pozadí (watcher, build, autosave)
+    // Background events (watcher, build, autosave)
     process_background_events(ws, i18n);
 
-    // Pravidelné překreslování pro autosave a watcher
+    // Periodic repaint for autosave and watcher
     ctx.request_repaint_after(std::time::Duration::from_millis(
         config::REPAINT_INTERVAL_MS,
     ));
 
-    // Klávesové zkratky
+    // Keyboard shortcuts
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
         if let Some(err) = ws.editor.save(i18n) {
             ws.toasts.push(Toast::error(err));
         }
-        // Po uložení okamžitě aktualizujeme git status
+        // After saving, immediately update git status
         if ws.git_status_rx.is_none() {
             ws.git_status_rx = Some(fetch_git_status(&ws.root_path, Arc::clone(&ws.git_cancel)));
         }
@@ -95,17 +95,17 @@ pub(crate) fn render_workspace(
             ws.file_picker = None;
         }
     }
-    // Ctrl+Shift+F — hledání napříč projektem
+    // Ctrl+Shift+F — project-wide search
     if ctx.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::F)) {
         ws.project_search.show_input = true;
         ws.project_search.focus_requested = true;
     }
 
-    // Menu bar + zpracování akcí
+    // Menu bar + action processing
     let actions = render_menu_bar(ctx, ws, shared, i18n);
     let open_here_path = process_menu_actions(ws, shared, actions, i18n);
 
-    // Modální dialogy
+    // Modal dialogs
     render_dialogs(ctx, ws, shared, i18n);
 
     // File picker (Ctrl+P)
@@ -113,10 +113,10 @@ pub(crate) fn render_workspace(
         open_file_in_ws(ws, path);
     }
 
-    // Hledání napříč projektem
+    // Project-wide search
     render_project_search_dialog(ctx, ws, i18n);
 
-    // Status bar (musí být před SidePanel)
+    // Status bar (must be before SidePanel)
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
         .show(ctx, |ui| {
@@ -125,11 +125,11 @@ pub(crate) fn render_workspace(
 
     let dialog_open = ws.file_tree.has_open_dialog();
 
-    // Panely (pořadí: pravý, levý, centrální)
+    // Panels (order: right, left, central)
     let ai_clicked = render_ai_panel(ctx, ws, dialog_open, i18n);
     let left_clicked = render_left_panel(ctx, ws, dialog_open, i18n);
 
-    // Zapamatovat aktivní záložku před renderem — kvůli detekci přepnutí tabu
+    // Remember active tab before render — to detect tab switching
     let prev_active_path = ws.editor.active_path().cloned();
 
     egui::CentralPanel::default().show(ctx, |ui| {
@@ -138,7 +138,7 @@ pub(crate) fn render_workspace(
         }
     });
 
-    // Pokud se přepnula záložka, přepnout FileWatcher na adresář nové záložky.
+    // If the tab was switched, switch FileWatcher to the directory of the new tab.
     let new_active_path = ws.editor.active_path().cloned();
     if new_active_path != prev_active_path {
         if let Some(path) = &new_active_path {
@@ -148,7 +148,7 @@ pub(crate) fn render_workspace(
         }
     }
 
-    // Focus follows mouse — vrátit fokus editoru pokud terminál nebyl aktivně kliknut
+    // Focus follows mouse — return focus to editor if terminal was not actively clicked
     if !ai_clicked && !left_clicked {
         let in_terminal =
             ws.focused_panel == FocusedPanel::Claude || ws.focused_panel == FocusedPanel::Build;
@@ -158,7 +158,7 @@ pub(crate) fn render_workspace(
         }
     }
 
-    // Toast notifikace
+    // Toast notifications
     render_toasts(ctx, ws);
 
     open_here_path

@@ -110,7 +110,7 @@ pub struct FileTree {
     pending_deleted: Option<PathBuf>,
     expand_to: Option<PathBuf>,
     pending_error: Option<String>,
-    /// Barvy souborů podle git stavu (absolutní cesty → barva)
+    /// File colors based on git status (absolute path → color)
     git_colors: HashMap<PathBuf, eframe::egui::Color32>,
 }
 
@@ -141,12 +141,12 @@ impl FileTree {
         }
     }
 
-    /// Nastaví mapování absolutních cest na barvy z git status.
+    /// Sets the mapping of absolute paths to colors from git status.
     pub fn set_git_colors(&mut self, colors: HashMap<PathBuf, eframe::egui::Color32>) {
         self.git_colors = colors;
     }
 
-    /// Vyzvedne případnou chybu I/O operace (pro zobrazení v toast notifikaci).
+    /// Fetches a potential I/O operation error (to be displayed in a toast notification).
     pub fn take_error(&mut self) -> Option<String> {
         self.pending_error.take()
     }
@@ -177,7 +177,7 @@ impl FileTree {
             self.load(&path);
         }
 
-        // Sebrání pending výsledků z předchozího framu
+        // Collecting pending results from the previous frame
         result.created_file = self.pending_created_file.take();
         result.deleted = self.pending_deleted.take();
 
@@ -223,7 +223,7 @@ impl FileTree {
         let text_color = ui.visuals().text_color();
         let font_size = config::FILE_TREE_FONT_SIZE;
 
-        // Git barvy jsou navrženy pro tmavé pozadí — v light mode je ztmavíme
+        // Git colors are designed for dark backgrounds — we darken them in light mode
         let adapt_git_color = |c: eframe::egui::Color32| -> eframe::egui::Color32 {
             if dark_mode {
                 c
@@ -452,7 +452,7 @@ impl FileTree {
             ModalResult::Confirmed(name) => {
                 if let Some(parent) = &self.new_item_parent {
                     let new_path = parent.join(&name);
-                    // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
+                    // Safety check: path must remain within the project root
                     if !new_path.starts_with(&self.root_path) {
                         self.pending_error = Some(i18n.get("file-tree-outside-project"));
                     } else if self.new_item_is_dir {
@@ -526,7 +526,7 @@ impl FileTree {
                 if let Some(target) = &self.rename_target {
                     if let Some(parent) = target.parent() {
                         let new_path = parent.join(&name);
-                        // Bezpecnostni kontrola: cesta musi zustat uvnitr korene projektu
+                        // Safety check: path must remain within the project root
                         if !new_path.starts_with(&self.root_path) {
                             self.pending_error = Some(i18n.get("file-tree-outside-project"));
                         } else {

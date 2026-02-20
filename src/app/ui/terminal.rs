@@ -18,7 +18,7 @@ pub struct Terminal {
     pty_receiver: Option<Receiver<(u64, PtyEvent)>>,
     error: Option<String>,
     exited: bool,
-    /// Akumulátor pro sub-pixelový drag scrollbaru
+    /// Accumulator for sub-pixel drag scrolling
     scroll_drag_acc: f32,
 }
 
@@ -119,10 +119,10 @@ impl Terminal {
         }
     }
 
-    /// Vykreslí terminál. Vrací `true` pokud uživatel klikl do oblasti terminálu.
+    /// Renders the terminal. Returns `true` if the user clicked into the terminal area.
     pub fn ui(&mut self, ui: &mut egui::Ui, focused: bool, font_size: f32, i18n: &crate::i18n::I18n) -> bool {
-        // Zpracovat události z PTY — limit za snímek, zbytek se dočerpá příští snímek.
-        // Bez limitu by burst výstupu (cargo build, grep apod.) zablokoval UI na desítky ms.
+        // Process events from PTY — limit per frame, the rest will be consumed in the next frame.
+        // Without a limit, an output burst (cargo build, grep, etc.) would block the UI for tens of ms.
         if let Some(pty_receiver) = &self.pty_receiver {
             for _ in 0..config::TERMINAL_MAX_EVENTS_PER_FRAME {
                 match pty_receiver.try_recv() {
@@ -156,14 +156,14 @@ impl Terminal {
             return false;
         }
 
-        // Klávesa R restartuje terminál po exitu (musí být focused)
+        // 'R' key restarts the terminal after exit (must be focused)
         if self.exited && focused && ui.input(|i| i.key_pressed(egui::Key::R)) {
             self.restart(ui.ctx());
             return true;
         }
 
-        // Při exitu rezervujeme spodní pruh pro exit banner; terminál stále zobrazujeme
-        // aby uživatel viděl historii výstupu.
+        // On exit, reserve the bottom strip for the exit banner; the terminal is still displayed
+        // so the user can see the output history.
         let exit_banner_height = if self.exited { 24.0 } else { 0.0 };
         let term_height = (ui.available_height() - exit_banner_height).max(1.0);
         let term_width = (ui.available_width() - config::TERMINAL_SCROLLBAR_WIDTH).max(10.0);
@@ -179,7 +179,7 @@ impl Terminal {
                 return false;
             };
             TerminalView::new(ui, backend)
-                // Po exitu terminál defokusujeme — zobrazí se jen history, bez kurzoru
+                // Defocus terminal after exit — history is shown without cursor
                 .set_focus(focused && !self.exited)
                 .set_font(term_font)
                 .set_size(egui::Vec2::new(term_width, term_height))
@@ -187,7 +187,7 @@ impl Terminal {
 
         let response = ui.add(terminal);
 
-        // Neaktivní terminál: ztmavení + dutý kurzor místo plného bloku
+        // Inactive terminal: dimming + hollow cursor instead of solid block
         if !focused {
             let painter = ui.painter_at(response.rect);
             let Some(content) = self.backend.as_ref().map(|b| b.last_content()) else {
@@ -232,7 +232,7 @@ impl Terminal {
             }
         }
 
-        // Kontext menu
+        // Context menu
         let menu_size = 15.0;
         response.context_menu(|ui| {
             let selected = self
@@ -273,7 +273,7 @@ impl Terminal {
         // Scrollbar
         self.draw_scrollbar(ui, response.rect, term_height);
 
-        // Exit banner — zobrazí se pod terminálovou historií
+        // Exit banner — displayed below the terminal history
         if self.exited {
             ui.horizontal(|ui| {
                 ui.add_space(6.0);
@@ -287,9 +287,9 @@ impl Terminal {
         response.hovered()
     }
 
-    /// Explicitně ukončí procesní skupinu shellu (Unix). Volá se z Drop implicitně.
-    /// Používá SIGTERM na -pid (celá procesní skupina), takže cargo run a podobné
-    /// potomky skončí spolu se shellem — nepřežijí jako sirotci.
+    /// Explicitly terminates the shell process group (Unix). Called implicitly from Drop.
+    /// Uses SIGTERM on -pid (entire process group), so cargo run and similar
+    /// children terminate along with the shell — they don't survive as orphans.
     #[cfg(unix)]
     fn kill_process_group(&self) {
         if self.exited {
@@ -316,7 +316,7 @@ impl Terminal {
 
         let painter = ui.painter_at(sb_rect);
 
-        // Pozadí scrollbaru
+        // Scrollbar background
         painter.rect_filled(
             sb_rect,
             egui::CornerRadius::ZERO,
@@ -329,7 +329,7 @@ impl Terminal {
         let display_offset = content.grid.display_offset();
 
         if history_size == 0 {
-            // Žádná historie — scrollbar jako dekorace (plný track = vše viditelné)
+            // No history — scrollbar as decoration (full track = everything visible)
             let thumb_rect = sb_rect.shrink2(egui::Vec2::new(2.0, 0.0));
             painter.rect_filled(
                 thumb_rect,
@@ -346,8 +346,8 @@ impl Terminal {
         let thumb_h = (thumb_ratio * track_h).max(20.0);
         let track_range = (track_h - thumb_h).max(1.0);
 
-        // display_offset = 0 → jsme dole → palec dole
-        // display_offset = history_size → jsme nahoře → palec nahoře
+        // display_offset = 0 → bottom → thumb at bottom
+        // display_offset = history_size → top → thumb at top
         let scroll_frac = display_offset as f32 / history_size as f32;
         let thumb_top = sb_rect.min.y + (1.0 - scroll_frac) * track_range;
 
@@ -356,7 +356,7 @@ impl Terminal {
             egui::Vec2::new(config::TERMINAL_SCROLLBAR_WIDTH - 4.0, thumb_h),
         );
 
-        // Interakce
+        // Interaction
         let sb_id = ui.id().with("scrollbar");
         let sb_response = ui.interact(sb_rect, sb_id, egui::Sense::drag());
 
@@ -367,10 +367,10 @@ impl Terminal {
         };
         painter.rect_filled(thumb_rect, egui::CornerRadius::same(3), thumb_color);
 
-        // Drag: přeložit pixely na řádky
+        // Drag: translate pixels to lines
         if sb_response.dragged() {
             let dy = sb_response.drag_delta().y;
-            // Negativní dy (tažení nahoru) = scroll do historie = kladný delta
+            // Negative dy (dragging up) = scroll to history = positive delta
             self.scroll_drag_acc -= dy;
             let lines_per_pixel = history_size as f32 / track_range;
             let line_delta = (self.scroll_drag_acc * lines_per_pixel) as i32;
@@ -382,7 +382,7 @@ impl Terminal {
             self.scroll_drag_acc = 0.0;
         }
 
-        // Klik na track (mimo palec) = skok o stránku
+        // Click on track (outside thumb) = page scroll
         if sb_response.clicked() {
             if let Some(pos) = sb_response.interact_pointer_pos() {
                 let page = screen_lines as i32;

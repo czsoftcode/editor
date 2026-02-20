@@ -7,7 +7,7 @@ use super::super::types::{FocusedPanel, Toast};
 use super::workspace::{WorkspaceState, open_and_jump, open_file_in_ws};
 use crate::config;
 
-/// Vykreslí levý panel (strom souborů + build terminál). Vrací true pokud bylo kliknuto do terminálu.
+/// Renders the left panel (file tree + build terminal). Returns true if the terminal was clicked.
 pub(super) fn render_left_panel(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
@@ -63,7 +63,7 @@ pub(super) fn render_left_panel(
     any_clicked
 }
 
-/// Vykreslí build terminál a error list uvnitř levého panelu.
+/// Renders the build panel and error list inside the left panel.
 fn render_build_panel(
     ui: &mut egui::Ui,
     ws: &mut WorkspaceState,
@@ -155,7 +155,7 @@ fn render_build_panel(
         }
     }
 
-    // Výsledky hledání napříč projektem
+    // Project-wide search results
     let loading = ws.project_search.rx.is_some();
     let has_results = !ws.project_search.results.is_empty();
     if loading || has_results {
@@ -207,7 +207,7 @@ fn render_build_panel(
     }
 }
 
-/// Vykreslí toast notifikace v pravém dolním rohu. Odstraní vypršelé toasty.
+/// Renders toast notifications in the bottom right corner. Removes expired toasts.
 pub(super) fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
     ws.toasts.retain(|t| !t.is_expired());
     if ws.toasts.is_empty() {

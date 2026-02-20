@@ -207,7 +207,7 @@ impl Editor {
 }
 
 // ---------------------------------------------------------------------------
-// Zvýraznění výsledků hledání v LayoutJobu
+// Search result highlighting in LayoutJob
 // ---------------------------------------------------------------------------
 
 pub(super) fn apply_search_highlights(

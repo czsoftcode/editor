@@ -9,7 +9,7 @@ use super::workspace::{WorkspaceState, spawn_ai_tool_check};
 use crate::config;
 
 // ---------------------------------------------------------------------------
-// Pomocné funkce
+// Helper functions
 // ---------------------------------------------------------------------------
 
 fn ai_tool_is_available(available: &HashMap<AiTool, bool>, tool: AiTool) -> bool {
@@ -116,7 +116,7 @@ fn render_ai_tool_controls(
     }
 }
 
-/// Vykreslí záložky terminálů a vrátí požadovanou akci.
+/// Renders terminal tabs and returns the requested action.
 fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::Context) {
     match action {
         TabBarAction::Switch(i) => {
@@ -139,10 +139,10 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
 }
 
 // ---------------------------------------------------------------------------
-// Veřejná funkce
+// Public function
 // ---------------------------------------------------------------------------
 
-/// Vykreslí pravý panel s AI terminálem. Vrací true pokud bylo kliknuto do terminálu.
+/// Renders the right panel with the AI terminal. Returns true if the terminal was clicked.
 pub(super) fn render_ai_panel(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,

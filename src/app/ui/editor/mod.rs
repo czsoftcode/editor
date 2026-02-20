@@ -13,7 +13,7 @@ mod search;
 const AUTOSAVE_DELAY_MS: u128 = 500;
 
 // ---------------------------------------------------------------------------
-// Typy
+// Types
 // ---------------------------------------------------------------------------
 
 #[derive(PartialEq)]
@@ -34,18 +34,18 @@ pub(super) struct Tab {
     last_saved_content: String,
     scroll_offset: f32,
     last_cursor_range: Option<egui::text::CursorRange>,
-    /// Příznak, zda jde o binární soubor (ne text).
+    /// Flag indicating if the file is binary (not text).
     pub(super) is_binary: bool,
-    /// Pro obrázky: vygenerovaná textura pro egui.
+    /// For images: generated texture handle for egui.
     pub(super) image_texture: Option<egui::TextureHandle>,
-    /// Surová data pro binární soubory (pokud je chceme držet v paměti).
+    /// Raw data for binary files (if kept in memory).
     pub(super) binary_data: Option<Vec<u8>>,
-    /// Zda byl SVG modal již zobrazen (true = uživatel si vybral, znovu nezobrazovat).
+    /// Whether the SVG modal has already been shown (true = user made a choice, don't show again).
     pub(super) svg_modal_shown: bool,
 }
 
 // ---------------------------------------------------------------------------
-// Editor — hlavní struktura
+// Editor — main structure
 // ---------------------------------------------------------------------------
 
 pub struct Editor {
@@ -62,7 +62,7 @@ pub struct Editor {
     pub(super) md_split_ratio: f32,
     pub(super) tab_scroll_x: f32,
     pub(super) scroll_to_active: bool,
-    /// Čekající skok na řádek (1-based)
+    /// Pending jump to line (1-based)
     pub(super) pending_jump: Option<usize>,
     pub(super) show_goto_line: bool,
     pub(super) goto_line_input: String,
@@ -156,7 +156,7 @@ impl Editor {
             .and_then(|e| e.to_str())
             .unwrap_or_default()
             .to_lowercase();
-        // Soubory, které otevíráme v systémové aplikaci — žádná záložka
+        // Files opened in a system application — no tab
         let is_external = matches!(ext.as_str(), "pdf" | "odt" | "docx");
         if is_external {
             let _ = std::process::Command::new("xdg-open").arg(path).spawn();
@@ -316,13 +316,13 @@ impl Editor {
 
     // --- File operations ---
 
-    /// Vrací true pokud záložka pro danou cestu existuje a má neuložené změny.
+    /// Returns true if a tab for the given path exists and has unsaved changes.
     pub fn is_path_modified(&self, path: &PathBuf) -> bool {
         self.tabs.iter().any(|t| t.path == *path && t.modified)
     }
 
-    /// Najde cestu záložky, jejíž kanonizovaná cesta odpovídá `canonical`.
-    /// Vrací původní (nekanonizovanou) cestu záložky, pokud existuje.
+    /// Finds the tab path whose canonicalized path matches `canonical`.
+    /// Returns the original (non-canonicalized) tab path if it exists.
     pub fn tab_path_for_canonical(&self, canonical: &PathBuf) -> Option<PathBuf> {
         self.tabs.iter().find_map(|t| {
             t.path
@@ -333,7 +333,7 @@ impl Editor {
         })
     }
 
-    /// Načte konkrétní záložku (podle cesty) z disku — bez ohledu na aktivní záložku.
+    /// Reloads a specific tab (by path) from disk — regardless of the active tab.
     pub fn reload_path_from_disk(&mut self, path: &PathBuf) {
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.path == *path) {
             if tab.is_binary {
@@ -357,7 +357,7 @@ impl Editor {
         self.update_search();
     }
 
-    /// Pokusí se autosave aktivní záložky. Vrací chybovou zprávu pokud zápis selhal.
+    /// Attempts to autosave the active tab. Returns an error message if writing fails.
     pub fn try_autosave(&mut self, i18n: &crate::i18n::I18n) -> Option<String> {
         let should_save = self.active().is_some_and(|t| {
             !t.deleted
@@ -368,7 +368,7 @@ impl Editor {
         if should_save { self.save(i18n) } else { None }
     }
 
-    /// Uloží aktivní záložku. Vrací chybovou zprávu pokud zápis selhal, jinak None.
+    /// Saves the active tab. Returns an error message if writing fails, otherwise None.
     pub fn save(&mut self, i18n: &crate::i18n::I18n) -> Option<String> {
         let tab = self.active_mut()?;
         tab.save_status = SaveStatus::Saving;
@@ -403,8 +403,8 @@ impl Editor {
         }
     }
 
-    /// Uloží konkrétní záložku identifikovanou cestou (bez ohledu na aktivní záložku).
-    /// Vrací chybovou zprávu pokud zápis selhal, jinak None.
+    /// Saves a specific tab identified by path (regardless of the active tab).
+    /// Returns an error message if writing fails, otherwise None.
     pub fn save_path(&mut self, path: &PathBuf, i18n: &crate::i18n::I18n) -> Option<String> {
         let tab = self.tabs.iter_mut().find(|t| t.path == *path)?;
         tab.save_status = SaveStatus::Saving;
@@ -441,7 +441,7 @@ impl Editor {
 
     // --- UI entry point ---
 
-    /// Vrací `true` pokud uživatel klikl do editoru.
+    /// Returns `true` if the user clicked in the editor.
     pub fn ui(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
         if self.tabs.is_empty() {
             ui.centered_and_justified(|ui| {
@@ -573,7 +573,7 @@ impl Editor {
                     }
                 }
 
-                // Tlačítko vždy viditelné — uživatel ho může použít kdykoli při editaci
+                // Button always visible — user can use it anytime during editing
                 if let Some(path) = self.active_path().cloned() {
                     ui.horizontal(|ui| {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -645,7 +645,7 @@ impl Editor {
 }
 
 // ---------------------------------------------------------------------------
-// Pomocné free funkce
+// Helper free functions
 // ---------------------------------------------------------------------------
 
 pub(super) fn ext_to_file_type(ext: &str) -> &'static str {

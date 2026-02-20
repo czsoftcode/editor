@@ -1,6 +1,6 @@
 use eframe::egui;
 
-/// Akce, kterou může vrátit jakýkoliv tab bar v aplikaci.
+/// Action that can be returned by any tab bar in the application.
 #[derive(Debug)]
 pub(crate) enum TabBarAction {
     Switch(usize),
@@ -8,17 +8,17 @@ pub(crate) enum TabBarAction {
     New,
 }
 
-/// Popis jedné záložky předaný do [`render_compact_tab_bar`].
+/// Description of a single tab passed to [`render_compact_tab_bar`].
 pub(crate) struct TabItem {
     pub label: String,
     pub closable: bool,
 }
 
-/// Vykreslí kompaktní řadu záložek (styl AI panelu):
-/// číslované/pojmenované záložky s × pro zavření a + pro novou záložku.
+/// Renders a compact row of tabs (AI panel style):
+/// numbered/named tabs with × for closing and + for a new tab.
 ///
-/// Používá se tam, kde není potřeba scrollování — pro scrollovatelný
-/// editor tab bar existuje specializovaná implementace v `editor/render.rs`.
+/// Used where scrolling is not needed — for a scrollable editor tab bar,
+/// there is a specialized implementation in `editor/render.rs`.
 pub(crate) fn render_compact_tab_bar(
     ui: &mut egui::Ui,
     items: &[TabItem],

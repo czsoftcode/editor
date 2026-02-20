@@ -4,7 +4,7 @@ const SETTINGS_FILE: &str = "settings.json";
 const CONFIG_DIR_NAME: &str = "polycredo-editor";
 
 // ---------------------------------------------------------------------------
-// Výchozí hodnoty (potřebné pro serde default attrs)
+// Default values (needed for serde default attrs)
 // ---------------------------------------------------------------------------
 
 fn default_editor_font_size() -> f32 {
@@ -26,25 +26,25 @@ pub fn default_project_path() -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Settings — perzistentní konfigurace aplikace
+// Settings — persistent application configuration
 // ---------------------------------------------------------------------------
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct Settings {
-    /// Velikost fontu editoru v px (10–24).
+    /// Editor font size in px (10–24).
     #[serde(default = "default_editor_font_size")]
     pub editor_font_size: f32,
 
-    /// true = tmavé téma, false = světlé.
+    /// true = dark theme, false = light theme.
     #[serde(default = "default_dark_theme")]
     pub dark_theme: bool,
 
-    /// Výchozí adresář pro nové projekty.
+    /// Default directory for new projects.
     #[serde(default = "default_project_path")]
     pub default_project_path: String,
 
-    /// Kód jazyka UI (BCP 47, např. "cs", "en").
-    /// Prázdný řetězec nebo nepodporovaný jazyk → autodetekce ze systému.
+    /// UI language code (BCP 47, e.g., "cs", "en").
+    /// Empty string or unsupported language → autodetect from system.
     #[serde(default = "default_lang")]
     pub lang: String,
 }
@@ -72,7 +72,7 @@ fn config_dir() -> PathBuf {
 }
 
 impl Settings {
-    /// Načte nastavení z disku. Chybějící soubor → Default.
+    /// Loads settings from disk. Missing file → Default.
     pub fn load() -> Self {
         let path = settings_path();
         if let Ok(content) = std::fs::read_to_string(&path) {
@@ -82,7 +82,7 @@ impl Settings {
         }
     }
 
-    /// Uloží nastavení na disk (~/.config/polycredo-editor/settings.json).
+    /// Saves settings to disk (~/.config/polycredo-editor/settings.json).
     pub fn save(&self) {
         let path = settings_path();
         if let Some(parent) = path.parent() {
@@ -100,7 +100,7 @@ impl Settings {
         }
     }
 
-    /// Aplikuje nastavení na egui Context (téma + velikost fontu editoru).
+    /// Applies settings to the egui Context (theme + editor font size).
     pub fn apply(&self, ctx: &eframe::egui::Context) {
         if self.dark_theme {
             ctx.set_visuals(eframe::egui::Visuals::dark());

@@ -37,7 +37,7 @@ impl Highlighter {
             }
         };
 
-        // Zkusit příponu, pak celý název souboru, pak plain text
+        // Try extension, then full filename, then fallback to plain text
         let syntax = self
             .syntax_set
             .find_syntax_by_extension(mapped_ext)

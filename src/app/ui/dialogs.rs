@@ -7,7 +7,7 @@ use eframe::egui;
 use super::super::types::{AppShared, ProjectType, default_wizard_path, path_env};
 
 // ---------------------------------------------------------------------------
-// WizardState — stav průvodce novým projektem
+// WizardState — state of the new project wizard
 // ---------------------------------------------------------------------------
 
 pub(crate) struct WizardState {
@@ -53,12 +53,12 @@ fn spawn_folder_picker(start_dir: String) -> mpsc::Receiver<Option<PathBuf>> {
 use crate::app::validation::is_valid_project_name;
 
 // ---------------------------------------------------------------------------
-// show_project_wizard — sjednocený wizard nového projektu
+// show_project_wizard — unified new project wizard
 // ---------------------------------------------------------------------------
 
-/// Zobrazí modální dialog průvodce novým projektem.
-/// `show` se nastaví na `false` při zavření.
-/// `on_success` je voláno s výslednou cestou po úspěšném vytvoření projektu.
+/// Displays the modal dialog for the new project wizard.
+/// `show` is set to `false` when closed.
+/// `on_success` is called with the resulting path after successful project creation.
 pub(crate) fn show_project_wizard(
     ctx: &egui::Context,
     state: &mut WizardState,
@@ -263,11 +263,11 @@ pub(crate) fn show_project_wizard(
 }
 
 // ---------------------------------------------------------------------------
-// Sdílené UI helpery
+// Shared UI helpers
 // ---------------------------------------------------------------------------
 
-/// Vykreslí seznam nedávných projektů jako klikatelné položky.
-/// Vrátí cestu na projekt, na který uživatel klikl.
+/// Renders a list of recent projects as clickable items.
+/// Returns the path of the project that the user clicked on.
 pub(crate) fn render_recent_project_list(
     ui: &mut egui::Ui,
     recent_projects: &[PathBuf],
@@ -296,8 +296,8 @@ pub(crate) fn render_recent_project_list(
 // show_quit_confirm_dialog
 // ---------------------------------------------------------------------------
 
-/// Zobrazí dialog pro potvrzení ukončení aplikace.
-/// Vrátí `true` pokud uživatel potvrdil ukončení.
+/// Displays a dialog to confirm quitting the application.
+/// Returns `true` if the user confirmed quitting.
 pub(crate) fn show_quit_confirm_dialog(
     ctx: &egui::Context,
     i18n: &crate::i18n::I18n,
@@ -330,7 +330,7 @@ pub(crate) fn show_quit_confirm_dialog(
     }
 }
 
-/// Zobrazí dialog pro potvrzení zavření otevřeného projektu.
+/// Displays a dialog to confirm closing an open project.
 pub(crate) fn show_close_project_confirm_dialog(
     ctx: &egui::Context,
     modal_id: &str,
@@ -376,7 +376,7 @@ pub(crate) enum QuitDialogResult {
 // show_startup_dialog
 // ---------------------------------------------------------------------------
 
-/// Výsledek akce ze startup dialogu
+/// Result of an action from the startup dialog
 pub(crate) enum StartupAction {
     None,
     OpenPath(PathBuf),

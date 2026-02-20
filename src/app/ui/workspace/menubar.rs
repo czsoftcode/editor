@@ -10,10 +10,10 @@ use super::super::super::build_runner::run_build_check;
 use super::super::super::types::{AppAction, AppShared, Toast};
 
 // ---------------------------------------------------------------------------
-// Pomocné datové typy pro render_workspace
+// Helper data types for render_workspace
 // ---------------------------------------------------------------------------
 
-/// Akce vzniklé z menu baru — zpracovávají se po vykreslení menu.
+/// Actions originating from the menu bar — processed after menu rendering.
 #[derive(Default)]
 pub(super) struct MenuActions {
     pub open_folder: bool,
@@ -39,7 +39,7 @@ pub(super) struct MenuActions {
 // render_menu_bar
 // ---------------------------------------------------------------------------
 
-/// Vykreslí menu bar a vrátí zaznamenané akce.
+/// Renders the menu bar and returns the recorded actions.
 pub(super) fn render_menu_bar(
     ctx: &egui::Context,
     ws: &WorkspaceState,
@@ -230,7 +230,7 @@ pub(super) fn render_menu_bar(
 // process_menu_actions
 // ---------------------------------------------------------------------------
 
-/// Aplikuje menu akce na stav workspace. Vrací cestu pro reinicializaci (pokud byla vybrána složka).
+/// Applies menu actions to the workspace state. Returns the path for reinitialization (if a folder was selected).
 pub(super) fn process_menu_actions(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
@@ -301,7 +301,7 @@ pub(super) fn process_menu_actions(
         }
     }
 
-    // Výsledek předchozího async file dialogu
+    // Result of previous async file dialog
     let mut open_here_path: Option<PathBuf> = None;
     if let Some(rx) = &ws.folder_pick_rx {
         if let Ok((maybe_path, in_new_window)) = rx.try_recv() {
@@ -319,7 +319,7 @@ pub(super) fn process_menu_actions(
         }
     }
 
-    // Spuštění async file dialogu (neblokuje UI vlákno)
+    // Launch async file dialog (does not block UI thread)
     if actions.open_project && ws.folder_pick_rx.is_none() {
         let projects_dir = dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("/"))

@@ -5,8 +5,8 @@ use super::Editor;
 
 impl Editor {
     pub(super) fn render_markdown_preview(&mut self, ui: &mut egui::Ui, content: &str) {
-        // Vykreslení pomocí egui_commonmark.
-        // Styl (barvy a velikost) je řízen nadřazeným prvkem v render.rs.
+        // Render using egui_commonmark.
+        // Style (colors and size) is controlled by the parent element in render.rs.
         CommonMarkViewer::new()
             .show(ui, &mut self.markdown_cache, content);
     }

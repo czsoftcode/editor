@@ -1,23 +1,23 @@
 use eframe::egui;
 
-/// Výsledek modálního dialogu.
+/// Result of a modal dialog.
 #[derive(Debug)]
 pub(crate) enum ModalResult<T> {
-    /// Uživatel potvrdil dialog (kliknul OK nebo stiskl Enter).
+    /// User confirmed the dialog (clicked OK or pressed Enter).
     Confirmed(T),
-    /// Uživatel dialog zrušil (kliknul Zrušit, stiskl Escape nebo zavřel okno).
+    /// User cancelled the dialog (clicked Cancel, pressed Escape or closed the window).
     Cancelled,
-    /// Dialog je stále otevřen, žádná akce zatím neproběhla.
+    /// Dialog is still open, no action has occurred yet.
     Pending,
 }
 
-/// Zobrazí modální okno s nadpisem, vlastním obsahem a tlačítky OK/Zrušit.
+/// Displays a modal window with a title, custom content, and OK/Cancel buttons.
 ///
-/// - `content` dostane `&mut egui::Ui` a vrátí `Option<T>`.
-///   Pokud vrátí `None`, je tlačítko OK deaktivováno.
-///   Pokud vrátí `Some(v)`, je OK aktivní — kliknutím vrátí `Confirmed(v)`.
-/// - Enter potvrzuje (pokud `content` vrátí `Some`).
-/// - Escape nebo zavření vrátí `Cancelled`.
+/// - `content` receives `&mut egui::Ui` and returns `Option<T>`.
+///   If it returns `None`, the OK button is disabled.
+///   If it returns `Some(v)`, OK is active — clicking it returns `Confirmed(v)`.
+/// - Enter confirms (if `content` returns `Some`).
+/// - Escape or closing returns `Cancelled`.
 pub(crate) fn show_modal<T>(
     ctx: &egui::Context,
     id: impl Into<egui::Id>,

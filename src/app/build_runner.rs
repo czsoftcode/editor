@@ -18,7 +18,7 @@ pub struct BuildError {
 }
 
 // ---------------------------------------------------------------------------
-// run_build_check — spustí `cargo build` v pozadí, vrátí Receiver s výsledky
+// run_build_check — starts `cargo build` in background, returns Receiver with results
 // ---------------------------------------------------------------------------
 
 pub(crate) fn run_build_check(root_path: PathBuf) -> mpsc::Receiver<Vec<BuildError>> {
@@ -35,7 +35,7 @@ pub(crate) fn run_build_check(root_path: PathBuf) -> mpsc::Receiver<Vec<BuildErr
             let stdout = String::from_utf8_lossy(&output.stdout);
             let mut errors = parse_build_messages_json(&stdout);
             if errors.is_empty() {
-                // Fallback pro případy, kdy cargo/rustc pošle jen textový výstup.
+                // Fallback for cases where cargo/rustc only sends text output.
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 errors = parse_build_errors_legacy(&stderr);
             }
@@ -137,7 +137,7 @@ fn parse_build_messages_json(stdout: &str) -> Vec<BuildError> {
 }
 
 // ---------------------------------------------------------------------------
-// parse_build_errors_legacy — fallback parser pro textový stderr
+// parse_build_errors_legacy — fallback parser for text stderr
 // ---------------------------------------------------------------------------
 
 fn parse_build_errors_legacy(stderr: &str) -> Vec<BuildError> {

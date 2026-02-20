@@ -1,10 +1,10 @@
-//! IPC (Inter-Process Communication) pro správu více instancí editoru.
+//! IPC (Inter-Process Communication) for managing multiple editor instances.
 //!
-//! První spuštěná instance se stane primárním serverem — naslouchá na Unix socketu,
-//! drží seznam otevřených projektů a nedávných projektů.
-//! Každá další instance je klientem a komunikuje se serverem.
+//! The first launched instance becomes the primary server — it listens on a Unix socket,
+//! maintains a list of open projects and recent projects.
+//! Every subsequent instance is a client and communicates with the server.
 //!
-//! Protokol (textové příkazy, každý na jednom řádku):
+//! Protocol (text commands, one per line):
 //!   PING                    → PONG
 //!   QUERY /abs/path         → OPEN | FOCUSED
 //!   REGISTER pid /abs/path  → OK
@@ -27,7 +27,7 @@ const IPC_MAX_WORKERS: usize = 16;
 const CONFIG_DIR_NAME: &str = "polycredo-editor";
 
 // ---------------------------------------------------------------------------
-// Cesty k souborům
+// File paths
 // ---------------------------------------------------------------------------
 
 fn config_root_dir() -> PathBuf {
@@ -67,7 +67,7 @@ fn normalize_project_path_str(path: &str) -> Option<PathBuf> {
 }
 
 // ---------------------------------------------------------------------------
-// Ukládání nedávných projektů
+// Recent projects storage
 // ---------------------------------------------------------------------------
 
 fn save_paths(file_path: &std::path::Path, paths: &[PathBuf]) {
@@ -126,16 +126,16 @@ fn load_recent() -> Vec<PathBuf> {
 }
 
 // ---------------------------------------------------------------------------
-// Per-process socket — fokus okna bez externích nástrojů
+// Per-process socket — window focus without external tools
 // ---------------------------------------------------------------------------
 
-/// Cesta k socketu konkrétního procesu (pro příkaz FOCUS).
+/// Path to the socket of a specific process (for the FOCUS command).
 pub fn process_socket_path(pid: u32) -> PathBuf {
     std::env::temp_dir().join(format!("polycredo-editor_{}.sock", pid))
 }
 
-/// Spustí listener na per-process socketu. Vrátí kanál, na kterém main vlákno
-/// dostává signál ke zkusení `ViewportCommand::Focus`.
+/// Starts a listener on the per-process socket. Returns a channel on which the main thread
+/// receives a signal to try `ViewportCommand::Focus`.
 pub fn start_process_listener() -> std::sync::mpsc::Receiver<()> {
     let (tx, rx) = std::sync::mpsc::channel();
     let sock = process_socket_path(std::process::id());
@@ -155,8 +155,8 @@ pub fn start_process_listener() -> std::sync::mpsc::Receiver<()> {
     rx
 }
 
-/// Pošle příkaz FOCUS cílovému procesu přes jeho per-process socket.
-/// Vrací true pokud se spojení podařilo (proces je naživu).
+/// Sends the FOCUS command to the target process via its per-process socket.
+/// Returns true if the connection was successful (process is alive).
 fn focus_process_window(pid: u32) -> bool {
     let sock = process_socket_path(pid);
     let Ok(stream) = UnixStream::connect(&sock) else {
@@ -174,11 +174,11 @@ fn focus_process_window(pid: u32) -> bool {
 // ---------------------------------------------------------------------------
 
 struct ServerState {
-    /// Mapování cesta → PID otevřeného projektu
+    /// Mapping path → PID of the open project
     registered: HashMap<PathBuf, u32>,
-    /// Nedávné projekty (max 10)
+    /// Recent projects (max 10)
     recent: Vec<PathBuf>,
-    /// Kanál pro předávání požadavků na otevření projektu primární instanci.
+    /// Channel for passing project opening requests to the primary instance.
     open_tx: std::sync::mpsc::Sender<PathBuf>,
 }
 
@@ -202,14 +202,14 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
         let Some(path) = normalize_project_path_str(path_str) else {
             return vec!["OPEN".into()];
         };
-        // Přečíst PID bez držení zámku při síťovém volání
+        // Read PID without holding the lock during network call
         let pid_opt = state.lock().unwrap().registered.get(&path).copied();
         if let Some(pid) = pid_opt {
             if focus_process_window(pid) {
-                // Proces odpověděl — požádal své okno o fokus
+                // Process responded — requested focus for its window
                 return vec!["FOCUSED".into()];
             } else {
-                // Proces je mrtvý — vyčistit registraci
+                // Process is dead — clear registration
                 state.lock().unwrap().registered.remove(&path);
             }
         }
@@ -223,8 +223,8 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
                     return vec!["ERR bad REGISTER".into()];
                 };
                 let mut st = state.lock().unwrap();
-                // Přidat registraci (nečistit ostatní záznamy tohoto PID — jeden PID může
-                // vlastnit více projektů v multi-viewport architektuře)
+                // Add registration (do not clear other entries of this PID — one PID can
+                // own multiple projects in a multi-viewport architecture)
                 st.registered.insert(path, pid);
                 return vec!["OK".into()];
             }
@@ -250,9 +250,9 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
         return vec!["OK".into()];
     }
 
-    // SAVE_SESSION <json-array> — serializovaný zápis session.json přes server.
-    // Server drží state mutex během zápisu, takže souběžné volání z více procesů
-    // nemůže zapsat do session.tmp najednou.
+    // SAVE_SESSION <json-array> — serialized writing of session.json via the server.
+    // The server holds the state mutex during writing, so concurrent calls from multiple processes
+    // cannot write to session.tmp at once.
     if let Some(json) = line.strip_prefix("SAVE_SESSION ") {
         let paths: Vec<PathBuf> = serde_json::from_str::<Vec<String>>(json)
             .unwrap_or_default()
@@ -264,7 +264,7 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
         return vec!["OK".into()];
     }
 
-    // OPEN_IN_NEW_WINDOW /abs/path — sekundární instance žádá primára o otevření projektu.
+    // OPEN_IN_NEW_WINDOW /abs/path — secondary instance requests the primary to open a project.
     if let Some(path_str) = line.strip_prefix("OPEN_IN_NEW_WINDOW ") {
         if let Some(path) = normalize_project_path_str(path_str) {
             let st = state.lock().unwrap();
@@ -273,7 +273,7 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
         return vec!["OK".into()];
     }
 
-    // FOCUS_MAIN — sekundární instance bez argumentů žádá primára o přivedení do popředí.
+    // FOCUS_MAIN — secondary instance without arguments requests the primary to be brought to the foreground.
     if line == "FOCUS_MAIN" {
         let pid_opt = state.lock().unwrap().registered.values().next().copied();
         if let Some(pid) = pid_opt {
@@ -317,16 +317,16 @@ fn server_loop(listener: UnixListener, state: Arc<Mutex<ServerState>>) {
     }
 }
 
-/// Handle ke správě primární instance (server). Při drop odstraní socket.
+/// Handle for managing the primary instance (server). Removes the socket on drop.
 pub struct IpcServer {
     sock_path: PathBuf,
 }
 
 impl IpcServer {
-    /// Pokusí se stát primární instancí.
-    /// Vrací `Some((IpcServer, Receiver<PathBuf>))` pokud se to podaří —
-    /// Receiver přináší cesty k otevření v novém okně od sekundárních instancí.
-    /// Vrací `None` pokud primár již existuje.
+    /// Attempts to become the primary instance.
+    /// Returns `Some((IpcServer, Receiver<PathBuf>))` if successful —
+    /// the Receiver brings paths to open in a new window from secondary instances.
+    /// Returns `None` if a primary already exists.
     pub fn start() -> Option<(Self, std::sync::mpsc::Receiver<PathBuf>)> {
         let sock = socket_path();
         if let Some(parent) = sock.parent() {
@@ -339,12 +339,12 @@ impl IpcServer {
             }
         }
 
-        // Ověřit, zda primár už běží
+        // Verify if primary is already running
         if Ipc::ping() {
-            return None; // Jiná primární instance existuje
+            return None; // Another primary instance exists
         }
 
-        // Odstranit případný starý (nefunkční) socket
+        // Remove potential old (non-functional) socket
         if let Err(e) = std::fs::remove_file(&sock) {
             if e.kind() != std::io::ErrorKind::NotFound {
                 eprintln!("ipc: cannot remove old socket {}: {e}", sock.display());
@@ -380,10 +380,10 @@ impl Drop for IpcServer {
 }
 
 // ---------------------------------------------------------------------------
-// Klient
+// Client
 // ---------------------------------------------------------------------------
 
-/// Bezstavový IPC klient — každé volání otevře nové spojení.
+/// Stateless IPC client — each call opens a new connection.
 pub struct Ipc;
 
 impl Ipc {
@@ -422,13 +422,13 @@ impl Ipc {
         lines
     }
 
-    /// Vrací true pokud primární instance odpovídá.
+    /// Returns true if the primary instance responds.
     pub fn ping() -> bool {
         Self::send_one("PING").map(|r| r == "PONG").unwrap_or(false)
     }
 
-    /// Vrací true pokud projekt byl nalezen v jiném okně a aktivován (FOCUSED).
-    /// Vrací false pokud projekt není nikde otevřen (OPEN).
+    /// Returns true if the project was found in another window and activated (FOCUSED).
+    /// Returns false if the project is not open anywhere (OPEN).
     #[allow(dead_code)]
     pub fn query(path: &Path) -> bool {
         let Some(path) = normalize_project_path(path) else {
@@ -440,7 +440,7 @@ impl Ipc {
             .unwrap_or(false)
     }
 
-    /// Zaregistruje aktuální proces jako vlastníka projektu.
+    /// Registers the current process as the owner of the project.
     pub fn register(path: &Path) {
         let Some(path) = normalize_project_path(path) else {
             return;
@@ -449,13 +449,13 @@ impl Ipc {
         let _ = Self::send_one(&cmd);
     }
 
-    /// Odregistruje aktuální proces (všechny jeho projekty).
+    /// Unregisters the current process (all its projects).
     pub fn unregister() {
         let cmd = format!("UNREGISTER {}", std::process::id());
         let _ = Self::send_one(&cmd);
     }
 
-    /// Přidá projekt do sdíleného seznamu nedávných projektů.
+    /// Adds a project to the shared list of recent projects.
     pub fn add_recent(path: &Path) {
         let Some(path) = normalize_project_path(path) else {
             return;
@@ -464,7 +464,7 @@ impl Ipc {
         let _ = Self::send_one(&cmd);
     }
 
-    /// Pošle primární instanci požadavek na otevření projektu v novém okně.
+    /// Sends a request to the primary instance to open a project in a new window.
     pub fn open_in_new_window(path: &Path) -> bool {
         let Some(path) = normalize_project_path(path) else {
             return false;
@@ -473,14 +473,14 @@ impl Ipc {
         Self::send_one(&cmd).map(|r| r == "OK").unwrap_or(false)
     }
 
-    /// Požádá primární instanci o přivedení do popředí.
+    /// Requests the primary instance to be brought to the foreground.
     pub fn focus_main() -> bool {
         Self::send_one("FOCUS_MAIN")
             .map(|r| r == "OK")
             .unwrap_or(false)
     }
 
-    /// Vrátí seznam nedávných projektů ze serveru.
+    /// Returns a list of recent projects from the server.
     pub fn recent() -> Vec<PathBuf> {
         Self::send_multi("RECENT")
             .into_iter()
@@ -489,8 +489,8 @@ impl Ipc {
             .collect()
     }
 
-    /// Uloží session přes IPC server (serializovaný zápis — bez race condition).
-    /// Vrací true pokud server přijal příkaz.
+    /// Saves the session via the IPC server (serialized write — no race condition).
+    /// Returns true if the server accepted the command.
     fn save_session_via_ipc(paths: &[PathBuf]) -> bool {
         let strings: Vec<&str> = paths.iter().filter_map(|p| p.to_str()).collect();
         let Ok(json) = serde_json::to_string(&strings) else {
@@ -502,20 +502,20 @@ impl Ipc {
 }
 
 // ---------------------------------------------------------------------------
-// Session — seznam naposledy otevřených oken (pro restore při spuštění)
+// Session — list of recently opened windows (for restoration at startup)
 // ---------------------------------------------------------------------------
 
-/// Uloží seznam aktuálně otevřených projektů do session souboru.
-/// Pokud běží IPC server, zápis jde přes něj (serializovaný — bez race condition).
-/// Jinak (první/jediná instance) zapíše přímo.
+/// Saves the list of currently open projects to the session file.
+/// If an IPC server is running, the write goes through it (serialized — no race condition).
+/// Otherwise (first/only instance), it writes directly.
 pub fn save_session(paths: &[PathBuf]) {
     if !Ipc::save_session_via_ipc(paths) {
         save_paths(&session_path(), paths);
     }
 }
 
-/// Načte session a rozdělí cesty na existující adresáře a chybějící/smazané.
-/// Vrátí `(existující, chybějící)`.
+/// Loads the session and splits paths into existing directories and missing/deleted ones.
+/// Returns `(existing, missing)`.
 pub fn load_session_checked() -> (Vec<PathBuf>, Vec<PathBuf>) {
     let Ok(content) = std::fs::read_to_string(session_path()) else {
         return (vec![], vec![]);

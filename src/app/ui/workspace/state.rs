@@ -17,21 +17,21 @@ use super::super::search_picker::collect_project_files;
 use super::super::terminal::Terminal;
 use crate::watcher::{FileWatcher, ProjectWatcher};
 
-/// Výsledek asynchronního výběru složky.
-/// bool = true → otevřít v novém okně; false → nahradit aktuální workspace.
+/// Result of an asynchronous folder selection.
+/// bool = true → open in a new window; false → replace current workspace.
 pub(super) type FolderPickResult = (Option<PathBuf>, bool);
 
 // ---------------------------------------------------------------------------
-// FilePicker — Ctrl+P rychlé otevření souboru
+// FilePicker — Ctrl+P quick file opening
 // ---------------------------------------------------------------------------
 
 pub(crate) struct FilePicker {
     pub query: String,
-    /// Všechny soubory projektu (relativní cesty)
+    /// All project files (relative paths)
     pub files: Vec<PathBuf>,
-    /// Indexy do `files` odpovídající aktuálnímu filtru
+    /// Indices into `files` matching the current filter
     pub filtered: Vec<usize>,
-    /// Aktuálně označená položka v seznamu
+    /// Currently highlighted item in the list
     pub selected: usize,
     pub focus_requested: bool,
 }
@@ -62,7 +62,7 @@ impl FilePicker {
 }
 
 // ---------------------------------------------------------------------------
-// ProjectSearch — hledání napříč projektem
+// ProjectSearch — project-wide search
 // ---------------------------------------------------------------------------
 
 pub(crate) struct SearchResult {
@@ -94,7 +94,7 @@ impl Default for ProjectSearch {
 }
 
 // ---------------------------------------------------------------------------
-// WorkspaceState — stav jednoho pracovního prostoru (okna projektu)
+// WorkspaceState — state of a single workspace (project window)
 // ---------------------------------------------------------------------------
 
 pub(crate) struct WorkspaceState {
@@ -118,54 +118,54 @@ pub(crate) struct WorkspaceState {
     pub build_error_rx: Option<mpsc::Receiver<Vec<BuildError>>>,
     pub claude_tool: AiTool,
     pub claude_float: bool,
-    // Wizard nového projektu (pro toto okno)
+    // New project wizard (for this window)
     pub show_new_project: bool,
     pub wizard: WizardState,
     pub toasts: Vec<Toast>,
-    /// Kanál pro výsledek asynchronního file dialogu (výběr složky).
+    /// Channel for the result of an asynchronous file dialog (folder selection).
     pub folder_pick_rx: Option<mpsc::Receiver<FolderPickResult>>,
     /// Ctrl+P — fuzzy file picker
     pub file_picker: Option<FilePicker>,
-    /// Cache indexu souborů pro Ctrl+P (relativní cesty)
+    /// Cache of the file index for Ctrl+P (relative paths)
     pub file_index_cache: Vec<PathBuf>,
-    /// Probíhající background scan souborů
+    /// Ongoing background file scan
     pub file_index_rx: Option<mpsc::Receiver<Vec<PathBuf>>>,
-    /// Hledání napříč projektem
+    /// Project-wide search
     pub project_search: ProjectSearch,
-    /// Git — aktuální větev
+    /// Git — current branch
     pub git_branch: Option<String>,
     pub git_branch_rx: Option<mpsc::Receiver<Option<String>>>,
-    /// Git — stav souborů (absolutní cesta → barva pro file tree)
+    /// Git — file status (absolute path → color for file tree)
     pub git_status_rx: Option<mpsc::Receiver<std::collections::HashMap<PathBuf, egui::Color32>>>,
-    /// Časovač pro periodický refresh gitu
+    /// Timer for periodic git refresh
     pub git_last_refresh: std::time::Instant,
-    /// Draft nastavení — inicializuje se při otevření dialogu, zahazuje se při zavření
+    /// Settings draft — initialized when dialog opens, discarded when closed
     pub settings_draft: Option<crate::settings::Settings>,
-    /// Asynchronní výběr výchozí cesty projektů v dialogu nastavení
+    /// Asynchronous default projects path selection in settings dialog
     pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
-    /// Dostupnost AI CLI nástrojů (podle PATH)
+    /// Availability of AI CLI tools (according to PATH)
     pub ai_tool_available: HashMap<AiTool, bool>,
-    /// Asynchronní kontrola dostupnosti AI CLI nástrojů
+    /// Asynchronous AI CLI tool availability check
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<AiTool, bool>>>,
-    /// Čas poslední (automatické) re-detekce AI CLI nástrojů
+    /// Time of the last (automatic) AI CLI tool re-detection
     pub ai_tool_last_check: std::time::Instant,
-    /// Čekající konflikt: soubor byl změněn externě, ale záložka má neuložené změny.
-    /// Hodnota = cesta ke konfliktu; None = žádný konflikt.
+    /// Pending conflict: file was modified externally, but tab has unsaved changes.
+    /// Value = path to conflict; None = no conflict.
     pub external_change_conflict: Option<PathBuf>,
-    /// Zrušovací příznak pro git refresh vlákna.
-    /// Při drop workspacu se nastaví na true → vlákna ukončí git proces a nezpracují výsledek.
+    /// Cancellation flag for git refresh threads.
+    /// Set to true on workspace drop → threads terminate git process and do not process result.
     pub git_cancel: Arc<AtomicBool>,
 }
 
 impl Drop for WorkspaceState {
     fn drop(&mut self) {
-        // Signalizujeme git refresh vláknům, aby ukončila git proces a nevracela výsledek.
+        // Signal git refresh threads to terminate git process and not return result.
         self.git_cancel.store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
 // ---------------------------------------------------------------------------
-// SecondaryWorkspace — sekundární viewport (jeden projekt v novém okně)
+// SecondaryWorkspace — secondary viewport (one project in a new window)
 // ---------------------------------------------------------------------------
 
 pub(crate) struct SecondaryWorkspace {
@@ -175,7 +175,7 @@ pub(crate) struct SecondaryWorkspace {
 }
 
 // ---------------------------------------------------------------------------
-// Pomocné funkce
+// Helper functions
 // ---------------------------------------------------------------------------
 
 pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {

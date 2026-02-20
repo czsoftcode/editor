@@ -18,7 +18,7 @@ const EXCLUDED_DIRS: &[&str] = &[
     ".cache",
 ];
 
-/// Subsequence fuzzy match — pattern znaky musí být v textu v pořadí, ale nemusí sousedit.
+/// Subsequence fuzzy match — pattern characters must appear in the text in order, but not necessarily adjacent.
 pub(super) fn fuzzy_match(pattern: &str, text: &str) -> bool {
     if pattern.is_empty() {
         return true;
@@ -36,7 +36,7 @@ pub(super) fn fuzzy_match(pattern: &str, text: &str) -> bool {
     true
 }
 
-/// Rekurzivně sbírá soubory projektu (relativní cesty), vynechává nevýznamné adresáře.
+/// Recursively collects project files (relative paths), skipping insignificant directories.
 pub(super) fn collect_project_files(root: &PathBuf) -> Vec<PathBuf> {
     let mut files = Vec::new();
     let mut visited = HashSet::new();
@@ -85,7 +85,7 @@ fn collect_files_recursive(
     }
 }
 
-/// render_file_picker — modal pro Ctrl+P
+/// render_file_picker — Modal for Ctrl+P
 pub(super) fn render_file_picker(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
@@ -93,7 +93,7 @@ pub(super) fn render_file_picker(
 ) -> Option<PathBuf> {
     let picker = ws.file_picker.as_mut()?;
 
-    // Globální klávesy pro navigaci (čteme před renderem, aby fungovaly i při focus na TextEdit)
+    // Global navigation keys (read before rendering to work even when TextEdit has focus)
     let key_up = ctx.input(|i| i.key_pressed(egui::Key::ArrowUp));
     let key_down = ctx.input(|i| i.key_pressed(egui::Key::ArrowDown));
     let key_enter = ctx.input(|i| i.key_pressed(egui::Key::Enter));
@@ -116,7 +116,7 @@ pub(super) fn render_file_picker(
         close = true;
     }
 
-    // Překreslíme picker pouze pokud ještě máme data
+    // Redraw picker only if we still have data
     if let Some(picker) = ws.file_picker.as_mut() {
         let focus_req = picker.focus_requested;
         let total = picker.files.len();
@@ -195,7 +195,7 @@ pub(super) fn render_file_picker(
     selected_file
 }
 
-/// Spustí hledání v pozadí (pure Rust, bez externích nástrojů).
+/// Starts project-wide search in the background (pure Rust, no external tools).
 fn run_project_search(
     root: PathBuf,
     query: String,
@@ -238,7 +238,7 @@ fn run_project_search(
     rx
 }
 
-/// Dialog pro zadání hledaného výrazu.
+/// Dialog for project-wide search input.
 pub(super) fn render_project_search_dialog(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,

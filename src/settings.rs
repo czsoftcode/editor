@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-const SETTINGS_FILE: &str = "settings.json";
+const SETTINGS_FILE: &str = "settings.toml";
+const OLD_SETTINGS_FILE: &str = "settings.json";
 const CONFIG_DIR_NAME: &str = "polycredo-editor";
 
 // ---------------------------------------------------------------------------
@@ -69,22 +70,35 @@ fn settings_path() -> PathBuf {
     config_dir().join(CONFIG_DIR_NAME).join(SETTINGS_FILE)
 }
 
+fn old_settings_path() -> PathBuf {
+    config_dir().join(CONFIG_DIR_NAME).join(OLD_SETTINGS_FILE)
+}
+
 fn config_dir() -> PathBuf {
     dirs::config_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
 impl Settings {
-    /// Loads settings from disk. Missing file → Default.
+    /// Loads settings from disk. Tries settings.toml first, then migrates from settings.json.
     pub fn load() -> Self {
         let path = settings_path();
         if let Ok(content) = std::fs::read_to_string(&path) {
-            serde_json::from_str(&content).unwrap_or_default()
-        } else {
-            Self::default()
+            return toml::from_str(&content).unwrap_or_default();
         }
+
+        // Migration from JSON
+        let old_path = old_settings_path();
+        if let Ok(content) = std::fs::read_to_string(&old_path) {
+            let settings: Self = serde_json::from_str(&content).unwrap_or_default();
+            settings.save(); // Save as TOML immediately
+            let _ = std::fs::remove_file(old_path); // Cleanup
+            return settings;
+        }
+
+        Self::default()
     }
 
-    /// Saves settings to disk (~/.config/polycredo-editor/settings.json).
+    /// Saves settings to disk (~/.config/polycredo-editor/settings.toml).
     pub fn save(&self) {
         let path = settings_path();
         if let Some(parent) = path.parent()
@@ -96,12 +110,12 @@ impl Settings {
             );
             return;
         }
-        if let Ok(json) = serde_json::to_string_pretty(self) {
-            if let Err(e) = std::fs::write(&path, json) {
+        if let Ok(toml_str) = toml::to_string_pretty(self) {
+            if let Err(e) = std::fs::write(&path, toml_str) {
                 eprintln!("settings: cannot write {}: {e}", path.display());
             }
         } else {
-            eprintln!("settings: JSON serialization failed");
+            eprintln!("settings: TOML serialization failed");
         }
     }
 

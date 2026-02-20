@@ -239,11 +239,33 @@ impl Terminal {
         // Context menu
         let menu_size = 15.0;
         response.context_menu(|ui| {
-            let selected = self
-                .backend
-                .as_ref()
-                .map(|b| b.selectable_content())
-                .unwrap_or_default();
+            let selected = if let Some(backend) = self.backend.as_ref() {
+                let content = backend.last_content();
+                let mut result = String::new();
+                if let Some(range) = content.selectable_range {
+                    let mut last_line = None;
+                    let mut current_line_buffer = String::new();
+                    for indexed in content.grid.display_iter() {
+                        if range.contains(indexed.point) {
+                            if let Some(last) = last_line {
+                                if indexed.point.line != last {
+                                    // New line started, trim previous line buffer and add newline
+                                    result.push_str(current_line_buffer.trim_end());
+                                    result.push('\n');
+                                    current_line_buffer.clear();
+                                }
+                            }
+                            current_line_buffer.push(indexed.c);
+                            last_line = Some(indexed.point.line);
+                        }
+                    }
+                    // Append the last line buffer
+                    result.push_str(current_line_buffer.trim_end());
+                }
+                result
+            } else {
+                String::new()
+            };
             let has_selection = !selected.trim().is_empty();
 
             if ui

@@ -9,6 +9,7 @@ All notable changes to the PolyCredo Editor project will be documented in this f
 - **Collapsible UI**: Integrated runners into the build panel as a space-saving collapsible menu.
 
 ### Fixed
+- **Terminal Text Selection**: Improved text selection and copying. Newlines are now preserved, trailing spaces are trimmed, and the implementation is now part of the editor to avoid modifying vendored code.
 - **Debian Version Format**: Corrected `.deb` package versioning to `MAJOR.MINOR.PATCH-BUILD_NUMBER` (e.g., 0.4.2-48).
 
 ## [0.4.0] - 2026-02-20

@@ -456,6 +456,18 @@ impl Editor {
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
         let mut content_changed = false;
 
+        // Tlačítko pro otevření v externím prohlížeči
+        if let Some(path) = self.active_path().cloned() {
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button(i18n.get("md-open-external")).clicked() {
+                        let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
+                    }
+                });
+            });
+            ui.separator();
+        }
+
         let available = ui.available_size();
         let handle_h = 6.0_f32;
         let top_h = (available.y * self.md_split_ratio)

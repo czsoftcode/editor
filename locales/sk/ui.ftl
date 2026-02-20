@@ -156,6 +156,8 @@ conflict-hover-disk = Zahodiť zmeny editora a načítať verziu uloženú na di
 conflict-hover-keep = Ponechať zmeny editora; súbor na disku bude prepísaný pri uložení
 conflict-hover-dismiss = Zatvoriť upozornenie bez zmien
 
+md-open-external = ⧉ Otvoriť vo vonkajšom prehliadači
+
 svg-open-external = ⧉ Otvoriť náhľad v prehliadači
 
 svg-modal-title = SVG súbor

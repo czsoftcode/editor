@@ -60,18 +60,7 @@ impl Editor {
                                 break;
                             }
                             Event::Text(t) => {
-                                let font_id = if is_bold || is_italic {
-                                    egui::FontId::new(
-                                        14.0,
-                                        if is_italic {
-                                            egui::FontFamily::Name("Italic".into())
-                                        } else {
-                                            egui::FontFamily::Proportional
-                                        },
-                                    )
-                                } else {
-                                    egui::FontId::proportional(14.0)
-                                };
+                                let font_id = egui::FontId::proportional(14.0);
                                 job.append(
                                     t,
                                     0.0,

@@ -153,6 +153,8 @@ conflict-hover-disk = Discard editor changes and load the version saved on disk
 conflict-hover-keep = Keep editor changes; the disk file will be overwritten on save
 conflict-hover-dismiss = Close notification without changes
 
+md-open-external = ⧉ Open in External Viewer
+
 svg-open-external = ⧉ Open preview in viewer
 
 svg-modal-title = SVG File

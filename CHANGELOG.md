@@ -2,6 +2,15 @@
 
 All notable changes to the PolyCredo Editor project will be documented in this file.
 
+## [0.4.2] - 2026-02-20
+
+### Added
+- **Build Runner Profiles**: Introduced project-specific build/run configurations via `.polycredo/profiles.toml`. Supports environment variables, custom working directories, and automated Rust error parsing.
+- **Collapsible UI**: Integrated runners into the build panel as a space-saving collapsible menu.
+
+### Fixed
+- **Debian Version Format**: Corrected `.deb` package versioning to `MAJOR.MINOR.PATCH-BUILD_NUMBER` (e.g., 0.4.2-48).
+
 ## [0.4.0] - 2026-02-20
 
 ### Added

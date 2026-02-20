@@ -3048,6 +3048,7 @@ dependencies = [
  "serde_json",
  "syntect",
  "unic-langid",
+ "walkdir",
 ]
 
 [[package]]

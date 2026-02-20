@@ -21,6 +21,7 @@ arboard = { version = "3.6.1", features = ["wayland-data-control"] }
 libc = "0.2"
 fluent-bundle = "0.15"
 unic-langid = "0.9"
+walkdir = "2"
 
 [patch.crates-io]
 egui_term = { path = "vendor/egui_term" }

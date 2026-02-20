@@ -153,9 +153,9 @@ conflict-hover-disk = Discard editor changes and load the version saved on disk
 conflict-hover-keep = Keep editor changes; the disk file will be overwritten on save
 conflict-hover-dismiss = Close notification without changes
 
-md-open-external = ⧉ Open in External Viewer
+md-open-external = ↗ Open in External Viewer
 
-svg-open-external = ⧉ Open preview in viewer
+svg-open-external = ↗ Open preview in viewer
 
 svg-modal-title = SVG File
 svg-modal-body = This file is an SVG image. Do you want to open it in the system viewer, or edit it as XML text?

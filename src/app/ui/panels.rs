@@ -38,6 +38,7 @@ pub(super) fn render_left_panel(
                 ui.separator();
                 egui::ScrollArea::both()
                     .auto_shrink([false, false])
+                    .id_salt("file_tree_scroll")
                     .show(ui, |ui| {
                         let result = ws.file_tree.ui(ui, i18n);
                         if let Some(err) = ws.file_tree.take_error() {
@@ -75,36 +76,50 @@ fn render_build_panel(
     ui.horizontal(|ui| {
         ui.strong(i18n.get("panel-build"));
         ui.separator();
-        if ui.small_button(i18n.get("btn-build")).clicked() {
-            if let Some(t) = &mut ws.build_terminal {
-                t.send_command("cargo build 2>&1");
+
+        // Runner Profile Dropdown (The "rozklikávací" part)
+        let combo = egui::ComboBox::from_id_salt("runner_select")
+            .selected_text(i18n.get("btn-run-profile"))
+            .width(130.0);
+
+        combo.show_ui(ui, |ui| {
+            if ws.profiles.runners.is_empty() {
+                ui.weak(i18n.get("runner-none"));
+            } else {
+                let mut run_profile_idx = None;
+                for (idx, profile) in ws.profiles.runners.iter().enumerate() {
+                    if ui
+                        .selectable_label(false, format!("▶ {}", profile.name))
+                        .clicked()
+                    {
+                        run_profile_idx = Some(idx);
+                    }
+                }
+
+                if let Some(idx) = run_profile_idx {
+                    let profile = ws.profiles.runners[idx].clone();
+                    let terminal = crate::app::build_runner::run_profile(
+                        ui.ctx(),
+                        &ws.root_path,
+                        &profile,
+                        &mut ws.next_terminal_id,
+                    );
+                    ws.build_terminal = Some(terminal);
+                    ws.show_build_terminal = true;
+                    ws.focused_panel = FocusedPanel::Build;
+                    // For Rust profiles, also start error check
+                    if profile.error_parser == crate::app::types::ErrorParserType::Rust {
+                        ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
+                        ws.build_errors.clear();
+                    }
+                }
             }
-            ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
-            ws.build_errors.clear();
-        }
-        if ui.small_button(i18n.get("btn-run")).clicked()
-            && let Some(t) = &mut ws.build_terminal
-        {
-            t.send_command("cargo run 2>&1");
-        }
-        if ui
-            .add(egui::Button::new(i18n.get("btn-run-new")).small())
-            .on_hover_text("cargo run -- --new-instance")
-            .clicked()
-            && let Some(t) = &mut ws.build_terminal
-        {
-            t.send_command("cargo run -- --new-instance 2>&1");
-        }
-        if ui.small_button(i18n.get("btn-test")).clicked()
-            && let Some(t) = &mut ws.build_terminal
-        {
-            t.send_command("cargo test 2>&1");
-        }
-        if ui.small_button(i18n.get("btn-clean")).clicked()
-            && let Some(t) = &mut ws.build_terminal
-        {
-            t.send_command("cargo clean");
-        }
+            ui.separator();
+            if ui.button(i18n.get("btn-edit-profiles")).clicked() {
+                let profiles_path = crate::app::project_config::profiles_path(&ws.root_path);
+                open_file_in_ws(ws, profiles_path);
+            }
+        });
     });
     ui.separator();
 

@@ -1,0 +1,32 @@
+[[runners]]
+name = "Check"
+command = "cargo"
+args = ["check"]
+error_parser = "Rust"
+
+[[runners]]
+name = "Build"
+command = "cargo"
+args = ["build"]
+error_parser = "Rust"
+
+[[runners]]
+name = "Run"
+command = "cargo"
+args = ["run"]
+
+[[runners]]
+name = "Run New Instance"
+command = "cargo"
+args = ["run", "--", "--new-instance"]
+
+[[runners]]
+name = "Test"
+command = "cargo"
+args = ["test"]
+error_parser = "Rust"
+
+[[runners]]
+name = "Clean"
+command = "cargo"
+args = ["clean"]

@@ -1,9 +1,36 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
 use serde_json::Value;
 
-use super::types::path_env;
+use super::types::{BuildProfile, path_env};
+use super::ui::terminal::Terminal;
+
+// ---------------------------------------------------------------------------
+// Build / Runner Execution
+// ---------------------------------------------------------------------------
+
+pub(crate) fn run_profile(
+    ctx: &eframe::egui::Context,
+    project_root: &Path,
+    profile: &BuildProfile,
+    id_counter: &mut u64,
+) -> Terminal {
+    let mut full_command = profile.command.clone();
+    for arg in &profile.args {
+        full_command.push(' ');
+        full_command.push_str(arg);
+    }
+
+    let working_dir = if let Some(sub) = &profile.working_dir {
+        project_root.join(sub)
+    } else {
+        project_root.to_path_buf()
+    };
+
+    *id_counter += 1;
+    Terminal::new(*id_counter, ctx, &working_dir, Some(&full_command))
+}
 
 // ---------------------------------------------------------------------------
 // BuildError

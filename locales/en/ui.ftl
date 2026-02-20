@@ -2,6 +2,7 @@
 
 ## Panels
 panel-files = Files
+panel-runners = Runners
 panel-build = Build
 panel-build-errors =
     { $count ->
@@ -15,6 +16,9 @@ btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
+btn-run-profile = ▶ Run Profile...
+btn-edit-profiles = ⚙ Edit
+runner-none = No profiles defined.
 
 ## Status bar
 statusbar-line-col = Line { $line }, Column { $col }

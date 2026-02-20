@@ -2,6 +2,7 @@
 
 ## Panels
 panel-files = Dateien
+panel-runners = Runner
 panel-build = Build
 panel-build-errors =
     { $count ->
@@ -15,6 +16,9 @@ btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
+btn-run-profile = ▶ Profil ausführen...
+btn-edit-profiles = ⚙ Bearbeiten
+runner-none = Keine Profile definiert.
 
 ## Statusleiste
 statusbar-line-col = Zeile { $line }, Spalte { $col }
@@ -182,3 +186,7 @@ svg-open-external = ⧉ Vorschau im Betrachter öffnen
 svg-modal-title = SVG-Datei
 svg-modal-body = Diese Datei ist ein SVG-Bild. Möchten Sie sie im Systembetrachter öffnen oder als XML-Text bearbeiten?
 svg-modal-edit = Als Text bearbeiten
+panel-runners = Runners
+btn-run-profile = Run Profile...
+btn-edit-profiles = Edit
+runner-none = None

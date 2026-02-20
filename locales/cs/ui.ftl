@@ -2,6 +2,7 @@
 
 ## Panely
 panel-files = Soubory
+panel-runners = Spouštěče
 panel-build = Build
 panel-build-errors =
     { $count ->
@@ -16,6 +17,9 @@ btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
+btn-run-profile = ▶ Spustit...
+btn-edit-profiles = ⚙ Upravit
+runner-none = Nejsou definovány žádné profily.
 
 ## Status bar
 statusbar-line-col = Řádek { $line }, Sloupec { $col }

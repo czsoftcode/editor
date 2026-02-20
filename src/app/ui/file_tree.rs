@@ -10,6 +10,7 @@ const IGNORED_DIRS: &[&str] = &[
     ".idea",
     ".vscode",
     "__pycache__",
+    ".polycredo",
 ];
 
 pub struct FileNode {

@@ -26,19 +26,18 @@ default_maintainer() {
 MAINTAINER="${DEB_MAINTAINER:-$(default_maintainer)}"
 
 compute_version() {
-    local cargo_version major minor build_number
+    local cargo_version build_number
     cargo_version="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT_DIR/Cargo.toml" | head -n1)"
     if [[ -z "$cargo_version" ]]; then
         echo "Nepodařilo se načíst verzi z Cargo.toml" >&2
         exit 1
     fi
 
-    IFS='.' read -r major minor _ <<<"$cargo_version"
     build_number="$(tr -d '[:space:]' < "$ROOT_DIR/.build_number")"
     if [[ -z "$build_number" ]]; then
         build_number="0"
     fi
-    printf '%s.%s.%s\n' "$major" "$minor" "$build_number"
+    printf '%s-%s\n' "$cargo_version" "$build_number"
 }
 
 normalize_dep_list() {

@@ -2,6 +2,7 @@
 
 ## Panely
 panel-files = Súbory
+panel-runners = Spúšťače
 panel-build = Build
 panel-build-errors =
     { $count ->
@@ -16,6 +17,9 @@ btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
+btn-run-profile = ▶ Spustiť...
+btn-edit-profiles = ⚙ Upraviť
+runner-none = Nie sú definované žiadne profily.
 
 ## Stavový riadok
 statusbar-line-col = Riadok { $line }, Stĺpec { $col }
@@ -185,3 +189,7 @@ svg-open-external = ⧉ Otvoriť náhľad v prehliadači
 svg-modal-title = SVG súbor
 svg-modal-body = Tento súbor je SVG obrázok. Chcete ho otvoriť v systémovom prehliadači, alebo upravovať ako XML text?
 svg-modal-edit = Upravovať ako text
+panel-runners = Runners
+btn-run-profile = Run Profile...
+btn-edit-profiles = Edit
+runner-none = None

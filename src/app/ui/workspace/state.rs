@@ -7,7 +7,7 @@ use eframe::egui;
 
 use super::super::super::build_runner::BuildError;
 use super::super::super::types::{
-    AiTool, FocusedPanel, PersistentState, Toast, default_wizard_path,
+    AiTool, FocusedPanel, PersistentState, ProjectProfiles, Toast, default_wizard_path,
 };
 use super::super::background::{fetch_git_branch, fetch_git_status};
 use super::super::dialogs::WizardState;
@@ -15,6 +15,7 @@ use super::super::editor::Editor;
 use super::super::file_tree::FileTree;
 use super::super::terminal::Terminal;
 use super::super::widgets::command_palette::CommandPaletteState;
+use crate::app::project_config::load_profiles;
 use crate::watcher::{FileWatcher, ProjectWatcher};
 
 /// Result of an asynchronous folder selection.
@@ -105,6 +106,7 @@ pub(crate) struct WorkspaceState {
     pub claude_tabs: Vec<Terminal>,
     pub claude_active_tab: usize,
     pub next_claude_tab_id: u64,
+    pub next_terminal_id: u64,
     pub build_terminal: Option<Terminal>,
     pub focused_panel: FocusedPanel,
     pub root_path: PathBuf,
@@ -114,6 +116,7 @@ pub(crate) struct WorkspaceState {
     pub show_about: bool,
     pub show_settings: bool,
     pub ai_font_scale: u32,
+    pub profiles: ProjectProfiles,
     pub build_errors: Vec<BuildError>,
     pub build_error_rx: Option<mpsc::Receiver<Vec<BuildError>>>,
     pub claude_tool: AiTool,
@@ -228,6 +231,7 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
     let project_index = Arc::new(super::ProjectIndex::new(root_path.clone()));
     project_index.full_rescan();
     let ai_tool_check_rx = spawn_ai_tool_check();
+    let profiles = load_profiles(&root_path);
     let mut wizard = WizardState::default();
     wizard.path = default_wizard_path();
 
@@ -239,6 +243,7 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         claude_tabs: Vec::new(),
         claude_active_tab: 0,
         next_claude_tab_id: 100,
+        next_terminal_id: 1000,
         build_terminal: None,
         focused_panel: FocusedPanel::Editor,
         root_path,
@@ -248,6 +253,7 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         show_about: false,
         show_settings: false,
         ai_font_scale: panel_state.ai_font_scale,
+        profiles,
         build_errors: Vec::new(),
         build_error_rx: None,
         claude_tool: AiTool::ClaudeCode,

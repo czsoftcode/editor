@@ -1,6 +1,51 @@
 use std::path::PathBuf;
 
 // ---------------------------------------------------------------------------
+// Build / Runner Profiles
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) enum ErrorParserType {
+    #[default]
+    None,
+    Rust,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub(crate) struct BuildProfile {
+    /// Display name of the profile (e.g., "Run Server", "Cargo Test")
+    pub name: String,
+    /// Main command to execute
+    pub command: String,
+    /// List of arguments
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Working directory (relative to project root)
+    #[serde(default)]
+    pub working_dir: Option<String>,
+    /// Environment variables
+    #[serde(default)]
+    pub env: std::collections::HashMap<String, String>,
+    /// Should save all files before running?
+    #[serde(default = "default_true")]
+    pub auto_save: bool,
+    /// Type of error parsing for output analysis
+    #[serde(default)]
+    pub error_parser: ErrorParserType,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default)]
+pub(crate) struct ProjectProfiles {
+    /// List of configured runners
+    #[serde(default)]
+    pub runners: Vec<BuildProfile>,
+}
+
+// ---------------------------------------------------------------------------
 // Helper types
 // ---------------------------------------------------------------------------
 

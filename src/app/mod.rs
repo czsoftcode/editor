@@ -4,6 +4,7 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 mod build_runner;
+mod project_config;
 mod types;
 pub(crate) mod ui;
 pub(crate) mod validation;

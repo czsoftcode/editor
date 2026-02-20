@@ -148,22 +148,21 @@ fn parse_build_errors_legacy(stderr: &str) -> Vec<BuildError> {
         if line.starts_with("error") || line.starts_with("warning") {
             let is_warning = line.starts_with("warning");
             current_message = Some((line.to_string(), is_warning));
-        } else if let Some(location) = line.trim_start().strip_prefix("--> ") {
-            if let Some((msg, is_warning)) = current_message.take() {
-                let parts: Vec<&str> = location.rsplitn(3, ':').collect();
-                if parts.len() >= 3 {
-                    if let (Ok(line_num), Ok(col)) =
-                        (parts[1].parse::<usize>(), parts[0].parse::<usize>())
-                    {
-                        errors.push(BuildError {
-                            file: PathBuf::from(parts[2]),
-                            line: line_num,
-                            _column: col,
-                            message: msg,
-                            is_warning,
-                        });
-                    }
-                }
+        } else if let Some(location) = line.trim_start().strip_prefix("--> ")
+            && let Some((msg, is_warning)) = current_message.take()
+        {
+            let parts: Vec<&str> = location.rsplitn(3, ':').collect();
+            if parts.len() >= 3
+                && let (Ok(line_num), Ok(col)) =
+                    (parts[1].parse::<usize>(), parts[0].parse::<usize>())
+            {
+                errors.push(BuildError {
+                    file: PathBuf::from(parts[2]),
+                    line: line_num,
+                    _column: col,
+                    message: msg,
+                    is_warning,
+                });
             }
         }
     }

@@ -22,7 +22,9 @@ fn main() -> eframe::Result<()> {
     // --new-instance skips the IPC singleton check — allows running an independent instance
     // for development and testing (equivalent to --no-remote in Firefox).
     let new_instance = args.iter().any(|a| a == "--new-instance");
-    let root_path = args.into_iter().skip(1)
+    let root_path = args
+        .into_iter()
+        .skip(1)
         .find(|a| !a.starts_with("--"))
         .map(|arg| {
             let p = PathBuf::from(arg);

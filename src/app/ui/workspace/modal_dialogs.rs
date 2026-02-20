@@ -4,9 +4,9 @@ use crate::app::ui::background::spawn_task;
 
 use eframe::egui;
 
-use super::state::WorkspaceState;
-use super::super::dialogs::show_project_wizard;
 use super::super::super::types::{AppAction, AppShared};
+use super::super::dialogs::show_project_wizard;
+use super::state::WorkspaceState;
 
 // ---------------------------------------------------------------------------
 // ExternalConflictAction
@@ -56,14 +56,14 @@ pub(super) fn render_dialogs(
         if ws.settings_draft.is_none() {
             ws.settings_draft = Some(shared.lock().unwrap().settings.clone());
         }
-        if let Some(rx) = ws.settings_folder_pick_rx.as_ref() {
-            if let Ok(picked) = rx.try_recv() {
-                ws.settings_folder_pick_rx = None;
-                if let Some(dir) = picked {
-                    if let Some(draft) = ws.settings_draft.as_mut() {
-                        draft.default_project_path = dir.to_string_lossy().to_string();
-                    }
-                }
+        if let Some(rx) = ws.settings_folder_pick_rx.as_ref()
+            && let Ok(picked) = rx.try_recv()
+        {
+            ws.settings_folder_pick_rx = None;
+            if let Some(dir) = picked
+                && let Some(draft) = ws.settings_draft.as_mut()
+            {
+                draft.default_project_path = dir.to_string_lossy().to_string();
             }
         }
 
@@ -102,7 +102,11 @@ pub(super) fn render_dialogs(
             ui.strong(i18n.get("settings-theme"));
             ui.horizontal(|ui| {
                 ui.radio_value(&mut draft.dark_theme, true, i18n.get("settings-theme-dark"));
-                ui.radio_value(&mut draft.dark_theme, false, i18n.get("settings-theme-light"));
+                ui.radio_value(
+                    &mut draft.dark_theme,
+                    false,
+                    i18n.get("settings-theme-light"),
+                );
             });
             ui.add_space(10.0);
 
@@ -212,41 +216,44 @@ pub(super) fn render_dialogs(
         let mut msg_args = fluent_bundle::FluentArgs::new();
         msg_args.set("name", filename.clone());
 
-        egui::Modal::new(egui::Id::new(("external_change_conflict_modal", id_salt))).show(ctx, |ui| {
-            ui.set_min_width(400.0);
-            ui.heading(i18n.get("conflict-title"));
-            ui.add_space(8.0);
-            ui.label(i18n.get_args("conflict-message", &msg_args));
-            ui.add_space(4.0);
-            ui.label(
-                egui::RichText::new(i18n.get("conflict-choose"))
-                    .color(egui::Color32::from_rgb(180, 180, 180)),
-            );
-            ui.add_space(12.0);
-            ui.horizontal(|ui| {
-                if ui
-                    .button(i18n.get("conflict-load-disk"))
-                    .on_hover_text(i18n.get("conflict-hover-disk"))
-                    .clicked()
-                {
-                    action = Some(ExternalConflictAction::ReloadFromDisk);
-                }
-                if ui
-                    .button(i18n.get("conflict-keep-editor"))
-                    .on_hover_text(i18n.get("conflict-hover-keep"))
-                    .clicked()
-                {
-                    action = Some(ExternalConflictAction::KeepEditorVersion);
-                }
-                if ui
-                    .button(i18n.get("conflict-dismiss"))
-                    .on_hover_text(i18n.get("conflict-hover-dismiss"))
-                    .clicked()
-                {
-                    action = Some(ExternalConflictAction::Dismiss);
-                }
-            });
-        });
+        egui::Modal::new(egui::Id::new(("external_change_conflict_modal", id_salt))).show(
+            ctx,
+            |ui| {
+                ui.set_min_width(400.0);
+                ui.heading(i18n.get("conflict-title"));
+                ui.add_space(8.0);
+                ui.label(i18n.get_args("conflict-message", &msg_args));
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new(i18n.get("conflict-choose"))
+                        .color(egui::Color32::from_rgb(180, 180, 180)),
+                );
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    if ui
+                        .button(i18n.get("conflict-load-disk"))
+                        .on_hover_text(i18n.get("conflict-hover-disk"))
+                        .clicked()
+                    {
+                        action = Some(ExternalConflictAction::ReloadFromDisk);
+                    }
+                    if ui
+                        .button(i18n.get("conflict-keep-editor"))
+                        .on_hover_text(i18n.get("conflict-hover-keep"))
+                        .clicked()
+                    {
+                        action = Some(ExternalConflictAction::KeepEditorVersion);
+                    }
+                    if ui
+                        .button(i18n.get("conflict-dismiss"))
+                        .on_hover_text(i18n.get("conflict-hover-dismiss"))
+                        .clicked()
+                    {
+                        action = Some(ExternalConflictAction::Dismiss);
+                    }
+                });
+            },
+        );
 
         match action {
             Some(ExternalConflictAction::ReloadFromDisk) => {

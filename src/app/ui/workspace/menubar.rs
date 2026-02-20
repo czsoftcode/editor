@@ -5,9 +5,9 @@ use crate::app::ui::background::spawn_task;
 
 use eframe::egui;
 
-use super::state::{FilePicker, WorkspaceState};
 use super::super::super::build_runner::run_build_check;
 use super::super::super::types::{AppAction, AppShared, Toast};
+use super::state::{FilePicker, WorkspaceState};
 
 // ---------------------------------------------------------------------------
 // Helper data types for render_workspace
@@ -147,7 +147,10 @@ pub(super) fn render_menu_bar(
                     ui.close_menu();
                 }
                 if ui
-                    .add(egui::Button::new(i18n.get("menu-edit-project-search")).shortcut_text("Ctrl+Shift+F"))
+                    .add(
+                        egui::Button::new(i18n.get("menu-edit-project-search"))
+                            .shortcut_text("Ctrl+Shift+F"),
+                    )
                     .clicked()
                 {
                     actions.project_search = true;
@@ -240,10 +243,10 @@ pub(super) fn process_menu_actions(
     if actions.quit {
         shared.lock().unwrap().actions.push(AppAction::QuitAll);
     }
-    if actions.save {
-        if let Some(err) = ws.editor.save(i18n) {
-            ws.toasts.push(Toast::error(err));
-        }
+    if actions.save
+        && let Some(err) = ws.editor.save(i18n)
+    {
+        ws.toasts.push(Toast::error(err));
     }
     if actions.close_file {
         ws.editor.clear();
@@ -276,10 +279,10 @@ pub(super) fn process_menu_actions(
         ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
         ws.build_errors.clear();
     }
-    if actions.run {
-        if let Some(t) = &mut ws.build_terminal {
-            t.send_command("cargo run 2>&1");
-        }
+    if actions.run
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command("cargo run 2>&1");
     }
     if actions.open_file_picker && ws.file_picker.is_none() {
         let files = ws.project_index.get_files();
@@ -290,28 +293,28 @@ pub(super) fn process_menu_actions(
         ws.project_search.focus_requested = true;
     }
 
-    if let Some(path) = actions.open_recent {
-        if path.is_dir() {
-            let mut sh = shared.lock().unwrap();
-            sh.actions.push(AppAction::AddRecent(path.clone()));
-            sh.actions.push(AppAction::OpenInNewWindow(path));
-        }
+    if let Some(path) = actions.open_recent
+        && path.is_dir()
+    {
+        let mut sh = shared.lock().unwrap();
+        sh.actions.push(AppAction::AddRecent(path.clone()));
+        sh.actions.push(AppAction::OpenInNewWindow(path));
     }
 
     // Result of previous async file dialog
     let mut open_here_path: Option<PathBuf> = None;
-    if let Some(rx) = &ws.folder_pick_rx {
-        if let Ok((maybe_path, in_new_window)) = rx.try_recv() {
-            ws.folder_pick_rx = None;
-            if let Some(dir) = maybe_path {
-                let path = dir.canonicalize().unwrap_or(dir);
-                if in_new_window {
-                    let mut sh = shared.lock().unwrap();
-                    sh.actions.push(AppAction::AddRecent(path.clone()));
-                    sh.actions.push(AppAction::OpenInNewWindow(path));
-                } else {
-                    open_here_path = Some(path);
-                }
+    if let Some(rx) = &ws.folder_pick_rx
+        && let Ok((maybe_path, in_new_window)) = rx.try_recv()
+    {
+        ws.folder_pick_rx = None;
+        if let Some(dir) = maybe_path {
+            let path = dir.canonicalize().unwrap_or(dir);
+            if in_new_window {
+                let mut sh = shared.lock().unwrap();
+                sh.actions.push(AppAction::AddRecent(path.clone()));
+                sh.actions.push(AppAction::OpenInNewWindow(path));
+            } else {
+                open_here_path = Some(path);
             }
         }
     }
@@ -324,16 +327,28 @@ pub(super) fn process_menu_actions(
         if let Err(e) = std::fs::create_dir_all(&projects_dir) {
             let mut args = fluent_bundle::FluentArgs::new();
             args.set("reason", e.to_string());
-            ws.toasts.push(Toast::error(i18n.get_args("error-projects-dir-prepare", &args)));
+            ws.toasts.push(Toast::error(
+                i18n.get_args("error-projects-dir-prepare", &args),
+            ));
         }
         ws.folder_pick_rx = Some(spawn_task(move || {
-            (rfd::FileDialog::new().set_directory(&projects_dir).pick_folder(), true)
+            (
+                rfd::FileDialog::new()
+                    .set_directory(&projects_dir)
+                    .pick_folder(),
+                true,
+            )
         }));
     }
     if actions.open_folder && ws.folder_pick_rx.is_none() {
         let start_dir = ws.root_path.clone();
         ws.folder_pick_rx = Some(spawn_task(move || {
-            (rfd::FileDialog::new().set_directory(&start_dir).pick_folder(), false)
+            (
+                rfd::FileDialog::new()
+                    .set_directory(&start_dir)
+                    .pick_folder(),
+                false,
+            )
         }));
     }
 

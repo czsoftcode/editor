@@ -43,14 +43,13 @@ pub(crate) fn show_modal<T>(
         let enter_pressed = ui.input(|i| i.key_pressed(egui::Key::Enter));
 
         ui.horizontal(|ui| {
-            if ui
+            if (ui
                 .add_enabled(can_confirm, egui::Button::new(ok_label))
                 .clicked()
-                || (can_confirm && enter_pressed)
+                || (can_confirm && enter_pressed))
+                && let Some(v) = value
             {
-                if let Some(v) = value {
-                    result = ModalResult::Confirmed(v);
-                }
+                result = ModalResult::Confirmed(v);
             }
             if ui.button(cancel_label).clicked() {
                 result = ModalResult::Cancelled;

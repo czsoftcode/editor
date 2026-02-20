@@ -156,10 +156,8 @@ impl Editor {
                 ui.label("0/0");
             }
 
-            if !self.show_replace {
-                if ui.small_button(i18n.get("search-replace-expand")).clicked() {
-                    self.show_replace = true;
-                }
+            if !self.show_replace && ui.small_button(i18n.get("search-replace-expand")).clicked() {
+                self.show_replace = true;
             }
             if ui.small_button("\u{00D7}").clicked() {
                 do_close = true;

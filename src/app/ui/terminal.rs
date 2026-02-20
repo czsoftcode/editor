@@ -8,8 +8,6 @@ use egui_term::{BackendSettings, PtyEvent, TerminalBackend, TerminalView};
 use crate::config;
 
 #[cfg(unix)]
-use libc;
-
 pub struct Terminal {
     id: u64,
     working_dir: PathBuf,
@@ -26,13 +24,13 @@ impl Terminal {
     pub fn new(
         id: u64,
         ctx: &egui::Context,
-        working_dir: &PathBuf,
+        working_dir: &std::path::Path,
         init_command: Option<&str>,
     ) -> Self {
         match Self::create_backend(id, ctx, working_dir, init_command) {
             Ok((backend, pty_receiver)) => Self {
                 id,
-                working_dir: working_dir.clone(),
+                working_dir: working_dir.to_path_buf(),
                 init_command: init_command.map(|s| s.to_string()),
                 backend: Some(backend),
                 pty_receiver: Some(pty_receiver),
@@ -42,7 +40,7 @@ impl Terminal {
             },
             Err(err) => Self {
                 id,
-                working_dir: working_dir.clone(),
+                working_dir: working_dir.to_path_buf(),
                 init_command: init_command.map(|s| s.to_string()),
                 backend: None,
                 pty_receiver: None,
@@ -56,7 +54,7 @@ impl Terminal {
     fn create_backend(
         id: u64,
         ctx: &egui::Context,
-        working_dir: &PathBuf,
+        working_dir: &std::path::Path,
         init_command: Option<&str>,
     ) -> Result<(TerminalBackend, Receiver<(u64, PtyEvent)>), String> {
         let (sender, pty_receiver) = std::sync::mpsc::channel();
@@ -72,7 +70,7 @@ impl Terminal {
             sender,
             BackendSettings {
                 shell,
-                working_directory: Some(working_dir.clone()),
+                working_directory: Some(working_dir.to_path_buf()),
                 ..Default::default()
             },
         )
@@ -120,7 +118,13 @@ impl Terminal {
     }
 
     /// Renders the terminal. Returns `true` if the user clicked into the terminal area.
-    pub fn ui(&mut self, ui: &mut egui::Ui, focused: bool, font_size: f32, i18n: &crate::i18n::I18n) -> bool {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        focused: bool,
+        font_size: f32,
+        i18n: &crate::i18n::I18n,
+    ) -> bool {
         // Process events from PTY — limit per frame, the rest will be consumed in the next frame.
         // Without a limit, an output burst (cargo build, grep, etc.) would block the UI for tens of ms.
         if let Some(pty_receiver) = &self.pty_receiver {
@@ -257,14 +261,13 @@ impl Terminal {
                 .button(egui::RichText::new(i18n.get("btn-paste")).size(menu_size))
                 .clicked()
             {
-                if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                    if let Ok(text) = clipboard.get_text() {
-                        if let Some(backend) = &mut self.backend {
-                            backend.process_command(egui_term::BackendCommand::Write(
-                                text.as_bytes().to_vec(),
-                            ));
-                        }
-                    }
+                if let Ok(mut clipboard) = arboard::Clipboard::new()
+                    && let Ok(text) = clipboard.get_text()
+                    && let Some(backend) = &mut self.backend
+                {
+                    backend.process_command(egui_term::BackendCommand::Write(
+                        text.as_bytes().to_vec(),
+                    ));
                 }
                 ui.close_menu();
             }
@@ -383,14 +386,14 @@ impl Terminal {
         }
 
         // Click on track (outside thumb) = page scroll
-        if sb_response.clicked() {
-            if let Some(pos) = sb_response.interact_pointer_pos() {
-                let page = screen_lines as i32;
-                if pos.y < thumb_rect.min.y {
-                    backend.process_command(egui_term::BackendCommand::Scroll(page));
-                } else if pos.y > thumb_rect.max.y {
-                    backend.process_command(egui_term::BackendCommand::Scroll(-page));
-                }
+        if sb_response.clicked()
+            && let Some(pos) = sb_response.interact_pointer_pos()
+        {
+            let page = screen_lines as i32;
+            if pos.y < thumb_rect.min.y {
+                backend.process_command(egui_term::BackendCommand::Scroll(page));
+            } else if pos.y > thumb_rect.max.y {
+                backend.process_command(egui_term::BackendCommand::Scroll(-page));
             }
         }
     }

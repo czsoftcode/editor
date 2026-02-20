@@ -66,14 +66,11 @@ impl Default for Settings {
 }
 
 fn settings_path() -> PathBuf {
-    config_dir()
-        .join(CONFIG_DIR_NAME)
-        .join(SETTINGS_FILE)
+    config_dir().join(CONFIG_DIR_NAME).join(SETTINGS_FILE)
 }
 
 fn config_dir() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
+    dirs::config_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
 impl Settings {
@@ -90,11 +87,14 @@ impl Settings {
     /// Saves settings to disk (~/.config/polycredo-editor/settings.json).
     pub fn save(&self) {
         let path = settings_path();
-        if let Some(parent) = path.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                eprintln!("settings: cannot create directory {}: {e}", parent.display());
-                return;
-            }
+        if let Some(parent) = path.parent()
+            && let Err(e) = std::fs::create_dir_all(parent)
+        {
+            eprintln!(
+                "settings: cannot create directory {}: {e}",
+                parent.display()
+            );
+            return;
         }
         if let Ok(json) = serde_json::to_string_pretty(self) {
             if let Err(e) = std::fs::write(&path, json) {

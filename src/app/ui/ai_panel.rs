@@ -78,11 +78,7 @@ fn render_ai_tool_controls(
     } else {
         i18n.get("ai-hover-reverify")
     };
-    if ui
-        .small_button("↻")
-        .on_hover_text(hover_reverify)
-        .clicked()
-        && ws.ai_tool_check_rx.is_none()
+    if ui.small_button("↻").on_hover_text(hover_reverify).clicked() && ws.ai_tool_check_rx.is_none()
     {
         ws.ai_tool_check_rx = Some(spawn_ai_tool_check());
     }
@@ -180,20 +176,26 @@ pub(super) fn render_ai_panel(
                     });
                 });
                 let items: Vec<TabItem> = (0..ws.claude_tabs.len())
-                    .map(|i| TabItem { label: (i + 1).to_string(), closable: ws.claude_tabs.len() > 1 })
+                    .map(|i| TabItem {
+                        label: (i + 1).to_string(),
+                        closable: ws.claude_tabs.len() > 1,
+                    })
                     .collect();
                 tab_action = render_compact_tab_bar(
-                    ui, &items, ws.claude_active_tab, true,
-                    &i18n.get("ai-tab-close-hover"), &i18n.get("ai-tab-new-hover"),
+                    ui,
+                    &items,
+                    ws.claude_active_tab,
+                    true,
+                    &i18n.get("ai-tab-close-hover"),
+                    &i18n.get("ai-tab-new-hover"),
                 );
                 ui.separator();
-                if !dialog_open {
-                    if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
-                        if terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n) {
-                            ws.focused_panel = FocusedPanel::Claude;
-                            any_clicked = true;
-                        }
-                    }
+                if !dialog_open
+                    && let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab)
+                    && terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n)
+                {
+                    ws.focused_panel = FocusedPanel::Claude;
+                    any_clicked = true;
                 }
             });
         if let Some(action) = tab_action {
@@ -225,20 +227,26 @@ pub(super) fn render_ai_panel(
                     render_ai_tool_controls(ui, ws, "ai_tool_combo_docked", i18n);
                 });
                 let items: Vec<TabItem> = (0..ws.claude_tabs.len())
-                    .map(|i| TabItem { label: (i + 1).to_string(), closable: ws.claude_tabs.len() > 1 })
+                    .map(|i| TabItem {
+                        label: (i + 1).to_string(),
+                        closable: ws.claude_tabs.len() > 1,
+                    })
                     .collect();
                 tab_action = render_compact_tab_bar(
-                    ui, &items, ws.claude_active_tab, true,
-                    &i18n.get("ai-tab-close-hover"), &i18n.get("ai-tab-new-hover"),
+                    ui,
+                    &items,
+                    ws.claude_active_tab,
+                    true,
+                    &i18n.get("ai-tab-close-hover"),
+                    &i18n.get("ai-tab-new-hover"),
                 );
                 ui.separator();
-                if !dialog_open {
-                    if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
-                        if terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n) {
-                            ws.focused_panel = FocusedPanel::Claude;
-                            any_clicked = true;
-                        }
-                    }
+                if !dialog_open
+                    && let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab)
+                    && terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n)
+                {
+                    ws.focused_panel = FocusedPanel::Claude;
+                    any_clicked = true;
                 }
             });
         if let Some(action) = tab_action {

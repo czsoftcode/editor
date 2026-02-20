@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 
 /// Spawns a closure in a new thread and returns a Receiver with the result.
 /// Replaces the repeating pattern `let (tx, rx) = channel(); thread::spawn(|| tx.send(f())); rx`.
@@ -30,20 +30,18 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
         match event {
             FileEvent::Changed(changed_path) => {
                 // Compare the canonicalized path with all editor tabs.
-                if let Ok(changed_canonical) = changed_path.canonicalize() {
-                    if let Some(tab_path) =
-                        ws.editor.tab_path_for_canonical(&changed_canonical)
-                    {
-                        if ws.editor.is_path_modified(&tab_path) {
-                            // Tab has unsaved changes → show dialog.
-                            // Do not overwrite existing conflict (it might still be pending).
-                            if ws.external_change_conflict.is_none() {
-                                ws.external_change_conflict = Some(tab_path);
-                            }
-                        } else {
-                            // No unsaved changes → safely reload from disk.
-                            ws.editor.reload_path_from_disk(&tab_path);
+                if let Ok(changed_canonical) = changed_path.canonicalize()
+                    && let Some(tab_path) = ws.editor.tab_path_for_canonical(&changed_canonical)
+                {
+                    if ws.editor.is_path_modified(&tab_path) {
+                        // Tab has unsaved changes → show dialog.
+                        // Do not overwrite existing conflict (it might still be pending).
+                        if ws.external_change_conflict.is_none() {
+                            ws.external_change_conflict = Some(tab_path);
                         }
+                    } else {
+                        // No unsaved changes → safely reload from disk.
+                        ws.editor.reload_path_from_disk(&tab_path);
                     }
                 }
             }
@@ -91,7 +89,7 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
                 ws.file_tree.request_reload();
             }
         }
-        
+
         // Update FilePicker if open
         if let Some(picker) = ws.file_picker.as_mut() {
             picker.files = ws.project_index.get_files();
@@ -99,25 +97,25 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
         }
     }
 
-    if let Some(rx) = &ws.build_error_rx {
-        if let Ok(errors) = rx.try_recv() {
-            ws.build_errors = errors;
-            ws.build_error_rx = None;
-        }
+    if let Some(rx) = &ws.build_error_rx
+        && let Ok(errors) = rx.try_recv()
+    {
+        ws.build_errors = errors;
+        ws.build_error_rx = None;
     }
 
-    if let Some(rx) = &ws.project_search.rx {
-        if let Ok(results) = rx.try_recv() {
-            ws.project_search.results = results;
-            ws.project_search.rx = None;
-        }
+    if let Some(rx) = &ws.project_search.rx
+        && let Ok(results) = rx.try_recv()
+    {
+        ws.project_search.results = results;
+        ws.project_search.rx = None;
     }
-    if let Some(rx) = &ws.ai_tool_check_rx {
-        if let Ok(status) = rx.try_recv() {
-            ws.ai_tool_available = status;
-            ws.ai_tool_check_rx = None;
-            ws.ai_tool_last_check = std::time::Instant::now();
-        }
+    if let Some(rx) = &ws.ai_tool_check_rx
+        && let Ok(status) = rx.try_recv()
+    {
+        ws.ai_tool_available = status;
+        ws.ai_tool_check_rx = None;
+        ws.ai_tool_last_check = std::time::Instant::now();
     }
     // Periodic re-check of AI CLI tools (claude, aider, …)
     if ws.ai_tool_last_check.elapsed().as_secs() >= crate::config::AI_TOOL_CHECK_INTERVAL_SECS
@@ -127,18 +125,18 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
     }
 
     // Git: loading branch
-    if let Some(rx) = &ws.git_branch_rx {
-        if let Ok(branch) = rx.try_recv() {
-            ws.git_branch = branch;
-            ws.git_branch_rx = None;
-        }
+    if let Some(rx) = &ws.git_branch_rx
+        && let Ok(branch) = rx.try_recv()
+    {
+        ws.git_branch = branch;
+        ws.git_branch_rx = None;
     }
     // Git: loading file status
-    if let Some(rx) = &ws.git_status_rx {
-        if let Ok(colors) = rx.try_recv() {
-            ws.file_tree.set_git_colors(colors);
-            ws.git_status_rx = None;
-        }
+    if let Some(rx) = &ws.git_status_rx
+        && let Ok(colors) = rx.try_recv()
+    {
+        ws.file_tree.set_git_colors(colors);
+        ws.git_status_rx = None;
     }
     // Git: periodic refresh every 5 seconds
     if ws.git_last_refresh.elapsed().as_secs() >= 5 {
@@ -152,10 +150,10 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
     }
 
     // Autosave is paused if an external conflict dialog is pending.
-    if ws.external_change_conflict.is_none() {
-        if let Some(err) = ws.editor.try_autosave(i18n) {
-            ws.toasts.push(Toast::error(err));
-        }
+    if ws.external_change_conflict.is_none()
+        && let Some(err) = ws.editor.try_autosave(i18n)
+    {
+        ws.toasts.push(Toast::error(err));
     }
 }
 
@@ -189,10 +187,10 @@ fn wait_for_child_stdout(
 }
 
 pub(super) fn fetch_git_branch(
-    root: &PathBuf,
+    root: &std::path::Path,
     cancel: Arc<AtomicBool>,
 ) -> mpsc::Receiver<Option<String>> {
-    let root = root.clone();
+    let root = root.to_path_buf();
     spawn_task(move || {
         let child = std::process::Command::new("git")
             .args(["rev-parse", "--abbrev-ref", "HEAD"])
@@ -215,7 +213,7 @@ fn git_status_color(x: char, y: char) -> egui::Color32 {
     }
 }
 
-fn parse_git_status(root: &PathBuf, raw: &[u8]) -> HashMap<PathBuf, egui::Color32> {
+fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, egui::Color32> {
     let mut colors = HashMap::new();
     let entries: Vec<&[u8]> = raw
         .split(|b| *b == 0)
@@ -243,10 +241,10 @@ fn parse_git_status(root: &PathBuf, raw: &[u8]) -> HashMap<PathBuf, egui::Color3
 }
 
 pub(super) fn fetch_git_status(
-    root: &PathBuf,
+    root: &std::path::Path,
     cancel: Arc<AtomicBool>,
 ) -> mpsc::Receiver<HashMap<PathBuf, egui::Color32>> {
-    let root = root.clone();
+    let root = root.to_path_buf();
     spawn_task(move || {
         let child = std::process::Command::new("git")
             .args(["status", "--porcelain=v1", "-z", "--untracked-files=all"])

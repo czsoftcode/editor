@@ -7,7 +7,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 
 - [x] **Command palette** (`Ctrl+Shift+P`) — centrální přístup ke všem akcím klávesnicí.
 - [x] **Sdílený file index** — jeden inkrementální index pro Ctrl+P, project search a file tree.
-- [ ] **CI/CD quality gate** — `cargo fmt`, `cargo clippy -D warnings`, `cargo test` jako podmínka merge.
+- [x] **CI/CD quality gate** — `cargo fmt`, `cargo clippy -D warnings`, `cargo test` jako podmínka merge.
 - [ ] **Settings.toml** — uložení konfigurace do souboru, import/export nastavení.
 - [ ] **Build runner profily** — vlastní příkazy (docker-compose, npm run dev) definované v projektu.
 

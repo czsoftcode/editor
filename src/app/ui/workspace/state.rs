@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 
 use eframe::egui;
 
@@ -160,7 +160,8 @@ pub(crate) struct WorkspaceState {
 impl Drop for WorkspaceState {
     fn drop(&mut self) {
         // Signal git refresh threads to terminate git process and not return result.
-        self.git_cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.git_cancel
+            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }
 

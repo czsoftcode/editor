@@ -10,18 +10,10 @@ use super::super::types::{AppShared, ProjectType, default_wizard_path, path_env}
 // PrivacyState — state of the privacy policy dialog
 // ---------------------------------------------------------------------------
 
+#[derive(Default)]
 pub(crate) struct PrivacyState {
     pub cache: egui_commonmark::CommonMarkCache,
     pub content: Option<String>,
-}
-
-impl Default for PrivacyState {
-    fn default() -> Self {
-        Self {
-            cache: egui_commonmark::CommonMarkCache::default(),
-            content: None,
-        }
-    }
 }
 
 pub(crate) enum PrivacyResult {
@@ -47,7 +39,11 @@ pub(crate) fn show_privacy_dialog(
         match std::fs::read_to_string(&path) {
             Ok(c) => state.content = Some(c),
             Err(e) => {
-                state.content = Some(format!("Error loading privacy policy from {}: {}", path.display(), e));
+                state.content = Some(format!(
+                    "Error loading privacy policy from {}: {}",
+                    path.display(),
+                    e
+                ));
             }
         }
     }
@@ -57,33 +53,38 @@ pub(crate) fn show_privacy_dialog(
     let modal = egui::Modal::new(egui::Id::new("privacy_modal"));
     modal.show(ctx, |ui: &mut egui::Ui| {
         ui.set_width(600.0);
-        
+
         ui.horizontal(|ui| {
             ui.heading(i18n.get("privacy-title"));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 for &lang_code in crate::i18n::SUPPORTED_LANGS {
-                    if ui.selectable_label(i18n.lang() == lang_code, lang_code.to_uppercase()).clicked() {
+                    if ui
+                        .selectable_label(i18n.lang() == lang_code, lang_code.to_uppercase())
+                        .clicked()
+                    {
                         result = PrivacyResult::LanguageChanged(lang_code.to_string());
                     }
                 }
                 ui.label("🌐");
             });
         });
-        
+
         ui.add_space(12.0);
 
         egui::ScrollArea::vertical()
             .max_height(400.0)
             .show(ui, |ui: &mut egui::Ui| {
                 if let Some(content) = &state.content {
-                    egui_commonmark::CommonMarkViewer::new()
-                        .show(ui, &mut state.cache, content);
+                    egui_commonmark::CommonMarkViewer::new().show(ui, &mut state.cache, content);
                 }
             });
 
         ui.add_space(12.0);
         ui.horizontal(|ui: &mut egui::Ui| {
-            if ui.button(egui::RichText::new(i18n.get("btn-accept-privacy")).strong()).clicked() {
+            if ui
+                .button(egui::RichText::new(i18n.get("btn-accept-privacy")).strong())
+                .clicked()
+            {
                 result = PrivacyResult::Accepted;
             }
             if ui.button(i18n.get("startup-quit")).clicked() {
@@ -162,28 +163,28 @@ pub(crate) fn show_project_wizard(
     }
 
     let mut success_path: Option<PathBuf> = None;
-    if let Some(rx) = state.browse_rx.as_ref() {
-        if let Ok(picked) = rx.try_recv() {
-            state.browse_rx = None;
-            if let Some(dir) = picked {
-                state.path = dir.to_string_lossy().to_string();
-            }
+    if let Some(rx) = state.browse_rx.as_ref()
+        && let Ok(picked) = rx.try_recv()
+    {
+        state.browse_rx = None;
+        if let Some(dir) = picked {
+            state.path = dir.to_string_lossy().to_string();
         }
     }
-    if let Some(rx) = state.create_rx.as_ref() {
-        if let Ok(result) = rx.try_recv() {
-            state.create_rx = None;
-            state.creating = false;
-            match result {
-                ProjectCreateResult::Success(path) => {
-                    state.error.clear();
-                    state.name.clear();
-                    *show = false;
-                    success_path = Some(path);
-                }
-                ProjectCreateResult::Error(err) => {
-                    state.error = err;
-                }
+    if let Some(rx) = state.create_rx.as_ref()
+        && let Ok(result) = rx.try_recv()
+    {
+        state.create_rx = None;
+        state.creating = false;
+        match result {
+            ProjectCreateResult::Success(path) => {
+                state.error.clear();
+                state.name.clear();
+                *show = false;
+                success_path = Some(path);
+            }
+            ProjectCreateResult::Error(err) => {
+                state.error = err;
             }
         }
     }
@@ -199,8 +200,16 @@ pub(crate) fn show_project_wizard(
 
         ui.label(i18n.get("wizard-project-type"));
         ui.horizontal(|ui| {
-            ui.radio_value(&mut state.project_type, ProjectType::Rust, i18n.get("wizard-type-rust"));
-            ui.radio_value(&mut state.project_type, ProjectType::Symfony, i18n.get("wizard-type-symfony"));
+            ui.radio_value(
+                &mut state.project_type,
+                ProjectType::Rust,
+                i18n.get("wizard-type-rust"),
+            );
+            ui.radio_value(
+                &mut state.project_type,
+                ProjectType::Symfony,
+                i18n.get("wizard-type-symfony"),
+            );
         });
         ui.add_space(8.0);
 
@@ -300,7 +309,7 @@ pub(crate) fn show_project_wizard(
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("reason", e.to_string());
                 return ProjectCreateResult::Error(
-                    i18n.get_args("error-project-dir-create", &args)
+                    i18n.get_args("error-project-dir-create", &args),
                 );
             }
 
@@ -553,7 +562,11 @@ pub(crate) fn show_startup_dialog(
             ui.add_space(2.0);
             for path in missing_session {
                 let label = path.to_string_lossy();
-                ui.label(egui::RichText::new(format!("  {label}")).size(dlg_size - 2.0).color(egui::Color32::from_gray(160)));
+                ui.label(
+                    egui::RichText::new(format!("  {label}"))
+                        .size(dlg_size - 2.0)
+                        .color(egui::Color32::from_gray(160)),
+                );
             }
         }
 
@@ -577,20 +590,20 @@ pub(crate) fn show_startup_dialog(
     if request_browse && browse_rx.is_none() {
         *browse_rx = Some(spawn_folder_picker(path_buffer.clone()));
     }
-    if let Some(rx) = browse_rx.as_ref() {
-        if let Ok(picked) = rx.try_recv() {
-            *browse_rx = None;
-            if let Some(dir) = picked {
-                *path_buffer = dir.to_string_lossy().to_string();
-                should_open = true;
-            }
+    if let Some(rx) = browse_rx.as_ref()
+        && let Ok(picked) = rx.try_recv()
+    {
+        *browse_rx = None;
+        if let Some(dir) = picked {
+            *path_buffer = dir.to_string_lossy().to_string();
+            should_open = true;
         }
     }
 
-    if let Some(path) = open_recent {
-        if path.is_dir() {
-            return StartupAction::OpenPath(path);
-        }
+    if let Some(path) = open_recent
+        && path.is_dir()
+    {
+        return StartupAction::OpenPath(path);
     }
 
     if should_open {

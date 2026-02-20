@@ -37,13 +37,13 @@ pub(crate) fn fuzzy_match(pattern: &str, text: &str) -> bool {
 }
 
 /// Recursively collects project files (relative paths), skipping insignificant directories.
-pub(super) fn collect_project_files(root: &PathBuf) -> Vec<PathBuf> {
+pub(super) fn collect_project_files(root: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
     let mut visited = HashSet::new();
     if let Ok(canonical_root) = root.canonicalize() {
         visited.insert(canonical_root);
     }
-    collect_files_recursive(root.as_path(), root.as_path(), &mut files, &mut visited);
+    collect_files_recursive(root, root, &mut files, &mut visited);
     files.sort();
     files
 }
@@ -71,16 +71,16 @@ fn collect_files_recursive(
             continue;
         }
         if meta.is_dir() {
-            if let Ok(canonical) = path.canonicalize() {
-                if !visited.insert(canonical) {
-                    continue;
-                }
+            if let Ok(canonical) = path.canonicalize()
+                && !visited.insert(canonical)
+            {
+                continue;
             }
             collect_files_recursive(root, &path, files, visited);
-        } else if meta.is_file() {
-            if let Ok(rel) = path.strip_prefix(root) {
-                files.push(rel.to_path_buf());
-            }
+        } else if meta.is_file()
+            && let Ok(rel) = path.strip_prefix(root)
+        {
+            files.push(rel.to_path_buf());
         }
     }
 }
@@ -120,7 +120,7 @@ pub(super) fn render_file_picker(
     if let Some(picker) = ws.file_picker.as_mut() {
         let focus_req = picker.focus_requested;
         let total = picker.files.len();
-        let max_show = 14_usize;
+        let _max_show = 14_usize;
 
         let modal = egui::Modal::new(egui::Id::new("file_picker_modal"));
         modal.show(ctx, |ui| {

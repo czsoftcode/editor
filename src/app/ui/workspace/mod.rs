@@ -1,14 +1,14 @@
+pub(crate) mod index;
 mod menubar;
 mod modal_dialogs;
 pub(crate) mod state;
-pub(crate) mod index;
 
 // Re-exports for external callers (panels.rs, ai_panel.rs, background.rs, app/mod.rs, …)
-pub(crate) use state::{
-    FilePicker, SearchResult, SecondaryWorkspace, WorkspaceState,
-    init_workspace, open_and_jump, open_file_in_ws, ws_to_panel_state,
-};
 pub(crate) use index::ProjectIndex;
+pub(crate) use state::{
+    FilePicker, SearchResult, SecondaryWorkspace, WorkspaceState, init_workspace, open_and_jump,
+    open_file_in_ws, ws_to_panel_state,
+};
 // Visible to siblings in ui/ (background.rs, ai_panel.rs)
 pub(super) use state::spawn_ai_tool_check;
 
@@ -19,15 +19,15 @@ use eframe::egui;
 
 use super::super::build_runner::run_build_check;
 use super::super::types::{AppShared, FocusedPanel, Toast};
+use super::ai_panel::render_ai_panel;
 use super::background::{fetch_git_status, process_background_events};
 use super::panels::{render_left_panel, render_toasts};
-use super::ai_panel::render_ai_panel;
 use super::search_picker::{render_file_picker, render_project_search_dialog};
-use super::widgets::command_palette::{render_command_palette, execute_command};
-pub(crate) use menubar::MenuActions;
-use menubar::{render_menu_bar, process_menu_actions};
-use modal_dialogs::render_dialogs;
+use super::widgets::command_palette::{execute_command, render_command_palette};
 use crate::config;
+pub(crate) use menubar::MenuActions;
+use menubar::{process_menu_actions, render_menu_bar};
+use modal_dialogs::render_dialogs;
 
 // ---------------------------------------------------------------------------
 // render_workspace — Orchestrator for rendering a single workspace
@@ -48,7 +48,8 @@ pub(crate) fn render_workspace(
         let root = ws.root_path.clone();
         let id = ws.next_claude_tab_id;
         ws.next_claude_tab_id += 1;
-        ws.claude_tabs.push(super::terminal::Terminal::new(id, ctx, &root, None));
+        ws.claude_tabs
+            .push(super::terminal::Terminal::new(id, ctx, &root, None));
     }
     if ws.build_terminal.is_none() {
         ws.build_terminal = Some(super::terminal::Terminal::new(1, ctx, &ws.root_path, None));
@@ -82,10 +83,10 @@ pub(crate) fn render_workspace(
         ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
         ws.build_errors.clear();
     }
-    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R)) {
-        if let Some(t) = &mut ws.build_terminal {
-            t.send_command("cargo run 2>&1");
-        }
+    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R))
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command("cargo run 2>&1");
     }
     // Ctrl+P — fuzzy file picker
     if ctx.input(|i| i.modifiers.ctrl && !i.modifiers.shift && i.key_pressed(egui::Key::P)) {
@@ -104,7 +105,8 @@ pub(crate) fn render_workspace(
     // Ctrl+Shift+P — command palette
     if ctx.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::P)) {
         if ws.command_palette.is_none() {
-            ws.command_palette = Some(crate::app::ui::widgets::command_palette::CommandPaletteState::new());
+            ws.command_palette =
+                Some(crate::app::ui::widgets::command_palette::CommandPaletteState::new());
         } else {
             ws.command_palette = None;
         }
@@ -158,12 +160,11 @@ pub(crate) fn render_workspace(
 
     // If the tab was switched, switch FileWatcher to the directory of the new tab.
     let new_active_path = ws.editor.active_path().cloned();
-    if new_active_path != prev_active_path {
-        if let Some(path) = &new_active_path {
-            if let Some(parent) = path.parent() {
-                ws.watcher.watch(parent);
-            }
-        }
+    if new_active_path != prev_active_path
+        && let Some(path) = &new_active_path
+        && let Some(parent) = path.parent()
+    {
+        ws.watcher.watch(parent);
     }
 
     // Focus follows mouse — return focus to editor if terminal was not actively clicked

@@ -89,8 +89,12 @@ fn build_bundle(lang: &str) -> Bundle {
     let mut bundle = Bundle::new_concurrent(vec![langid]);
     for source in resources_for(lang) {
         match FluentResource::try_new(source.to_string()) {
-            Ok(res) => { bundle.add_resource(res).ok(); }
-            Err((res, _)) => { bundle.add_resource(res).ok(); }
+            Ok(res) => {
+                bundle.add_resource(res).ok();
+            }
+            Err((res, _)) => {
+                bundle.add_resource(res).ok();
+            }
         }
     }
     bundle
@@ -122,21 +126,20 @@ pub fn detect_system_lang() -> String {
     // LANGUAGE can contain multiple languages separated by a colon
     if let Ok(val) = std::env::var("LANGUAGE") {
         for part in val.split(':') {
-            if let Some(lang) = extract_lang_code(part) {
-                if SUPPORTED_LANGS.contains(&lang.as_str()) {
-                    return lang;
-                }
+            if let Some(lang) = extract_lang_code(part)
+                && SUPPORTED_LANGS.contains(&lang.as_str())
+            {
+                return lang;
             }
         }
     }
 
     for var in &["LC_ALL", "LC_MESSAGES", "LANG"] {
-        if let Ok(val) = std::env::var(var) {
-            if let Some(lang) = extract_lang_code(&val) {
-                if SUPPORTED_LANGS.contains(&lang.as_str()) {
-                    return lang;
-                }
-            }
+        if let Ok(val) = std::env::var(var)
+            && let Some(lang) = extract_lang_code(&val)
+            && SUPPORTED_LANGS.contains(&lang.as_str())
+        {
+            return lang;
         }
     }
 
@@ -227,10 +230,10 @@ impl I18n {
             return s;
         }
         // 2. Try English fallback bundle
-        if let Some(fb) = &self.fallback {
-            if let Some(s) = Self::format_in(fb, key, args) {
-                return s;
-            }
+        if let Some(fb) = &self.fallback
+            && let Some(s) = Self::format_in(fb, key, args)
+        {
+            return s;
         }
         // 3. Return the key itself — visible indication of a missing translation
         key.to_string()
@@ -238,11 +241,19 @@ impl I18n {
 
     /// Attempts to translate `key` in the given bundle. Returns `None` if the key or
     /// its value (pattern) does not exist.
-    fn format_in<'a>(bundle: &Bundle, key: &str, args: Option<&'a FluentArgs<'a>>) -> Option<String> {
+    fn format_in<'a>(
+        bundle: &Bundle,
+        key: &str,
+        args: Option<&'a FluentArgs<'a>>,
+    ) -> Option<String> {
         let msg = bundle.get_message(key)?;
         let pattern = msg.value()?;
         let mut errors = Vec::new();
-        Some(bundle.format_pattern(pattern, args, &mut errors).to_string())
+        Some(
+            bundle
+                .format_pattern(pattern, args, &mut errors)
+                .to_string(),
+        )
     }
 }
 
@@ -287,8 +298,8 @@ macro_rules! tr {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
     use super::*;
+    use std::collections::HashSet;
 
     /// Extracts message identifiers from an FTL source.
     /// Includes only lines of the form `ident = ...` (no terms `-ident`, no attributes `.attr`).
@@ -296,7 +307,11 @@ mod tests {
         let mut keys = HashSet::new();
         for line in source.lines() {
             // Skip empty lines, comments, and continuation lines (indented)
-            if line.is_empty() || line.starts_with('#') || line.starts_with(' ') || line.starts_with('\t') {
+            if line.is_empty()
+                || line.starts_with('#')
+                || line.starts_with(' ')
+                || line.starts_with('\t')
+            {
                 continue;
             }
             let Some(eq) = line.find('=') else { continue };
@@ -304,7 +319,9 @@ mod tests {
             // Accept only valid message identifiers (no terms starting with `-`)
             if !key.is_empty()
                 && !key.starts_with('-')
-                && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+                && key
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
             {
                 keys.insert(key.to_string());
             }
@@ -325,8 +342,16 @@ mod tests {
         for lang in SUPPORTED_LANGS {
             let i18n = I18n::new(lang);
             // Basic keys must exist in all languages
-            assert_ne!(i18n.get("menu-file"), "menu-file", "missing key menu-file in '{lang}'");
-            assert_ne!(i18n.get("panel-files"), "panel-files", "missing key panel-files in '{lang}'");
+            assert_ne!(
+                i18n.get("menu-file"),
+                "menu-file",
+                "missing key menu-file in '{lang}'"
+            );
+            assert_ne!(
+                i18n.get("panel-files"),
+                "panel-files",
+                "missing key panel-files in '{lang}'"
+            );
         }
     }
 
@@ -353,7 +378,10 @@ mod tests {
         assert!(cs.fallback.is_some(), "cs I18n must have a fallback bundle");
         // EN instance does not have a fallback bundle (it is the fallback)
         let en = I18n::new("en");
-        assert!(en.fallback.is_none(), "en I18n should not have a fallback bundle");
+        assert!(
+            en.fallback.is_none(),
+            "en I18n should not have a fallback bundle"
+        );
     }
 
     #[test]

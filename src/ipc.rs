@@ -19,8 +19,6 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use serde_json;
-
 use crate::config;
 
 const IPC_MAX_WORKERS: usize = 16;
@@ -71,14 +69,14 @@ fn normalize_project_path_str(path: &str) -> Option<PathBuf> {
 // ---------------------------------------------------------------------------
 
 fn save_paths(file_path: &std::path::Path, paths: &[PathBuf]) {
-    if let Some(parent) = file_path.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
-            eprintln!(
-                "ipc: cannot create config directory {}: {e}",
-                parent.display()
-            );
-            return;
-        }
+    if let Some(parent) = file_path.parent()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        eprintln!(
+            "ipc: cannot create config directory {}: {e}",
+            parent.display()
+        );
+        return;
     }
     let strings: Vec<&str> = paths.iter().filter_map(|p| p.to_str()).collect();
     let Ok(content) = serde_json::to_string(&strings) else {
@@ -144,10 +142,10 @@ pub fn start_process_listener() -> std::sync::mpsc::Receiver<()> {
         std::thread::spawn(move || {
             for stream in listener.incoming().flatten() {
                 let reader = BufReader::new(&stream);
-                if let Some(Ok(line)) = reader.lines().next() {
-                    if line.trim() == "FOCUS" {
-                        let _ = tx.send(());
-                    }
+                if let Some(Ok(line)) = reader.lines().next()
+                    && line.trim() == "FOCUS"
+                {
+                    let _ = tx.send(());
                 }
             }
         });
@@ -217,17 +215,17 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
     }
 
     if let Some(rest) = line.strip_prefix("REGISTER ") {
-        if let Some((pid_str, path_str)) = rest.split_once(' ') {
-            if let Ok(pid) = pid_str.parse::<u32>() {
-                let Some(path) = normalize_project_path_str(path_str) else {
-                    return vec!["ERR bad REGISTER".into()];
-                };
-                let mut st = state.lock().unwrap();
-                // Add registration (do not clear other entries of this PID — one PID can
-                // own multiple projects in a multi-viewport architecture)
-                st.registered.insert(path, pid);
-                return vec!["OK".into()];
-            }
+        if let Some((pid_str, path_str)) = rest.split_once(' ')
+            && let Ok(pid) = pid_str.parse::<u32>()
+        {
+            let Some(path) = normalize_project_path_str(path_str) else {
+                return vec!["ERR bad REGISTER".into()];
+            };
+            let mut st = state.lock().unwrap();
+            // Add registration (do not clear other entries of this PID — one PID can
+            // own multiple projects in a multi-viewport architecture)
+            st.registered.insert(path, pid);
+            return vec!["OK".into()];
         }
         return vec!["ERR bad REGISTER".into()];
     }
@@ -276,10 +274,10 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
     // FOCUS_MAIN — secondary instance without arguments requests the primary to be brought to the foreground.
     if line == "FOCUS_MAIN" {
         let pid_opt = state.lock().unwrap().registered.values().next().copied();
-        if let Some(pid) = pid_opt {
-            if focus_process_window(pid) {
-                return vec!["OK".into()];
-            }
+        if let Some(pid) = pid_opt
+            && focus_process_window(pid)
+        {
+            return vec!["OK".into()];
         }
         return vec!["ERR no registered window".into()];
     }
@@ -329,14 +327,14 @@ impl IpcServer {
     /// Returns `None` if a primary already exists.
     pub fn start() -> Option<(Self, std::sync::mpsc::Receiver<PathBuf>)> {
         let sock = socket_path();
-        if let Some(parent) = sock.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                eprintln!(
-                    "ipc: cannot create socket directory {}: {e}",
-                    parent.display()
-                );
-                return None;
-            }
+        if let Some(parent) = sock.parent()
+            && let Err(e) = std::fs::create_dir_all(parent)
+        {
+            eprintln!(
+                "ipc: cannot create socket directory {}: {e}",
+                parent.display()
+            );
+            return None;
         }
 
         // Verify if primary is already running
@@ -345,10 +343,10 @@ impl IpcServer {
         }
 
         // Remove potential old (non-functional) socket
-        if let Err(e) = std::fs::remove_file(&sock) {
-            if e.kind() != std::io::ErrorKind::NotFound {
-                eprintln!("ipc: cannot remove old socket {}: {e}", sock.display());
-            }
+        if let Err(e) = std::fs::remove_file(&sock)
+            && e.kind() != std::io::ErrorKind::NotFound
+        {
+            eprintln!("ipc: cannot remove old socket {}: {e}", sock.display());
         }
 
         let listener = UnixListener::bind(&sock).ok()?;
@@ -368,13 +366,13 @@ impl IpcServer {
 
 impl Drop for IpcServer {
     fn drop(&mut self) {
-        if let Err(e) = std::fs::remove_file(&self.sock_path) {
-            if e.kind() != std::io::ErrorKind::NotFound {
-                eprintln!(
-                    "ipc: cannot remove socket {}: {e}",
-                    self.sock_path.display()
-                );
-            }
+        if let Err(e) = std::fs::remove_file(&self.sock_path)
+            && e.kind() != std::io::ErrorKind::NotFound
+        {
+            eprintln!(
+                "ipc: cannot remove socket {}: {e}",
+                self.sock_path.display()
+            );
         }
     }
 }
@@ -413,7 +411,7 @@ impl Ipc {
         let _ = writeln!(writer, "{}", command);
         let _ = writer.flush();
         let mut lines = Vec::new();
-        for line in BufReader::new(&stream).lines().flatten() {
+        for line in BufReader::new(&stream).lines().map_while(Result::ok) {
             if line == "END" {
                 break;
             }

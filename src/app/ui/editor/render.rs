@@ -5,8 +5,8 @@ use eframe::egui;
 use crate::config;
 
 use super::search::apply_search_highlights;
-use crate::app::ui::widgets::tab_bar::TabBarAction;
 use super::{Editor, SaveStatus};
+use crate::app::ui::widgets::tab_bar::TabBarAction;
 
 fn editor_line_count(content: &str) -> usize {
     content.lines().count().max(1) + usize::from(content.ends_with('\n'))
@@ -135,15 +135,12 @@ impl Editor {
             }
             new_scroll_x = out.state.offset.x;
 
-            if need_scroll {
-                if let Some(tab_rect) = active_rect {
-                    let inner = out.inner_rect;
-                    if tab_rect.max.x > inner.max.x {
-                        new_scroll_x += tab_rect.max.x - inner.max.x + 8.0;
-                    } else if tab_rect.min.x < inner.min.x {
-                        new_scroll_x =
-                            (new_scroll_x - (inner.min.x - tab_rect.min.x) - 8.0).max(0.0);
-                    }
+            if need_scroll && let Some(tab_rect) = active_rect {
+                let inner = out.inner_rect;
+                if tab_rect.max.x > inner.max.x {
+                    new_scroll_x += tab_rect.max.x - inner.max.x + 8.0;
+                } else if tab_rect.min.x < inner.min.x {
+                    new_scroll_x = (new_scroll_x - (inner.min.x - tab_rect.min.x) - 8.0).max(0.0);
                 }
             }
 
@@ -218,10 +215,10 @@ impl Editor {
         }
 
         if do_jump {
-            if let Ok(n) = self.goto_line_input.trim().parse::<usize>() {
-                if n >= 1 {
-                    self.pending_jump = Some(n);
-                }
+            if let Ok(n) = self.goto_line_input.trim().parse::<usize>()
+                && n >= 1
+            {
+                self.pending_jump = Some(n);
             }
             self.show_goto_line = false;
             self.goto_line_focus_requested = false;
@@ -274,8 +271,11 @@ impl Editor {
             .show(ui, |ui| {
                 ui.centered_and_justified(|ui| {
                     ui.add(
-                        egui::Image::from_bytes(format!("bytes://{}", tab.path.display()), bytes.clone())
-                            .shrink_to_fit(),
+                        egui::Image::from_bytes(
+                            format!("bytes://{}", tab.path.display()),
+                            bytes.clone(),
+                        )
+                        .shrink_to_fit(),
                     );
                 });
             });
@@ -283,7 +283,12 @@ impl Editor {
 
     // --- Normal editor ---
 
-    pub(super) fn ui_normal(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
+    pub(super) fn ui_normal(
+        &mut self,
+        ui: &mut egui::Ui,
+        dialog_open: bool,
+        i18n: &crate::i18n::I18n,
+    ) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
             None => return false,
@@ -429,7 +434,12 @@ impl Editor {
 
     // --- Markdown split view ---
 
-    pub(super) fn ui_markdown_split(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
+    pub(super) fn ui_markdown_split(
+        &mut self,
+        ui: &mut egui::Ui,
+        dialog_open: bool,
+        i18n: &crate::i18n::I18n,
+    ) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
             None => return false,
@@ -590,11 +600,15 @@ impl Editor {
                 preview_frame.show(ui, |ui| {
                     // Dynamic font adaptation based on editor settings
                     let font_size = Self::current_editor_font_size(ui);
-                    
+
                     if let Some(body) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Body) {
                         body.size = font_size;
                     }
-                    if let Some(heading) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Heading) {
+                    if let Some(heading) = ui
+                        .style_mut()
+                        .text_styles
+                        .get_mut(&egui::TextStyle::Heading)
+                    {
                         heading.size = font_size * 1.4;
                     }
 
@@ -622,7 +636,11 @@ impl Editor {
 
     // --- Context menu ---
 
-    pub(super) fn show_editor_context_menu(&mut self, response: &egui::text_edit::TextEditOutput, i18n: &crate::i18n::I18n) {
+    pub(super) fn show_editor_context_menu(
+        &mut self,
+        response: &egui::text_edit::TextEditOutput,
+        i18n: &crate::i18n::I18n,
+    ) {
         let idx = match self.active_tab {
             Some(i) => i,
             None => return,
@@ -670,40 +688,40 @@ impl Editor {
                 .button(egui::RichText::new(i18n.get("btn-paste")).size(menu_size))
                 .clicked()
             {
-                if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                    if let Ok(text) = clipboard.get_text() {
-                        let insert_pos = tab
-                            .last_cursor_range
-                            .map(|cr| cr.primary.ccursor.index.max(cr.secondary.ccursor.index))
-                            .unwrap_or(tab.content.chars().count());
-                        let (start, end) = if let Some(cr) = tab.last_cursor_range {
-                            let s = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
-                            let e = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
-                            if s != e {
-                                (s, e)
-                            } else {
-                                (insert_pos, insert_pos)
-                            }
+                if let Ok(mut clipboard) = arboard::Clipboard::new()
+                    && let Ok(text) = clipboard.get_text()
+                {
+                    let insert_pos = tab
+                        .last_cursor_range
+                        .map(|cr| cr.primary.ccursor.index.max(cr.secondary.ccursor.index))
+                        .unwrap_or(tab.content.chars().count());
+                    let (start, end) = if let Some(cr) = tab.last_cursor_range {
+                        let s = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
+                        let e = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
+                        if s != e {
+                            (s, e)
                         } else {
                             (insert_pos, insert_pos)
-                        };
-                        let byte_start = tab
-                            .content
-                            .char_indices()
-                            .nth(start)
-                            .map(|(i, _)| i)
-                            .unwrap_or(tab.content.len());
-                        let byte_end = tab
-                            .content
-                            .char_indices()
-                            .nth(end)
-                            .map(|(i, _)| i)
-                            .unwrap_or(tab.content.len());
-                        tab.content.replace_range(byte_start..byte_end, &text);
-                        tab.modified = true;
-                        tab.last_edit = Some(Instant::now());
-                        tab.save_status = SaveStatus::Modified;
-                    }
+                        }
+                    } else {
+                        (insert_pos, insert_pos)
+                    };
+                    let byte_start = tab
+                        .content
+                        .char_indices()
+                        .nth(start)
+                        .map(|(i, _)| i)
+                        .unwrap_or(tab.content.len());
+                    let byte_end = tab
+                        .content
+                        .char_indices()
+                        .nth(end)
+                        .map(|(i, _)| i)
+                        .unwrap_or(tab.content.len());
+                    tab.content.replace_range(byte_start..byte_end, &text);
+                    tab.modified = true;
+                    tab.last_edit = Some(Instant::now());
+                    tab.save_status = SaveStatus::Modified;
                 }
                 ui.close_menu();
             }

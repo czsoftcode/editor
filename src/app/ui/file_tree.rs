@@ -209,6 +209,7 @@ impl FileTree {
         result
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn show_node(
         ui: &mut eframe::egui::Ui,
         node: &mut FileNode,
@@ -269,21 +270,27 @@ impl FileTree {
             header_response.context_menu(|ui| {
                 let menu_size = 15.0;
                 if ui
-                    .button(eframe::egui::RichText::new(i18n.get("file-tree-new-file")).size(menu_size))
+                    .button(
+                        eframe::egui::RichText::new(i18n.get("file-tree-new-file")).size(menu_size),
+                    )
                     .clicked()
                 {
                     *action = Some(ContextAction::NewFile(node.path.clone()));
                     ui.close_menu();
                 }
                 if ui
-                    .button(eframe::egui::RichText::new(i18n.get("file-tree-new-dir")).size(menu_size))
+                    .button(
+                        eframe::egui::RichText::new(i18n.get("file-tree-new-dir")).size(menu_size),
+                    )
                     .clicked()
                 {
                     *action = Some(ContextAction::NewDir(node.path.clone()));
                     ui.close_menu();
                 }
                 if ui
-                    .button(eframe::egui::RichText::new(i18n.get("file-tree-rename")).size(menu_size))
+                    .button(
+                        eframe::egui::RichText::new(i18n.get("file-tree-rename")).size(menu_size),
+                    )
                     .clicked()
                 {
                     *action = Some(ContextAction::Rename(node.path.clone()));
@@ -296,17 +303,21 @@ impl FileTree {
                     *action = Some(ContextAction::Copy(node.path.clone()));
                     ui.close_menu();
                 }
-                if has_clipboard {
-                    if ui
-                        .button(eframe::egui::RichText::new(i18n.get("file-tree-paste")).size(menu_size))
+                if has_clipboard
+                    && ui
+                        .button(
+                            eframe::egui::RichText::new(i18n.get("file-tree-paste"))
+                                .size(menu_size),
+                        )
                         .clicked()
-                    {
-                        *action = Some(ContextAction::Paste(node.path.clone()));
-                        ui.close_menu();
-                    }
+                {
+                    *action = Some(ContextAction::Paste(node.path.clone()));
+                    ui.close_menu();
                 }
                 if ui
-                    .button(eframe::egui::RichText::new(i18n.get("file-tree-delete")).size(menu_size))
+                    .button(
+                        eframe::egui::RichText::new(i18n.get("file-tree-delete")).size(menu_size),
+                    )
                     .clicked()
                 {
                     *action = Some(ContextAction::Delete(node.path.clone()));
@@ -330,7 +341,9 @@ impl FileTree {
             label.context_menu(|ui| {
                 let menu_size = 15.0;
                 if ui
-                    .button(eframe::egui::RichText::new(i18n.get("file-tree-rename")).size(menu_size))
+                    .button(
+                        eframe::egui::RichText::new(i18n.get("file-tree-rename")).size(menu_size),
+                    )
                     .clicked()
                 {
                     *action = Some(ContextAction::Rename(node.path.clone()));
@@ -344,7 +357,9 @@ impl FileTree {
                     ui.close_menu();
                 }
                 if ui
-                    .button(eframe::egui::RichText::new(i18n.get("file-tree-delete")).size(menu_size))
+                    .button(
+                        eframe::egui::RichText::new(i18n.get("file-tree-delete")).size(menu_size),
+                    )
                     .clicked()
                 {
                     *action = Some(ContextAction::Delete(node.path.clone()));
@@ -397,7 +412,8 @@ impl FileTree {
                         Err(e) => {
                             let mut args = fluent_bundle::FluentArgs::new();
                             args.set("reason", e.to_string());
-                            self.pending_error = Some(i18n.get_args("file-tree-paste-error", &args));
+                            self.pending_error =
+                                Some(i18n.get_args("file-tree-paste-error", &args));
                         }
                     }
                 }
@@ -523,23 +539,23 @@ impl FileTree {
 
         match result {
             ModalResult::Confirmed(name) => {
-                if let Some(target) = &self.rename_target {
-                    if let Some(parent) = target.parent() {
-                        let new_path = parent.join(&name);
-                        // Safety check: path must remain within the project root
-                        if !new_path.starts_with(&self.root_path) {
-                            self.pending_error = Some(i18n.get("file-tree-outside-project"));
-                        } else {
-                            match std::fs::rename(target, &new_path) {
-                                Ok(()) => {
-                                    self.needs_reload = true;
-                                }
-                                Err(e) => {
-                                    let mut args = fluent_bundle::FluentArgs::new();
-                                    args.set("reason", e.to_string());
-                                    self.pending_error =
-                                        Some(i18n.get_args("file-tree-rename-error", &args));
-                                }
+                if let Some(target) = &self.rename_target
+                    && let Some(parent) = target.parent()
+                {
+                    let new_path = parent.join(&name);
+                    // Safety check: path must remain within the project root
+                    if !new_path.starts_with(&self.root_path) {
+                        self.pending_error = Some(i18n.get("file-tree-outside-project"));
+                    } else {
+                        match std::fs::rename(target, &new_path) {
+                            Ok(()) => {
+                                self.needs_reload = true;
+                            }
+                            Err(e) => {
+                                let mut args = fluent_bundle::FluentArgs::new();
+                                args.set("reason", e.to_string());
+                                self.pending_error =
+                                    Some(i18n.get_args("file-tree-rename-error", &args));
                             }
                         }
                     }

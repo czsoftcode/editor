@@ -344,14 +344,12 @@ impl Editor {
                     tab.last_edit = None;
                     tab.save_status = SaveStatus::Saved;
                 }
-            } else {
-                if let Ok(content) = std::fs::read_to_string(&tab.path) {
-                    tab.content = content.clone();
-                    tab.last_saved_content = content;
-                    tab.modified = false;
-                    tab.last_edit = None;
-                    tab.save_status = SaveStatus::Saved;
-                }
+            } else if let Ok(content) = std::fs::read_to_string(&tab.path) {
+                tab.content = content.clone();
+                tab.last_saved_content = content;
+                tab.modified = false;
+                tab.last_edit = None;
+                tab.save_status = SaveStatus::Saved;
             }
         }
         self.update_search();
@@ -394,7 +392,12 @@ impl Editor {
             }
             Err(e) => {
                 tab.save_status = SaveStatus::Modified;
-                let name = tab.path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+                let name = tab
+                    .path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned();
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("name", name);
                 args.set("reason", e.to_string());
@@ -430,7 +433,12 @@ impl Editor {
             }
             Err(e) => {
                 tab.save_status = SaveStatus::Modified;
-                let name = tab.path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+                let name = tab
+                    .path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned();
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("name", name);
                 args.set("reason", e.to_string());
@@ -532,44 +540,44 @@ impl Editor {
             self.ui_markdown_split(ui, dialog_open, i18n)
         } else {
             if self.is_svg() {
-                if let Some(idx) = self.active_tab {
-                    if !self.tabs[idx].svg_modal_shown {
-                        let path = self.tabs[idx].path.clone();
-                        let fname = path
-                            .file_name()
-                            .map(|n| n.to_string_lossy().to_string())
-                            .unwrap_or_default();
+                if let Some(idx) = self.active_tab
+                    && !self.tabs[idx].svg_modal_shown
+                {
+                    let path = self.tabs[idx].path.clone();
+                    let fname = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
 
-                        let mut open_external = false;
-                        let mut edit_as_text = false;
+                    let mut open_external = false;
+                    let mut edit_as_text = false;
 
-                        let modal = egui::Modal::new(egui::Id::new(("svg_modal", &path)));
-                        modal.show(ui.ctx(), |ui| {
-                            ui.heading(i18n.get("svg-modal-title"));
-                            ui.add_space(4.0);
-                            ui.label(egui::RichText::new(&fname).strong());
-                            ui.add_space(8.0);
-                            ui.label(i18n.get("svg-modal-body"));
-                            ui.add_space(12.0);
-                            ui.separator();
-                            ui.add_space(4.0);
-                            ui.horizontal(|ui| {
-                                if ui.button(i18n.get("svg-open-external")).clicked() {
-                                    open_external = true;
-                                }
-                                if ui.button(i18n.get("svg-modal-edit")).clicked() {
-                                    edit_as_text = true;
-                                }
-                            });
+                    let modal = egui::Modal::new(egui::Id::new(("svg_modal", &path)));
+                    modal.show(ui.ctx(), |ui| {
+                        ui.heading(i18n.get("svg-modal-title"));
+                        ui.add_space(4.0);
+                        ui.label(egui::RichText::new(&fname).strong());
+                        ui.add_space(8.0);
+                        ui.label(i18n.get("svg-modal-body"));
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            if ui.button(i18n.get("svg-open-external")).clicked() {
+                                open_external = true;
+                            }
+                            if ui.button(i18n.get("svg-modal-edit")).clicked() {
+                                edit_as_text = true;
+                            }
                         });
+                    });
 
-                        if open_external {
-                            let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
-                            self.tabs[idx].svg_modal_shown = true;
-                        }
-                        if edit_as_text {
-                            self.tabs[idx].svg_modal_shown = true;
-                        }
+                    if open_external {
+                        let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
+                        self.tabs[idx].svg_modal_shown = true;
+                    }
+                    if edit_as_text {
+                        self.tabs[idx].svg_modal_shown = true;
                     }
                 }
 
@@ -589,7 +597,12 @@ impl Editor {
         }
     }
 
-    pub fn status_bar(&self, ui: &mut egui::Ui, git_branch: Option<&str>, i18n: &crate::i18n::I18n) {
+    pub fn status_bar(
+        &self,
+        ui: &mut egui::Ui,
+        git_branch: Option<&str>,
+        i18n: &crate::i18n::I18n,
+    ) {
         let tab = match self.active() {
             Some(t) => t,
             None => return,
@@ -614,13 +627,19 @@ impl Editor {
             match tab.save_status {
                 SaveStatus::None => {}
                 SaveStatus::Modified => {
-                    ui.label(egui::RichText::new(i18n.get("statusbar-unsaved")).color(status_warn_color));
+                    ui.label(
+                        egui::RichText::new(i18n.get("statusbar-unsaved")).color(status_warn_color),
+                    );
                 }
                 SaveStatus::Saving => {
-                    ui.label(egui::RichText::new(i18n.get("statusbar-saving")).color(secondary_color));
+                    ui.label(
+                        egui::RichText::new(i18n.get("statusbar-saving")).color(secondary_color),
+                    );
                 }
                 SaveStatus::Saved => {
-                    ui.label(egui::RichText::new(i18n.get("statusbar-saved")).color(status_ok_color));
+                    ui.label(
+                        egui::RichText::new(i18n.get("statusbar-saved")).color(status_ok_color),
+                    );
                 }
             }
 
@@ -635,7 +654,9 @@ impl Editor {
                     );
                     ui.separator();
                 }
-                ui.label(egui::RichText::new(i18n.get("statusbar-encoding")).color(secondary_color));
+                ui.label(
+                    egui::RichText::new(i18n.get("statusbar-encoding")).color(secondary_color),
+                );
                 ui.separator();
                 ui.label(egui::RichText::new(file_type).color(secondary_color));
             });

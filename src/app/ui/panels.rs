@@ -82,40 +82,43 @@ fn render_build_panel(
             ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
             ws.build_errors.clear();
         }
-        if ui.small_button(i18n.get("btn-run")).clicked() {
-            if let Some(t) = &mut ws.build_terminal {
-                t.send_command("cargo run 2>&1");
-            }
+        if ui.small_button(i18n.get("btn-run")).clicked()
+            && let Some(t) = &mut ws.build_terminal
+        {
+            t.send_command("cargo run 2>&1");
         }
         if ui
             .add(egui::Button::new(i18n.get("btn-run-new")).small())
             .on_hover_text("cargo run -- --new-instance")
             .clicked()
+            && let Some(t) = &mut ws.build_terminal
         {
-            if let Some(t) = &mut ws.build_terminal {
-                t.send_command("cargo run -- --new-instance 2>&1");
-            }
+            t.send_command("cargo run -- --new-instance 2>&1");
         }
-        if ui.small_button(i18n.get("btn-test")).clicked() {
-            if let Some(t) = &mut ws.build_terminal {
-                t.send_command("cargo test 2>&1");
-            }
+        if ui.small_button(i18n.get("btn-test")).clicked()
+            && let Some(t) = &mut ws.build_terminal
+        {
+            t.send_command("cargo test 2>&1");
         }
-        if ui.small_button(i18n.get("btn-clean")).clicked() {
-            if let Some(t) = &mut ws.build_terminal {
-                t.send_command("cargo clean");
-            }
+        if ui.small_button(i18n.get("btn-clean")).clicked()
+            && let Some(t) = &mut ws.build_terminal
+        {
+            t.send_command("cargo clean");
         }
     });
     ui.separator();
 
-    if !dialog_open {
-        if let Some(terminal) = &mut ws.build_terminal {
-            if terminal.ui(ui, focused == FocusedPanel::Build, config::EDITOR_FONT_SIZE, i18n) {
-                ws.focused_panel = FocusedPanel::Build;
-                *any_clicked = true;
-            }
-        }
+    if !dialog_open
+        && let Some(terminal) = &mut ws.build_terminal
+        && terminal.ui(
+            ui,
+            focused == FocusedPanel::Build,
+            config::EDITOR_FONT_SIZE,
+            i18n,
+        )
+    {
+        ws.focused_panel = FocusedPanel::Build;
+        *any_clicked = true;
     }
 
     if !ws.build_errors.is_empty() {
@@ -162,15 +165,19 @@ fn render_build_panel(
         ui.separator();
         ui.horizontal(|ui| {
             if loading {
-                ui.label(egui::RichText::new(i18n.get("project-search-loading")).weak().size(12.0));
+                ui.label(
+                    egui::RichText::new(i18n.get("project-search-loading"))
+                        .weak()
+                        .size(12.0),
+                );
             } else {
                 let mut search_args = fluent_bundle::FluentArgs::new();
                 search_args.set("query", ws.project_search.query.clone());
                 search_args.set("count", ws.project_search.results.len() as i64);
                 ui.label(
                     egui::RichText::new(i18n.get_args("project-search-result-label", &search_args))
-                    .strong()
-                    .size(12.0),
+                        .strong()
+                        .size(12.0),
                 );
                 if ui.small_button("\u{00D7}").clicked() {
                     ws.project_search.results.clear();

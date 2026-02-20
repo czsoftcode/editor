@@ -1,15 +1,15 @@
 # Changelog
 
-Všechny významné změny v projektu PolyCredo Editor budou zaznamenány v tomto souboru.
+All notable changes to the PolyCredo Editor project will be documented in this file.
 
 ## [0.4.0] - 2026-02-20
 
-### Přidáno
-- **CI/CD Quality Gate**: Zavedeny automatizované kontroly kvality kódu (formátování, clippy, testy) pomocí GitHub Actions a lokálního skriptu `check.sh`.
-- **Sdílený souborový index**: Implementován `ProjectIndex` pro asynchronní a inkrementální indexování souborů v projektu. Sjednocuje data pro Ctrl+P, globální vyhledávání i strom souborů.
-- **Command Palette (Ctrl+Shift+P)**: Přidána centrální nabídka příkazů s podporou i18n pro rychlé ovládání editoru klávesnicí.
-- **Rychlé otevírání souborů (Ctrl+P)**: Implementováno fuzzy vyhledávání souborů s automatickým scrollováním na vybranou položku.
+### Added
+- **CI/CD Quality Gate**: Introduced automated code quality checks (formatting, clippy, tests) using GitHub Actions and a local `check.sh` script.
+- **Shared File Index**: Implemented `ProjectIndex` for asynchronous and incremental project file indexing. Unifies data for Ctrl+P, global search, and file tree.
+- **Command Palette (Ctrl+Shift+P)**: Added a central command menu with i18n support for quick keyboard-driven editor control.
+- **Quick File Open (Ctrl+P)**: Implemented fuzzy file search with automatic scrolling to the selected item.
 
-### Opraveno
-- **Scrollování v Ctrl+P**: Opravena chyba, kdy vybraná položka mizela mimo viditelnou oblast seznamu při navigaci šipkami.
-- **Výkon vyhledávání**: Globální vyhledávání (`Ctrl+Shift+F`) nyní využívá sdílený index místo opakovaného procházení disku.
+### Fixed
+- **Scrolling in Ctrl+P**: Fixed an issue where the selected item disappeared outside the visible list area during arrow navigation.
+- **Search Performance**: Global search (`Ctrl+Shift+F`) now utilizes the shared index instead of repeated disk scanning.

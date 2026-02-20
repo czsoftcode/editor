@@ -4,7 +4,7 @@ Tento soubor obsahuje instrukce a pravidla pro vývoj projektu PolyCredo Editor.
 
 ## Komunikace a Jazyk
 - **Interakce s uživatelem:** Probíhá výhradně v **češtině**.
-- **Komentáře v kódu:** Musí být psány v **angličtině** (pro zachování idiomatické kvality Rust kódu).
+- **Komentáře v kódu, CHANGELOG.md a skripty:** Musí být psány v **angličtině** (pro zachování technické konzistence).
 - **Názvy proměnných a funkcí:** Anglicky.
 
 ## Vize a Strategie

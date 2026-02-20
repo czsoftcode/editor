@@ -13,7 +13,6 @@ use super::super::background::{fetch_git_branch, fetch_git_status};
 use super::super::dialogs::WizardState;
 use super::super::editor::Editor;
 use super::super::file_tree::FileTree;
-use super::super::search_picker::collect_project_files;
 use super::super::terminal::Terminal;
 use super::super::widgets::command_palette::CommandPaletteState;
 use crate::watcher::{FileWatcher, ProjectWatcher};
@@ -127,12 +126,10 @@ pub(crate) struct WorkspaceState {
     pub folder_pick_rx: Option<mpsc::Receiver<FolderPickResult>>,
     /// Ctrl+Shift+P — command palette
     pub command_palette: Option<CommandPaletteState>,
+    /// Shared file index for Ctrl+P, search, etc.
+    pub project_index: Arc<super::ProjectIndex>,
     /// Ctrl+P — fuzzy file picker
     pub file_picker: Option<FilePicker>,
-    /// Cache of the file index for Ctrl+P (relative paths)
-    pub file_index_cache: Vec<PathBuf>,
-    /// Ongoing background file scan
-    pub file_index_rx: Option<mpsc::Receiver<Vec<PathBuf>>>,
     /// Project-wide search
     pub project_search: ProjectSearch,
     /// Git — current branch
@@ -191,10 +188,6 @@ pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
     }
 }
 
-pub(crate) fn spawn_file_index_scan(root: PathBuf) -> mpsc::Receiver<Vec<PathBuf>> {
-    crate::app::ui::background::spawn_task(move || collect_project_files(&root))
-}
-
 fn is_command_available(command: &str) -> bool {
     #[cfg(windows)]
     {
@@ -231,7 +224,8 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
     let git_cancel = Arc::new(AtomicBool::new(false));
     let git_branch_rx = fetch_git_branch(&root_path, Arc::clone(&git_cancel));
     let git_status_rx = fetch_git_status(&root_path, Arc::clone(&git_cancel));
-    let file_index_rx = spawn_file_index_scan(root_path.clone());
+    let project_index = Arc::new(super::ProjectIndex::new(root_path.clone()));
+    project_index.full_rescan();
     let ai_tool_check_rx = spawn_ai_tool_check();
     let mut wizard = WizardState::default();
     wizard.path = default_wizard_path();
@@ -262,9 +256,8 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         toasts: Vec::new(),
         folder_pick_rx: None,
         command_palette: None,
+        project_index,
         file_picker: None,
-        file_index_cache: Vec::new(),
-        file_index_rx: Some(file_index_rx),
         project_search: ProjectSearch::default(),
         git_branch: None,
         git_branch_rx: Some(git_branch_rx),

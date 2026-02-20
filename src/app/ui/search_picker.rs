@@ -159,7 +159,7 @@ pub(super) fn render_file_picker(
                 .max_height(320.0)
                 .id_salt("fp_scroll")
                 .show(ui, |ui| {
-                    for (disp_idx, &file_idx) in picker.filtered.iter().take(max_show).enumerate() {
+                    for (disp_idx, &file_idx) in picker.filtered.iter().enumerate() {
                         let path = &picker.files[file_idx];
                         let is_sel = disp_idx == picker.selected;
                         let text = egui::RichText::new(path.to_string_lossy())
@@ -173,15 +173,6 @@ pub(super) fn render_file_picker(
                             selected_file = Some(ws.root_path.join(path));
                             close = true;
                         }
-                    }
-                    if picker.filtered.len() > max_show {
-                        let mut args = fluent_bundle::FluentArgs::new();
-                        args.set("count", (picker.filtered.len() - max_show) as i64);
-                        ui.label(
-                            egui::RichText::new(i18n.get_args("file-picker-more", &args))
-                                .weak()
-                                .size(11.0),
-                        );
                     }
                 });
         });
@@ -198,6 +189,7 @@ pub(super) fn render_file_picker(
 /// Starts project-wide search in the background (pure Rust, no external tools).
 fn run_project_search(
     root: PathBuf,
+    files: Vec<PathBuf>,
     query: String,
     epoch: u64,
     cancel_epoch: Arc<AtomicU64>,
@@ -207,7 +199,6 @@ fn run_project_search(
         if cancel_epoch.load(Ordering::Relaxed) != epoch {
             return;
         }
-        let files = collect_project_files(&root);
         let q = query.to_lowercase();
         let mut results = Vec::new();
         'outer: for rel in files {
@@ -289,8 +280,10 @@ pub(super) fn render_project_search_dialog(
             .fetch_add(1, Ordering::Relaxed)
             + 1;
         let cancel_epoch = Arc::clone(&ws.project_search.cancel_epoch);
+        let files = ws.project_index.get_files();
         ws.project_search.rx = Some(run_project_search(
             ws.root_path.clone(),
+            files,
             ws.project_search.query.trim().to_string(),
             epoch,
             cancel_epoch,

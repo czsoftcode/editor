@@ -75,6 +75,7 @@ impl FileWatcher {
     }
 }
 
+#[derive(Clone)]
 pub enum FsChange {
     Created(PathBuf),
     Removed(PathBuf),

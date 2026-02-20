@@ -5,7 +5,7 @@ use crate::app::ui::background::spawn_task;
 
 use eframe::egui;
 
-use super::state::{FilePicker, WorkspaceState, spawn_file_index_scan};
+use super::state::{FilePicker, WorkspaceState};
 use super::super::super::build_runner::run_build_check;
 use super::super::super::types::{AppAction, AppShared, Toast};
 
@@ -282,10 +282,7 @@ pub(super) fn process_menu_actions(
         }
     }
     if actions.open_file_picker && ws.file_picker.is_none() {
-        if ws.file_index_rx.is_none() {
-            ws.file_index_rx = Some(spawn_file_index_scan(ws.root_path.clone()));
-        }
-        let files = ws.file_index_cache.clone();
+        let files = ws.project_index.get_files();
         ws.file_picker = Some(FilePicker::new(files));
     }
     if actions.project_search {

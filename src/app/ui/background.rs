@@ -21,7 +21,7 @@ where
 use eframe::egui;
 
 use super::super::types::Toast;
-use super::workspace::{WorkspaceState, spawn_file_index_scan, spawn_ai_tool_check};
+use super::workspace::{WorkspaceState, spawn_ai_tool_check};
 use crate::watcher::{FileEvent, FsChange};
 
 /// Processes events from watchers, build results, and autosave.
@@ -66,6 +66,7 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
         let mut need_reload = false;
         let mut created_file: Option<PathBuf> = None;
         for change in &fs_changes {
+            ws.project_index.handle_change(change.clone());
             match change {
                 FsChange::Created(path) => {
                     need_reload = true;
@@ -90,21 +91,11 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
                 ws.file_tree.request_reload();
             }
         }
-        if ws.file_index_rx.is_none() {
-            ws.file_index_rx = Some(spawn_file_index_scan(ws.root_path.clone()));
-        }
-    }
-
-    if let Some(rx) = &ws.file_index_rx {
-        if let Ok(files) = rx.try_recv() {
-            ws.file_index_cache = files;
-            ws.file_index_rx = None;
-            if let Some(picker) = ws.file_picker.as_mut() {
-                let query = picker.query.clone();
-                picker.files = ws.file_index_cache.clone();
-                picker.query = query;
-                picker.update_filter();
-            }
+        
+        // Update FilePicker if open
+        if let Some(picker) = ws.file_picker.as_mut() {
+            picker.files = ws.project_index.get_files();
+            picker.update_filter();
         }
     }
 

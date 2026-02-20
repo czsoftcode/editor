@@ -1,14 +1,16 @@
 mod menubar;
 mod modal_dialogs;
 pub(crate) mod state;
+pub(crate) mod index;
 
 // Re-exports for external callers (panels.rs, ai_panel.rs, background.rs, app/mod.rs, …)
 pub(crate) use state::{
     FilePicker, SearchResult, SecondaryWorkspace, WorkspaceState,
     init_workspace, open_and_jump, open_file_in_ws, ws_to_panel_state,
 };
+pub(crate) use index::ProjectIndex;
 // Visible to siblings in ui/ (background.rs, ai_panel.rs)
-pub(super) use state::{spawn_ai_tool_check, spawn_file_index_scan};
+pub(super) use state::spawn_ai_tool_check;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -88,10 +90,7 @@ pub(crate) fn render_workspace(
     // Ctrl+P — fuzzy file picker
     if ctx.input(|i| i.modifiers.ctrl && !i.modifiers.shift && i.key_pressed(egui::Key::P)) {
         if ws.file_picker.is_none() {
-            if ws.file_index_rx.is_none() {
-                ws.file_index_rx = Some(spawn_file_index_scan(ws.root_path.clone()));
-            }
-            let files = ws.file_index_cache.clone();
+            let files = ws.project_index.get_files();
             ws.file_picker = Some(FilePicker::new(files));
         } else {
             ws.file_picker = None;

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 // ---------------------------------------------------------------------------
-// Pomocné typy
+// Helper types
 // ---------------------------------------------------------------------------
 
 #[derive(PartialEq, Clone, Copy)]
@@ -98,17 +98,17 @@ impl Default for PersistentState {
 }
 
 // ---------------------------------------------------------------------------
-// AppShared — sdílený stav mezi viewporty (chráněný Mutexem)
+// AppShared — Shared state between viewports (protected by Mutex)
 // ---------------------------------------------------------------------------
 
 pub(crate) enum AppAction {
-    /// Otevřít projekt v novém okně
+    /// Open project in a new window
     OpenInNewWindow(PathBuf),
-    /// Zavřít sekundární viewport (po zavření × okna)
+    /// Close secondary viewport (after clicking X window button)
     CloseWorkspace(eframe::egui::ViewportId),
-    /// Přidat cestu do nedávných projektů
+    /// Add path to recent projects
     AddRecent(PathBuf),
-    /// Ukončit celou aplikaci
+    /// Terminate the whole application
     QuitAll,
 }
 
@@ -116,12 +116,12 @@ pub(crate) struct AppShared {
     pub recent_projects: Vec<PathBuf>,
     pub actions: Vec<AppAction>,
     pub settings: crate::settings::Settings,
-    /// Aktivní překlady UI. `Arc` umožňuje sdílení bez opakovaného zamykání mutexu.
+    /// Active UI translations. `Arc` allows sharing without repeated mutex locking.
     pub i18n: std::sync::Arc<crate::i18n::I18n>,
 }
 
 // ---------------------------------------------------------------------------
-// Toast — krátkodobá notifikace v UI
+// Toast — Short-term UI notification
 // ---------------------------------------------------------------------------
 
 pub(crate) struct Toast {
@@ -154,7 +154,7 @@ impl Toast {
 }
 
 // ---------------------------------------------------------------------------
-// Pomocné free funkce
+// Helper free functions
 // ---------------------------------------------------------------------------
 
 pub(crate) fn path_env() -> String {

@@ -9,9 +9,9 @@ mod watcher;
 use std::path::PathBuf;
 
 fn main() -> eframe::Result<()> {
-    // Nastavit terminálové proměnné prostředí před vznikem jakýchkoliv vláken.
-    // set_var je v Edition 2024 unsafe — volání zde je bezpečné, protože vlákna
-    // zatím neexistují.
+    // Set terminal environment variables before any threads are spawned.
+    // set_var is unsafe in Edition 2024 — calling it here is safe because threads
+    // do not exist yet.
     unsafe {
         std::env::set_var("TERM", "xterm-256color");
         std::env::set_var("COLORTERM", "truecolor");
@@ -19,8 +19,8 @@ fn main() -> eframe::Result<()> {
     }
 
     let args: Vec<String> = std::env::args().collect();
-    // --new-instance přeskočí IPC singleton check — umožňuje spustit nezávislou instanci
-    // pro vývoj a testování (ekvivalent --no-remote ve Firefoxu).
+    // --new-instance skips the IPC singleton check — allows running an independent instance
+    // for development and testing (equivalent to --no-remote in Firefox).
     let new_instance = args.iter().any(|a| a == "--new-instance");
     let root_path = args.into_iter().skip(1)
         .find(|a| !a.starts_with("--"))
@@ -29,9 +29,9 @@ fn main() -> eframe::Result<()> {
             p.canonicalize().unwrap_or(p)
         });
 
-    // Single-process multi-window architektura:
-    // Pokud primární instance již běží, delegujeme na ni a skončíme.
-    // S --new-instance tento krok přeskočíme a spustíme novou nezávislou instanci.
+    // Single-process multi-window architecture:
+    // If a primary instance is already running, delegate to it and exit.
+    // With --new-instance, skip this step and start a new independent instance.
     if !new_instance && ipc::Ipc::ping() {
         if let Some(ref path) = root_path {
             ipc::Ipc::open_in_new_window(path);

@@ -23,48 +23,48 @@ use crate::ipc::{self, Ipc, IpcServer};
 use eframe::egui;
 
 // ---------------------------------------------------------------------------
-// EditorApp — hlavní aplikace (kořenový viewport)
+// EditorApp — Main application (root viewport)
 // ---------------------------------------------------------------------------
 
 pub struct EditorApp {
-    /// Kořenový workspace (None = startup dialog)
+    /// Root workspace (None = startup dialog)
     root_ws: Option<WorkspaceState>,
-    /// Sekundární workspacy (za Arc<Mutex> pro deferred viewporty)
+    /// Secondary workspaces (behind Arc<Mutex> for deferred viewports)
     secondary: Vec<SecondaryWorkspace>,
-    /// Sdílený stav — komunikace mezi viewporty
+    /// Shared state — communication between viewports
     shared: Arc<Mutex<AppShared>>,
-    /// Čítač pro jedinečné ViewportId
+    /// Counter for unique ViewportId
     next_viewport_counter: u64,
 
-    /// Stav uložený pro obnovení při zavření/otevření workspace
+    /// State saved for restoration when closing/opening workspace
     saved_panel_state: PersistentState,
 
     // --- Startup dialog ---
     path_buffer: String,
     startup_browse_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
 
-    // --- Wizard nového projektu (startup screen) ---
+    // --- New project wizard (startup screen) ---
     show_startup_wizard: bool,
     startup_wizard: WizardState,
 
-    // --- Ukončení aplikace ---
+    // --- Application termination ---
     show_quit_confirm: bool,
     quit_confirmed: bool,
-    // --- Zavření aktivního projektu v kořenovém okně ---
+    // --- Closing active project in root window ---
     show_close_project_confirm: bool,
 
     _ipc_server: Option<IpcServer>,
     focus_rx: mpsc::Receiver<()>,
-    /// Příchozí požadavky od sekundárních instancí na otevření projektu v novém okně.
+    /// Incoming requests from secondary instances to open project in a new window.
     open_request_rx: Option<mpsc::Receiver<PathBuf>>,
 
-    /// Projekty ze session, které nebylo možné obnovit (složka neexistuje).
-    /// Zobrazí se jako toast nebo varování ve startup dialogu.
+    /// Projects from session that could not be restored (directory does not exist).
+    /// Displayed as a toast or warning in the startup dialog.
     missing_session_paths: Vec<PathBuf>,
 }
 
 // ---------------------------------------------------------------------------
-// EditorApp — implementace
+// EditorApp — Implementation
 // ---------------------------------------------------------------------------
 
 impl EditorApp {
@@ -82,35 +82,35 @@ impl EditorApp {
         };
         let focus_rx = ipc::start_process_listener();
 
-        // Načíst nedávné projekty
+        // Load recent projects
         let recent_projects = Ipc::recent();
 
-        // Určit seznam projektů k otevření
+        // Determine list of projects to open
         let (paths_to_open, missing_session_paths): (Vec<PathBuf>, Vec<PathBuf>) =
             if let Some(p) = root_path {
-                // CLI argument — otevřít jen tento projekt
+                // CLI argument — open only this project
                 (vec![p], vec![])
             } else {
-                // Session restore: rozlišíme nalezené a chybějící projekty
+                // Session restore: distinguish between found and missing projects
                 ipc::load_session_checked()
             };
 
-        // Registrovat všechny projekty
+        // Register all projects
         for p in &paths_to_open {
             Ipc::register(p);
         }
 
-        // Přidat do nedávných
+        // Add to recent
         for p in &paths_to_open {
             Ipc::add_recent(p);
         }
 
-        // Inicializovat kořenový workspace
+        // Initialize root workspace
         let root_ws = paths_to_open
             .first()
             .map(|p| init_workspace(p.clone(), &panel_state));
 
-        // Inicializovat sekundární workspacy ze session
+        // Initialize secondary workspaces from session
         let mut counter = 0u64;
         let secondary: Vec<SecondaryWorkspace> = paths_to_open
             .get(1..)
@@ -137,7 +137,7 @@ impl EditorApp {
             i18n,
         }));
 
-        // Aktualizovat lokální cache nedávných
+        // Update local cache of recent projects
         {
             let mut s = shared.lock().unwrap();
             for p in &paths_to_open {
@@ -214,7 +214,7 @@ impl EditorApp {
     }
 
     fn open_in_new_window(&mut self, path: PathBuf, ctx: &egui::Context) {
-        // Zkontrolovat, zda projekt již není otevřen v tomto procesu
+        // Check if project is already open in this process
         let already_open = self
             .root_ws
             .as_ref()
@@ -244,7 +244,7 @@ impl EditorApp {
         Ipc::register(&path);
         self.push_recent(path);
         self.save_session();
-        // Vynutit okamžitý repaint, aby se nové okno registrovalo v tomto snímku
+        // Force immediate repaint so new window registers in this frame
         ctx.request_repaint();
     }
 
@@ -289,7 +289,7 @@ impl EditorApp {
                     .with_title(title)
                     .with_inner_size([config::WINDOW_DEFAULT_WIDTH, config::WINDOW_DEFAULT_HEIGHT]),
                 move |ctx, _class| {
-                    // Zavření sekundárního okna — zobrazit potvrzení v daném viewportu
+                    // Closing secondary window — show confirmation in the given viewport
                     if ctx.input(|i| i.viewport().close_requested()) {
                         ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
                         close_requested.store(true, Ordering::SeqCst);
@@ -416,7 +416,7 @@ impl EditorApp {
         Ipc::register(&path);
         self.push_recent(path.clone());
         let ps = self.current_panel_state();
-        // Uživatel otevřel nový projekt — chybějící session projekty nejsou relevantní
+        // User opened a new project — missing session projects are no longer relevant
         self.missing_session_paths.clear();
         self.root_ws = Some(init_workspace(path, &ps));
         self.save_session();
@@ -444,7 +444,7 @@ impl EditorApp {
 }
 
 // ---------------------------------------------------------------------------
-// Drop — úklid při ukončení
+// Drop — Cleanup on exit
 // ---------------------------------------------------------------------------
 
 impl Drop for EditorApp {
@@ -456,7 +456,7 @@ impl Drop for EditorApp {
 }
 
 // ---------------------------------------------------------------------------
-// eframe::App implementace
+// eframe::App implementation
 // ---------------------------------------------------------------------------
 
 impl eframe::App for EditorApp {
@@ -467,7 +467,7 @@ impl eframe::App for EditorApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Aplikovat nastavení (téma, font) na každý snímek
+        // Apply settings (theme, font) on every frame
         self.shared.lock().unwrap().settings.clone().apply(ctx);
 
         // IPC focus request
@@ -475,7 +475,7 @@ impl eframe::App for EditorApp {
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         }
 
-        // Požadavky od sekundárních instancí na otevření projektu v novém okně
+        // Requests from secondary instances to open project in a new window
         let ipc_open_paths: Vec<PathBuf> = self
             .open_request_rx
             .as_ref()
@@ -485,33 +485,33 @@ impl eframe::App for EditorApp {
             self.open_in_new_window(path, ctx);
         }
 
-        // Zachytit křížek kořenového okna
+        // Catch root window close request
         if ctx.input(|i| i.viewport().close_requested()) {
             if self.quit_confirmed {
-                // Potvrzeno — nechat zavřít
+                // Confirmed — let it close
             } else if self.root_ws.is_some() {
-                // Otevřený projekt — vyžádat potvrzení zavření projektu.
+                // Open project — request close confirmation.
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
                 self.show_close_project_confirm = true;
             } else {
-                // Startup dialog — ukončit aplikaci
+                // Startup dialog — terminate application
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
                 self.show_quit_confirm = true;
             }
         }
 
-        // Registrovat deferred viewporty pro stávající sekundární workspacy
-        // (musí být voláno každý snímek, aby okna zůstala otevřená)
+        // Register deferred viewports for existing secondary workspaces
+        // (must be called every frame to keep windows open)
         self.register_deferred_viewports(ctx);
 
-        // Renderovat obsah kořenového viewportu
+        // Render content of root viewport
         if self.root_ws.is_none() {
             self.do_startup_dialog(ctx);
             self.do_startup_wizard(ctx);
         } else {
-            // Dočasně vyjmout root_ws, aby bylo možné volat &mut self
+            // Temporarily take root_ws to allow calling &mut self
             let mut ws = self.root_ws.take().unwrap();
-            // Jednorázové info toasty o projektech, které nebylo možné obnovit ze session
+            // One-time info toasts about projects that could not be restored from session
             if !self.missing_session_paths.is_empty() {
                 let i18n_arc = { std::sync::Arc::clone(&self.shared.lock().unwrap().i18n) };
                 let i18n = &*i18n_arc;
@@ -536,19 +536,19 @@ impl eframe::App for EditorApp {
             self.root_ws = Some(ws);
         }
 
-        // Zpracovat akce z tohoto snímku (nové projekty, zavřené workspacy atd.)
-        // Voláno ZA renderem, aby se akce z kliknutí zpracovaly okamžitě
+        // Process actions from this frame (new projects, closed workspaces, etc.)
+        // Called AFTER render so click actions are processed immediately
         self.process_actions(ctx);
 
-        // Znovu zaregistrovat viewporty — pro nové sekundární workspacy přidané výše
+        // Re-register viewports — for new secondary workspaces added above
         self.register_deferred_viewports(ctx);
 
-        // Dialog potvrzení ukončení
+        // Close confirmation dialog
         if self.show_close_project_confirm {
             self.show_close_project_confirm_dialog(ctx);
         }
 
-        // Dialog potvrzení ukončení aplikace
+        // Application quit confirmation dialog
         if self.show_quit_confirm {
             self.show_quit_confirm_dialog(ctx);
         }

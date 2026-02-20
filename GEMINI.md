@@ -9,7 +9,7 @@ Tento soubor obsahuje instrukce a pravidla pro vývoj projektu PolyCredo Editor.
 
 ## Vize a Strategie
 - **Směřování projektu:** Vývoj se řídí dokumentem `docs/vize.md`. Prioritou je stabilita, výkon (Rust) a integrace AI agentů při zachování soukromí (local-first).
-- **Roadmapa:** Dodržuj kvartální cíle definované ve vizi (Q2 2026: Produktivita, Q3 2026: LSP, atd.).
+- **Roadmapa:** Aktuální stav a úkoly sleduj v souboru `ROADMAPA.md`. Dodržuj kvartální cíle tam definované.
 
 ## Technické standardy
 - **Lokalizace (i18n):** 

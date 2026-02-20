@@ -10,8 +10,8 @@ pub(crate) mod validation;
 
 use types::*;
 use ui::dialogs::{
-    QuitDialogResult, StartupAction, WizardState, show_close_project_confirm_dialog,
-    show_project_wizard, show_quit_confirm_dialog, show_startup_dialog,
+    PrivacyResult, PrivacyState, QuitDialogResult, StartupAction, WizardState, show_close_project_confirm_dialog,
+    show_privacy_dialog, show_project_wizard, show_quit_confirm_dialog, show_startup_dialog,
 };
 use ui::workspace::{
     SecondaryWorkspace, WorkspaceState, init_workspace, render_workspace, ws_to_panel_state,
@@ -38,6 +38,8 @@ pub struct EditorApp {
 
     /// State saved for restoration when closing/opening workspace
     saved_panel_state: PersistentState,
+
+    privacy_state: PrivacyState,
 
     // --- Startup dialog ---
     path_buffer: String,
@@ -167,6 +169,7 @@ impl EditorApp {
             shared,
             next_viewport_counter: counter,
             saved_panel_state: panel_state,
+            privacy_state: PrivacyState::default(),
             path_buffer: home,
             startup_browse_rx: None,
             show_startup_wizard: false,
@@ -603,7 +606,34 @@ impl eframe::App for EditorApp {
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Apply settings (theme, font) on every frame
-        self.shared.lock().unwrap().settings.clone().apply(ctx);
+        {
+            let shared = self.shared.lock().unwrap();
+            shared.settings.apply(ctx);
+        }
+
+        let (privacy_accepted, i18n_arc) = {
+            let shared = self.shared.lock().unwrap();
+            (shared.settings.privacy_accepted, Arc::clone(&shared.i18n))
+        };
+
+        if !privacy_accepted {
+            match show_privacy_dialog(ctx, &mut self.privacy_state, &*i18n_arc) {
+                PrivacyResult::Accepted => {
+                    let mut shared = self.shared.lock().unwrap();
+                    shared.settings.privacy_accepted = true;
+                    shared.settings.save();
+                }
+                PrivacyResult::LanguageChanged(new_lang) => {
+                    let mut shared = self.shared.lock().unwrap();
+                    shared.settings.lang = new_lang.clone();
+                    shared.i18n = std::sync::Arc::new(crate::i18n::I18n::new(&new_lang));
+                    // Reset content to reload in the new language
+                    self.privacy_state.content = None;
+                }
+                PrivacyResult::None => {}
+            }
+            return;
+        }
 
         // IPC focus request
         if self.focus_rx.try_recv().is_ok() {

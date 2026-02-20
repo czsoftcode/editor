@@ -1,4 +1,6 @@
-# Application dialogs
+## Privacy Policy
+privacy-title = Privacy Policy
+btn-accept-privacy = I understand and agree
 
 ## Startup dialog
 startup-title = PolyCredo Editor

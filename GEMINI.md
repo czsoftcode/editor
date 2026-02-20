@@ -7,6 +7,10 @@ Tento soubor obsahuje instrukce a pravidla pro vývoj projektu PolyCredo Editor.
 - **Komentáře v kódu:** Musí být psány v **angličtině** (pro zachování idiomatické kvality Rust kódu).
 - **Názvy proměnných a funkcí:** Anglicky.
 
+## Vize a Strategie
+- **Směřování projektu:** Vývoj se řídí dokumentem `docs/vize.md`. Prioritou je stabilita, výkon (Rust) a integrace AI agentů při zachování soukromí (local-first).
+- **Roadmapa:** Dodržuj kvartální cíle definované ve vizi (Q2 2026: Produktivita, Q3 2026: LSP, atd.).
+
 ## Technické standardy
 - **Lokalizace (i18n):** 
     - Je zakázáno vkládat texty uživatelského rozhraní přímo do kódu (hardcoding).

@@ -7,6 +7,95 @@ use eframe::egui;
 use super::super::types::{AppShared, ProjectType, default_wizard_path, path_env};
 
 // ---------------------------------------------------------------------------
+// PrivacyState — state of the privacy policy dialog
+// ---------------------------------------------------------------------------
+
+pub(crate) struct PrivacyState {
+    pub cache: egui_commonmark::CommonMarkCache,
+    pub content: Option<String>,
+}
+
+impl Default for PrivacyState {
+    fn default() -> Self {
+        Self {
+            cache: egui_commonmark::CommonMarkCache::default(),
+            content: None,
+        }
+    }
+}
+
+pub(crate) enum PrivacyResult {
+    Accepted,
+    LanguageChanged(String),
+    None,
+}
+
+pub(crate) fn show_privacy_dialog(
+    ctx: &egui::Context,
+    state: &mut PrivacyState,
+    i18n: &crate::i18n::I18n,
+) -> PrivacyResult {
+    let mut result = PrivacyResult::None;
+
+    if state.content.is_none() {
+        let lang = i18n.lang();
+        let mut path = PathBuf::from("privacy").join(format!("Privacy_{}.md", lang));
+        if !path.exists() {
+            path = PathBuf::from("privacy").join("Privacy_en.md");
+        }
+
+        match std::fs::read_to_string(&path) {
+            Ok(c) => state.content = Some(c),
+            Err(e) => {
+                state.content = Some(format!("Error loading privacy policy from {}: {}", path.display(), e));
+            }
+        }
+    }
+
+    egui::CentralPanel::default().show(ctx, |_ui| {});
+
+    let modal = egui::Modal::new(egui::Id::new("privacy_modal"));
+    modal.show(ctx, |ui: &mut egui::Ui| {
+        ui.set_width(600.0);
+        
+        ui.horizontal(|ui| {
+            ui.heading(i18n.get("privacy-title"));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                for &lang_code in crate::i18n::SUPPORTED_LANGS {
+                    if ui.selectable_label(i18n.lang() == lang_code, lang_code.to_uppercase()).clicked() {
+                        result = PrivacyResult::LanguageChanged(lang_code.to_string());
+                    }
+                }
+                ui.label("🌐");
+            });
+        });
+        
+        ui.add_space(12.0);
+
+        egui::ScrollArea::vertical()
+            .max_height(400.0)
+            .show(ui, |ui: &mut egui::Ui| {
+                if let Some(content) = &state.content {
+                    egui_commonmark::CommonMarkViewer::new()
+                        .show(ui, &mut state.cache, content);
+                }
+            });
+
+        ui.add_space(12.0);
+        ui.horizontal(|ui: &mut egui::Ui| {
+            if ui.button(egui::RichText::new(i18n.get("btn-accept-privacy")).strong()).clicked() {
+                result = PrivacyResult::Accepted;
+            }
+            if ui.button(i18n.get("startup-quit")).clicked() {
+                std::process::exit(0);
+            }
+        });
+    });
+
+    result
+}
+
+// ---------------------------------------------------------------------------
 // WizardState — state of the new project wizard
 // ---------------------------------------------------------------------------
 

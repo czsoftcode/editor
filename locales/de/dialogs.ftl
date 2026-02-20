@@ -1,4 +1,6 @@
-# Anwendungsdialoge
+## Datenschutzrichtlinie
+privacy-title = Datenschutzrichtlinie
+btn-accept-privacy = Ich verstehe und stimme zu
 
 ## Startdialog
 startup-title = PolyCredo Editor

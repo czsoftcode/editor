@@ -1,4 +1,6 @@
-# Dialogy aplikace
+## Ochrana soukromí
+privacy-title = Ochrana soukromí
+btn-accept-privacy = Rozumím a souhlasím
 
 ## Startup dialog
 startup-title = PolyCredo Editor

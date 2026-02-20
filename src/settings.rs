@@ -47,6 +47,10 @@ pub struct Settings {
     /// Empty string or unsupported language → autodetect from system.
     #[serde(default = "default_lang")]
     pub lang: String,
+
+    /// Whether the user has accepted the privacy policy.
+    #[serde(default)]
+    pub privacy_accepted: bool,
 }
 
 impl Default for Settings {
@@ -56,6 +60,7 @@ impl Default for Settings {
             dark_theme: default_dark_theme(),
             default_project_path: default_project_path(),
             lang: default_lang(),
+            privacy_accepted: false,
         }
     }
 }

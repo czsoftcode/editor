@@ -68,6 +68,7 @@ pub struct Editor {
     pub(super) goto_line_input: String,
     pub(super) goto_line_focus_requested: bool,
     pub(super) focus_editor_requested: bool,
+    pub(super) markdown_cache: egui_commonmark::CommonMarkCache,
 }
 
 impl Editor {
@@ -91,6 +92,7 @@ impl Editor {
             goto_line_input: String::new(),
             goto_line_focus_requested: false,
             focus_editor_requested: false,
+            markdown_cache: egui_commonmark::CommonMarkCache::default(),
         }
     }
 

@@ -582,17 +582,29 @@ impl Editor {
                 ui.label(egui::RichText::new(i18n.get("editor-preview-label")).strong());
                 ui.separator();
 
+                // Návrat k tmavému motivu s dynamickým fontem
                 let preview_frame = egui::Frame::new()
-                    .fill(egui::Color32::from_rgb(40, 44, 52))
-                    .inner_margin(egui::Margin::same(12));
+                    .fill(egui::Color32::from_rgb(33, 37, 43)) // Tmavě šedé pozadí
+                    .inner_margin(egui::Margin::same(24));
 
                 preview_frame.show(ui, |ui| {
+                    // Dynamické přizpůsobení fontu podle nastavení editoru
+                    let font_size = Self::current_editor_font_size(ui);
+                    
+                    if let Some(body) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Body) {
+                        body.size = font_size;
+                    }
+                    if let Some(heading) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Heading) {
+                        heading.size = font_size * 1.4;
+                    }
+
                     egui::ScrollArea::vertical()
                         .id_salt("md_preview_scroll")
                         .auto_shrink([false, false])
                         .vertical_scroll_offset(scroll_offset)
                         .show(ui, |ui| {
-                            Self::render_markdown_preview(ui, &self.tabs[idx].content);
+                            let content = self.tabs[idx].content.clone();
+                            self.render_markdown_preview(ui, &content);
                         });
                 });
             },

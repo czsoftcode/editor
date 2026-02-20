@@ -30,4 +30,5 @@ Tento soubor obsahuje instrukce a pravidla pro vývoj projektu PolyCredo Editor.
 
 ## Pracovní postup
 - **Výzkum -> Strategie -> Realizace:** Vždy nejdříve analyzuj dopady změn v souvislostech celého projektu.
+- **Dokumentace:** Po dokončení úkolu z roadmapy vždy aktualizuj `ROADMAPA.md` (označ jako hotové) a přidej záznam do `CHANGELOG.md` (nové záznamy nahoru).
 - **Bezpečnost:** Nikdy neukládej ani necommituj citlivá data.

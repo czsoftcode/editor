@@ -19,7 +19,7 @@ const EXCLUDED_DIRS: &[&str] = &[
 ];
 
 /// Subsequence fuzzy match — pattern characters must appear in the text in order, but not necessarily adjacent.
-pub(super) fn fuzzy_match(pattern: &str, text: &str) -> bool {
+pub(crate) fn fuzzy_match(pattern: &str, text: &str) -> bool {
     if pattern.is_empty() {
         return true;
     }

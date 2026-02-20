@@ -15,7 +15,7 @@ use super::super::super::types::{AppAction, AppShared, Toast};
 
 /// Actions originating from the menu bar — processed after menu rendering.
 #[derive(Default)]
-pub(super) struct MenuActions {
+pub(crate) struct MenuActions {
     pub open_folder: bool,
     pub save: bool,
     pub close_file: bool,

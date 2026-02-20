@@ -21,6 +21,8 @@ use super::background::{fetch_git_status, process_background_events};
 use super::panels::{render_left_panel, render_toasts};
 use super::ai_panel::render_ai_panel;
 use super::search_picker::{render_file_picker, render_project_search_dialog};
+use super::widgets::command_palette::{render_command_palette, execute_command};
+pub(crate) use menubar::MenuActions;
 use menubar::{render_menu_bar, process_menu_actions};
 use modal_dialogs::render_dialogs;
 use crate::config;
@@ -100,10 +102,18 @@ pub(crate) fn render_workspace(
         ws.project_search.show_input = true;
         ws.project_search.focus_requested = true;
     }
+    // Ctrl+Shift+P — command palette
+    if ctx.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::P)) {
+        if ws.command_palette.is_none() {
+            ws.command_palette = Some(crate::app::ui::widgets::command_palette::CommandPaletteState::new());
+        } else {
+            ws.command_palette = None;
+        }
+    }
 
     // Menu bar + action processing
     let actions = render_menu_bar(ctx, ws, shared, i18n);
-    let open_here_path = process_menu_actions(ws, shared, actions, i18n);
+    let mut open_here_path = process_menu_actions(ws, shared, actions, i18n);
 
     // Modal dialogs
     render_dialogs(ctx, ws, shared, i18n);
@@ -115,6 +125,15 @@ pub(crate) fn render_workspace(
 
     // Project-wide search
     render_project_search_dialog(ctx, ws, i18n);
+
+    // Command Palette (Ctrl+Shift+P)
+    if let Some(cmd_id) = render_command_palette(ctx, ws, shared, i18n) {
+        let mut actions = MenuActions::default();
+        execute_command(cmd_id, &mut actions);
+        if let Some(path) = process_menu_actions(ws, shared, actions, i18n) {
+            open_here_path = Some(path);
+        }
+    }
 
     // Status bar (must be before SidePanel)
     egui::TopBottomPanel::bottom("status_bar")

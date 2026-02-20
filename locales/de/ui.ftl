@@ -58,6 +58,28 @@ terminal-exited = [Prozess beendet — R drücken um neu zu starten]
 goto-line-prompt = Zur Zeile springen:
 goto-line-placeholder = Zeilennummer
 
+## Command Palette (Ctrl+Shift+P)
+command-palette-heading = Befehle
+command-palette-placeholder = Befehl suchen…
+command-palette-no-results = Keine Ergebnisse
+
+command-name-open-file = Datei öffnen
+command-name-project-search = Im Projekt suchen
+command-name-build = Erstellen (Build)
+command-name-run = Ausführen (Run)
+command-name-save = Aktuelle Datei speichern
+command-name-close-tab = Aktuellen Tab schließen
+command-name-new-project = Neues Projekt
+command-name-open-project = Projekt öffnen (in neuem Fenster)
+command-name-open-folder = Ordner öffnen (in diesem Fenster)
+command-name-toggle-left = Dateipanel umschalten
+command-name-toggle-right = KI-Panel umschalten
+command-name-toggle-build = Build-Terminal umschalten
+command-name-toggle-float = Schwebendes KI-Panel umschalten
+command-name-show-about = Über
+command-name-show-settings = Einstellungen
+command-name-quit = PolyCredo Editor beenden
+
 ## Schnelles Öffnen (Ctrl+P)
 file-picker-heading = Datei öffnen
 file-picker-placeholder = Datei schnell öffnen…

@@ -60,6 +60,28 @@ terminal-exited = [Proces skončil — stlačte R pre reštart]
 goto-line-prompt = Prejsť na riadok:
 goto-line-placeholder = číslo riadku
 
+## Command Palette (Ctrl+Shift+P)
+command-palette-heading = Príkazy
+command-palette-placeholder = Hľadať príkaz…
+command-palette-no-results = Žiadne výsledky
+
+command-name-open-file = Otvoriť súbor
+command-name-project-search = Hľadať v projekte
+command-name-build = Zostaviť (Build)
+command-name-run = Spustiť (Run)
+command-name-save = Uložiť aktuálny súbor
+command-name-close-tab = Zatvoriť aktuálnu záložku
+command-name-new-project = Nový projekt
+command-name-open-project = Otvoriť projekt (v novom okne)
+command-name-open-folder = Otvoriť priečinok (v tomto okne)
+command-name-toggle-left = Prepnúť panel súborov
+command-name-toggle-right = Prepnúť AI panel
+command-name-toggle-build = Prepnúť build terminál
+command-name-toggle-float = Prepnúť plávajúci AI panel
+command-name-show-about = O aplikácii
+command-name-show-settings = Nastavenia
+command-name-quit = Ukončiť PolyCredo Editor
+
 ## Rýchle otvorenie súboru (Ctrl+P)
 file-picker-heading = Otvoriť súbor
 file-picker-placeholder = Rýchle otvorenie súboru…

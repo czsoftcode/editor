@@ -15,6 +15,7 @@ use super::super::editor::Editor;
 use super::super::file_tree::FileTree;
 use super::super::search_picker::collect_project_files;
 use super::super::terminal::Terminal;
+use super::super::widgets::command_palette::CommandPaletteState;
 use crate::watcher::{FileWatcher, ProjectWatcher};
 
 /// Result of an asynchronous folder selection.
@@ -124,6 +125,8 @@ pub(crate) struct WorkspaceState {
     pub toasts: Vec<Toast>,
     /// Channel for the result of an asynchronous file dialog (folder selection).
     pub folder_pick_rx: Option<mpsc::Receiver<FolderPickResult>>,
+    /// Ctrl+Shift+P — command palette
+    pub command_palette: Option<CommandPaletteState>,
     /// Ctrl+P — fuzzy file picker
     pub file_picker: Option<FilePicker>,
     /// Cache of the file index for Ctrl+P (relative paths)
@@ -258,6 +261,7 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         wizard,
         toasts: Vec::new(),
         folder_pick_rx: None,
+        command_palette: None,
         file_picker: None,
         file_index_cache: Vec::new(),
         file_index_rx: Some(file_index_rx),

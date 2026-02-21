@@ -9,3 +9,4 @@
 .codex-notes.md
 parse_diff_test.rs
 check.sh
+.build_number

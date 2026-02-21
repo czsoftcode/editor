@@ -17,12 +17,8 @@ fn main() {
     }
 
     let base_version = env!("CARGO_PKG_VERSION");
-    let parts: Vec<&str> = base_version.split('.').collect();
-    let major = parts.first().unwrap_or(&"0");
-    let minor = parts.get(1).unwrap_or(&"1");
-
-    let full_version = format!("{}.{}.{}", major, minor, build_number);
-    println!("cargo:rustc-env=BUILD_VERSION={}", full_version);
+    println!("cargo:rustc-env=BUILD_VERSION={}", base_version);
+    println!("cargo:rustc-env=BUILD_NUMBER={}", build_number);
 
     println!("cargo:rerun-if-changed=.build_number");
     println!("cargo:rerun-if-changed=build.rs");

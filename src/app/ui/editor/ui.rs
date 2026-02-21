@@ -14,12 +14,45 @@ impl Editor {
         i18n: &crate::i18n::I18n,
         lsp_client: Option<&crate::app::lsp::LspClient>,
         settings: &crate::settings::Settings,
-    ) -> bool {
+    ) -> EditorUiResult {
+        let mut diff_action = None;
+
+        if let Some((path, old_text, new_text)) = self.pending_ai_diff.clone() {
+            let font_size = Self::current_editor_font_size(ui);
+            if let Some(action) = super::diff_view::render_diff_modal(
+                ui.ctx(),
+                i18n,
+                &path,
+                &old_text,
+                &new_text,
+                font_size,
+                settings.diff_side_by_side,
+            ) {
+                if action == super::DiffAction::Accepted {
+                    if let Some(tab) = self
+                        .tabs
+                        .iter_mut()
+                        .find(|t| t.path.to_string_lossy() == path)
+                    {
+                        tab.content = new_text.clone();
+                        tab.modified = true;
+                        tab.last_edit = Some(std::time::Instant::now());
+                        tab.save_status = super::SaveStatus::Modified;
+                    }
+                }
+                diff_action = Some((path, action, new_text));
+                self.pending_ai_diff = None;
+            }
+        }
+
         if self.tabs.is_empty() {
             ui.centered_and_justified(|ui| {
                 ui.label(i18n.get("editor-empty-hint"));
             });
-            return false;
+            return EditorUiResult {
+                clicked: false,
+                diff_action,
+            };
         }
 
         let mut tab_action = None;
@@ -44,7 +77,10 @@ impl Editor {
         }
 
         if self.tabs.is_empty() {
-            return false;
+            return EditorUiResult {
+                clicked: false,
+                diff_action: None,
+            };
         }
 
         let ctrl_f = ui
@@ -207,34 +243,10 @@ impl Editor {
             )
         };
 
-        if let Some((path, old_text, new_text)) = self.pending_ai_diff.clone() {
-            let font_size = Self::current_editor_font_size(ui);
-            let diff_res = super::diff_view::render_diff_modal(
-                ui.ctx(),
-                i18n,
-                &path,
-                &old_text,
-                &new_text,
-                font_size,
-                settings.diff_side_by_side,
-            );
-            if diff_res.accepted || diff_res.rejected {
-                if diff_res.accepted
-                    && let Some(tab) = self
-                        .tabs
-                        .iter_mut()
-                        .find(|t| t.path.to_string_lossy() == path)
-                {
-                    tab.content = new_text;
-                    tab.modified = true;
-                    tab.last_edit = Some(std::time::Instant::now());
-                    tab.save_status = super::SaveStatus::Modified;
-                }
-                self.pending_ai_diff = None;
-            }
+        EditorUiResult {
+            clicked,
+            diff_action,
         }
-
-        clicked
     }
 
     pub fn status_bar(

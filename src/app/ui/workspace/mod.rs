@@ -119,6 +119,9 @@ pub(crate) fn render_workspace(
     let actions = render_menu_bar(ctx, ws, shared, i18n);
     let mut open_here_path = process_menu_actions(ws, shared, actions, i18n);
 
+    // AI Sandbox Staging Bar (Yellow bar if changes are pending)
+    render_sandbox_staged_bar(ctx, ws, i18n);
+
     // LSP Setup Bar (if binary is missing)
     render_lsp_setup_bar(ctx, ws, i18n);
 
@@ -134,9 +137,6 @@ pub(crate) fn render_workspace(
             ws.lsp_binary_missing = true;
         }
     }
-
-    // Modal dialogs
-    render_dialogs(ctx, ws, shared, i18n);
 
     let mut ai_viewport_clicked = false;
     // AI Viewport (separate window)
@@ -211,11 +211,40 @@ pub(crate) fn render_workspace(
         // Construct a dummy settings object just for the fields we need, or clone the whole settings.
         // Let's just clone settings.
         let settings = shared.lock().unwrap().settings.clone();
-        if ws
+        let editor_res = ws
             .editor
-            .ui(ui, dialog_open, i18n, ws.lsp_client.as_ref(), &settings)
-        {
+            .ui(ui, dialog_open, i18n, ws.lsp_client.as_ref(), &settings);
+        if editor_res.clicked {
             ws.focused_panel = FocusedPanel::Editor;
+        }
+
+        if let Some((path_str, action, _new_text)) = editor_res.diff_action {
+            if action == crate::app::ui::editor::DiffAction::Accepted {
+                let path = PathBuf::from(&path_str);
+                let rel_path = path.strip_prefix(&ws.root_path).unwrap_or(&path).to_path_buf();
+                let sandbox_path = ws.sandbox.root.join(&rel_path);
+
+                if sandbox_path.exists() {
+                    if let Err(e) = ws.sandbox.promote_file(&rel_path) {
+                        ws.toasts
+                            .push(Toast::error(format!("AI Promotion failed: {}", e)));
+                    } else {
+                        // If file was not open in editor (e.g. newly created file by AI), open it now.
+                        if !ws.editor.tabs.iter().any(|t| t.path == path) {
+                            open_file_in_ws(ws, path.clone());
+                        }
+                        ws.promotion_success = Some(path);
+                    }
+                } else {
+                    // It might be a deletion (exists in project, but not in sandbox)
+                    if let Err(e) = ws.sandbox.promote_file(&rel_path) {
+                        ws.toasts
+                            .push(Toast::error(format!("AI Promotion failed: {}", e)));
+                    } else {
+                        ws.promotion_success = Some(path);
+                    }
+                }
+            }
         }
     });
 
@@ -243,6 +272,9 @@ pub(crate) fn render_workspace(
             ws.editor.request_editor_focus();
         }
     }
+
+    // Modal dialogs (About, Settings, Promotion success, etc.)
+    render_dialogs(ctx, ws, shared, i18n);
 
     // Toast notifications
     render_toasts(ctx, ws);
@@ -283,6 +315,47 @@ fn render_lsp_setup_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &cra
             if ui.button("\u{00D7}").clicked() {
                 ws.lsp_binary_missing = false;
             }
+        });
+    });
+}
+
+fn render_sandbox_staged_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+    let staged_files = ws.sandbox.get_staged_files();
+    if staged_files.is_empty() {
+        return;
+    }
+
+    egui::TopBottomPanel::top("sandbox_staged_bar").show(ctx, |ui| {
+        ui.vertical(|ui| {
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                // Warning/Info colors (Yellowish)
+                ui.visuals_mut().widgets.noninteractive.bg_fill = egui::Color32::from_rgb(80, 70, 20);
+                ui.spacing_mut().item_spacing.x = 12.0;
+
+                ui.label(
+                    egui::RichText::new(format!("\u{26A0} {}", i18n.get("ai-staged-bar-msg")))
+                        .color(egui::Color32::from_rgb(255, 230, 100))
+                        .strong(),
+                );
+
+                ui.label(
+                    egui::RichText::new(format!("({})", staged_files.len()))
+                        .color(egui::Color32::from_rgb(255, 255, 255)),
+                );
+
+                if ui.button(i18n.get("ai-staged-bar-review")).clicked() {
+                    ws.show_sandbox_staged = true;
+                }
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button(i18n.get("btn-dismiss")).clicked() {
+                        // For now, dismiss just hides it until next change or manual sync
+                        // (we don't have a way to "ignore" these files permanently yet)
+                    }
+                });
+            });
+            ui.add_space(2.0);
         });
     });
 }

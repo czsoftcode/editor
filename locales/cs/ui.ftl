@@ -164,11 +164,23 @@ ai-btn-start = ▶ Spustit
 ai-btn-sync = ⟳ Sync
 ai-hover-sync = Odeslat kontext (otevřené soubory, chyby buildu) AI agentovi
 ai-diff-heading = Kontrola změn navržených AI
+ai-diff-new-file = Nový soubor navržen
 ai-float-dock = Přikovat do panelu
 ai-float-undock = Odpojit do plovoucího okna
 ai-viewport-open = Otevřít v samostatném okně
 ai-tab-close-hover = Zavřít záložku
 ai-tab-new-hover = Nová záložka terminálu
+ai-staged-bar-msg = AI navrhlo změny v projektu
+ai-staged-bar-review = Zkontrolovat změny
+ai-staged-modal-hint = Klikněte na soubor pro zobrazení rozdílů a schválení změn:
+ai-staged-files = Navržené změny (Sandbox)
+ai-staged-new = [NOVÝ]
+ai-staged-mod = [MOD]
+ai-staged-del = [SMAZÁNO]
+ai-promotion-success-title = Změny aplikovány
+ai-promotion-success-body = Následující soubor byl úspěšně aktualizován ve vašem projektu:
+ai-promotion-success = Změny byly úspěšně aplikovány do projektu.
+ai-promotion-failed = Nepodařilo se aplikovat změny: { $error }
 
 ## Nastavení
 settings-title = Nastavení

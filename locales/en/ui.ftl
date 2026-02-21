@@ -161,11 +161,23 @@ ai-btn-start = ▶ Start
 ai-btn-sync = ⟳ Sync
 ai-hover-sync = Send context (open files, build errors) to the AI agent
 ai-diff-heading = Review AI Proposed Changes
+ai-diff-new-file = New file proposed
 ai-float-dock = Dock to panel
 ai-float-undock = Undock to floating window
 ai-viewport-open = Open in separate window
 ai-tab-close-hover = Close tab
 ai-tab-new-hover = New terminal tab
+ai-staged-bar-msg = AI suggested changes to the project
+ai-staged-bar-review = Review Changes
+ai-staged-modal-hint = Click a file to review differences and accept changes:
+ai-staged-files = Suggested Changes (Sandbox)
+ai-staged-new = [NEW]
+ai-staged-mod = [MOD]
+ai-staged-del = [DELETED]
+ai-promotion-success-title = Changes Applied
+ai-promotion-success-body = The following file has been successfully updated in your project:
+ai-promotion-success = Changes successfully applied to the project.
+ai-promotion-failed = Failed to apply changes: { $error }
 
 ## Settings
 settings-title = Settings

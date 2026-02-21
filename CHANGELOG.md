@@ -2,12 +2,37 @@
 
 All notable changes to the PolyCredo Editor project will be documented in this file.
 
+## [0.5.8] - 2026-02-21
+
+### Added
+- **AI Staging Bar**: Introduced a high-visibility yellow notification bar below the main menu that appears whenever the AI Sandbox contains unapproved changes.
+- **Sandbox Staged Modal**: A new dialog listing all pending AI changes (New, Modified, and Deleted), allowing users to review them individually.
+- **Sandbox Deletion Support**: The system now correctly detects when an AI agent deletes a file in the sandbox and propagates the deletion to the main project upon approval.
+- **Auto-directory Creation**: When promoting new files from the sandbox, the editor now automatically creates any missing parent directories in the project root.
+- **Success Confirmation Dialog**: Added a dedicated modal window confirming successful application of AI changes into the main project.
+
+### Changed
+- **Diff Flow Refactoring**: Moved the AI Diff modal handling to the start of the editor loop to ensure it works even when no files are open.
+- **UI Render Order**: Relocated `render_dialogs` to the end of the workspace render cycle, ensuring modals have access to the latest state and improving interaction stability.
+- **Improved Change Detection**: Transitioned from simple size-based checks to strictly time-based (mtime) comparison to prevent false positives during project-to-sandbox synchronization.
+
+### Fixed
+- **Stuck Modals**: Resolved an issue where AI Diff and Success modals could become unresponsive or block the UI after an action was taken.
+- **Terminal Stretching**: Fixed the floating AI terminal window sometimes expanding to unreasonable heights by enforcing max-height limits based on the screen size.
+
 ## [0.5.7] - 2026-02-21
 
 ### Added
 - **AI Safety Sandbox**: Implemented a "Shadow Sandbox" in `.polycredo/sandbox/`. All AI terminal tools now run in this isolated directory, preventing them from directly modifying the main project files and ensuring the workspace remains stable.
 - **Local File History**: Introduced a Git-independent versioning system in `.polycredo/history/`. It automatically creates snapshots of files when they are opened, sent to AI context, or modified externally, providing a safety net for "undoing" AI changes.
 - **Automatic AI Diff Gatekeeper**: The editor now automatically detects when an AI tool modifies a file in the sandbox. It then presents the changes in the AI Diff Preview modal, allowing the user to review, accept, or reject them before they are applied to the main project.
+
+### Changed
+- **DiffAction Refactoring**: Refactored the AI Diff logic to use a unified `DiffAction` enum and `EditorUiResult` structure. This ensures safer communication between the Editor and Workspace, correctly handling promotion of sandbox files to the real project.
+- **Dead Code Cleanup**: Removed unused `#[allow(dead_code)]` attributes from `LocalHistory` and `Sandbox` modules, and implemented automatic 50-version history cleanup on project initialization.
+
+### Fixed
+- **Compilation Stability**: Resolved kaskading compilation errors caused by inconsistent return types in the AI Diff modal integration.
 
 ## [0.5.6] - 2026-02-21
 

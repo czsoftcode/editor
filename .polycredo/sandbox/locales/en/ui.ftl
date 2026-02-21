@@ -1,0 +1,228 @@
+# General user interface elements
+
+## Panels
+panel-files = Files
+panel-runners = Runners
+panel-build = Build
+panel-build-errors =
+    { $count ->
+        [one] Error (1)
+       *[other] Errors ({ $count })
+    }
+
+## Build buttons
+btn-build = ▶ Build
+btn-run = ▶ Run
+btn-run-new = ▶ Run+
+btn-test = ▶ Test
+btn-clean = ✖ Clean
+btn-create-deb = Create .deb
+btn-run-profile = ▶ Run Profile...
+btn-edit-profiles = ⚙ Edit
+runner-none = No profiles defined.
+
+## Status bar
+statusbar-line-col = Line { $line }, Column { $col }
+statusbar-encoding = UTF-8
+statusbar-unsaved = Unsaved
+statusbar-saving = Saving…
+statusbar-saved = Saved
+statusbar-filetype-plain = Plain Text
+
+## Editor tabs
+tab-unsaved-indicator = ●
+tab-deleted-indicator = ⚠
+
+## Find and replace
+search-label = Find:
+replace-label = Replace:
+search-replace-expand = Replace…
+search-placeholder = Search…
+replace-placeholder = Replace…
+search-prev = ▲
+search-next = ▼
+search-replace-one = Replace
+search-replace-all = Replace All
+search-results =
+    { $count ->
+        [one] 1 result
+       *[other] { $count } results
+    }
+search-no-results = No matches found
+
+## Editor
+editor-empty-hint = Open a file from the file tree on the left
+editor-preview-label = Preview
+
+# LSP / rust-analyzer
+lsp-missing-title = Missing rust-analyzer
+lsp-missing-msg = Smart features (autocomplete, diagnostics) require rust-analyzer. Would you like to install it?
+lsp-install-btn = Install
+lsp-installing = Installing rust-analyzer...
+lsp-install-success = rust-analyzer installed successfully. Restarting LSP...
+lsp-install-error = Installation failed: { $error }
+
+## Find References (Shift+F12)
+lsp-references-heading = References
+lsp-references-searching = Searching for references...
+lsp-references-none = No references found.
+lsp-references-found =
+    { $count ->
+        [one] 1 reference found.
+       *[other] { $count } references found.
+    }
+lsp-references-error = LSP: Error searching for references.
+
+## Terminal
+terminal-unavailable = Terminal is not available.
+terminal-retry = Try again
+terminal-exited = [Process exited — press R to restart]
+terminal-close-confirm-title = Close terminal?
+terminal-close-confirm-msg = A process is still running in this terminal. Do you really want to terminate it?
+
+## Go to Line dialog (Ctrl+G)
+goto-line-prompt = Go to line:
+goto-line-placeholder = line number
+
+## Command Palette (Ctrl+Shift+P)
+command-palette-heading = Commands
+command-palette-placeholder = Search command…
+command-palette-no-results = No results
+
+command-name-open-file = Open File
+command-name-project-search = Search in Project
+command-name-build = Build
+command-name-run = Run
+command-name-save = Save Current File
+command-name-close-tab = Close Current Tab
+command-name-new-project = New Project
+command-name-open-project = Open Project (in new window)
+command-name-open-folder = Open Folder (in this window)
+command-name-toggle-left = Toggle File Panel
+command-name-toggle-right = Toggle AI Panel
+command-name-toggle-build = Toggle Build Terminal
+command-name-toggle-float = Toggle Floating AI Panel
+command-name-show-about = About
+command-name-show-settings = Settings
+command-name-quit = Quit PolyCredo Editor
+
+## Quick file open (Ctrl+P)
+file-picker-heading = Open File
+file-picker-placeholder = Quick Open File…
+file-picker-no-results = No results
+file-picker-count = { $count } files
+file-picker-count-filtered = { $filtered }/{ $total } files
+file-picker-more = … and { $count } more
+
+## Project-wide search (Ctrl+Shift+F)
+project-search-heading = Search in Project
+project-search-placeholder = Search in project…
+project-search-hint = Search term…
+project-search-btn = Search
+project-search-loading = Searching…
+project-search-result-label = Results for "{ $query }" ({ $count })
+project-search-results =
+    { $count ->
+        [one] 1 result
+       *[other] { $count } results
+    }
+project-search-no-results = No results
+project-search-max-results = Showing max. { $max } results
+
+## Common buttons
+btn-ok = OK
+btn-confirm = Confirm
+btn-cancel = Cancel
+btn-close = Close
+btn-browse = Browse…
+btn-create = Create
+btn-open = Open
+btn-refresh = Refresh
+btn-save = Save
+btn-rename = Rename
+btn-copy = Copy
+btn-paste = Paste
+btn-delete = Delete
+btn-name-label = Name:
+
+## AI panel
+ai-panel-title = AI Terminal
+ai-tool-not-found = Tool { $tool } not found in PATH.
+ai-tool-detecting = Detecting AI tools…
+ai-label-assistant = Assistant:
+ai-tool-status-checking = { $tool } (checking…)
+ai-tool-status-available = { $tool } (installed)
+ai-tool-status-missing = { $tool } (not in PATH)
+ai-hover-reverify = Re-verify AI CLI tools availability
+ai-hover-checking = Checking AI CLI tools availability…
+ai-hover-start = Starts { $tool } (`{ $cmd }`) in terminal
+ai-hover-missing = Command `{ $cmd }` not found in PATH. Install the tool and click ↻.
+ai-btn-start = ▶ Start
+ai-btn-sync = ⟳ Sync
+ai-hover-sync = Send context (open files, build errors) to the AI agent
+ai-diff-heading = Review AI Proposed Changes
+ai-diff-new-file = New file proposed
+ai-float-dock = Dock to panel
+ai-float-undock = Undock to floating window
+ai-viewport-open = Open in separate window
+ai-tab-close-hover = Close tab
+ai-tab-new-hover = New terminal tab
+ai-staged-bar-msg = AI suggested changes to the project
+ai-staged-bar-review = Review Changes
+ai-staged-files = Suggested Changes (Sandbox)
+ai-staged-new = [NEW]
+ai-staged-mod = [MOD]
+ai-promotion-success-title = Changes Applied
+ai-promotion-success-body = The following file has been successfully updated in your project:
+ai-promotion-success = Changes successfully applied to the project.
+ai-promotion-failed = Failed to apply changes: { $error }
+
+## Settings
+settings-title = Settings
+settings-language = Language
+settings-language-restart = Language changes take effect immediately.
+settings-theme = Theme
+settings-theme-dark = Dark
+settings-theme-light = Light
+settings-diff-mode = AI Diff Layout
+settings-diff-inline = Inline (+ / -)
+settings-diff-side-by-side = Side-by-side
+settings-editor-font = Editor — font size
+settings-ai-font = AI Terminal — font size
+settings-default-path = Default project path
+settings-creates-in = Will be created at:
+
+## File tree
+file-tree-new-file = New File
+file-tree-new-dir = New Folder
+file-tree-rename = Rename
+file-tree-copy = Copy
+file-tree-paste = Paste
+file-tree-delete = Delete
+file-tree-confirm-delete = Delete { $name }?
+file-tree-unsafe-name = Invalid name: must not contain /, \ or ..
+file-tree-outside-project = Path would lead outside the project
+file-tree-paste-error = Cannot paste: { $reason }
+file-tree-create-dir-error = Cannot create folder: { $reason }
+file-tree-create-file-error = Cannot create file: { $reason }
+file-tree-rename-error = Cannot rename: { $reason }
+file-tree-delete-error = Cannot delete: { $reason }
+
+## External conflict dialog
+conflict-title = File Changed Externally
+conflict-message = File "{ $name }" was changed by another program, but has unsaved changes in the editor.
+conflict-choose = Choose which version should win:
+conflict-load-disk = Load from disk
+conflict-keep-editor = Keep mine
+conflict-dismiss = Dismiss
+conflict-hover-disk = Discard editor changes and load the version saved on disk
+conflict-hover-keep = Keep editor changes; the disk file will be overwritten on save
+conflict-hover-dismiss = Close notification without changes
+
+md-open-external = ↗ Open in External Viewer
+
+svg-open-external = ↗ Open preview in viewer
+
+svg-modal-title = SVG File
+svg-modal-body = This file is an SVG image. Do you want to open it in the system viewer, or edit it as XML text?
+svg-modal-edit = Edit as text

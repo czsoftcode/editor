@@ -167,6 +167,10 @@ pub(crate) struct WorkspaceState {
     pub terminal_close_requested: Option<usize>,
     /// Whether the AI panel is open in a separate viewport (window).
     pub ai_viewport_open: bool,
+    /// Path of the file that was successfully promoted from sandbox (triggers success modal).
+    pub promotion_success: Option<PathBuf>,
+    /// Whether to show the modal listing all staged files in sandbox.
+    pub show_sandbox_staged: bool,
     /// Cancellation flag for git refresh threads.
     /// Set to true on workspace drop → threads terminate git process and do not process result.
     pub git_cancel: Arc<AtomicBool>,
@@ -275,6 +279,9 @@ pub(crate) fn init_workspace(
         (None, false)
     };
 
+    let local_history = crate::app::local_history::LocalHistory::new(&root_path);
+    local_history.cleanup(50);
+
     WorkspaceState {
         file_tree,
         editor: Editor::new(),
@@ -321,8 +328,10 @@ pub(crate) fn init_workspace(
         external_change_conflict: None,
         terminal_close_requested: None,
         ai_viewport_open: false,
+        promotion_success: None,
+        show_sandbox_staged: false,
         git_cancel,
-        local_history: crate::app::local_history::LocalHistory::new(&root_path),
+        local_history,
         sandbox,
     }
 }

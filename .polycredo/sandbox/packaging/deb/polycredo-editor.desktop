@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=PolyCredo Editor
+GenericName=Code Editor
+Comment=PolyCredo Editor - AI polyglot code editor
+Exec=polycredo-editor %F
+Terminal=false
+Icon=polycredo-editor
+Categories=Development;IDE;TextEditor;
+StartupNotify=true
+Keywords=editor;code;ai;polyglot;ide;polycredo;
+MimeType=text/plain;text/markdown;text/x-rust;text/x-python;text/x-shellscript;text/x-csrc;text/x-c++src;

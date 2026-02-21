@@ -132,7 +132,7 @@ impl Editor {
                     .and_then(|uri| lsp.diagnostics().lock().unwrap().get(&uri).cloned())
             });
 
-        if is_binary {
+        let clicked = if is_binary {
             self.ui_binary(ui, i18n)
         } else if self.is_markdown() {
             self.ui_markdown_split(
@@ -204,7 +204,35 @@ impl Editor {
                 current_diagnostics.as_ref(),
                 lsp_client,
             )
+        };
+
+        if let Some((path, old_text, new_text)) = self.pending_ai_diff.clone() {
+            let font_size = Self::current_editor_font_size(ui);
+            let diff_res = super::diff_view::render_diff_modal(
+                ui.ctx(),
+                i18n,
+                &path,
+                &old_text,
+                &new_text,
+                font_size,
+            );
+            if diff_res.accepted || diff_res.rejected {
+                if diff_res.accepted
+                    && let Some(tab) = self
+                        .tabs
+                        .iter_mut()
+                        .find(|t| t.path.to_string_lossy() == path)
+                {
+                    tab.content = new_text;
+                    tab.modified = true;
+                    tab.last_edit = Some(std::time::Instant::now());
+                    tab.save_status = super::SaveStatus::Modified;
+                }
+                self.pending_ai_diff = None;
+            }
         }
+
+        clicked
     }
 
     pub fn status_bar(

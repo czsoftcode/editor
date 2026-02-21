@@ -217,3 +217,4 @@ lsp-references-error = LSP: Fehler bei der Suche nach Referenzen.
 
 ai-btn-sync = ⟳ Sync
 ai-hover-sync = Kontext (offene Dateien, Build-Fehler) an KI-Agenten senden
+ai-diff-heading = Vorgeschlagene KI-Änderungen überprüfen

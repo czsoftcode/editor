@@ -12,6 +12,7 @@ mod render_binary;
 mod render_context;
 mod render_helpers;
 use render_helpers::*;
+pub mod diff_view;
 mod render_lsp;
 mod render_markdown;
 mod render_normal;
@@ -145,6 +146,8 @@ pub struct Editor {
     pub(super) lsp_references: Option<LspReferencesState>,
     /// Temporary status message (text, timestamp).
     pub(super) lsp_status: Option<(String, std::time::Instant)>,
+    /// Pending AI diff for approval: (file_path, original_content, new_content).
+    pub pending_ai_diff: Option<(String, String, String)>,
 }
 
 impl Editor {
@@ -182,6 +185,7 @@ impl Editor {
             lsp_references_rx: None,
             lsp_references: None,
             lsp_status: None,
+            pending_ai_diff: None,
         }
     }
 

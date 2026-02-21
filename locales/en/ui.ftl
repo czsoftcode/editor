@@ -160,6 +160,7 @@ ai-hover-missing = Command `{ $cmd }` not found in PATH. Install the tool and cl
 ai-btn-start = ▶ Start
 ai-btn-sync = ⟳ Sync
 ai-hover-sync = Send context (open files, build errors) to the AI agent
+ai-diff-heading = Review AI Proposed Changes
 ai-float-dock = Dock to panel
 ai-float-undock = Undock to floating window
 ai-viewport-open = Open in separate window

@@ -163,6 +163,7 @@ ai-hover-missing = Příkaz `{ $cmd }` nebyl nalezen v PATH. Nainstaluj nástroj
 ai-btn-start = ▶ Spustit
 ai-btn-sync = ⟳ Sync
 ai-hover-sync = Odeslat kontext (otevřené soubory, chyby buildu) AI agentovi
+ai-diff-heading = Kontrola změn navržených AI
 ai-float-dock = Přikovat do panelu
 ai-float-undock = Odpojit do plovoucího okna
 ai-viewport-open = Otevřít v samostatném okně

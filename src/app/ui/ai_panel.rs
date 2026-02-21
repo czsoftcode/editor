@@ -119,9 +119,15 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
             ws.claude_active_tab = i;
         }
         TabBarAction::Close(idx) => {
-            ws.claude_tabs.remove(idx);
-            if ws.claude_active_tab >= ws.claude_tabs.len() {
-                ws.claude_active_tab = ws.claude_tabs.len().saturating_sub(1);
+            if let Some(terminal) = ws.claude_tabs.get(idx) {
+                if terminal.is_exited() {
+                    ws.claude_tabs.remove(idx);
+                    if ws.claude_active_tab >= ws.claude_tabs.len() {
+                        ws.claude_active_tab = ws.claude_tabs.len().saturating_sub(1);
+                    }
+                } else {
+                    ws.terminal_close_requested = Some(idx);
+                }
             }
         }
         TabBarAction::New => {
@@ -145,7 +151,7 @@ pub(super) fn render_ai_panel(
     dialog_open: bool,
     i18n: &crate::i18n::I18n,
 ) -> bool {
-    if !ws.show_right_panel {
+    if !ws.show_right_panel || ws.ai_viewport_open {
         return false;
     }
     let mut any_clicked = false;
@@ -154,7 +160,6 @@ pub(super) fn render_ai_panel(
 
     if ws.claude_float {
         let mut is_open = true;
-        let mut tab_action: Option<TabBarAction> = None;
         egui::Window::new(i18n.get("ai-panel-title"))
             .id(egui::Id::new("claude_float_win"))
             .default_size([520.0, 420.0])
@@ -163,95 +168,140 @@ pub(super) fn render_ai_panel(
             .collapsible(false)
             .open(&mut is_open)
             .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    render_ai_tool_controls(ui, ws, "ai_tool_combo_float", i18n);
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .small_button("⊟")
-                            .on_hover_text(i18n.get("ai-float-dock"))
-                            .clicked()
-                        {
-                            ws.claude_float = false;
-                        }
-                    });
-                });
-                let items: Vec<TabItem> = (0..ws.claude_tabs.len())
-                    .map(|i| TabItem {
-                        label: (i + 1).to_string(),
-                        closable: ws.claude_tabs.len() > 1,
-                    })
-                    .collect();
-                tab_action = render_compact_tab_bar(
+                any_clicked |= render_ai_panel_content(
                     ui,
-                    &items,
-                    ws.claude_active_tab,
-                    true,
-                    &i18n.get("ai-tab-close-hover"),
-                    &i18n.get("ai-tab-new-hover"),
+                    ws,
+                    dialog_open,
+                    focused,
+                    font_size,
+                    i18n,
+                    true,  // is_float
+                    false, // is_viewport
                 );
-                ui.separator();
-                if !dialog_open
-                    && let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab)
-                    && terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n)
-                {
-                    ws.focused_panel = FocusedPanel::Claude;
-                    any_clicked = true;
-                }
             });
-        if let Some(action) = tab_action {
-            apply_tab_action(ws, action, ctx);
-        }
         if !is_open {
             ws.show_right_panel = false;
         }
     } else {
-        let mut tab_action: Option<TabBarAction> = None;
         egui::SidePanel::right("claude_panel")
             .default_width(config::AI_PANEL_DEFAULT_WIDTH)
             .width_range(config::AI_PANEL_MIN_WIDTH..=config::AI_PANEL_MAX_WIDTH)
             .resizable(true)
             .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.heading(i18n.get("ai-panel-title"));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .small_button("⧉")
-                            .on_hover_text(i18n.get("ai-float-undock"))
-                            .clicked()
-                        {
-                            ws.claude_float = true;
-                        }
-                    });
-                });
-                ui.horizontal(|ui| {
-                    render_ai_tool_controls(ui, ws, "ai_tool_combo_docked", i18n);
-                });
-                let items: Vec<TabItem> = (0..ws.claude_tabs.len())
-                    .map(|i| TabItem {
-                        label: (i + 1).to_string(),
-                        closable: ws.claude_tabs.len() > 1,
-                    })
-                    .collect();
-                tab_action = render_compact_tab_bar(
+                any_clicked |= render_ai_panel_content(
                     ui,
-                    &items,
-                    ws.claude_active_tab,
-                    true,
-                    &i18n.get("ai-tab-close-hover"),
-                    &i18n.get("ai-tab-new-hover"),
+                    ws,
+                    dialog_open,
+                    focused,
+                    font_size,
+                    i18n,
+                    false, // is_float
+                    false, // is_viewport
                 );
-                ui.separator();
-                if !dialog_open
-                    && let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab)
-                    && terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n)
-                {
-                    ws.focused_panel = FocusedPanel::Claude;
-                    any_clicked = true;
-                }
             });
-        if let Some(action) = tab_action {
-            apply_tab_action(ws, action, ctx);
-        }
     }
+    any_clicked
+}
+
+/// Actual content of the AI panel, shared between docked, floating, and separate window.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn render_ai_panel_content(
+    ui: &mut egui::Ui,
+    ws: &mut WorkspaceState,
+    dialog_open: bool,
+    focused: FocusedPanel,
+    font_size: f32,
+    i18n: &crate::i18n::I18n,
+    is_float: bool,
+    is_viewport: bool,
+) -> bool {
+    let mut any_clicked = false;
+
+    ui.horizontal(|ui| {
+        if !is_viewport {
+            ui.heading(i18n.get("ai-panel-title"));
+        }
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if is_viewport {
+                // In separate window, button to dock back
+                if ui
+                    .small_button("📥")
+                    .on_hover_text(i18n.get("ai-float-dock"))
+                    .clicked()
+                {
+                    ws.ai_viewport_open = false;
+                    ws.show_right_panel = true;
+                    ws.claude_float = false;
+                }
+            } else {
+                // In main window, buttons to undock/viewport
+                if ui
+                    .small_button("↗")
+                    .on_hover_text(i18n.get("ai-viewport-open"))
+                    .clicked()
+                {
+                    ws.ai_viewport_open = true;
+                }
+
+                if is_float {
+                    if ui
+                        .small_button("⊟")
+                        .on_hover_text(i18n.get("ai-float-dock"))
+                        .clicked()
+                    {
+                        ws.claude_float = false;
+                    }
+                } else if ui
+                    .small_button("⧉")
+                    .on_hover_text(i18n.get("ai-float-undock"))
+                    .clicked()
+                {
+                    ws.claude_float = true;
+                }
+            }
+        });
+    });
+
+    ui.horizontal(|ui| {
+        let combo_id = if is_viewport {
+            "ai_tool_combo_viewport"
+        } else if is_float {
+            "ai_tool_combo_float"
+        } else {
+            "ai_tool_combo_docked"
+        };
+        render_ai_tool_controls(ui, ws, combo_id, i18n);
+    });
+
+    let items: Vec<TabItem> = (0..ws.claude_tabs.len())
+        .map(|i| TabItem {
+            label: (i + 1).to_string(),
+            closable: ws.claude_tabs.len() > 1,
+        })
+        .collect();
+
+    let tab_action = render_compact_tab_bar(
+        ui,
+        &items,
+        ws.claude_active_tab,
+        true,
+        &i18n.get("ai-tab-close-hover"),
+        &i18n.get("ai-tab-new-hover"),
+    );
+
+    ui.separator();
+
+    if !dialog_open
+        && let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab)
+        && terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n)
+    {
+        ws.focused_panel = FocusedPanel::Claude;
+        any_clicked = true;
+    }
+
+    if let Some(action) = tab_action {
+        apply_tab_action(ws, action, ui.ctx());
+    }
+
     any_clicked
 }

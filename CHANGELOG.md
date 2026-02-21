@@ -5,9 +5,12 @@ All notable changes to the PolyCredo Editor project will be documented in this f
 ## [0.5.2] - 2026-02-21
 
 ### Fixed
-- **Terminal CPR (Cursor Position Reporting)**: `PtyEvent::PtyWrite` events (odpovědi na `ESC[6n` DSR dotazy) byly tiše zahazovány. Nyní se zapisují zpět do PTY, takže programy jako vim/nvim a bash prompty správně detekují pozici kurzoru.
-- **Terminal Ctrl+X**: Na Linuxu egui převádí Ctrl+X na `Event::Cut` místo `Event::Key`, který `TerminalView` nezpracovával. Přidán explicitní handler, který `Event::Cut` mapuje na control character `0x18` — nano a další TUI aplikace nyní Ctrl+X správně přijímají.
-- **Terminal klávesnice mimo oblast**: `TerminalView` ignoroval klávesové vstupy, pokud myš nebyla nad terminálem. Přidán záložní handler v `terminal.rs`, který zpracovává klávesy (text, Ctrl+písmeno, speciální klávesy) i při fokusovaném terminálu s myší jinde.
+- **Terminal CPR (Cursor Position Reporting)**: `PtyEvent::PtyWrite` events (responses to `ESC[6n` DSR queries) were being silently discarded. They are now written back to the PTY, allowing programs like vim/nvim and bash prompts to correctly detect cursor position.
+- **Terminal Confirmation**: Added a confirmation dialog before closing a running terminal in the AI panel to prevent accidental process termination.
+- **AI Viewport**: Option to undock the AI terminal into a separate system window (viewport) that can be moved to another monitor.
+- **Markdown Synchronized Scrolling**: Implemented proportional synchronized scrolling between the editor and the preview. Both panes can also be scrolled independently, and the preview now correctly reaches the end of the document regardless of content length.
+- **Terminal Ctrl+X**: On Linux, egui converts Ctrl+X to `Event::Cut` instead of `Event::Key`, which `TerminalView` was not processing. Added an explicit handler that maps `Event::Cut` to control character `0x18` — nano and other TUI applications now correctly receive Ctrl+X.
+- **Terminal Keyboard Input Out of Bounds**: `TerminalView` ignored keyboard input if the mouse was not hovering over the terminal. Added a fallback handler in `terminal.rs` that processes keys (text, Ctrl+letter, special keys) even when the terminal is focused but the mouse is elsewhere.
 
 ## [0.5.1] - 2026-02-21
 

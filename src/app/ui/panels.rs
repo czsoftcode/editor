@@ -120,6 +120,20 @@ fn render_build_panel(
                 open_file_in_ws(ws, profiles_path);
             }
         });
+
+        if ui.button(i18n.get("btn-create-deb")).clicked() {
+            let cmd = "./packaging/deb/build-deb.sh";
+            ws.next_terminal_id += 1;
+            let terminal = super::terminal::Terminal::new(
+                ws.next_terminal_id,
+                ui.ctx(),
+                &ws.root_path,
+                Some(cmd),
+            );
+            ws.build_terminal = Some(terminal);
+            ws.show_build_terminal = true;
+            ws.focused_panel = FocusedPanel::Build;
+        }
     });
     ui.separator();
 

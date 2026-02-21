@@ -127,10 +127,7 @@ impl LspClient {
                         }),
                         hover: Some(HoverClientCapabilities {
                             dynamic_registration: Some(false),
-                            content_format: Some(vec![
-                                MarkupKind::Markdown,
-                                MarkupKind::PlainText,
-                            ]),
+                            content_format: Some(vec![MarkupKind::Markdown, MarkupKind::PlainText]),
                         }),
                         definition: Some(GotoCapability {
                             dynamic_registration: Some(false),

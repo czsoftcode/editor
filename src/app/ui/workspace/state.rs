@@ -163,6 +163,10 @@ pub(crate) struct WorkspaceState {
     /// Pending conflict: file was modified externally, but tab has unsaved changes.
     /// Value = path to conflict; None = no conflict.
     pub external_change_conflict: Option<PathBuf>,
+    /// Which terminal tab is pending closure confirmation (index into claude_tabs).
+    pub terminal_close_requested: Option<usize>,
+    /// Whether the AI panel is open in a separate viewport (window).
+    pub ai_viewport_open: bool,
     /// Cancellation flag for git refresh threads.
     /// Set to true on workspace drop → threads terminate git process and do not process result.
     pub git_cancel: Arc<AtomicBool>,
@@ -308,6 +312,8 @@ pub(crate) fn init_workspace(
         ai_tool_check_rx: Some(ai_tool_check_rx),
         ai_tool_last_check: std::time::Instant::now(),
         external_change_conflict: None,
+        terminal_close_requested: None,
+        ai_viewport_open: false,
         git_cancel,
     }
 }

@@ -16,6 +16,7 @@ btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
+btn-create-deb = Create .deb
 btn-run-profile = ▶ Run Profile...
 btn-edit-profiles = ⚙ Edit
 runner-none = No profiles defined.
@@ -65,6 +66,8 @@ lsp-install-error = Installation failed: { $error }
 terminal-unavailable = Terminal is not available.
 terminal-retry = Try again
 terminal-exited = [Process exited — press R to restart]
+terminal-close-confirm-title = Close terminal?
+terminal-close-confirm-msg = A process is still running in this terminal. Do you really want to terminate it?
 
 ## Go to Line dialog (Ctrl+G)
 goto-line-prompt = Go to line:
@@ -117,6 +120,7 @@ project-search-max-results = Showing max. { $max } results
 
 ## Common buttons
 btn-ok = OK
+btn-confirm = Confirm
 btn-cancel = Cancel
 btn-close = Close
 btn-browse = Browse…
@@ -145,6 +149,7 @@ ai-hover-missing = Command `{ $cmd }` not found in PATH. Install the tool and cl
 ai-btn-start = ▶ Start
 ai-float-dock = Dock to panel
 ai-float-undock = Undock to floating window
+ai-viewport-open = Open in separate window
 ai-tab-close-hover = Close tab
 ai-tab-new-hover = New terminal tab
 

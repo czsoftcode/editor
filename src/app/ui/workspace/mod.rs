@@ -135,6 +135,41 @@ pub(crate) fn render_workspace(
     // Modal dialogs
     render_dialogs(ctx, ws, shared, i18n);
 
+    let mut ai_viewport_clicked = false;
+    // AI Viewport (separate window)
+    if ws.ai_viewport_open {
+        let viewport_id =
+            egui::ViewportId::from_hash_of(format!("ai_viewport_{}", ws.root_path.display()));
+
+        ctx.show_viewport_immediate(
+            viewport_id,
+            egui::ViewportBuilder::default()
+                .with_title(format!("AI Terminal — {}", ws.root_path.display()))
+                .with_inner_size([600.0, 500.0]),
+            |ctx, _| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    if crate::app::ui::ai_panel::render_ai_panel_content(
+                        ui,
+                        ws,
+                        false, // dialog_open (dialogs are in main win)
+                        ws.focused_panel,
+                        config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0,
+                        i18n,
+                        false, // is_float
+                        true,  // is_viewport
+                    ) {
+                        ai_viewport_clicked = true;
+                        ws.focused_panel = FocusedPanel::Claude;
+                    }
+                });
+
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    ws.ai_viewport_open = false;
+                }
+            },
+        );
+    }
+
     // File picker (Ctrl+P)
     if let Some(path) = render_file_picker(ctx, ws, i18n) {
         open_file_in_ws(ws, path);
@@ -156,7 +191,8 @@ pub(crate) fn render_workspace(
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
         .show(ctx, |ui| {
-            ws.editor.status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
+            ws.editor
+                .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
         });
 
     let dialog_open = ws.file_tree.has_open_dialog();
@@ -190,7 +226,7 @@ pub(crate) fn render_workspace(
     }
 
     // Focus follows mouse — return focus to editor if terminal was not actively clicked
-    if !ai_clicked && !left_clicked {
+    if !ai_clicked && !left_clicked && !ai_viewport_clicked {
         let in_terminal =
             ws.focused_panel == FocusedPanel::Claude || ws.focused_panel == FocusedPanel::Build;
         if in_terminal {

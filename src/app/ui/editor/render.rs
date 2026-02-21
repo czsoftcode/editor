@@ -476,6 +476,10 @@ impl Editor {
         let current_match = self.current_match;
         let tab_path = self.tabs[idx].path.clone();
         let edit_id = egui::Id::new("editor_text").with(&tab_path);
+
+        let prev_editor_scroll = self.tabs[idx].scroll_offset;
+        let prev_preview_scroll = self.tabs[idx].md_scroll_offset;
+
         let should_request_editor_focus = self.focus_editor_requested
             && !dialog_open
             && !self.show_search
@@ -508,6 +512,9 @@ impl Editor {
             .max(50.0)
             .min(available.y - handle_h - 50.0);
         let bottom_h = (available.y - top_h - handle_h).max(50.0);
+
+        let mut editor_scroll_pct = 0.0;
+        let mut editor_max_scroll = 0.0;
 
         // Top half: Editor
         ui.allocate_ui_with_layout(
@@ -583,6 +590,11 @@ impl Editor {
                         });
 
                     tab.scroll_offset = scroll_output.state.offset.y;
+                    editor_max_scroll =
+                        (scroll_output.content_size.y - scroll_output.inner_rect.height()).max(0.0);
+                    if editor_max_scroll > 0.0 {
+                        editor_scroll_pct = tab.scroll_offset / editor_max_scroll;
+                    }
                 });
             },
         );
@@ -613,7 +625,8 @@ impl Editor {
         }
 
         // Bottom half: Preview
-        let scroll_offset = self.tabs[idx].scroll_offset;
+        let mut preview_scroll_pct = 0.0;
+        let mut preview_max_scroll = 0.0;
 
         ui.allocate_ui_with_layout(
             egui::vec2(available.x, bottom_h),
@@ -642,17 +655,42 @@ impl Editor {
                         heading.size = font_size * 1.4;
                     }
 
-                    egui::ScrollArea::vertical()
+                    let (content, md_scroll_offset) = {
+                        let tab = &self.tabs[idx];
+                        (tab.content.clone(), tab.md_scroll_offset)
+                    };
+
+                    let preview_scroll_output = egui::ScrollArea::vertical()
                         .id_salt("md_preview_scroll")
                         .auto_shrink([false, false])
-                        .vertical_scroll_offset(scroll_offset)
+                        .vertical_scroll_offset(md_scroll_offset)
                         .show(ui, |ui| {
-                            let content = self.tabs[idx].content.clone();
                             self.render_markdown_preview(ui, &content);
                         });
+
+                    let tab = &mut self.tabs[idx];
+                    tab.md_scroll_offset = preview_scroll_output.state.offset.y;
+                    preview_max_scroll = (preview_scroll_output.content_size.y
+                        - preview_scroll_output.inner_rect.height())
+                    .max(0.0);
+                    if preview_max_scroll > 0.0 {
+                        preview_scroll_pct = tab.md_scroll_offset / preview_max_scroll;
+                    }
                 });
             },
         );
+
+        // Proportional Sync
+        let tab = &mut self.tabs[idx];
+        if tab.scroll_offset != prev_editor_scroll {
+            // Editor scrolled -> update preview offset proportionally
+            tab.md_scroll_offset =
+                (editor_scroll_pct * preview_max_scroll).clamp(0.0, preview_max_scroll);
+        } else if tab.md_scroll_offset != prev_preview_scroll {
+            // Preview scrolled -> update editor offset proportionally
+            tab.scroll_offset =
+                (preview_scroll_pct * editor_max_scroll).clamp(0.0, editor_max_scroll);
+        }
 
         if content_changed && let Some(lsp) = lsp_client {
             let tab = &mut self.tabs[idx];
@@ -795,7 +833,9 @@ impl Editor {
         output: &egui::text_edit::TextEditOutput,
         diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>,
     ) {
-        let Some(diagnostics) = diagnostics_for_file else { return };
+        let Some(diagnostics) = diagnostics_for_file else {
+            return;
+        };
         if diagnostics.is_empty() {
             return;
         }
@@ -994,9 +1034,9 @@ impl Editor {
         lsp_client: Option<&crate::app::lsp::LspClient>,
         saved_response: &Option<egui::text_edit::TextEditOutput>,
     ) {
+        use super::LSP_HOVER_DEBOUNCE_MS;
         use super::LspCompletionState;
         use super::LspHoverPopup;
-        use super::LSP_HOVER_DEBOUNCE_MS;
 
         let tab_lsp_version = self.tabs[idx].lsp_version;
         let tab_is_binary = self.tabs[idx].is_binary;
@@ -1004,65 +1044,66 @@ impl Editor {
         // --- Process pending async results ---
 
         // Hover result
-        if let Some(rx) = &self.lsp_hover_rx {
-            if let Ok(result) = rx.try_recv() {
-                self.lsp_hover_rx = None;
-                if let Some(hover) = result {
-                    let content = hover_content_to_string(&hover);
-                    if !content.trim().is_empty() {
-                        self.lsp_hover_popup = Some(LspHoverPopup {
-                            content,
-                            screen_pos: self.lsp_hover_screen_pos.unwrap_or_default(),
-                        });
-                    }
+        if let Some(rx) = &self.lsp_hover_rx
+            && let Ok(result) = rx.try_recv()
+        {
+            self.lsp_hover_rx = None;
+            if let Some(hover) = result {
+                let content = hover_content_to_string(&hover);
+                if !content.trim().is_empty() {
+                    self.lsp_hover_popup = Some(LspHoverPopup {
+                        content,
+                        screen_pos: self.lsp_hover_screen_pos.unwrap_or_default(),
+                    });
                 }
             }
         }
 
         // Go-to-definition result
-        if let Some(rx) = &self.lsp_definition_rx {
-            if let Ok(result) = rx.try_recv() {
-                self.lsp_definition_rx = None;
-                if let Some(def_resp) = result {
-                    let location = match def_resp {
-                        async_lsp::lsp_types::GotoDefinitionResponse::Scalar(loc) => Some(loc),
-                        async_lsp::lsp_types::GotoDefinitionResponse::Array(locs) => {
-                            locs.into_iter().next()
-                        }
-                        async_lsp::lsp_types::GotoDefinitionResponse::Link(links) => {
-                            links.into_iter().next().map(|l| async_lsp::lsp_types::Location {
-                                uri: l.target_uri,
-                                range: l.target_range,
-                            })
-                        }
-                    };
-                    if let Some(loc) = location {
-                        if let Ok(path) = loc.uri.to_file_path() {
-                            let line = loc.range.start.line as usize + 1; // → 1-based
-                            self.pending_lsp_navigate = Some((path, line));
-                        }
+        if let Some(rx) = &self.lsp_definition_rx
+            && let Ok(result) = rx.try_recv()
+        {
+            self.lsp_definition_rx = None;
+            if let Some(def_resp) = result {
+                let location = match def_resp {
+                    async_lsp::lsp_types::GotoDefinitionResponse::Scalar(loc) => Some(loc),
+                    async_lsp::lsp_types::GotoDefinitionResponse::Array(locs) => {
+                        locs.into_iter().next()
                     }
+                    async_lsp::lsp_types::GotoDefinitionResponse::Link(links) => links
+                        .into_iter()
+                        .next()
+                        .map(|l| async_lsp::lsp_types::Location {
+                            uri: l.target_uri,
+                            range: l.target_range,
+                        }),
+                };
+                if let Some(loc) = location
+                    && let Ok(path) = loc.uri.to_file_path()
+                {
+                    let line = loc.range.start.line as usize + 1; // → 1-based
+                    self.pending_lsp_navigate = Some((path, line));
                 }
             }
         }
 
         // Completion result
-        if let Some(rx) = &self.lsp_completion_rx {
-            if let Ok(result) = rx.try_recv() {
-                self.lsp_completion_rx = None;
-                let items: Vec<_> = match result {
-                    Some(async_lsp::lsp_types::CompletionResponse::Array(items)) => items,
-                    Some(async_lsp::lsp_types::CompletionResponse::List(list)) => list.items,
-                    None => Vec::new(),
-                };
-                let items: Vec<_> = items.into_iter().take(25).collect();
-                if !items.is_empty() {
-                    self.lsp_completion = Some(LspCompletionState {
-                        items,
-                        selected: 0,
-                        screen_pos: self.lsp_completion_cursor_pos.unwrap_or_default(),
-                    });
-                }
+        if let Some(rx) = &self.lsp_completion_rx
+            && let Ok(result) = rx.try_recv()
+        {
+            self.lsp_completion_rx = None;
+            let items: Vec<_> = match result {
+                Some(async_lsp::lsp_types::CompletionResponse::Array(items)) => items,
+                Some(async_lsp::lsp_types::CompletionResponse::List(list)) => list.items,
+                None => Vec::new(),
+            };
+            let items: Vec<_> = items.into_iter().take(25).collect();
+            if !items.is_empty() {
+                self.lsp_completion = Some(LspCompletionState {
+                    items,
+                    selected: 0,
+                    screen_pos: self.lsp_completion_cursor_pos.unwrap_or_default(),
+                });
             }
         }
 
@@ -1079,9 +1120,8 @@ impl Editor {
             })
         });
         let cursor_screen_pos = saved_response.as_ref().and_then(|r| {
-            r.cursor_range.map(|cr| {
-                r.galley_pos + r.galley.pos_from_cursor(&cr.primary).min.to_vec2()
-            })
+            r.cursor_range
+                .map(|cr| r.galley_pos + r.galley.pos_from_cursor(&cr.primary).min.to_vec2())
         });
         let editor_rect = saved_response.as_ref().map(|r| r.response.rect);
         let galley_info = saved_response
@@ -1090,26 +1130,25 @@ impl Editor {
 
         // --- Keyboard: F12 — go to definition ---
         let f12 = ui.ctx().input(|i| i.key_pressed(egui::Key::F12));
-        if f12 {
-            if let (Some(lsp), Some(pos)) = (lsp_client, cursor_lsp_pos) {
-                if let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(tab_path) {
-                    self.lsp_definition_rx = Some(lsp.request_goto_definition(uri, pos));
-                }
-            }
+        if f12
+            && let (Some(lsp), Some(pos)) = (lsp_client, cursor_lsp_pos)
+            && let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(tab_path)
+        {
+            self.lsp_definition_rx = Some(lsp.request_goto_definition(uri, pos));
         }
 
         // --- Keyboard: Ctrl+Space — trigger completion ---
         let ctrl_space = ui
             .ctx()
             .input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Space));
-        if ctrl_space {
-            if let (Some(lsp), Some(pos), Some(screen)) = (lsp_client, cursor_lsp_pos, cursor_screen_pos) {
-                if let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(tab_path) {
-                    self.lsp_completion_cursor_pos = Some(screen);
-                    self.lsp_completion = None;
-                    self.lsp_completion_rx = Some(lsp.request_completion(uri, pos));
-                }
-            }
+        if ctrl_space
+            && let (Some(lsp), Some(pos), Some(screen)) =
+                (lsp_client, cursor_lsp_pos, cursor_screen_pos)
+            && let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(tab_path)
+        {
+            self.lsp_completion_cursor_pos = Some(screen);
+            self.lsp_completion = None;
+            self.lsp_completion_rx = Some(lsp.request_completion(uri, pos));
         }
 
         // --- Completion keyboard navigation (when popup is open) ---
@@ -1201,7 +1240,8 @@ impl Editor {
                     .unwrap_or(content.len());
                 {
                     let tab = &mut self.tabs[idx];
-                    tab.content.replace_range(byte_start..byte_end, &insert_text);
+                    tab.content
+                        .replace_range(byte_start..byte_end, &insert_text);
                     tab.modified = true;
                     tab.last_edit = Some(std::time::Instant::now());
                     tab.save_status = super::SaveStatus::Modified;
@@ -1210,9 +1250,11 @@ impl Editor {
                 let edit_id = egui::Id::new("editor_text").with(tab_path);
                 let mut state =
                     egui::text_edit::TextEditState::load(ui.ctx(), edit_id).unwrap_or_default();
-                state.cursor.set_char_range(Some(egui::text::CCursorRange::one(
-                    egui::text::CCursor::new(new_cursor_char),
-                )));
+                state
+                    .cursor
+                    .set_char_range(Some(egui::text::CCursorRange::one(
+                        egui::text::CCursor::new(new_cursor_char),
+                    )));
                 state.store(ui.ctx(), edit_id);
             }
             self.lsp_completion = None;
@@ -1242,18 +1284,16 @@ impl Editor {
                         self.lsp_hover_screen_pos = Some(pos);
                     }
                     // Debounce: trigger after LSP_HOVER_DEBOUNCE_MS of no movement
-                    if let Some(timer) = self.lsp_hover_timer {
-                        if timer.elapsed().as_millis() >= LSP_HOVER_DEBOUNCE_MS
-                            && self.lsp_hover_rx.is_none()
-                            && self.lsp_hover_popup.is_none()
-                        {
-                            if let (Some(lsp), Ok(uri)) = (
-                                lsp_client,
-                                async_lsp::lsp_types::Url::from_file_path(tab_path),
-                            ) {
-                                self.lsp_hover_rx = Some(lsp.request_hover(uri, lsp_pos));
-                            }
-                        }
+                    if let Some(timer) = self.lsp_hover_timer
+                        && timer.elapsed().as_millis() >= LSP_HOVER_DEBOUNCE_MS
+                        && self.lsp_hover_rx.is_none()
+                        && self.lsp_hover_popup.is_none()
+                        && let (Some(lsp), Ok(uri)) = (
+                            lsp_client,
+                            async_lsp::lsp_types::Url::from_file_path(tab_path),
+                        )
+                    {
+                        self.lsp_hover_rx = Some(lsp.request_hover(uri, lsp_pos));
                     }
                 } else {
                     // Mouse left the editor area — dismiss popup
@@ -1280,11 +1320,7 @@ impl Editor {
     /// Renders the hover documentation popup as a floating Area.
     /// Properly parses markdown code fences — code blocks are rendered monospace,
     /// prose sections are rendered as regular text.
-    pub(super) fn render_hover_popup(
-        ui: &egui::Ui,
-        content: &str,
-        screen_pos: egui::Pos2,
-    ) {
+    pub(super) fn render_hover_popup(ui: &egui::Ui, content: &str, screen_pos: egui::Pos2) {
         let popup_pos = screen_pos + egui::vec2(8.0, 16.0);
         egui::Area::new(egui::Id::new("lsp_hover_popup"))
             .fixed_pos(popup_pos)
@@ -1292,10 +1328,7 @@ impl Editor {
             .show(ui.ctx(), |ui| {
                 egui::Frame::new()
                     .fill(egui::Color32::from_rgb(35, 38, 46))
-                    .stroke(egui::Stroke::new(
-                        1.0,
-                        egui::Color32::from_rgb(70, 80, 100),
-                    ))
+                    .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(70, 80, 100)))
                     .inner_margin(egui::Margin::same(10))
                     .corner_radius(4.0)
                     .show(ui, |ui| {
@@ -1318,11 +1351,9 @@ impl Editor {
                                             let trimmed = code.trim();
                                             if !trimmed.is_empty() {
                                                 ui.label(
-                                                    egui::RichText::new(trimmed)
-                                                        .monospace()
-                                                        .color(egui::Color32::from_rgb(
-                                                            180, 210, 255,
-                                                        )),
+                                                    egui::RichText::new(trimmed).monospace().color(
+                                                        egui::Color32::from_rgb(180, 210, 255),
+                                                    ),
                                                 );
                                             }
                                         }

@@ -16,6 +16,7 @@ btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
+btn-create-deb = .deb erstellen
 btn-run-profile = ▶ Profil ausführen...
 btn-edit-profiles = ⚙ Bearbeiten
 runner-none = Keine Profile definiert.
@@ -65,6 +66,8 @@ lsp-install-error = Installation fehlgeschlagen: { $error }
 terminal-unavailable = Terminal ist nicht verfügbar.
 terminal-retry = Erneut versuchen
 terminal-exited = [Prozess beendet — R drücken um neu zu starten]
+terminal-close-confirm-title = Terminal schließen?
+terminal-close-confirm-msg = Im Terminal läuft noch ein Prozess. Möchten Sie ihn wirklich beenden?
 
 ## Dialog Zur Zeile springen (Ctrl+G)
 goto-line-prompt = Zur Zeile springen:
@@ -117,6 +120,7 @@ project-search-max-results = Max. { $max } Ergebnisse werden angezeigt
 
 ## Gemeinsame Schaltflächen
 btn-ok = OK
+btn-confirm = Bestätigen
 btn-cancel = Abbrechen
 btn-close = Schließen
 btn-browse = Durchsuchen…
@@ -145,6 +149,7 @@ ai-hover-missing = Befehl `{ $cmd }` nicht in PATH gefunden. Werkzeug installier
 ai-btn-start = ▶ Starten
 ai-float-dock = Im Panel andocken
 ai-float-undock = Als schwebendes Fenster lösen
+ai-viewport-open = In separatem Fenster öffnen
 ai-tab-close-hover = Tab schließen
 ai-tab-new-hover = Neuer Terminal-Tab
 

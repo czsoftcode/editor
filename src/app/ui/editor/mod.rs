@@ -50,6 +50,7 @@ pub(super) struct Tab {
     save_status: SaveStatus,
     last_saved_content: String,
     scroll_offset: f32,
+    md_scroll_offset: f32,
     last_cursor_range: Option<egui::text::CursorRange>,
     /// Flag indicating if the file is binary (not text).
     pub(super) is_binary: bool,
@@ -90,8 +91,7 @@ pub struct Editor {
     pub(super) markdown_cache: egui_commonmark::CommonMarkCache,
     // --- LSP interaction state ---
     /// Pending hover request channel.
-    pub(super) lsp_hover_rx:
-        Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::Hover>>>,
+    pub(super) lsp_hover_rx: Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::Hover>>>,
     /// Active hover popup (Some = visible).
     pub(super) lsp_hover_popup: Option<LspHoverPopup>,
     /// Screen position where the hover popup should appear.
@@ -101,15 +101,13 @@ pub struct Editor {
     /// Time when mouse stopped moving (for debounce).
     pub(super) lsp_hover_timer: Option<std::time::Instant>,
     /// Pending go-to-definition request channel.
-    pub(super) lsp_definition_rx: Option<
-        std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::GotoDefinitionResponse>>,
-    >,
+    pub(super) lsp_definition_rx:
+        Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::GotoDefinitionResponse>>>,
     /// Pending navigation from go-to-definition result: (file path, 1-based line).
     pub pending_lsp_navigate: Option<(std::path::PathBuf, usize)>,
     /// Pending completion request channel.
-    pub(super) lsp_completion_rx: Option<
-        std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::CompletionResponse>>,
-    >,
+    pub(super) lsp_completion_rx:
+        Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::CompletionResponse>>>,
     /// Active completion popup state.
     pub(super) lsp_completion: Option<LspCompletionState>,
     /// Cursor screen position at the time completion was triggered.
@@ -235,6 +233,7 @@ impl Editor {
                         last_edit: None,
                         save_status: SaveStatus::None,
                         scroll_offset: 0.0,
+                        md_scroll_offset: 0.0,
                         last_cursor_range: None,
                         is_binary: true,
                         image_texture: None,
@@ -256,6 +255,7 @@ impl Editor {
                         last_edit: None,
                         save_status: SaveStatus::None,
                         scroll_offset: 0.0,
+                        md_scroll_offset: 0.0,
                         last_cursor_range: None,
                         is_binary: false,
                         image_texture: None,
@@ -280,6 +280,7 @@ impl Editor {
                         last_edit: None,
                         save_status: SaveStatus::None,
                         scroll_offset: 0.0,
+                        md_scroll_offset: 0.0,
                         last_cursor_range: None,
                         is_binary: false,
                         image_texture: None,
@@ -301,6 +302,7 @@ impl Editor {
                         last_edit: None,
                         save_status: SaveStatus::None,
                         scroll_offset: 0.0,
+                        md_scroll_offset: 0.0,
                         last_cursor_range: None,
                         is_binary: false,
                         image_texture: None,
@@ -729,24 +731,28 @@ impl Editor {
 
         // Diagnostic counts for active file
         let (error_count, warning_count) = 'diag: {
-            let Some(lsp) = lsp_client else { break 'diag (0usize, 0usize) };
-            let Some(path) = self.active_path() else { break 'diag (0, 0) };
-            let Ok(uri) = Url::from_file_path(path) else { break 'diag (0, 0) };
-            let Ok(diags) = lsp.diagnostics().lock() else { break 'diag (0, 0) };
-            let Some(file_diags) = diags.get(&uri) else { break 'diag (0, 0) };
+            let Some(lsp) = lsp_client else {
+                break 'diag (0usize, 0usize);
+            };
+            let Some(path) = self.active_path() else {
+                break 'diag (0, 0);
+            };
+            let Ok(uri) = Url::from_file_path(path) else {
+                break 'diag (0, 0);
+            };
+            let Ok(diags) = lsp.diagnostics().lock() else {
+                break 'diag (0, 0);
+            };
+            let Some(file_diags) = diags.get(&uri) else {
+                break 'diag (0, 0);
+            };
             let errors = file_diags
                 .iter()
-                .filter(|d| {
-                    d.severity
-                        == Some(async_lsp::lsp_types::DiagnosticSeverity::ERROR)
-                })
+                .filter(|d| d.severity == Some(async_lsp::lsp_types::DiagnosticSeverity::ERROR))
                 .count();
             let warnings = file_diags
                 .iter()
-                .filter(|d| {
-                    d.severity
-                        == Some(async_lsp::lsp_types::DiagnosticSeverity::WARNING)
-                })
+                .filter(|d| d.severity == Some(async_lsp::lsp_types::DiagnosticSeverity::WARNING))
                 .count();
             (errors, warnings)
         };

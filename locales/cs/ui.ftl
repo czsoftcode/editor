@@ -17,6 +17,7 @@ btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
+btn-create-deb = Vytvořit .deb
 btn-run-profile = ▶ Spustit...
 btn-edit-profiles = ⚙ Upravit
 runner-none = Nejsou definovány žádné profily.
@@ -67,6 +68,8 @@ lsp-install-error = Instalace selhala: { $error }
 terminal-unavailable = Terminál není dostupný.
 terminal-retry = Zkusit znovu
 terminal-exited = [Proces skončil — stiskněte R pro restart]
+terminal-close-confirm-title = Zavřít terminál?
+terminal-close-confirm-msg = V terminálu stále běží proces. Opravdu jej chcete ukončit?
 
 ## Dialog „Přejít na řádek" (Ctrl+G)
 goto-line-prompt = Přejít na řádek:
@@ -119,6 +122,7 @@ project-search-max-results = Zobrazeno max. { $max } výsledků
 
 ## Obecná tlačítka
 btn-ok = OK
+btn-confirm = Potvrdit
 btn-cancel = Zrušit
 btn-close = Zavřít
 btn-browse = Procházet…
@@ -147,6 +151,7 @@ ai-hover-missing = Příkaz `{ $cmd }` nebyl nalezen v PATH. Nainstaluj nástroj
 ai-btn-start = ▶ Spustit
 ai-float-dock = Přikovat do panelu
 ai-float-undock = Odpojit do plovoucího okna
+ai-viewport-open = Otevřít v samostatném okně
 ai-tab-close-hover = Zavřít záložku
 ai-tab-new-hover = Nová záložka terminálu
 

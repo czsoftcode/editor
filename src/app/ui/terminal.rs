@@ -117,6 +117,10 @@ impl Terminal {
         }
     }
 
+    pub fn is_exited(&self) -> bool {
+        self.exited
+    }
+
     /// Renders the terminal. Returns `true` if the user clicked into the terminal area.
     pub fn ui(
         &mut self,
@@ -204,13 +208,12 @@ impl Terminal {
 
         // On Linux, Ctrl+X is delivered as Event::Cut (not Event::Key), but TerminalView only
         // handles Event::Copy — Event::Cut is never forwarded to the PTY.  Map it here.
-        if focused && !self.exited {
-            let cut = ui.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Cut)));
-            if cut {
-                if let Some(backend) = self.backend.as_mut() {
-                    backend.process_command(egui_term::BackendCommand::Write(vec![0x18]));
-                }
-            }
+        if focused
+            && !self.exited
+            && ui.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Cut)))
+            && let Some(backend) = self.backend.as_mut()
+        {
+            backend.process_command(egui_term::BackendCommand::Write(vec![0x18]));
         }
 
         // TerminalView processes keyboard input only when the pointer is inside the widget
@@ -225,7 +228,12 @@ impl Terminal {
                         egui::Event::Text(text) if !text.is_empty() => {
                             writes.push(text.as_bytes().to_vec());
                         }
-                        egui::Event::Key { key, pressed: true, modifiers, .. } => {
+                        egui::Event::Key {
+                            key,
+                            pressed: true,
+                            modifiers,
+                            ..
+                        } => {
                             if let Some(bytes) = terminal_key_bytes(*key, *modifiers) {
                                 writes.push(bytes);
                             }
@@ -480,11 +488,31 @@ fn terminal_key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<
     // Ctrl+letter → ASCII control character (0x01–0x1a)
     if modifiers.ctrl && !modifiers.shift && !modifiers.alt {
         let b: u8 = match key {
-            A => 0x01, B => 0x02, C => 0x03, D => 0x04, E => 0x05,
-            F => 0x06, G => 0x07, H => 0x08, I => 0x09, J => 0x0a,
-            K => 0x0b, L => 0x0c, M => 0x0d, N => 0x0e, O => 0x0f,
-            P => 0x10, Q => 0x11, R => 0x12, S => 0x13, T => 0x14,
-            U => 0x15, V => 0x16, W => 0x17, X => 0x18, Y => 0x19,
+            A => 0x01,
+            B => 0x02,
+            C => 0x03,
+            D => 0x04,
+            E => 0x05,
+            F => 0x06,
+            G => 0x07,
+            H => 0x08,
+            I => 0x09,
+            J => 0x0a,
+            K => 0x0b,
+            L => 0x0c,
+            M => 0x0d,
+            N => 0x0e,
+            O => 0x0f,
+            P => 0x10,
+            Q => 0x11,
+            R => 0x12,
+            S => 0x13,
+            T => 0x14,
+            U => 0x15,
+            V => 0x16,
+            W => 0x17,
+            X => 0x18,
+            Y => 0x19,
             Z => 0x1a,
             _ => return None,
         };
@@ -494,19 +522,19 @@ fn terminal_key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<
     // Unmodified special keys
     if modifiers.is_none() {
         return match key {
-            Enter     => Some(vec![0x0d]),
+            Enter => Some(vec![0x0d]),
             Backspace => Some(vec![0x7f]),
-            Escape    => Some(vec![0x1b]),
-            Tab       => Some(vec![0x09]),
-            Delete    => Some(b"\x1b[3~".to_vec()),
-            Insert    => Some(b"\x1b[2~".to_vec()),
-            Home      => Some(b"\x1b[H".to_vec()),
-            End       => Some(b"\x1b[F".to_vec()),
-            PageUp    => Some(b"\x1b[5~".to_vec()),
-            PageDown  => Some(b"\x1b[6~".to_vec()),
-            ArrowUp    => Some(b"\x1b[A".to_vec()),
-            ArrowDown  => Some(b"\x1b[B".to_vec()),
-            ArrowLeft  => Some(b"\x1b[D".to_vec()),
+            Escape => Some(vec![0x1b]),
+            Tab => Some(vec![0x09]),
+            Delete => Some(b"\x1b[3~".to_vec()),
+            Insert => Some(b"\x1b[2~".to_vec()),
+            Home => Some(b"\x1b[H".to_vec()),
+            End => Some(b"\x1b[F".to_vec()),
+            PageUp => Some(b"\x1b[5~".to_vec()),
+            PageDown => Some(b"\x1b[6~".to_vec()),
+            ArrowUp => Some(b"\x1b[A".to_vec()),
+            ArrowDown => Some(b"\x1b[B".to_vec()),
+            ArrowLeft => Some(b"\x1b[D".to_vec()),
             ArrowRight => Some(b"\x1b[C".to_vec()),
             _ => None,
         };

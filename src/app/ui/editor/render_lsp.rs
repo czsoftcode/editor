@@ -116,11 +116,28 @@ impl Editor {
                     let mut items = Vec::new();
                     for loc in locations {
                         if let Ok(path) = loc.uri.to_file_path() {
+                            let line_idx = loc.range.start.line as usize;
+                            let mut line_text = String::new();
+
+                            // Try to get line text from open tabs first
+                            if let Some(tab) = self.tabs.iter().find(|t| t.path == path) {
+                                if let Some(line) = tab.content.lines().nth(line_idx) {
+                                    line_text = line.trim().to_string();
+                                }
+                            } else {
+                                // Fallback to reading from disk
+                                if let Ok(content) = std::fs::read_to_string(&path) {
+                                    if let Some(line) = content.lines().nth(line_idx) {
+                                        line_text = line.trim().to_string();
+                                    }
+                                }
+                            }
+
                             items.push(super::LspReferenceItem {
                                 path,
-                                line: loc.range.start.line as usize + 1,
+                                line: line_idx + 1,
                                 character: loc.range.start.character as usize + 1,
-                                text: String::new(),
+                                text: line_text,
                             });
                         }
                     }
@@ -413,6 +430,10 @@ impl Editor {
 
         let modal = egui::Modal::new(egui::Id::new("lsp_references_modal"));
         modal.show(ctx, |ui| {
+            if picker.focus_requested {
+                ui.memory_mut(|m| m.request_focus(ui.id()));
+                picker.focus_requested = false;
+            }
             ui.set_min_width(520.0);
             ui.heading(i18n.get("lsp-references-heading"));
             ui.add_space(8.0);
@@ -429,12 +450,20 @@ impl Editor {
                             .map(|n| n.to_string_lossy().to_string())
                             .unwrap_or_else(|| "???".to_string());
 
-                        let text = egui::RichText::new(format!(
-                            "{}:{}:{}",
-                            filename, item.line, item.character
-                        ))
-                        .monospace()
-                        .size(12.0);
+                        let display_text = if item.text.is_empty() {
+                            format!("{}:{}:{}", filename, item.line, item.character)
+                        } else {
+                            let mut truncated = item.text.clone();
+                            if truncated.len() > 100 {
+                                truncated.truncate(97);
+                                truncated.push_str("...");
+                            }
+                            format!("{}:{}:{}  {}", filename, item.line, item.character, truncated)
+                        };
+
+                        let text = egui::RichText::new(display_text)
+                            .monospace()
+                            .size(12.0);
 
                         let r = ui.selectable_label(is_sel, text);
                         if is_sel && picker.scroll_to_selected {

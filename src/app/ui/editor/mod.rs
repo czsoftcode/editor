@@ -3,20 +3,35 @@ use std::time::Instant;
 
 use eframe::egui;
 
-use crate::app::lsp::DiagnosticsMap; // Add this import
 use crate::app::ui::widgets::tab_bar::TabBarAction;
 use crate::highlighter::Highlighter;
-use async_lsp::lsp_types::Url; // Added Url import (from async_lsp)
+use async_lsp::lsp_types::Url;
 
 mod markdown;
 mod render;
 mod search;
 
 const AUTOSAVE_DELAY_MS: u128 = 500;
+/// Hover debounce: wait this long after mouse stops before sending request.
+const LSP_HOVER_DEBOUNCE_MS: u128 = 600;
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+/// Content of an active LSP hover popup.
+pub(super) struct LspHoverPopup {
+    pub content: String,
+    pub screen_pos: egui::Pos2,
+}
+
+/// State of the active LSP completion dropdown.
+pub(super) struct LspCompletionState {
+    pub items: Vec<async_lsp::lsp_types::CompletionItem>,
+    pub selected: usize,
+    /// Anchor position in screen coords (below the cursor).
+    pub screen_pos: egui::Pos2,
+}
 
 #[derive(PartialEq)]
 pub enum SaveStatus {
@@ -44,6 +59,8 @@ pub(super) struct Tab {
     pub(super) binary_data: Option<Vec<u8>>,
     /// Whether the SVG modal has already been shown (true = user made a choice, don't show again).
     pub(super) svg_modal_shown: bool,
+    /// LSP document version — 0 = didOpen not yet sent, >0 = open with this version.
+    pub(super) lsp_version: i32,
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +88,32 @@ pub struct Editor {
     pub(super) goto_line_focus_requested: bool,
     pub(super) focus_editor_requested: bool,
     pub(super) markdown_cache: egui_commonmark::CommonMarkCache,
+    // --- LSP interaction state ---
+    /// Pending hover request channel.
+    pub(super) lsp_hover_rx:
+        Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::Hover>>>,
+    /// Active hover popup (Some = visible).
+    pub(super) lsp_hover_popup: Option<LspHoverPopup>,
+    /// Screen position where the hover popup should appear.
+    pub(super) lsp_hover_screen_pos: Option<egui::Pos2>,
+    /// LSP position that was last hovered (for debounce comparison).
+    pub(super) lsp_hover_last_pos: Option<async_lsp::lsp_types::Position>,
+    /// Time when mouse stopped moving (for debounce).
+    pub(super) lsp_hover_timer: Option<std::time::Instant>,
+    /// Pending go-to-definition request channel.
+    pub(super) lsp_definition_rx: Option<
+        std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::GotoDefinitionResponse>>,
+    >,
+    /// Pending navigation from go-to-definition result: (file path, 1-based line).
+    pub pending_lsp_navigate: Option<(std::path::PathBuf, usize)>,
+    /// Pending completion request channel.
+    pub(super) lsp_completion_rx: Option<
+        std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::CompletionResponse>>,
+    >,
+    /// Active completion popup state.
+    pub(super) lsp_completion: Option<LspCompletionState>,
+    /// Cursor screen position at the time completion was triggered.
+    pub(super) lsp_completion_cursor_pos: Option<egui::Pos2>,
 }
 
 impl Editor {
@@ -95,6 +138,16 @@ impl Editor {
             goto_line_focus_requested: false,
             focus_editor_requested: false,
             markdown_cache: egui_commonmark::CommonMarkCache::default(),
+            lsp_hover_rx: None,
+            lsp_hover_popup: None,
+            lsp_hover_screen_pos: None,
+            lsp_hover_last_pos: None,
+            lsp_hover_timer: None,
+            lsp_definition_rx: None,
+            pending_lsp_navigate: None,
+            lsp_completion_rx: None,
+            lsp_completion: None,
+            lsp_completion_cursor_pos: None,
         }
     }
 
@@ -187,6 +240,7 @@ impl Editor {
                         image_texture: None,
                         binary_data: Some(bytes),
                         svg_modal_shown: false,
+                        lsp_version: 0,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -207,6 +261,7 @@ impl Editor {
                         image_texture: None,
                         binary_data: None,
                         svg_modal_shown: false,
+                        lsp_version: 0,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -230,6 +285,7 @@ impl Editor {
                         image_texture: None,
                         binary_data: None,
                         svg_modal_shown: false,
+                        lsp_version: 0,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -250,6 +306,7 @@ impl Editor {
                         image_texture: None,
                         binary_data: None,
                         svg_modal_shown: false,
+                        lsp_version: 0,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -457,7 +514,7 @@ impl Editor {
         ui: &mut egui::Ui,
         dialog_open: bool,
         i18n: &crate::i18n::I18n,
-        diagnostics: Option<&DiagnosticsMap>, // Added diagnostics parameter
+        lsp_client: Option<&crate::app::lsp::LspClient>,
     ) -> bool {
         if self.tabs.is_empty() {
             ui.centered_and_justified(|ui| {
@@ -475,6 +532,13 @@ impl Editor {
                 self.update_search();
             }
             Some(TabBarAction::Close(idx)) => {
+                if let Some(lsp) = lsp_client
+                    && let Some(tab) = self.tabs.get(idx)
+                    && tab.lsp_version > 0
+                    && let Ok(uri) = Url::from_file_path(&tab.path)
+                {
+                    lsp.notify_did_close(uri);
+                }
                 self.close_tab(idx);
             }
             Some(TabBarAction::New) | None => {}
@@ -540,21 +604,41 @@ impl Editor {
             self.goto_line_bar(ui, i18n);
         }
 
+        // Send didOpen for the active tab — only after LSP handshake is complete
+        if let (Some(idx), Some(lsp)) = (self.active_tab, lsp_client) {
+            let tab = &mut self.tabs[idx];
+            if tab.lsp_version == 0
+                && !tab.is_binary
+                && lsp.is_initialized()
+                && let Ok(uri) = Url::from_file_path(&tab.path)
+            {
+                let lang_id = lang_id_from_path(&tab.path);
+                lsp.notify_did_open(uri, lang_id, 1, tab.content.clone());
+                tab.lsp_version = 1;
+            }
+        }
+
         let is_binary = self.active().is_some_and(|t| t.is_binary);
 
-        let current_diagnostics: Option<Vec<async_lsp::lsp_types::Diagnostic>> = diagnostics
-            .and_then(|dm: &DiagnosticsMap| {
+        let current_diagnostics: Option<Vec<async_lsp::lsp_types::Diagnostic>> = lsp_client
+            .and_then(|lsp| {
                 self.active_path().and_then(|path| {
                     Url::from_file_path(path)
                         .ok()
-                        .and_then(|uri| dm.lock().unwrap().get(&uri).cloned())
+                        .and_then(|uri| lsp.diagnostics().lock().unwrap().get(&uri).cloned())
                 })
             });
 
         if is_binary {
             self.ui_binary(ui, i18n)
         } else if self.is_markdown() {
-            self.ui_markdown_split(ui, dialog_open, i18n, current_diagnostics.as_ref())
+            self.ui_markdown_split(
+                ui,
+                dialog_open,
+                i18n,
+                current_diagnostics.as_ref(),
+                lsp_client,
+            )
         } else {
             if self.is_svg() {
                 if let Some(idx) = self.active_tab
@@ -610,7 +694,13 @@ impl Editor {
                     ui.separator();
                 }
             }
-            self.ui_normal(ui, dialog_open, i18n, current_diagnostics.as_ref())
+            self.ui_normal(
+                ui,
+                dialog_open,
+                i18n,
+                current_diagnostics.as_ref(),
+                lsp_client,
+            )
         }
     }
 
@@ -619,6 +709,7 @@ impl Editor {
         ui: &mut egui::Ui,
         git_branch: Option<&str>,
         i18n: &crate::i18n::I18n,
+        lsp_client: Option<&crate::app::lsp::LspClient>,
     ) {
         let tab = match self.active() {
             Some(t) => t,
@@ -635,6 +726,30 @@ impl Editor {
         });
 
         let file_type = ext_to_file_type(&self.extension());
+
+        // Diagnostic counts for active file
+        let (error_count, warning_count) = 'diag: {
+            let Some(lsp) = lsp_client else { break 'diag (0usize, 0usize) };
+            let Some(path) = self.active_path() else { break 'diag (0, 0) };
+            let Ok(uri) = Url::from_file_path(path) else { break 'diag (0, 0) };
+            let Ok(diags) = lsp.diagnostics().lock() else { break 'diag (0, 0) };
+            let Some(file_diags) = diags.get(&uri) else { break 'diag (0, 0) };
+            let errors = file_diags
+                .iter()
+                .filter(|d| {
+                    d.severity
+                        == Some(async_lsp::lsp_types::DiagnosticSeverity::ERROR)
+                })
+                .count();
+            let warnings = file_diags
+                .iter()
+                .filter(|d| {
+                    d.severity
+                        == Some(async_lsp::lsp_types::DiagnosticSeverity::WARNING)
+                })
+                .count();
+            (errors, warnings)
+        };
 
         ui.horizontal(|ui| {
             ui.label(
@@ -671,6 +786,25 @@ impl Editor {
                     );
                     ui.separator();
                 }
+                // Diagnostic counts — right-to-left: warnings first, then errors
+                if warning_count > 0 {
+                    ui.label(
+                        egui::RichText::new(format!("\u{26A0} {}", warning_count))
+                            .color(egui::Color32::from_rgb(255, 180, 0)),
+                    );
+                }
+                if error_count > 0 {
+                    if warning_count > 0 {
+                        ui.separator();
+                    }
+                    ui.label(
+                        egui::RichText::new(format!("\u{2715} {}", error_count))
+                            .color(egui::Color32::from_rgb(255, 80, 80)),
+                    );
+                }
+                if error_count > 0 || warning_count > 0 {
+                    ui.separator();
+                }
                 ui.label(
                     egui::RichText::new(i18n.get("statusbar-encoding")).color(secondary_color),
                 );
@@ -685,6 +819,21 @@ impl Editor {
 // ---------------------------------------------------------------------------
 // Helper free functions
 // ---------------------------------------------------------------------------
+
+fn lang_id_from_path(path: &std::path::Path) -> &'static str {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some("rs") => "rust",
+        Some("php") => "php",
+        Some("js") | Some("mjs") => "javascript",
+        Some("ts") => "typescript",
+        Some("py") => "python",
+        Some("html") | Some("htm") => "html",
+        Some("css") => "css",
+        Some("json") => "json",
+        Some("md") => "markdown",
+        _ => "plaintext",
+    }
+}
 
 pub(super) fn ext_to_file_type(ext: &str) -> &'static str {
     match ext {

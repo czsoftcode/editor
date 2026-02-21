@@ -289,7 +289,8 @@ impl Editor {
         ui: &mut egui::Ui,
         dialog_open: bool,
         i18n: &crate::i18n::I18n,
-        diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>, // Updated type
+        diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>,
+        lsp_client: Option<&crate::app::lsp::LspClient>,
     ) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
@@ -405,6 +406,7 @@ impl Editor {
                             .show(ui);
 
                         Self::paint_line_numbers(ui, &response, gutter_rect, diagnostics_for_file);
+                        Self::paint_squiggles(ui, &response, diagnostics_for_file);
 
                         if response.response.clicked() || response.response.has_focus() {
                             clicked = true;
@@ -424,12 +426,30 @@ impl Editor {
             self.tabs[idx].scroll_offset = scroll_y;
         }
 
+        if content_changed && let Some(lsp) = lsp_client {
+            let tab = &mut self.tabs[idx];
+            // Only send didChange if didOpen was already sent (lsp_version > 0).
+            // If lsp_version == 0, didOpen will fire next frame with current content.
+            if tab.lsp_version > 0
+                && let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(&tab.path)
+            {
+                tab.lsp_version += 1;
+                lsp.notify_did_change(uri, tab.lsp_version, tab.content.clone());
+            }
+        }
+
         if let Some(response) = &saved_response {
             self.show_editor_context_menu(response, i18n);
         }
         if content_changed && self.show_search {
             self.update_search();
         }
+
+        // -----------------------------------------------------------------------
+        // LSP interactions — hover, go-to-definition, completion
+        // (runs after frame.show so we can re-borrow self freely)
+        // -----------------------------------------------------------------------
+        self.process_lsp_interactions(ui, idx, &tab_path, lsp_client, &saved_response);
 
         clicked
     }
@@ -441,7 +461,8 @@ impl Editor {
         ui: &mut egui::Ui,
         dialog_open: bool,
         i18n: &crate::i18n::I18n,
-        diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>, // Updated type
+        diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>,
+        lsp_client: Option<&crate::app::lsp::LspClient>,
     ) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
@@ -546,6 +567,7 @@ impl Editor {
                                     gutter_rect,
                                     diagnostics_for_file,
                                 );
+                                Self::paint_squiggles(ui, &response, diagnostics_for_file);
 
                                 if response.response.clicked() || response.response.has_focus() {
                                     clicked = true;
@@ -631,6 +653,18 @@ impl Editor {
                 });
             },
         );
+
+        if content_changed && let Some(lsp) = lsp_client {
+            let tab = &mut self.tabs[idx];
+            // Only send didChange if didOpen was already sent (lsp_version > 0).
+            // If lsp_version == 0, didOpen will fire next frame with current content.
+            if tab.lsp_version > 0
+                && let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(&tab.path)
+            {
+                tab.lsp_version += 1;
+                lsp.notify_did_change(uri, tab.lsp_version, tab.content.clone());
+            }
+        }
 
         if let Some(response) = &saved_response {
             self.show_editor_context_menu(response, i18n);
@@ -754,6 +788,77 @@ impl Editor {
         (digits as f32) * char_width + 12.0
     }
 
+    /// Paints colored underlines under lines that have LSP diagnostics.
+    /// ERROR = červená, WARNING = oranžová, INFO = modrá, HINT = zelená.
+    pub(super) fn paint_squiggles(
+        ui: &mut egui::Ui,
+        output: &egui::text_edit::TextEditOutput,
+        diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>,
+    ) {
+        let Some(diagnostics) = diagnostics_for_file else { return };
+        if diagnostics.is_empty() {
+            return;
+        }
+
+        // Build map: 0-based logical line → (priority, color)
+        // Lower priority number = higher severity (ERROR=0 wins over WARNING=1, etc.)
+        let mut diag_by_line: HashMap<usize, (u8, egui::Color32)> = HashMap::new();
+        for diag in diagnostics {
+            let line = diag.range.start.line as usize;
+            let (color, priority) = match diag.severity {
+                Some(async_lsp::lsp_types::DiagnosticSeverity::ERROR) => {
+                    (egui::Color32::from_rgba_unmultiplied(220, 50, 50, 160), 0u8)
+                }
+                Some(async_lsp::lsp_types::DiagnosticSeverity::WARNING) => {
+                    (egui::Color32::from_rgba_unmultiplied(220, 160, 0, 130), 1)
+                }
+                Some(async_lsp::lsp_types::DiagnosticSeverity::INFORMATION) => {
+                    (egui::Color32::from_rgba_unmultiplied(30, 150, 220, 100), 2)
+                }
+                Some(async_lsp::lsp_types::DiagnosticSeverity::HINT) => {
+                    (egui::Color32::from_rgba_unmultiplied(80, 200, 80, 80), 3)
+                }
+                _ => continue,
+            };
+            diag_by_line
+                .entry(line)
+                .and_modify(|(prev_prio, prev_color)| {
+                    if priority < *prev_prio {
+                        *prev_prio = priority;
+                        *prev_color = color;
+                    }
+                })
+                .or_insert((priority, color));
+        }
+
+        let galley_pos = output.galley_pos;
+        let galley = &output.galley;
+
+        let mut logical_line: usize = 0;
+        let mut is_new_line = true;
+
+        for row in galley.rows.iter() {
+            if is_new_line {
+                if let Some((_, color)) = diag_by_line.get(&logical_line) {
+                    let y = galley_pos.y + row.rect.min.y;
+                    let row_h = row.rect.height();
+                    let x_start = galley_pos.x + row.rect.min.x;
+                    // Extend at least a bit so empty lines are also visible
+                    let x_end = (galley_pos.x + row.rect.max.x).max(x_start + 40.0);
+
+                    // 2px underline at the bottom of the row
+                    let underline_rect = egui::Rect::from_min_max(
+                        egui::pos2(x_start, y + row_h - 2.0),
+                        egui::pos2(x_end, y + row_h),
+                    );
+                    ui.painter().rect_filled(underline_rect, 0.0, *color);
+                }
+                logical_line += 1;
+            }
+            is_new_line = row.ends_with_newline;
+        }
+    }
+
     pub(super) fn paint_line_numbers(
         ui: &mut egui::Ui,
         output: &egui::text_edit::TextEditOutput,
@@ -842,25 +947,27 @@ impl Editor {
                     ui.fonts(|f| f.layout_no_wrap(line_number_text, font_id.clone(), text_color));
                 let text_pos = egui::pos2(gutter_rect.right() - 4.0 - text_galley.rect.width(), y);
 
-                let line_number_rect = egui::Rect::from_min_size(
-                    text_pos,
-                    egui::vec2(text_galley.rect.width() + 12.0, row_height), // Wider for dot and hover
+                // Hover area: full gutter row width for easy tooltip triggering
+                let line_number_rect = egui::Rect::from_min_max(
+                    egui::pos2(gutter_rect.left(), y),
+                    egui::pos2(gutter_rect.right(), y + row_height),
                 );
                 let response = ui.allocate_rect(line_number_rect, egui::Sense::hover());
 
                 ui.painter().galley(text_pos, text_galley, text_color);
 
+                // Dot on the LEFT side of the gutter — no overlap with line numbers
                 if let Some(color) = dot_color {
                     ui.painter().circle_filled(
-                        egui::pos2(gutter_rect.right() - 8.0, y + row_height / 2.0),
-                        3.0,
+                        egui::pos2(gutter_rect.left() + 6.0, y + row_height / 2.0),
+                        3.5,
                         color,
                     );
                 }
 
                 if response.hovered() && !tooltip_text.is_empty() {
                     response.on_hover_ui_at_pointer(|ui| {
-                        for msg in tooltip_text {
+                        for msg in &tooltip_text {
                             ui.label(msg);
                         }
                     });
@@ -870,6 +977,531 @@ impl Editor {
             }
             is_new_line = row.ends_with_newline;
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // LSP interaction logic
+    // -----------------------------------------------------------------------
+
+    /// Handles all LSP interactions: hover, go-to-definition (F12), completion (Ctrl+Space).
+    /// Called after the TextEdit frame is rendered so self can be freely borrowed.
+    #[allow(clippy::too_many_arguments)]
+    fn process_lsp_interactions(
+        &mut self,
+        ui: &egui::Ui,
+        idx: usize,
+        tab_path: &std::path::Path,
+        lsp_client: Option<&crate::app::lsp::LspClient>,
+        saved_response: &Option<egui::text_edit::TextEditOutput>,
+    ) {
+        use super::LspCompletionState;
+        use super::LspHoverPopup;
+        use super::LSP_HOVER_DEBOUNCE_MS;
+
+        let tab_lsp_version = self.tabs[idx].lsp_version;
+        let tab_is_binary = self.tabs[idx].is_binary;
+
+        // --- Process pending async results ---
+
+        // Hover result
+        if let Some(rx) = &self.lsp_hover_rx {
+            if let Ok(result) = rx.try_recv() {
+                self.lsp_hover_rx = None;
+                if let Some(hover) = result {
+                    let content = hover_content_to_string(&hover);
+                    if !content.trim().is_empty() {
+                        self.lsp_hover_popup = Some(LspHoverPopup {
+                            content,
+                            screen_pos: self.lsp_hover_screen_pos.unwrap_or_default(),
+                        });
+                    }
+                }
+            }
+        }
+
+        // Go-to-definition result
+        if let Some(rx) = &self.lsp_definition_rx {
+            if let Ok(result) = rx.try_recv() {
+                self.lsp_definition_rx = None;
+                if let Some(def_resp) = result {
+                    let location = match def_resp {
+                        async_lsp::lsp_types::GotoDefinitionResponse::Scalar(loc) => Some(loc),
+                        async_lsp::lsp_types::GotoDefinitionResponse::Array(locs) => {
+                            locs.into_iter().next()
+                        }
+                        async_lsp::lsp_types::GotoDefinitionResponse::Link(links) => {
+                            links.into_iter().next().map(|l| async_lsp::lsp_types::Location {
+                                uri: l.target_uri,
+                                range: l.target_range,
+                            })
+                        }
+                    };
+                    if let Some(loc) = location {
+                        if let Ok(path) = loc.uri.to_file_path() {
+                            let line = loc.range.start.line as usize + 1; // → 1-based
+                            self.pending_lsp_navigate = Some((path, line));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Completion result
+        if let Some(rx) = &self.lsp_completion_rx {
+            if let Ok(result) = rx.try_recv() {
+                self.lsp_completion_rx = None;
+                let items: Vec<_> = match result {
+                    Some(async_lsp::lsp_types::CompletionResponse::Array(items)) => items,
+                    Some(async_lsp::lsp_types::CompletionResponse::List(list)) => list.items,
+                    None => Vec::new(),
+                };
+                let items: Vec<_> = items.into_iter().take(25).collect();
+                if !items.is_empty() {
+                    self.lsp_completion = Some(LspCompletionState {
+                        items,
+                        selected: 0,
+                        screen_pos: self.lsp_completion_cursor_pos.unwrap_or_default(),
+                    });
+                }
+            }
+        }
+
+        // --- Skip LSP interactions for binary files or when LSP not ready ---
+        if tab_is_binary || tab_lsp_version == 0 {
+            return;
+        }
+
+        // --- Pre-compute cursor/galley data from saved response ---
+        let cursor_lsp_pos = saved_response.as_ref().and_then(|r| {
+            r.cursor_range.map(|cr| async_lsp::lsp_types::Position {
+                line: cr.primary.rcursor.row as u32,
+                character: cr.primary.rcursor.column as u32,
+            })
+        });
+        let cursor_screen_pos = saved_response.as_ref().and_then(|r| {
+            r.cursor_range.map(|cr| {
+                r.galley_pos + r.galley.pos_from_cursor(&cr.primary).min.to_vec2()
+            })
+        });
+        let editor_rect = saved_response.as_ref().map(|r| r.response.rect);
+        let galley_info = saved_response
+            .as_ref()
+            .map(|r| (r.galley_pos, r.galley.clone()));
+
+        // --- Keyboard: F12 — go to definition ---
+        let f12 = ui.ctx().input(|i| i.key_pressed(egui::Key::F12));
+        if f12 {
+            if let (Some(lsp), Some(pos)) = (lsp_client, cursor_lsp_pos) {
+                if let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(tab_path) {
+                    self.lsp_definition_rx = Some(lsp.request_goto_definition(uri, pos));
+                }
+            }
+        }
+
+        // --- Keyboard: Ctrl+Space — trigger completion ---
+        let ctrl_space = ui
+            .ctx()
+            .input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Space));
+        if ctrl_space {
+            if let (Some(lsp), Some(pos), Some(screen)) = (lsp_client, cursor_lsp_pos, cursor_screen_pos) {
+                if let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(tab_path) {
+                    self.lsp_completion_cursor_pos = Some(screen);
+                    self.lsp_completion = None;
+                    self.lsp_completion_rx = Some(lsp.request_completion(uri, pos));
+                }
+            }
+        }
+
+        // --- Completion keyboard navigation (when popup is open) ---
+        let mut completion_accepted_idx: Option<usize> = None;
+        let mut completion_close = false;
+        if self.lsp_completion.is_some() {
+            let (up, down, enter, tab, esc) = ui.ctx().input_mut(|i| {
+                (
+                    i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp),
+                    i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown),
+                    i.consume_key(egui::Modifiers::NONE, egui::Key::Enter),
+                    i.consume_key(egui::Modifiers::NONE, egui::Key::Tab),
+                    i.consume_key(egui::Modifiers::NONE, egui::Key::Escape),
+                )
+            });
+            if let Some(ref mut comp) = self.lsp_completion {
+                if up && comp.selected > 0 {
+                    comp.selected -= 1;
+                }
+                if down && comp.selected + 1 < comp.items.len() {
+                    comp.selected += 1;
+                }
+                if enter || tab {
+                    completion_accepted_idx = Some(comp.selected);
+                }
+                if esc {
+                    completion_close = true;
+                }
+            }
+        }
+
+        // --- Accept completion item ---
+        // --- Render completion popup (before acceptance so click can set accept_idx) ---
+        if let Some(ref comp) = self.lsp_completion {
+            let comp_screen_pos = comp.screen_pos;
+            let comp_selected = comp.selected;
+            let comp_items = comp.items.clone();
+            let mock_comp = LspCompletionState {
+                items: comp_items,
+                selected: comp_selected,
+                screen_pos: comp_screen_pos,
+            };
+            if let Some(clicked_idx) = Self::render_completion_popup(ui, &mock_comp) {
+                // Click overrides keyboard selection
+                completion_accepted_idx = Some(clicked_idx);
+            }
+        }
+
+        // --- Accept completion item (keyboard Enter/Tab or mouse click) ---
+        if let Some(accept_idx) = completion_accepted_idx {
+            // Clone item data to avoid borrow conflict
+            let insert_text = self
+                .lsp_completion
+                .as_ref()
+                .and_then(|c| c.items.get(accept_idx))
+                .map(|item| {
+                    item.insert_text
+                        .clone()
+                        .unwrap_or_else(|| item.label.clone())
+                });
+
+            if let Some(insert_text) = insert_text {
+                let cursor_char_idx = saved_response
+                    .as_ref()
+                    .and_then(|r| r.cursor_range)
+                    .map(|cr| cr.primary.ccursor.index)
+                    .unwrap_or(0);
+                let content = &self.tabs[idx].content;
+                // Find word start: walk back while alphanumeric or '_'
+                let word_start = content
+                    .char_indices()
+                    .take(cursor_char_idx)
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .take_while(|(_, c)| c.is_alphanumeric() || *c == '_')
+                    .last()
+                    .map(|(i, _)| content[..i].chars().count())
+                    .unwrap_or(cursor_char_idx);
+                let byte_start = content
+                    .char_indices()
+                    .nth(word_start)
+                    .map(|(i, _)| i)
+                    .unwrap_or(content.len());
+                let byte_end = content
+                    .char_indices()
+                    .nth(cursor_char_idx)
+                    .map(|(i, _)| i)
+                    .unwrap_or(content.len());
+                {
+                    let tab = &mut self.tabs[idx];
+                    tab.content.replace_range(byte_start..byte_end, &insert_text);
+                    tab.modified = true;
+                    tab.last_edit = Some(std::time::Instant::now());
+                    tab.save_status = super::SaveStatus::Modified;
+                }
+                let new_cursor_char = word_start + insert_text.chars().count();
+                let edit_id = egui::Id::new("editor_text").with(tab_path);
+                let mut state =
+                    egui::text_edit::TextEditState::load(ui.ctx(), edit_id).unwrap_or_default();
+                state.cursor.set_char_range(Some(egui::text::CCursorRange::one(
+                    egui::text::CCursor::new(new_cursor_char),
+                )));
+                state.store(ui.ctx(), edit_id);
+            }
+            self.lsp_completion = None;
+        }
+        if completion_close {
+            self.lsp_completion = None;
+        }
+
+        // --- Mouse hover for documentation ---
+        if let (Some((galley_pos, galley)), Some(rect)) = (galley_info, editor_rect) {
+            let ptr_pos = ui.ctx().pointer_hover_pos();
+            if let Some(pos) = ptr_pos {
+                if rect.contains(pos) {
+                    // Convert mouse pos to LSP position via galley
+                    let rel = pos - galley_pos;
+                    let cursor = galley.cursor_from_pos(rel);
+                    let lsp_pos = async_lsp::lsp_types::Position {
+                        line: cursor.rcursor.row as u32,
+                        character: cursor.rcursor.column as u32,
+                    };
+                    let pos_changed = self.lsp_hover_last_pos != Some(lsp_pos);
+                    if pos_changed {
+                        self.lsp_hover_last_pos = Some(lsp_pos);
+                        self.lsp_hover_timer = Some(std::time::Instant::now());
+                        self.lsp_hover_popup = None;
+                        self.lsp_hover_rx = None;
+                        self.lsp_hover_screen_pos = Some(pos);
+                    }
+                    // Debounce: trigger after LSP_HOVER_DEBOUNCE_MS of no movement
+                    if let Some(timer) = self.lsp_hover_timer {
+                        if timer.elapsed().as_millis() >= LSP_HOVER_DEBOUNCE_MS
+                            && self.lsp_hover_rx.is_none()
+                            && self.lsp_hover_popup.is_none()
+                        {
+                            if let (Some(lsp), Ok(uri)) = (
+                                lsp_client,
+                                async_lsp::lsp_types::Url::from_file_path(tab_path),
+                            ) {
+                                self.lsp_hover_rx = Some(lsp.request_hover(uri, lsp_pos));
+                            }
+                        }
+                    }
+                } else {
+                    // Mouse left the editor area — dismiss popup
+                    self.lsp_hover_popup = None;
+                    self.lsp_hover_last_pos = None;
+                    self.lsp_hover_timer = None;
+                    self.lsp_hover_rx = None;
+                }
+            }
+        }
+
+        // --- Render hover popup ---
+        if let Some(ref popup) = self.lsp_hover_popup {
+            let content = popup.content.clone();
+            let screen_pos = popup.screen_pos;
+            Self::render_hover_popup(ui, &content, screen_pos);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // LSP popup rendering
+    // -----------------------------------------------------------------------
+
+    /// Renders the hover documentation popup as a floating Area.
+    /// Properly parses markdown code fences — code blocks are rendered monospace,
+    /// prose sections are rendered as regular text.
+    pub(super) fn render_hover_popup(
+        ui: &egui::Ui,
+        content: &str,
+        screen_pos: egui::Pos2,
+    ) {
+        let popup_pos = screen_pos + egui::vec2(8.0, 16.0);
+        egui::Area::new(egui::Id::new("lsp_hover_popup"))
+            .fixed_pos(popup_pos)
+            .order(egui::Order::Tooltip)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::new()
+                    .fill(egui::Color32::from_rgb(35, 38, 46))
+                    .stroke(egui::Stroke::new(
+                        1.0,
+                        egui::Color32::from_rgb(70, 80, 100),
+                    ))
+                    .inner_margin(egui::Margin::same(10))
+                    .corner_radius(4.0)
+                    .show(ui, |ui| {
+                        ui.set_max_width(520.0);
+                        egui::ScrollArea::vertical()
+                            .id_salt("lsp_hover_scroll")
+                            .max_height(260.0)
+                            .show(ui, |ui| {
+                                let segments = parse_hover_segments(content);
+                                let mut first = true;
+                                for seg in &segments {
+                                    if !first {
+                                        ui.add_space(6.0);
+                                        ui.separator();
+                                        ui.add_space(4.0);
+                                    }
+                                    first = false;
+                                    match seg {
+                                        HoverSegment::Code(code) => {
+                                            let trimmed = code.trim();
+                                            if !trimmed.is_empty() {
+                                                ui.label(
+                                                    egui::RichText::new(trimmed)
+                                                        .monospace()
+                                                        .color(egui::Color32::from_rgb(
+                                                            180, 210, 255,
+                                                        )),
+                                                );
+                                            }
+                                        }
+                                        HoverSegment::Prose(text) => {
+                                            let trimmed = text.trim();
+                                            if !trimmed.is_empty() {
+                                                ui.label(
+                                                    egui::RichText::new(trimmed).color(
+                                                        egui::Color32::from_rgb(200, 200, 200),
+                                                    ),
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                    });
+            });
+    }
+
+    /// Renders the completion dropdown and returns true if an item was accepted.
+    /// Also handles keyboard navigation (arrow keys consumed pre-frame, but selected
+    /// index is already updated by the time this runs).
+    pub(super) fn render_completion_popup(
+        ui: &egui::Ui,
+        state: &super::LspCompletionState,
+    ) -> Option<usize> {
+        let mut accepted = None;
+
+        let font_size = Self::current_editor_font_size(ui);
+        let popup_pos = state.screen_pos + egui::vec2(0.0, font_size + 4.0);
+
+        egui::Area::new(egui::Id::new("lsp_completion_popup"))
+            .fixed_pos(popup_pos)
+            .order(egui::Order::Foreground)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::new()
+                    .fill(egui::Color32::from_rgb(38, 41, 50))
+                    .stroke(egui::Stroke::new(
+                        1.0,
+                        egui::Color32::from_rgb(80, 100, 130),
+                    ))
+                    .inner_margin(egui::Margin::same(4))
+                    .corner_radius(4.0)
+                    .show(ui, |ui| {
+                        ui.set_max_width(380.0);
+                        egui::ScrollArea::vertical()
+                            .id_salt("lsp_completion_scroll")
+                            .max_height(220.0)
+                            .show(ui, |ui| {
+                                for (i, item) in state.items.iter().enumerate() {
+                                    let is_selected = i == state.selected;
+                                    let kind_label = completion_kind_label(item.kind);
+                                    let label = format!(
+                                        "{} {}",
+                                        kind_label,
+                                        item.detail
+                                            .as_deref()
+                                            .map(|d| format!("{} — {}", item.label, d))
+                                            .unwrap_or_else(|| item.label.clone()),
+                                    );
+                                    let text = egui::RichText::new(&label)
+                                        .monospace()
+                                        .size(font_size - 1.0);
+                                    let response = ui.selectable_label(is_selected, text);
+                                    if is_selected {
+                                        response.scroll_to_me(None);
+                                    }
+                                    if response.clicked() {
+                                        accepted = Some(i);
+                                    }
+                                }
+                            });
+                    });
+            });
+
+        accepted
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Markdown hover parsing helpers
+// ---------------------------------------------------------------------------
+
+/// A segment of parsed markdown hover content.
+enum HoverSegment {
+    /// Content of a fenced code block (``` ... ```).
+    Code(String),
+    /// Plain prose text outside code blocks.
+    Prose(String),
+}
+
+/// Parses markdown content into alternating Code/Prose segments.
+/// Properly handles fenced code blocks (```lang ... ```).
+fn parse_hover_segments(content: &str) -> Vec<HoverSegment> {
+    let mut segments: Vec<HoverSegment> = Vec::new();
+    let mut in_fence = false;
+    let mut current: Vec<&str> = Vec::new();
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") {
+            if in_fence {
+                // Close fence — emit code block
+                let code = current.join("\n");
+                if !code.trim().is_empty() {
+                    segments.push(HoverSegment::Code(code));
+                }
+                current.clear();
+                in_fence = false;
+            } else {
+                // Open fence — flush accumulated prose first
+                let prose = current.join("\n");
+                if !prose.trim().is_empty() {
+                    segments.push(HoverSegment::Prose(prose));
+                }
+                current.clear();
+                in_fence = true;
+                // Skip the fence-opening line (it contains the language tag, not code)
+            }
+        } else {
+            current.push(line);
+        }
+    }
+
+    // Flush remaining content
+    if !current.is_empty() {
+        let text = current.join("\n");
+        if !text.trim().is_empty() {
+            if in_fence {
+                segments.push(HoverSegment::Code(text));
+            } else {
+                segments.push(HoverSegment::Prose(text));
+            }
+        }
+    }
+
+    segments
+}
+
+/// Converts LSP Hover content to a plain string for display.
+pub(super) fn hover_content_to_string(hover: &async_lsp::lsp_types::Hover) -> String {
+    match &hover.contents {
+        async_lsp::lsp_types::HoverContents::Markup(mc) => mc.value.clone(),
+        async_lsp::lsp_types::HoverContents::Scalar(ms) => marked_string_value(ms),
+        async_lsp::lsp_types::HoverContents::Array(arr) => arr
+            .iter()
+            .map(marked_string_value)
+            .collect::<Vec<_>>()
+            .join("\n\n"),
+    }
+}
+
+fn marked_string_value(ms: &async_lsp::lsp_types::MarkedString) -> String {
+    match ms {
+        async_lsp::lsp_types::MarkedString::String(s) => s.clone(),
+        async_lsp::lsp_types::MarkedString::LanguageString(ls) => ls.value.clone(),
+    }
+}
+
+/// Short kind label for a completion item (shown before the label).
+fn completion_kind_label(kind: Option<async_lsp::lsp_types::CompletionItemKind>) -> &'static str {
+    use async_lsp::lsp_types::CompletionItemKind;
+    match kind {
+        Some(CompletionItemKind::FUNCTION) | Some(CompletionItemKind::METHOD) => "fn",
+        Some(CompletionItemKind::CONSTRUCTOR) => "fn",
+        Some(CompletionItemKind::STRUCT) | Some(CompletionItemKind::CLASS) => "st",
+        Some(CompletionItemKind::INTERFACE) => "if",
+        Some(CompletionItemKind::ENUM) => "en",
+        Some(CompletionItemKind::ENUM_MEMBER) => "ev",
+        Some(CompletionItemKind::CONSTANT) => "co",
+        Some(CompletionItemKind::VARIABLE)
+        | Some(CompletionItemKind::FIELD)
+        | Some(CompletionItemKind::PROPERTY) => "va",
+        Some(CompletionItemKind::KEYWORD) => "kw",
+        Some(CompletionItemKind::MODULE) => "mo",
+        Some(CompletionItemKind::TYPE_PARAMETER) => "ty",
+        Some(CompletionItemKind::SNIPPET) => "sn",
+        _ => "  ",
     }
 }
 

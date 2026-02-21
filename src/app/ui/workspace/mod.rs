@@ -156,7 +156,7 @@ pub(crate) fn render_workspace(
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
         .show(ctx, |ui| {
-            ws.editor.status_bar(ui, ws.git_branch.as_deref(), i18n);
+            ws.editor.status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
         });
 
     let dialog_open = ws.file_tree.has_open_dialog();
@@ -169,15 +169,16 @@ pub(crate) fn render_workspace(
     let prev_active_path = ws.editor.active_path().cloned();
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        if ws.editor.ui(
-            ui,
-            dialog_open,
-            i18n,
-            ws.lsp_client.as_ref().map(|c| c.diagnostics()),
-        ) {
+        if ws.editor.ui(ui, dialog_open, i18n, ws.lsp_client.as_ref()) {
             ws.focused_panel = FocusedPanel::Editor;
         }
     });
+
+    // Go-to-definition navigation: open file and jump to line
+    if let Some((path, line)) = ws.editor.pending_lsp_navigate.take() {
+        open_file_in_ws(ws, path);
+        ws.editor.jump_to_line(line);
+    }
 
     // If the tab was switched, switch FileWatcher to the directory of the new tab.
     let new_active_path = ws.editor.active_path().cloned();
@@ -205,7 +206,7 @@ pub(crate) fn render_workspace(
 }
 
 fn render_lsp_setup_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
-    if !ws.lsp_binary_missing || ws.lsp_install_rx.is_some() {
+    if !ws.lsp_binary_missing && ws.lsp_install_rx.is_none() {
         return;
     }
 

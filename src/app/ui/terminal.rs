@@ -250,12 +250,18 @@ impl Terminal {
                     let display_offset = content.grid.display_offset();
                     let line_idx = (rel_y / cell_h) as i32;
                     let grid_line_idx = line_idx - display_offset as i32;
-                    
+
                     // Check cache
                     let current_point = (grid_line_idx, col_idx);
                     let cached_result = if let Some((point, res)) = &self.path_cache {
-                        if *point == current_point { Some(res.clone()) } else { None }
-                    } else { None };
+                        if *point == current_point {
+                            Some(res.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
 
                     let nav_action = if let Some(res) = cached_result {
                         res
@@ -263,7 +269,7 @@ impl Terminal {
                         // Cache miss: detect path
                         let mut detected = None;
                         let grid_line = alacritty_terminal::index::Line(grid_line_idx);
-                        
+
                         let num_lines = content.grid.total_lines();
                         // Alacritty line indexing is tricky. total_lines includes history.
                         // We check bounds safely.
@@ -275,14 +281,21 @@ impl Terminal {
                                 let cell = &row[alacritty_terminal::index::Column(col)];
                                 line_text.push(cell.c);
                             }
-                            
+
                             for cap in self.path_regex.captures_iter(&line_text) {
                                 let mat = cap.get(0).unwrap();
                                 if col_idx >= mat.start() && col_idx < mat.end() {
                                     let path_str = &cap[1];
                                     let line = cap[2].parse().unwrap_or(1);
-                                    let col = cap.get(3).map(|m| m.as_str().parse().unwrap_or(1)).unwrap_or(1);
-                                    detected = Some(TerminalAction::Navigate(PathBuf::from(path_str), line, col));
+                                    let col = cap
+                                        .get(3)
+                                        .map(|m| m.as_str().parse().unwrap_or(1))
+                                        .unwrap_or(1);
+                                    detected = Some(TerminalAction::Navigate(
+                                        PathBuf::from(path_str),
+                                        line,
+                                        col,
+                                    ));
                                     break;
                                 }
                             }

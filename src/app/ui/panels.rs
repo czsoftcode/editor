@@ -137,9 +137,7 @@ fn render_build_panel(
     });
     ui.separator();
 
-    if !dialog_open
-        && let Some(terminal) = &mut ws.build_terminal
-    {
+    if !dialog_open && let Some(terminal) = &mut ws.build_terminal {
         let terminal_action = terminal.ui(
             ui,
             focused == FocusedPanel::Build,
@@ -147,7 +145,8 @@ fn render_build_panel(
             i18n,
         );
         match terminal_action {
-            Some(super::terminal::TerminalAction::Clicked) | Some(super::terminal::TerminalAction::Hovered) => {
+            Some(super::terminal::TerminalAction::Clicked)
+            | Some(super::terminal::TerminalAction::Hovered) => {
                 ws.focused_panel = FocusedPanel::Build;
                 *any_clicked = true;
             }

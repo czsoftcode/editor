@@ -53,6 +53,14 @@ search-no-results = No matches found
 editor-empty-hint = Open a file from the file tree on the left
 editor-preview-label = Preview
 
+# LSP / rust-analyzer
+lsp-missing-title = Missing rust-analyzer
+lsp-missing-msg = Smart features (autocomplete, diagnostics) require rust-analyzer. Would you like to install it?
+lsp-install-btn = Install
+lsp-installing = Installing rust-analyzer...
+lsp-install-success = rust-analyzer installed successfully. Restarting LSP...
+lsp-install-error = Installation failed: { $error }
+
 ## Terminal
 terminal-unavailable = Terminal is not available.
 terminal-retry = Try again

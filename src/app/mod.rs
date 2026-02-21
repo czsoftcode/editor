@@ -4,6 +4,7 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 mod build_runner;
+pub mod lsp;
 mod project_config;
 mod types;
 pub(crate) mod ui;
@@ -113,7 +114,7 @@ impl EditorApp {
         // Initialize root workspace
         let root_ws = paths_to_open
             .first()
-            .map(|p| init_workspace(p.clone(), &panel_state));
+            .map(|p| init_workspace(p.clone(), &panel_state, cc.egui_ctx.clone()));
 
         // Initialize secondary workspaces from session
         let mut counter = 0u64;
@@ -126,7 +127,11 @@ impl EditorApp {
                 counter += 1;
                 SecondaryWorkspace {
                     viewport_id: vid,
-                    state: Arc::new(Mutex::new(init_workspace(p.clone(), &panel_state))),
+                    state: Arc::new(Mutex::new(init_workspace(
+                        p.clone(),
+                        &panel_state,
+                        cc.egui_ctx.clone(),
+                    ))),
                     close_requested: Arc::new(AtomicBool::new(false)),
                 }
             })
@@ -241,7 +246,7 @@ impl EditorApp {
             egui::ViewportId::from_hash_of(format!("workspace_{}", self.next_viewport_counter));
         self.next_viewport_counter += 1;
         let panel_state = self.current_panel_state();
-        let ws = init_workspace(path.clone(), &panel_state);
+        let ws = init_workspace(path.clone(), &panel_state, ctx.clone());
         self.secondary.push(SecondaryWorkspace {
             viewport_id: vid,
             state: Arc::new(Mutex::new(ws)),
@@ -305,7 +310,7 @@ impl EditorApp {
                     if let Some(new_path) = render_workspace(ctx, &mut ws, &shared_arc) {
                         let panel = ws_to_panel_state(&ws);
                         let new_path_clone = new_path.clone();
-                        *ws = init_workspace(new_path, &panel);
+                        *ws = init_workspace(new_path, &panel, ctx.clone());
                         ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
                             "PolyCredo Editor — {}",
                             ws.root_path.display()
@@ -430,7 +435,7 @@ impl EditorApp {
         let ps = self.current_panel_state();
         // User opened a new project — missing session projects are no longer relevant
         self.missing_session_paths.clear();
-        self.root_ws = Some(init_workspace(path, &ps));
+        self.root_ws = Some(init_workspace(path, &ps, ctx.clone()));
         self.save_session();
     }
 
@@ -751,7 +756,7 @@ impl eframe::App for EditorApp {
             if let Some(new_path) = reinit {
                 let panel = ws_to_panel_state(&ws);
                 let new_path_clone = new_path.clone();
-                ws = init_workspace(new_path, &panel);
+                ws = init_workspace(new_path, &panel, ctx.clone());
                 ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
                     "PolyCredo Editor — {}",
                     ws.root_path.display()

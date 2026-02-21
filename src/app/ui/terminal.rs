@@ -247,13 +247,13 @@ impl Terminal {
                     let mut current_line_buffer = String::new();
                     for indexed in content.grid.display_iter() {
                         if range.contains(indexed.point) {
-                            if let Some(last) = last_line {
-                                if indexed.point.line != last {
-                                    // New line started, trim previous line buffer and add newline
-                                    result.push_str(current_line_buffer.trim_end());
-                                    result.push('\n');
-                                    current_line_buffer.clear();
-                                }
+                            if let Some(last) = last_line
+                                && indexed.point.line != last
+                            {
+                                // New line started, trim previous line buffer and add newline
+                                result.push_str(current_line_buffer.trim_end());
+                                result.push('\n');
+                                current_line_buffer.clear();
                             }
                             current_line_buffer.push(indexed.c);
                             last_line = Some(indexed.point.line);

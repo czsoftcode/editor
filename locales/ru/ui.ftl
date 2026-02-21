@@ -53,6 +53,14 @@ search-no-results = Совпадений не найдено
 editor-empty-hint = Откройте файл из дерева файлов слева
 editor-preview-label = Предпросмотр
 
+# LSP / rust-analyzer
+lsp-missing-title = Отсутствует rust-analyzer
+lsp-missing-msg = Для работы интеллектуальных функций (автодополнение, ошибки) требуется rust-analyzer. Хотите установить его?
+lsp-install-btn = Установить
+lsp-installing = Установка rust-analyzer...
+lsp-install-success = rust-analyzer успешно установлен. Перезапуск LSP...
+lsp-install-error = Ошибка установки: { $error }
+
 ## Терминал
 terminal-unavailable = Терминал недоступен.
 terminal-retry = Повторить

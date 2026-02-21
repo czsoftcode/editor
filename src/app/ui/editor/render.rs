@@ -7,6 +7,7 @@ use crate::config;
 use super::search::apply_search_highlights;
 use super::{Editor, SaveStatus};
 use crate::app::ui::widgets::tab_bar::TabBarAction;
+use std::collections::HashMap;
 
 fn editor_line_count(content: &str) -> usize {
     content.lines().count().max(1) + usize::from(content.ends_with('\n'))
@@ -288,6 +289,7 @@ impl Editor {
         ui: &mut egui::Ui,
         dialog_open: bool,
         i18n: &crate::i18n::I18n,
+        diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>, // Updated type
     ) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
@@ -402,7 +404,7 @@ impl Editor {
                             .layouter(&mut layouter)
                             .show(ui);
 
-                        Self::paint_line_numbers(ui, &response, gutter_rect);
+                        Self::paint_line_numbers(ui, &response, gutter_rect, diagnostics_for_file);
 
                         if response.response.clicked() || response.response.has_focus() {
                             clicked = true;
@@ -439,6 +441,7 @@ impl Editor {
         ui: &mut egui::Ui,
         dialog_open: bool,
         i18n: &crate::i18n::I18n,
+        diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>, // Updated type
     ) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
@@ -537,7 +540,12 @@ impl Editor {
                                     .layouter(&mut layouter)
                                     .show(ui);
 
-                                Self::paint_line_numbers(ui, &response, gutter_rect);
+                                Self::paint_line_numbers(
+                                    ui,
+                                    &response,
+                                    gutter_rect,
+                                    diagnostics_for_file,
+                                );
 
                                 if response.response.clicked() || response.response.has_focus() {
                                     clicked = true;
@@ -747,15 +755,15 @@ impl Editor {
     }
 
     pub(super) fn paint_line_numbers(
-        ui: &egui::Ui,
+        ui: &mut egui::Ui,
         output: &egui::text_edit::TextEditOutput,
         gutter_rect: egui::Rect,
+        diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>,
     ) {
         let font_size = Self::current_editor_font_size(ui);
         let font_id = egui::FontId::monospace(font_size);
         let gutter_color = egui::Color32::from_rgb(130, 130, 130);
         let highlight_color = egui::Color32::from_rgba_unmultiplied(80, 65, 15, 50);
-        let painter = ui.painter();
 
         let galley_pos = output.galley_pos;
         let galley = &output.galley;
@@ -764,6 +772,20 @@ impl Editor {
 
         let mut line_num: usize = 1;
         let mut is_new_line = true;
+
+        let diagnostic_map: HashMap<usize, Vec<&async_lsp::lsp_types::Diagnostic>> =
+            diagnostics_for_file
+                .map(|diagnostics| {
+                    let mut map = HashMap::new();
+                    for diag in diagnostics {
+                        // LSP lines are 0-indexed, UI is 1-indexed
+                        map.entry(diag.range.start.line as usize + 1)
+                            .or_insert_with(Vec::new)
+                            .push(diag);
+                    }
+                    map
+                })
+                .unwrap_or_default();
 
         for (row_idx, row) in galley.rows.iter().enumerate() {
             let y = galley_pos.y + row.rect.min.y;
@@ -777,17 +799,73 @@ impl Editor {
                         row_height,
                     ),
                 );
-                painter.rect_filled(highlight_rect, 0.0, highlight_color);
+                ui.painter()
+                    .rect_filled(highlight_rect, 0.0, highlight_color);
             }
 
             if is_new_line {
-                painter.text(
-                    egui::pos2(gutter_rect.right() - 4.0, y),
-                    egui::Align2::RIGHT_TOP,
-                    format!("{}", line_num),
-                    font_id.clone(),
-                    gutter_color,
+                let current_line_num = line_num;
+                let text_color = gutter_color;
+                let mut dot_color = None;
+                let mut tooltip_text = Vec::new();
+
+                if let Some(diagnostics_on_line) = diagnostic_map.get(&current_line_num) {
+                    for diag in diagnostics_on_line {
+                        let severity_color = match diag.severity {
+                            Some(async_lsp::lsp_types::DiagnosticSeverity::ERROR) => {
+                                egui::Color32::from_rgb(255, 60, 60)
+                            }
+                            Some(async_lsp::lsp_types::DiagnosticSeverity::WARNING) => {
+                                egui::Color32::from_rgb(255, 180, 0)
+                            }
+                            Some(async_lsp::lsp_types::DiagnosticSeverity::INFORMATION) => {
+                                egui::Color32::from_rgb(0, 180, 255)
+                            }
+                            Some(async_lsp::lsp_types::DiagnosticSeverity::HINT) => {
+                                egui::Color32::from_rgb(100, 255, 100)
+                            }
+                            _ => gutter_color,
+                        };
+                        // Use the highest severity color for the dot
+                        if dot_color.is_none()
+                            || diag.severity
+                                == Some(async_lsp::lsp_types::DiagnosticSeverity::ERROR)
+                        {
+                            dot_color = Some(severity_color);
+                        }
+                        tooltip_text.push(diag.message.clone());
+                    }
+                }
+
+                let line_number_text = format!("{}", current_line_num);
+                let text_galley =
+                    ui.fonts(|f| f.layout_no_wrap(line_number_text, font_id.clone(), text_color));
+                let text_pos = egui::pos2(gutter_rect.right() - 4.0 - text_galley.rect.width(), y);
+
+                let line_number_rect = egui::Rect::from_min_size(
+                    text_pos,
+                    egui::vec2(text_galley.rect.width() + 12.0, row_height), // Wider for dot and hover
                 );
+                let response = ui.allocate_rect(line_number_rect, egui::Sense::hover());
+
+                ui.painter().galley(text_pos, text_galley, text_color);
+
+                if let Some(color) = dot_color {
+                    ui.painter().circle_filled(
+                        egui::pos2(gutter_rect.right() - 8.0, y + row_height / 2.0),
+                        3.0,
+                        color,
+                    );
+                }
+
+                if response.hovered() && !tooltip_text.is_empty() {
+                    response.on_hover_ui_at_pointer(|ui| {
+                        for msg in tooltip_text {
+                            ui.label(msg);
+                        }
+                    });
+                }
+
                 line_num += 1;
             }
             is_new_line = row.ends_with_newline;

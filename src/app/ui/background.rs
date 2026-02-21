@@ -155,6 +155,29 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
     {
         ws.toasts.push(Toast::error(err));
     }
+
+    // LSP installation progress
+    if let Some(rx) = &ws.lsp_install_rx
+        && let Ok(result) = rx.try_recv()
+    {
+        match result {
+            Ok(()) => {
+                ws.toasts.push(Toast::info(i18n.get("lsp-install-success")));
+                ws.lsp_binary_missing = false;
+                // Trigger a re-check/init by making the next frame believe it was just opened?
+                // Actually, init_workspace will be called again if we re-open or we can manually
+                // trigger it. For MVP, the user might need to re-open the project or we trigger
+                // a refresh.
+            }
+            Err(e) => {
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("error", e);
+                ws.toasts
+                    .push(Toast::error(i18n.get_args("lsp-install-error", &args)));
+            }
+        }
+        ws.lsp_install_rx = None;
+    }
 }
 
 /// Polling for subprocess completion (25 ms intervals) with cancellation support.

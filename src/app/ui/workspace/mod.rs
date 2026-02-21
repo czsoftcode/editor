@@ -116,6 +116,17 @@ pub(crate) fn render_workspace(
     let actions = render_menu_bar(ctx, ws, shared, i18n);
     let mut open_here_path = process_menu_actions(ws, shared, actions, i18n);
 
+    // LSP Setup Bar (if binary is missing)
+    render_lsp_setup_bar(ctx, ws, i18n);
+
+    // Auto-restart LSP if it was just installed
+    if !ws.lsp_binary_missing && ws.lsp_client.is_none() && ws.root_path.join("Cargo.toml").exists()
+    {
+        let root_uri = async_lsp::lsp_types::Url::from_directory_path(&ws.root_path)
+            .expect("valid root path for Url");
+        ws.lsp_client = crate::app::lsp::LspClient::new(ctx.clone(), root_uri);
+    }
+
     // Modal dialogs
     render_dialogs(ctx, ws, shared, i18n);
 
@@ -153,7 +164,12 @@ pub(crate) fn render_workspace(
     let prev_active_path = ws.editor.active_path().cloned();
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        if ws.editor.ui(ui, dialog_open, i18n) {
+        if ws.editor.ui(
+            ui,
+            dialog_open,
+            i18n,
+            ws.lsp_client.as_ref().map(|c| c.diagnostics()),
+        ) {
             ws.focused_panel = FocusedPanel::Editor;
         }
     });
@@ -181,4 +197,41 @@ pub(crate) fn render_workspace(
     render_toasts(ctx, ws);
 
     open_here_path
+}
+
+fn render_lsp_setup_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+    if !ws.lsp_binary_missing || ws.lsp_install_rx.is_some() {
+        return;
+    }
+
+    egui::TopBottomPanel::top("lsp_setup_bar").show(ctx, |ui| {
+        ui.horizontal(|ui| {
+            ui.visuals_mut().widgets.noninteractive.bg_fill = egui::Color32::from_rgb(60, 50, 20);
+            ui.spacing_mut().item_spacing.x = 12.0;
+
+            ui.label(
+                egui::RichText::new(format!("\u{26A0} {}", i18n.get("lsp-missing-msg")))
+                    .color(egui::Color32::from_rgb(255, 200, 100)),
+            );
+
+            if ui.button(i18n.get("lsp-install-btn")).clicked() {
+                ws.toasts.push(Toast::info(i18n.get("lsp-installing")));
+                let (tx, rx) = std::sync::mpsc::channel();
+                ws.lsp_install_rx = Some(rx);
+
+                std::thread::spawn(move || {
+                    let runtime = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap();
+                    let res = runtime.block_on(crate::app::lsp::LspClient::install_rust_analyzer());
+                    let _ = tx.send(res);
+                });
+            }
+
+            if ui.button("\u{00D7}").clicked() {
+                ws.lsp_binary_missing = false;
+            }
+        });
+    });
 }

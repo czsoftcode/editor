@@ -2,6 +2,15 @@
 
 All notable changes to the PolyCredo Editor project will be documented in this file.
 
+## [0.5.0] - 2026-02-21
+
+### Added
+- **LSP Client MVP**: Integrated Language Server Protocol (LSP) support via `async-lsp`.
+- **Rust Integration**: Automatic detection and startup of `rust-analyzer` for Rust projects.
+- **Inline Diagnostics**: Real-time visualization of compilation errors and warnings directly in the editor gutter.
+- **Diagnostic Tooltips**: Detailed error messages displayed on hover over the line numbers.
+- **Asynchronous Architecture**: Implemented a robust, non-blocking LSP communication layer using Tokio.
+
 ## [0.4.2] - 2026-02-20
 
 ### Added

@@ -1,6 +1,6 @@
 [package]
 name = "polycredo-editor"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2024"
 
 [dependencies]
@@ -23,6 +23,12 @@ libc = "0.2"
 fluent-bundle = "0.15"
 unic-langid = "0.9"
 walkdir = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+async-lsp = "0.2.2"
+tower = { version = "0.4", features = ["full"] }
+
+
 
 [patch.crates-io]
 egui_term = { path = "vendor/egui_term" }

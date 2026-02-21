@@ -15,8 +15,10 @@ use super::super::editor::Editor;
 use super::super::file_tree::FileTree;
 use super::super::terminal::Terminal;
 use super::super::widgets::command_palette::CommandPaletteState;
+use crate::app::lsp::LspClient; // Added LspClient import
 use crate::app::project_config::load_profiles;
 use crate::watcher::{FileWatcher, ProjectWatcher};
+use async_lsp::lsp_types::Url;
 
 /// Result of an asynchronous folder selection.
 /// bool = true → open in a new window; false → replace current workspace.
@@ -135,6 +137,12 @@ pub(crate) struct WorkspaceState {
     pub file_picker: Option<FilePicker>,
     /// Project-wide search
     pub project_search: ProjectSearch,
+    /// LSP client for this workspace.
+    pub lsp_client: Option<LspClient>,
+    /// Whether rust-analyzer was found missing.
+    pub lsp_binary_missing: bool,
+    /// Progress of an asynchronous LSP tool installation.
+    pub lsp_install_rx: Option<mpsc::Receiver<Result<(), String>>>,
     /// Git — current branch
     pub git_branch: Option<String>,
     pub git_branch_rx: Option<mpsc::Receiver<Option<String>>>,
@@ -221,7 +229,11 @@ pub(crate) fn spawn_ai_tool_check() -> mpsc::Receiver<HashMap<AiTool, bool>> {
     })
 }
 
-pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) -> WorkspaceState {
+pub(crate) fn init_workspace(
+    root_path: PathBuf,
+    panel_state: &PersistentState,
+    egui_ctx: egui::Context,
+) -> WorkspaceState {
     let mut file_tree = FileTree::new();
     file_tree.load(&root_path);
     let project_watcher = ProjectWatcher::new(&root_path);
@@ -234,6 +246,17 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
     let profiles = load_profiles(&root_path);
     let mut wizard = WizardState::default();
     wizard.path = default_wizard_path();
+
+    // Initialize LSP client if this is a Rust project
+    let is_rust = root_path.join("Cargo.toml").exists();
+    let lsp_installed = LspClient::is_installed();
+
+    let lsp_client = if is_rust && lsp_installed {
+        let root_uri = Url::from_directory_path(&root_path).expect("valid root path for Url");
+        LspClient::new(egui_ctx.clone(), root_uri)
+    } else {
+        None
+    };
 
     WorkspaceState {
         file_tree,
@@ -266,6 +289,9 @@ pub(crate) fn init_workspace(root_path: PathBuf, panel_state: &PersistentState) 
         project_index,
         file_picker: None,
         project_search: ProjectSearch::default(),
+        lsp_client,
+        lsp_binary_missing: is_rust && !lsp_installed,
+        lsp_install_rx: None,
         git_branch: None,
         git_branch_rx: Some(git_branch_rx),
         git_status_rx: Some(git_status_rx),

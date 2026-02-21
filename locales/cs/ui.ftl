@@ -55,6 +55,14 @@ search-no-results = Nenalezeno
 editor-empty-hint = Otevřete soubor z adresářového stromu vlevo
 editor-preview-label = Náhled
 
+# LSP / rust-analyzer
+lsp-missing-title = Chybí rust-analyzer
+lsp-missing-msg = Pro chytré funkce (doplňování, chyby) je potřeba rust-analyzer. Chcete jej nainstalovat?
+lsp-install-btn = Nainstalovat
+lsp-installing = Instaluji rust-analyzer...
+lsp-install-success = rust-analyzer byl úspěšně nainstalován. Restartuji LSP...
+lsp-install-error = Instalace selhala: { $error }
+
 ## Terminál
 terminal-unavailable = Terminál není dostupný.
 terminal-retry = Zkusit znovu

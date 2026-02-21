@@ -3,8 +3,10 @@ use std::time::Instant;
 
 use eframe::egui;
 
+use crate::app::lsp::DiagnosticsMap; // Add this import
 use crate::app::ui::widgets::tab_bar::TabBarAction;
 use crate::highlighter::Highlighter;
+use async_lsp::lsp_types::Url; // Added Url import (from async_lsp)
 
 mod markdown;
 mod render;
@@ -450,7 +452,13 @@ impl Editor {
     // --- UI entry point ---
 
     /// Returns `true` if the user clicked in the editor.
-    pub fn ui(&mut self, ui: &mut egui::Ui, dialog_open: bool, i18n: &crate::i18n::I18n) -> bool {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        dialog_open: bool,
+        i18n: &crate::i18n::I18n,
+        diagnostics: Option<&DiagnosticsMap>, // Added diagnostics parameter
+    ) -> bool {
         if self.tabs.is_empty() {
             ui.centered_and_justified(|ui| {
                 ui.label(i18n.get("editor-empty-hint"));
@@ -534,10 +542,19 @@ impl Editor {
 
         let is_binary = self.active().is_some_and(|t| t.is_binary);
 
+        let current_diagnostics: Option<Vec<async_lsp::lsp_types::Diagnostic>> = diagnostics
+            .and_then(|dm: &DiagnosticsMap| {
+                self.active_path().and_then(|path| {
+                    Url::from_file_path(path)
+                        .ok()
+                        .and_then(|uri| dm.lock().unwrap().get(&uri).cloned())
+                })
+            });
+
         if is_binary {
             self.ui_binary(ui, i18n)
         } else if self.is_markdown() {
-            self.ui_markdown_split(ui, dialog_open, i18n)
+            self.ui_markdown_split(ui, dialog_open, i18n, current_diagnostics.as_ref())
         } else {
             if self.is_svg() {
                 if let Some(idx) = self.active_tab
@@ -593,7 +610,7 @@ impl Editor {
                     ui.separator();
                 }
             }
-            self.ui_normal(ui, dialog_open, i18n)
+            self.ui_normal(ui, dialog_open, i18n, current_diagnostics.as_ref())
         }
     }
 

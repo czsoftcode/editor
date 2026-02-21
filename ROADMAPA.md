@@ -14,7 +14,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 ## Q3 2026 — LSP a inteligentní editor (měsíce 4–6)
 **Cíl:** Přechod k "opravdovému IDE" bez ztráty výkonu.
 
-- [ ] **LSP klient MVP** — podpora rust-analyzer (autocomplete, inline chyby, hover docs).
+- [x] **LSP klient MVP** — podpora rust-analyzer (autocomplete, inline chyby, hover docs).
 - [ ] **LSP rozšíření** — go-to-definition, find-references pro Rust.
 - [ ] **AI kontext** — agent v terminálu automaticky vidí otevřené soubory a chyby z buildu.
 - [ ] **AI diff náhled** — vizuální porovnání navržených změn před aplikací na disk.
@@ -43,3 +43,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - **Ctrl+P odezva:** < 120 ms
 - **Project search:** < 400 ms
 - **Crash-free sessions:** ≥ 99,5 %
+
+
+
+

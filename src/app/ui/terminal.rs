@@ -127,15 +127,26 @@ impl Terminal {
     ) -> bool {
         // Process events from PTY — limit per frame, the rest will be consumed in the next frame.
         // Without a limit, an output burst (cargo build, grep, etc.) would block the UI for tens of ms.
+        // PtyWrite events (CPR responses, color queries, …) are collected and written back to the PTY
+        // after the borrow of pty_receiver ends, so the backend can be mutably borrowed.
+        let mut pty_writes: Vec<Vec<u8>> = Vec::new();
         if let Some(pty_receiver) = &self.pty_receiver {
             for _ in 0..config::TERMINAL_MAX_EVENTS_PER_FRAME {
                 match pty_receiver.try_recv() {
                     Ok((_, PtyEvent::Exit)) => {
                         self.exited = true;
                     }
+                    Ok((_, PtyEvent::PtyWrite(text))) => {
+                        pty_writes.push(text.into_bytes());
+                    }
                     Ok(_) => {}
                     Err(_) => break,
                 }
+            }
+        }
+        for bytes in pty_writes {
+            if let Some(backend) = &mut self.backend {
+                backend.process_command(egui_term::BackendCommand::Write(bytes));
             }
         }
 
@@ -190,6 +201,45 @@ impl Terminal {
         };
 
         let response = ui.add(terminal);
+
+        // On Linux, Ctrl+X is delivered as Event::Cut (not Event::Key), but TerminalView only
+        // handles Event::Copy — Event::Cut is never forwarded to the PTY.  Map it here.
+        if focused && !self.exited {
+            let cut = ui.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Cut)));
+            if cut {
+                if let Some(backend) = self.backend.as_mut() {
+                    backend.process_command(egui_term::BackendCommand::Write(vec![0x18]));
+                }
+            }
+        }
+
+        // TerminalView processes keyboard input only when the pointer is inside the widget
+        // (vendor view.rs: `if !layout.has_focus() || !layout.contains_pointer()`).
+        // When focused but the pointer is elsewhere (e.g. user typed Ctrl+X in nano while
+        // the mouse drifted away), we handle the keyboard events ourselves here.
+        if focused && !self.exited && !response.contains_pointer() {
+            let mut writes: Vec<Vec<u8>> = Vec::new();
+            ui.input(|i| {
+                for event in &i.events {
+                    match event {
+                        egui::Event::Text(text) if !text.is_empty() => {
+                            writes.push(text.as_bytes().to_vec());
+                        }
+                        egui::Event::Key { key, pressed: true, modifiers, .. } => {
+                            if let Some(bytes) = terminal_key_bytes(*key, *modifiers) {
+                                writes.push(bytes);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            });
+            for bytes in writes {
+                if let Some(backend) = self.backend.as_mut() {
+                    backend.process_command(egui_term::BackendCommand::Write(bytes));
+                }
+            }
+        }
 
         // Inactive terminal: dimming + hollow cursor instead of solid block
         if !focused {
@@ -419,6 +469,55 @@ impl Terminal {
             }
         }
     }
+}
+
+/// Maps an egui key event to the byte sequence the PTY expects.
+/// Used as a fallback when TerminalView skips keyboard input because the pointer
+/// is not hovering over the terminal widget.
+fn terminal_key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<u8>> {
+    use egui::Key::*;
+
+    // Ctrl+letter → ASCII control character (0x01–0x1a)
+    if modifiers.ctrl && !modifiers.shift && !modifiers.alt {
+        let b: u8 = match key {
+            A => 0x01, B => 0x02, C => 0x03, D => 0x04, E => 0x05,
+            F => 0x06, G => 0x07, H => 0x08, I => 0x09, J => 0x0a,
+            K => 0x0b, L => 0x0c, M => 0x0d, N => 0x0e, O => 0x0f,
+            P => 0x10, Q => 0x11, R => 0x12, S => 0x13, T => 0x14,
+            U => 0x15, V => 0x16, W => 0x17, X => 0x18, Y => 0x19,
+            Z => 0x1a,
+            _ => return None,
+        };
+        return Some(vec![b]);
+    }
+
+    // Unmodified special keys
+    if modifiers.is_none() {
+        return match key {
+            Enter     => Some(vec![0x0d]),
+            Backspace => Some(vec![0x7f]),
+            Escape    => Some(vec![0x1b]),
+            Tab       => Some(vec![0x09]),
+            Delete    => Some(b"\x1b[3~".to_vec()),
+            Insert    => Some(b"\x1b[2~".to_vec()),
+            Home      => Some(b"\x1b[H".to_vec()),
+            End       => Some(b"\x1b[F".to_vec()),
+            PageUp    => Some(b"\x1b[5~".to_vec()),
+            PageDown  => Some(b"\x1b[6~".to_vec()),
+            ArrowUp    => Some(b"\x1b[A".to_vec()),
+            ArrowDown  => Some(b"\x1b[B".to_vec()),
+            ArrowLeft  => Some(b"\x1b[D".to_vec()),
+            ArrowRight => Some(b"\x1b[C".to_vec()),
+            _ => None,
+        };
+    }
+
+    // Shift+Tab → reverse tab
+    if modifiers == egui::Modifiers::SHIFT && key == Tab {
+        return Some(b"\x1b[Z".to_vec());
+    }
+
+    None
 }
 
 impl Drop for Terminal {

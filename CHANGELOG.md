@@ -2,6 +2,27 @@
 
 All notable changes to the PolyCredo Editor project will be documented in this file.
 
+## [0.5.2] - 2026-02-21
+
+### Fixed
+- **Terminal CPR (Cursor Position Reporting)**: `PtyEvent::PtyWrite` events (odpovědi na `ESC[6n` DSR dotazy) byly tiše zahazovány. Nyní se zapisují zpět do PTY, takže programy jako vim/nvim a bash prompty správně detekují pozici kurzoru.
+- **Terminal Ctrl+X**: Na Linuxu egui převádí Ctrl+X na `Event::Cut` místo `Event::Key`, který `TerminalView` nezpracovával. Přidán explicitní handler, který `Event::Cut` mapuje na control character `0x18` — nano a další TUI aplikace nyní Ctrl+X správně přijímají.
+- **Terminal klávesnice mimo oblast**: `TerminalView` ignoroval klávesové vstupy, pokud myš nebyla nad terminálem. Přidán záložní handler v `terminal.rs`, který zpracovává klávesy (text, Ctrl+písmeno, speciální klávesy) i při fokusovaném terminálu s myší jinde.
+
+## [0.5.1] - 2026-02-21
+
+### Added
+- **LSP Hover Documentation**: Hovering the mouse over code triggers a `textDocument/hover` request (600 ms debounce). Result is displayed in a floating popup that correctly renders markdown — code fences are shown monospaced in blue, prose text in gray. Popup dismisses on mouse movement.
+- **Go-to-Definition (F12)**: Pressing F12 at the cursor position sends a `textDocument/definition` request. The editor opens the target file and jumps to the correct line. Handles Scalar, Array and LocationLink response formats.
+- **Autocomplete (Ctrl+Space)**: Pressing Ctrl+Space sends a `textDocument/completion` request. Results are shown in a floating dropdown (max 25 items) with kind labels (`fn`, `st`, `kw`, …). Navigate with ↑↓ arrows, accept with Enter or Tab, dismiss with Escape, or click an item.
+- **LSP Capabilities**: Added `hover`, `definition` and `completion` capabilities to `InitializeParams` so rust-analyzer knows the editor supports these features.
+
+### Fixed
+- **Diagnostic Gutter Dots**: Colored indicator dots were overlapping line numbers. Dots are now placed on the left side of the gutter (left + 6 px), numbers remain right-aligned and unobstructed.
+- **Diagnostic Underlines (Squiggles)**: Added 2 px colored underlines beneath lines with LSP diagnostics — red for errors, orange for warnings, blue for information, green for hints.
+- **Diagnostic Count in Status Bar**: The status bar now shows `✕ N` (red) and `⚠ N` (orange) counts for errors and warnings in the active file. Counts are only shown when greater than zero.
+- **Hover Popup Markdown Rendering**: The hover popup now correctly parses fenced code blocks instead of displaying raw ` ```rust ``` ` markers.
+
 ## [0.5.0] - 2026-02-21
 
 ### Added

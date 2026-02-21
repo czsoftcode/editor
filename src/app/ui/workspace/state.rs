@@ -251,11 +251,17 @@ pub(crate) fn init_workspace(
     let is_rust = root_path.join("Cargo.toml").exists();
     let lsp_installed = LspClient::is_installed();
 
-    let lsp_client = if is_rust && lsp_installed {
-        let root_uri = Url::from_directory_path(&root_path).expect("valid root path for Url");
-        LspClient::new(egui_ctx.clone(), root_uri)
+    let (lsp_client, lsp_binary_missing) = if is_rust {
+        if lsp_installed {
+            let root_uri = Url::from_directory_path(&root_path).expect("valid root path for Url");
+            let client = LspClient::new(egui_ctx.clone(), root_uri);
+            let missing = client.is_none();
+            (client, missing)
+        } else {
+            (None, true)
+        }
     } else {
-        None
+        (None, false)
     };
 
     WorkspaceState {
@@ -290,7 +296,7 @@ pub(crate) fn init_workspace(
         file_picker: None,
         project_search: ProjectSearch::default(),
         lsp_client,
-        lsp_binary_missing: is_rust && !lsp_installed,
+        lsp_binary_missing,
         lsp_install_rx: None,
         git_branch: None,
         git_branch_rx: Some(git_branch_rx),

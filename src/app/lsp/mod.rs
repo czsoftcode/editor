@@ -40,6 +40,8 @@ impl LspClient {
             .build()
             .ok()?;
 
+        let _guard = runtime.enter();
+
         let rust_analyzer_path =
             std::env::var("RUST_ANALYZER_PATH").unwrap_or_else(|_| "rust-analyzer".to_string());
 

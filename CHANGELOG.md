@@ -11,6 +11,11 @@ All notable changes to the PolyCredo Editor project will be documented in this f
 - **Diagnostic Tooltips**: Detailed error messages displayed on hover over the line numbers.
 - **Asynchronous Architecture**: Implemented a robust, non-blocking LSP communication layer using Tokio.
 
+### Fixed
+-   **LSP Client Stability**: Corrected a critical panic on startup by properly entering the Tokio runtime context before spawning the language server process.
+-   **LSP Initialization Loop**: Resolved an infinite retry loop in `render_workspace` that occurred when LSP client initialization failed, preventing system resource exhaustion.
+-   **LSP Failure Handling**: Improved `init_workspace` to correctly mark `lsp_binary_missing` when LSP client initialization fails, ensuring the "Install" prompt is shown and retries are prevented.
+
 ## [0.4.2] - 2026-02-20
 
 ### Added

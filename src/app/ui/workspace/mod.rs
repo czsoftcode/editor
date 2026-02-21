@@ -124,7 +124,12 @@ pub(crate) fn render_workspace(
     {
         let root_uri = async_lsp::lsp_types::Url::from_directory_path(&ws.root_path)
             .expect("valid root path for Url");
-        ws.lsp_client = crate::app::lsp::LspClient::new(ctx.clone(), root_uri);
+        if let Some(client) = crate::app::lsp::LspClient::new(ctx.clone(), root_uri) {
+            ws.lsp_client = Some(client);
+        } else {
+            // Failed to start -> mark as missing to avoid retrying every frame
+            ws.lsp_binary_missing = true;
+        }
     }
 
     // Modal dialogs

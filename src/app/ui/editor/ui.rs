@@ -13,6 +13,7 @@ impl Editor {
         dialog_open: bool,
         i18n: &crate::i18n::I18n,
         lsp_client: Option<&crate::app::lsp::LspClient>,
+        settings: &crate::settings::Settings,
     ) -> bool {
         if self.tabs.is_empty() {
             ui.centered_and_justified(|ui| {
@@ -215,6 +216,7 @@ impl Editor {
                 &old_text,
                 &new_text,
                 font_size,
+                settings.diff_side_by_side,
             );
             if diff_res.accepted || diff_res.rejected {
                 if diff_res.accepted

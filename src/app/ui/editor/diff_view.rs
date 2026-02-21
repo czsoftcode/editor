@@ -13,6 +13,7 @@ pub fn render_diff_modal(
     original_text: &str,
     new_text: &str,
     font_size: f32,
+    side_by_side: bool,
 ) -> DiffResult {
     let mut result = DiffResult {
         accepted: false,
@@ -32,48 +33,118 @@ pub fn render_diff_modal(
         });
         ui.separator();
 
-        // Diff calculation
         let diff = TextDiff::from_lines(original_text, new_text);
 
-        egui::ScrollArea::vertical()
+        egui::ScrollArea::both()
             .id_salt("ai_diff_scroll")
             .max_height(500.0)
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 let font_id = egui::FontId::monospace(font_size);
 
-                // Set up visual style for diffs
                 let bg_added = egui::Color32::from_rgba_unmultiplied(40, 100, 40, 100);
                 let bg_removed = egui::Color32::from_rgba_unmultiplied(120, 30, 30, 100);
-
                 let fg_added = egui::Color32::from_rgb(150, 255, 150);
                 let fg_removed = egui::Color32::from_rgb(255, 150, 150);
                 let fg_normal = ui.visuals().text_color();
 
-                for change in diff.iter_all_changes() {
-                    let (bg_color, fg_color, prefix) = match change.tag() {
-                        ChangeTag::Delete => (Some(bg_removed), fg_removed, "- "),
-                        ChangeTag::Insert => (Some(bg_added), fg_added, "+ "),
-                        ChangeTag::Equal => (None, fg_normal, "  "),
-                    };
+                if side_by_side {
+                    let available_width = ui.available_width();
+                    let half_width = (available_width / 2.0) - 10.0; // padding
 
-                    let line_text = change.value();
+                    egui::Grid::new("side_by_side_diff_grid")
+                        .num_columns(2)
+                        .spacing([20.0, 0.0])
+                        .show(ui, |ui| {
+                            // Headers for columns
+                            ui.label(egui::RichText::new("Original").strong().color(fg_removed));
+                            ui.label(egui::RichText::new("Proposed").strong().color(fg_added));
+                            ui.end_row();
 
-                    let mut layout_job = egui::text::LayoutJob::default();
-                    layout_job.append(
-                        &format!("{}{}", prefix, line_text),
-                        0.0,
-                        egui::text::TextFormat {
-                            font_id: font_id.clone(),
-                            color: fg_color,
-                            background: bg_color.unwrap_or(egui::Color32::TRANSPARENT),
-                            ..Default::default()
-                        },
-                    );
+                            for change in diff.iter_all_changes() {
+                                let line_text = change.value();
 
-                    // To make background span full width, we wrap the label in a horizontal layout
-                    // or just paint the rect. Here we rely on LayoutJob background.
-                    ui.add(egui::Label::new(layout_job).wrap_mode(egui::TextWrapMode::Extend));
+                                let mut orig_job = egui::text::LayoutJob::default();
+                                let mut new_job = egui::text::LayoutJob::default();
+
+                                match change.tag() {
+                                    ChangeTag::Delete => {
+                                        orig_job.append(
+                                            line_text,
+                                            0.0,
+                                            egui::text::TextFormat {
+                                                font_id: font_id.clone(),
+                                                color: fg_removed,
+                                                background: bg_removed,
+                                                ..Default::default()
+                                            },
+                                        );
+                                        // Right side empty
+                                    }
+                                    ChangeTag::Insert => {
+                                        // Left side empty
+                                        new_job.append(
+                                            line_text,
+                                            0.0,
+                                            egui::text::TextFormat {
+                                                font_id: font_id.clone(),
+                                                color: fg_added,
+                                                background: bg_added,
+                                                ..Default::default()
+                                            },
+                                        );
+                                    }
+                                    ChangeTag::Equal => {
+                                        let fmt = egui::text::TextFormat {
+                                            font_id: font_id.clone(),
+                                            color: fg_normal,
+                                            ..Default::default()
+                                        };
+                                        orig_job.append(line_text, 0.0, fmt.clone());
+                                        new_job.append(line_text, 0.0, fmt);
+                                    }
+                                }
+
+                                ui.allocate_ui(egui::vec2(half_width, 0.0), |ui| {
+                                    ui.add(
+                                        egui::Label::new(orig_job)
+                                            .wrap_mode(egui::TextWrapMode::Extend),
+                                    );
+                                });
+                                ui.allocate_ui(egui::vec2(half_width, 0.0), |ui| {
+                                    ui.add(
+                                        egui::Label::new(new_job)
+                                            .wrap_mode(egui::TextWrapMode::Extend),
+                                    );
+                                });
+                                ui.end_row();
+                            }
+                        });
+                } else {
+                    // Inline diff
+                    for change in diff.iter_all_changes() {
+                        let (bg_color, fg_color, prefix) = match change.tag() {
+                            ChangeTag::Delete => (Some(bg_removed), fg_removed, "- "),
+                            ChangeTag::Insert => (Some(bg_added), fg_added, "+ "),
+                            ChangeTag::Equal => (None, fg_normal, "  "),
+                        };
+
+                        let line_text = change.value();
+
+                        let mut layout_job = egui::text::LayoutJob::default();
+                        layout_job.append(
+                            &format!("{}{}", prefix, line_text),
+                            0.0,
+                            egui::text::TextFormat {
+                                font_id: font_id.clone(),
+                                color: fg_color,
+                                background: bg_color.unwrap_or(egui::Color32::TRANSPARENT),
+                                ..Default::default()
+                            },
+                        );
+
+                        ui.add(egui::Label::new(layout_job).wrap_mode(egui::TextWrapMode::Extend));
+                    }
                 }
             });
 

@@ -205,7 +205,13 @@ pub(crate) fn render_workspace(
     let prev_active_path = ws.editor.active_path().cloned();
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        if ws.editor.ui(ui, dialog_open, i18n, ws.lsp_client.as_ref()) {
+        // Construct a dummy settings object just for the fields we need, or clone the whole settings.
+        // Let's just clone settings.
+        let settings = shared.lock().unwrap().settings.clone();
+        if ws
+            .editor
+            .ui(ui, dialog_open, i18n, ws.lsp_client.as_ref(), &settings)
+        {
             ws.focused_panel = FocusedPanel::Editor;
         }
     });

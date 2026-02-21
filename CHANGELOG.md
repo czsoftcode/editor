@@ -5,6 +5,7 @@ All notable changes to the PolyCredo Editor project will be documented in this f
 ## [0.5.6] - 2026-02-21
 
 ### Added
+- **AI Diff Settings**: Added a setting to toggle the AI Diff Preview layout between "Inline" (default) and "Side-by-side" rendering modes.
 - **AI Diff Preview (Initial)**: Introduced a foundational visual diff viewer for AI-proposed code changes. It uses the `similar` crate to calculate text differences and displays them in a modal dialog with inline color-coded `-` / `+` lines, allowing the user to accept or reject AI edits safely before they overwrite local editor tabs.
 - **AI Context Awareness**: The AI assistant in the terminal now automatically receives context about the current project state.
   - **Open Files**: Automatically lists currently open files in the editor when starting an AI tool.

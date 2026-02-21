@@ -110,6 +110,22 @@ pub(super) fn render_dialogs(
             });
             ui.add_space(10.0);
 
+            // Diff Mode
+            ui.strong(i18n.get("settings-diff-mode"));
+            ui.horizontal(|ui| {
+                ui.radio_value(
+                    &mut draft.diff_side_by_side,
+                    false,
+                    i18n.get("settings-diff-inline"),
+                );
+                ui.radio_value(
+                    &mut draft.diff_side_by_side,
+                    true,
+                    i18n.get("settings-diff-side-by-side"),
+                );
+            });
+            ui.add_space(10.0);
+
             // Editor font
             ui.strong(i18n.get("settings-editor-font"));
             ui.add_space(4.0);

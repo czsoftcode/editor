@@ -49,6 +49,11 @@ pub struct Settings {
     #[serde(default = "default_lang")]
     pub lang: String,
 
+    /// Whether to show the AI diff viewer in side-by-side mode.
+    /// false = inline mode, true = side-by-side mode.
+    #[serde(default)]
+    pub diff_side_by_side: bool,
+
     /// Whether the user has accepted the privacy policy.
     #[serde(default)]
     pub privacy_accepted: bool,
@@ -61,6 +66,7 @@ impl Default for Settings {
             dark_theme: default_dark_theme(),
             default_project_path: default_project_path(),
             lang: default_lang(),
+            diff_side_by_side: false,
             privacy_accepted: false,
         }
     }

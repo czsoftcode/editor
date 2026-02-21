@@ -126,10 +126,10 @@ impl Editor {
                                 }
                             } else {
                                 // Fallback to reading from disk
-                                if let Ok(content) = std::fs::read_to_string(&path) {
-                                    if let Some(line) = content.lines().nth(line_idx) {
-                                        line_text = line.trim().to_string();
-                                    }
+                                if let Ok(content) = std::fs::read_to_string(&path)
+                                    && let Some(line) = content.lines().nth(line_idx)
+                                {
+                                    line_text = line.trim().to_string();
                                 }
                             }
 
@@ -385,11 +385,11 @@ impl Editor {
         }
 
         // --- Render references picker ---
-        if self.lsp_references.is_some() {
-            if let Some((path, line, col)) = self.render_references_picker(ui.ctx(), i18n) {
-                self.pending_lsp_navigate = Some((path, line, col));
-                self.lsp_references = None;
-            }
+        if self.lsp_references.is_some()
+            && let Some((path, line, col)) = self.render_references_picker(ui.ctx(), i18n)
+        {
+            self.pending_lsp_navigate = Some((path, line, col));
+            self.lsp_references = None;
         }
     }
 
@@ -458,12 +458,13 @@ impl Editor {
                                 truncated.truncate(97);
                                 truncated.push_str("...");
                             }
-                            format!("{}:{}:{}  {}", filename, item.line, item.character, truncated)
+                            format!(
+                                "{}:{}:{}  {}",
+                                filename, item.line, item.character, truncated
+                            )
                         };
 
-                        let text = egui::RichText::new(display_text)
-                            .monospace()
-                            .size(12.0);
+                        let text = egui::RichText::new(display_text).monospace().size(12.0);
 
                         let r = ui.selectable_label(is_sel, text);
                         if is_sel && picker.scroll_to_selected {
@@ -624,11 +625,11 @@ impl Editor {
         let enter = ui.input_mut(|i| {
             // Check for '}' text event
             i.events.retain(|e| {
-                if let egui::Event::Text(t) = e {
-                    if t == "}" {
-                        typed_brace = true;
-                        return false; // consume
-                    }
+                if let egui::Event::Text(t) = e
+                    && t == "}"
+                {
+                    typed_brace = true;
+                    return false; // consume
                 }
                 true
             });
@@ -690,7 +691,7 @@ impl Editor {
                             egui::text::CCursor::new(new_cursor_char_idx),
                         )));
                 } else {
-                    tab.content.insert_str(byte_idx, "}");
+                    tab.content.insert(byte_idx, '}');
                     let new_cursor_char_idx = cursor_char_idx + 1;
                     state
                         .cursor

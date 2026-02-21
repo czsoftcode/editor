@@ -205,3 +205,18 @@ panel-runners = Runners
 btn-run-profile = Run Profile...
 btn-edit-profiles = Edit
 runner-none = None
+
+## Find References (Shift+F12)
+lsp-references-heading = Ссылки
+lsp-references-searching = Поиск ссылок...
+lsp-references-none = Ссылки не найдены.
+lsp-references-found =
+    { $count ->
+        [one] Найдена 1 ссылка.
+        [few] Найдено { $count } ссылки.
+       *[other] Найдено { $count } ссылок.
+    }
+lsp-references-error = LSP: Ошибка при поиске ссылок.
+
+ai-btn-sync = ⟳ Синхр.
+ai-hover-sync = Отправить контекст (открытые файлы, ошибки сборки) ИИ-агенту

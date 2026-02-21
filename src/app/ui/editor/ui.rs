@@ -264,11 +264,11 @@ impl Editor {
             );
             ui.separator();
 
-            if let Some((msg, time)) = &self.lsp_status {
-                if time.elapsed().as_secs() < 3 {
-                    ui.label(egui::RichText::new(msg).color(status_ok_color));
-                    ui.separator();
-                }
+            if let Some((msg, time)) = &self.lsp_status
+                && time.elapsed().as_secs() < 3
+            {
+                ui.label(egui::RichText::new(msg).color(status_ok_color));
+                ui.separator();
             }
 
             match tab.save_status {

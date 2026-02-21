@@ -206,3 +206,18 @@ panel-runners = Runners
 btn-run-profile = Run Profile...
 btn-edit-profiles = Edit
 runner-none = None
+
+## Find References (Shift+F12)
+lsp-references-heading = Referencie
+lsp-references-searching = Vyhľadávanie referencií...
+lsp-references-none = Žiadne referencie neboli nájdené.
+lsp-references-found =
+    { $count ->
+        [one] 1 referencia nájdená.
+       *[other] { $count } referencií nájdených.
+    }
+lsp-references-error = LSP: Chyba pri hľadaní referencií.
+
+## AI panel updates
+ai-btn-sync = ⟳ Synchr.
+ai-hover-sync = Poslať kontext (otvorené súbory, chyby kompilácie) AI agentovi

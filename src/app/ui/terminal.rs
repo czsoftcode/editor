@@ -211,17 +211,13 @@ impl Terminal {
         let exit_banner_height = if self.exited { 24.0 } else { 0.0 };
         let term_height = (ui.available_height() - exit_banner_height).max(1.0);
         let term_width = (ui.available_width() - config::TERMINAL_SCROLLBAR_WIDTH).max(10.0);
-        if self.backend.is_none() {
-            return None;
-        }
+        self.backend.as_ref()?;
 
         let term_font = egui_term::TerminalFont::new(egui_term::FontSettings {
             font_type: egui::FontId::monospace(font_size),
         });
         let terminal = {
-            let Some(backend) = self.backend.as_mut() else {
-                return None;
-            };
+            let backend = self.backend.as_mut()?;
             TerminalView::new(ui, backend)
                 // Defocus terminal after exit — history is shown without cursor
                 .set_focus(focused && !self.exited)

@@ -203,3 +203,17 @@ panel-runners = Runners
 btn-run-profile = Run Profile...
 btn-edit-profiles = Edit
 runner-none = None
+
+## Find References (Shift+F12)
+lsp-references-heading = Referenzen
+lsp-references-searching = Suche nach Referenzen...
+lsp-references-none = Keine Referenzen gefunden.
+lsp-references-found =
+    { $count ->
+        [one] 1 Referenz gefunden.
+       *[other] { $count } Referenzen gefunden.
+    }
+lsp-references-error = LSP: Fehler bei der Suche nach Referenzen.
+
+ai-btn-sync = ⟳ Sync
+ai-hover-sync = Kontext (offene Dateien, Build-Fehler) an KI-Agenten senden

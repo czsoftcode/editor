@@ -79,7 +79,7 @@ impl FileWatcher {
 pub enum FsChange {
     Created(PathBuf),
     Removed(PathBuf),
-    Modified,
+    Modified(PathBuf),
 }
 
 pub struct ProjectWatcher {
@@ -106,7 +106,7 @@ impl ProjectWatcher {
                     let change = match &event.kind {
                         EventKind::Create(_) => Some(FsChange::Created(p.clone())),
                         EventKind::Remove(_) => Some(FsChange::Removed(p.clone())),
-                        EventKind::Modify(_) => Some(FsChange::Modified),
+                        EventKind::Modify(_) => Some(FsChange::Modified(p.clone())),
                         _ => None,
                     };
                     if let Some(c) = change {
@@ -136,5 +136,11 @@ impl ProjectWatcher {
             changes.push(change);
         }
         changes
+    }
+
+    pub fn add_path(&mut self, path: &Path) {
+        if let Some(ref mut w) = self._watcher {
+            let _ = w.watch(path, RecursiveMode::Recursive);
+        }
     }
 }

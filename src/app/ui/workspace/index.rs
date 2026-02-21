@@ -59,7 +59,7 @@ impl ProjectIndex {
                     lock.retain(|p| p != &rel_path);
                 }
             }
-            crate::watcher::FsChange::Modified => {
+            crate::watcher::FsChange::Modified(_) => {
                 // No need to update the file list itself on modification,
                 // but we might want to trigger a content search cache update in the future.
             }

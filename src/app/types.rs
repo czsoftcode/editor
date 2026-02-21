@@ -163,6 +163,8 @@ pub(crate) struct AppShared {
     pub settings: crate::settings::Settings,
     /// Active UI translations. `Arc` allows sharing without repeated mutex locking.
     pub i18n: std::sync::Arc<crate::i18n::I18n>,
+    /// Flag to distinguish between editor's own saves and external (AI) modifications.
+    pub is_internal_save: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 // ---------------------------------------------------------------------------

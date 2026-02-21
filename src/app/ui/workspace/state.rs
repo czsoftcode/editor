@@ -170,6 +170,10 @@ pub(crate) struct WorkspaceState {
     /// Cancellation flag for git refresh threads.
     /// Set to true on workspace drop → threads terminate git process and do not process result.
     pub git_cancel: Arc<AtomicBool>,
+    /// Local history to snapshot files before AI modifications
+    pub local_history: crate::app::local_history::LocalHistory,
+    /// Sandbox for isolated AI tool execution
+    pub sandbox: crate::app::sandbox::Sandbox,
 }
 
 impl Drop for WorkspaceState {
@@ -240,7 +244,10 @@ pub(crate) fn init_workspace(
 ) -> WorkspaceState {
     let mut file_tree = FileTree::new();
     file_tree.load(&root_path);
-    let project_watcher = ProjectWatcher::new(&root_path);
+    let mut project_watcher = ProjectWatcher::new(&root_path);
+    let sandbox = crate::app::sandbox::Sandbox::new(&root_path);
+    project_watcher.add_path(&sandbox.root);
+
     let git_cancel = Arc::new(AtomicBool::new(false));
     let git_branch_rx = fetch_git_branch(&root_path, Arc::clone(&git_cancel));
     let git_status_rx = fetch_git_status(&root_path, Arc::clone(&git_cancel));
@@ -279,7 +286,7 @@ pub(crate) fn init_workspace(
         next_terminal_id: 1000,
         build_terminal: None,
         focused_panel: FocusedPanel::Editor,
-        root_path,
+        root_path: root_path.clone(),
         show_left_panel: panel_state.show_left_panel,
         show_right_panel: panel_state.show_right_panel,
         show_build_terminal: panel_state.show_build_terminal,
@@ -315,6 +322,8 @@ pub(crate) fn init_workspace(
         terminal_close_requested: None,
         ai_viewport_open: false,
         git_cancel,
+        local_history: crate::app::local_history::LocalHistory::new(&root_path),
+        sandbox,
     }
 }
 

@@ -4,8 +4,10 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 mod build_runner;
+pub mod local_history;
 pub mod lsp;
 mod project_config;
+pub mod sandbox;
 mod types;
 pub(crate) mod ui;
 pub(crate) mod validation;
@@ -145,6 +147,7 @@ impl EditorApp {
             actions: Vec::new(),
             settings,
             i18n,
+            is_internal_save: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }));
 
         // Update local cache of recent projects

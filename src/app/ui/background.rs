@@ -20,12 +20,17 @@ where
 
 use eframe::egui;
 
-use super::super::types::Toast;
+use super::super::types::{AppShared, Toast};
 use super::workspace::{WorkspaceState, spawn_ai_tool_check};
 use crate::watcher::{FileEvent, FsChange};
+use std::sync::Mutex;
 
 /// Processes events from watchers, build results, and autosave.
-pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+pub(super) fn process_background_events(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
     for event in ws.watcher.try_recv() {
         match event {
             FileEvent::Changed(changed_path) => {
@@ -76,8 +81,47 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
                     need_reload = true;
                     ws.editor.close_tabs_for_path(path);
                 }
-                FsChange::Modified => {
+                FsChange::Modified(path) => {
                     need_reload = true;
+
+                    let sandbox_root = &ws.sandbox.root;
+                    if path.starts_with(sandbox_root) {
+                        // MODIFIED IN SANDBOX (AI agent working)
+                        if let Ok(rel_path) = path.strip_prefix(sandbox_root)
+                            && let Ok(new_content) = std::fs::read_to_string(path)
+                        {
+                            // Find the "truth" from the real project or open tabs
+                            let real_path = ws.root_path.join(rel_path);
+                            let original_content = if let Some(tab) =
+                                ws.editor.tabs.iter().find(|t| t.path == real_path)
+                            {
+                                tab.last_saved_content.clone()
+                            } else {
+                                std::fs::read_to_string(&real_path).unwrap_or_default()
+                            };
+
+                            // Trigger AI Diff modal
+                            ws.editor.pending_ai_diff = Some((
+                                real_path.to_string_lossy().to_string(),
+                                original_content,
+                                new_content,
+                            ));
+                        }
+                    } else {
+                        // MODIFIED IN REAL PROJECT (Main workspace)
+                        let is_internal = shared
+                            .lock()
+                            .unwrap()
+                            .is_internal_save
+                            .load(std::sync::atomic::Ordering::SeqCst);
+                        if !is_internal {
+                            // External modification (e.g. git pull) -> Save to Local History
+                            if let Ok(content) = std::fs::read_to_string(path) {
+                                let rel_path = path.strip_prefix(&ws.root_path).unwrap_or(path);
+                                ws.local_history.take_snapshot(rel_path, &content);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -151,7 +195,9 @@ pub(super) fn process_background_events(ws: &mut WorkspaceState, i18n: &crate::i
 
     // Autosave is paused if an external conflict dialog is pending.
     if ws.external_change_conflict.is_none()
-        && let Some(err) = ws.editor.try_autosave(i18n)
+        && let Some(err) = ws
+            .editor
+            .try_autosave(i18n, &shared.lock().unwrap().is_internal_save)
     {
         ws.toasts.push(Toast::error(err));
     }

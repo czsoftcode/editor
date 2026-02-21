@@ -45,7 +45,7 @@ pub(crate) fn render_workspace(
 
     // Lazy initialization of terminals
     if ws.claude_tabs.is_empty() {
-        let root = ws.root_path.clone();
+        let root = ws.sandbox.root.clone();
         let id = ws.next_claude_tab_id;
         ws.next_claude_tab_id += 1;
         ws.claude_tabs
@@ -56,7 +56,7 @@ pub(crate) fn render_workspace(
     }
 
     // Background events (watcher, build, autosave)
-    process_background_events(ws, i18n);
+    process_background_events(ws, shared, i18n);
 
     // Periodic repaint for autosave and watcher
     ctx.request_repaint_after(std::time::Duration::from_millis(
@@ -65,7 +65,10 @@ pub(crate) fn render_workspace(
 
     // Keyboard shortcuts
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        if let Some(err) = ws.editor.save(i18n) {
+        if let Some(err) = ws
+            .editor
+            .save(i18n, &shared.lock().unwrap().is_internal_save)
+        {
             ws.toasts.push(Toast::error(err));
         }
         // After saving, immediately update git status

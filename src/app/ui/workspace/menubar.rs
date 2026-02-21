@@ -244,7 +244,9 @@ pub(super) fn process_menu_actions(
         shared.lock().unwrap().actions.push(AppAction::QuitAll);
     }
     if actions.save
-        && let Some(err) = ws.editor.save(i18n)
+        && let Some(err) = ws
+            .editor
+            .save(i18n, &shared.lock().unwrap().is_internal_save)
     {
         ws.toasts.push(Toast::error(err));
     }

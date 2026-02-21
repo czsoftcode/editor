@@ -75,7 +75,7 @@ pub(super) struct Tab {
     deleted: bool,
     last_edit: Option<Instant>,
     save_status: SaveStatus,
-    last_saved_content: String,
+    pub(super) last_saved_content: String,
     scroll_offset: f32,
     md_scroll_offset: f32,
     last_cursor_range: Option<egui::text::CursorRange>,

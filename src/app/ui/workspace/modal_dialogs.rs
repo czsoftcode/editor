@@ -278,7 +278,11 @@ pub(super) fn render_dialogs(
             }
             Some(ExternalConflictAction::KeepEditorVersion) => {
                 // Save immediately so that file on disk matches the editor.
-                ws.editor.save_path(&conflict_path, i18n);
+                ws.editor.save_path(
+                    &conflict_path,
+                    i18n,
+                    &shared.lock().unwrap().is_internal_save,
+                );
                 ws.external_change_conflict = None;
             }
             Some(ExternalConflictAction::Dismiss) => {

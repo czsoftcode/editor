@@ -44,20 +44,34 @@ impl Editor {
     }
 
     /// Attempts to autosave the active tab. Returns an error message if writing fails.
-    pub fn try_autosave(&mut self, i18n: &crate::i18n::I18n) -> Option<String> {
+    pub fn try_autosave(
+        &mut self,
+        i18n: &crate::i18n::I18n,
+        is_internal_save: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Option<String> {
         let should_save = self.active().is_some_and(|t| {
             !t.deleted
                 && t.modified
                 && t.last_edit
                     .is_some_and(|e| e.elapsed().as_millis() >= AUTOSAVE_DELAY_MS)
         });
-        if should_save { self.save(i18n) } else { None }
+        if should_save {
+            self.save(i18n, is_internal_save)
+        } else {
+            None
+        }
     }
 
     /// Saves the active tab. Returns an error message if writing fails, otherwise None.
-    pub fn save(&mut self, i18n: &crate::i18n::I18n) -> Option<String> {
+    pub fn save(
+        &mut self,
+        i18n: &crate::i18n::I18n,
+        is_internal_save: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Option<String> {
         let tab = self.active_mut()?;
         tab.save_status = SaveStatus::Saving;
+
+        is_internal_save.store(true, std::sync::atomic::Ordering::SeqCst);
         let res = if tab.is_binary {
             if let Some(bytes) = &tab.binary_data {
                 std::fs::write(&tab.path, bytes)
@@ -67,6 +81,7 @@ impl Editor {
         } else {
             std::fs::write(&tab.path, &tab.content)
         };
+        is_internal_save.store(false, std::sync::atomic::Ordering::SeqCst);
 
         match res {
             Ok(()) => {
@@ -96,9 +111,16 @@ impl Editor {
 
     /// Saves a specific tab identified by path (regardless of the active tab).
     /// Returns an error message if writing fails, otherwise None.
-    pub fn save_path(&mut self, path: &PathBuf, i18n: &crate::i18n::I18n) -> Option<String> {
+    pub fn save_path(
+        &mut self,
+        path: &PathBuf,
+        i18n: &crate::i18n::I18n,
+        is_internal_save: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+    ) -> Option<String> {
         let tab = self.tabs.iter_mut().find(|t| t.path == *path)?;
         tab.save_status = SaveStatus::Saving;
+
+        is_internal_save.store(true, std::sync::atomic::Ordering::SeqCst);
         let res = if tab.is_binary {
             if let Some(bytes) = &tab.binary_data {
                 std::fs::write(&tab.path, bytes)
@@ -108,6 +130,7 @@ impl Editor {
         } else {
             std::fs::write(&tab.path, &tab.content)
         };
+        is_internal_save.store(false, std::sync::atomic::Ordering::SeqCst);
 
         match res {
             Ok(()) => {

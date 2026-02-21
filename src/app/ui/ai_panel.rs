@@ -104,6 +104,7 @@ fn render_ai_tool_controls(
         .add_enabled(can_start, egui::Button::new(i18n.get("ai-btn-start")))
         .on_hover_text(hover_text);
     if start_response.clicked() {
+        let _ = ws.sandbox.sync_from_project();
         let cmd = ws.claude_tool.command().to_owned();
         let active = ws.claude_active_tab;
         let context = generate_ai_context(ws);
@@ -122,6 +123,7 @@ fn render_ai_tool_controls(
         .on_hover_text(i18n.get("ai-hover-sync"))
         .clicked()
     {
+        let _ = ws.sandbox.sync_from_project();
         let context = generate_ai_context(ws);
         if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
             terminal.send_command(&context);
@@ -132,12 +134,13 @@ fn render_ai_tool_controls(
 fn generate_ai_context(ws: &WorkspaceState) -> String {
     let mut context = String::new();
 
-    context.push_str("Context info:\n");
+    context.push_str("Context info (paths are relative to current working directory):\n");
 
     // 1. Open files
     if !ws.editor.tabs.is_empty() {
         context.push_str("Open files:\n");
         for (i, tab) in ws.editor.tabs.iter().enumerate() {
+            // Strip project root path to get relative path (valid for both project and sandbox)
             let path = tab.path.strip_prefix(&ws.root_path).unwrap_or(&tab.path);
             let active = if Some(i) == ws.editor.active_tab {
                 " (active)"
@@ -190,7 +193,7 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
         TabBarAction::New => {
             let id = ws.next_claude_tab_id;
             ws.next_claude_tab_id += 1;
-            let root = ws.root_path.clone();
+            let root = ws.sandbox.root.clone();
             ws.claude_tabs.push(Terminal::new(id, ctx, &root, None));
             ws.claude_active_tab = ws.claude_tabs.len() - 1;
         }

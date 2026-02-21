@@ -219,7 +219,7 @@ impl Editor {
             if let Ok(n) = self.goto_line_input.trim().parse::<usize>()
                 && n >= 1
             {
-                self.pending_jump = Some(n);
+                self.pending_jump = Some((n, 1));
             }
             self.show_goto_line = false;
             self.goto_line_focus_requested = false;
@@ -312,14 +312,19 @@ impl Editor {
             .map(|tab| editor_line_count(&tab.content))
             .unwrap_or(1);
 
-        let jump_line = self.pending_jump.take();
-        let jump_char_idx: Option<usize> = jump_line.and_then(|line| {
+        let jump_line_col = self.pending_jump.take();
+        let jump_char_idx: Option<usize> = jump_line_col.and_then(|(line, col)| {
             self.tabs.get(idx).map(|tab| {
-                tab.content
-                    .lines()
-                    .take(line.saturating_sub(1))
-                    .map(|l| l.chars().count() + 1)
-                    .sum::<usize>()
+                let mut char_count = 0;
+                for (i, l) in tab.content.lines().enumerate() {
+                    if i + 1 == line {
+                        // Add column offset (1-based to 0-based)
+                        char_count += col.saturating_sub(1);
+                        break;
+                    }
+                    char_count += l.chars().count() + 1; // +1 for newline
+                }
+                char_count
             })
         });
         let has_jump = jump_char_idx.is_some();
@@ -328,33 +333,14 @@ impl Editor {
         let font_id = egui::FontId::monospace(font_size);
         let row_height = ui.fonts(|f| f.row_height(&font_id));
         let viewport_height = (ui.available_height() - 16.0).max(row_height);
-        let desired_scroll_y: Option<f32> = jump_line.map(|line| {
+        let desired_scroll_y: Option<f32> = jump_line_col.map(|(line, _)| {
             goto_centered_scroll_offset(line, line_count_for_jump, row_height, viewport_height)
         });
-
-        if let Some(char_idx) = jump_char_idx {
-            let mut state =
-                egui::text_edit::TextEditState::load(ui.ctx(), edit_id).unwrap_or_default();
-            state
-                .cursor
-                .set_char_range(Some(egui::text::CCursorRange::one(
-                    egui::text::CCursor::new(char_idx),
-                )));
-            state.store(ui.ctx(), edit_id);
-            ui.memory_mut(|m| m.request_focus(edit_id));
-        }
 
         let should_request_editor_focus = self.focus_editor_requested
             && !dialog_open
             && !self.show_search
             && !self.show_goto_line;
-        if should_request_editor_focus {
-            if !has_jump {
-                restore_saved_cursor(ui.ctx(), edit_id, self.tabs[idx].last_cursor_range);
-            }
-            ui.memory_mut(|m| m.request_focus(edit_id));
-            self.focus_editor_requested = false;
-        }
 
         let mut clicked = false;
         let mut saved_response: Option<egui::text_edit::TextEditOutput> = None;
@@ -366,6 +352,7 @@ impl Editor {
             .inner_margin(egui::Margin::same(8));
 
         frame.show(ui, |ui| {
+            self.handle_smart_typing(ui, edit_id, idx);
             let scroll_y = desired_scroll_y.unwrap_or(current_scroll_y);
             let scroll_output = egui::ScrollArea::both()
                 .id_salt(("editor_scroll", &tab_path))
@@ -405,6 +392,16 @@ impl Editor {
                             .layouter(&mut layouter)
                             .show(ui);
 
+                        // --- FORCED JUMP AND FOCUS ---
+                        if let Some(char_idx) = jump_char_idx {
+                            let mut state = egui::text_edit::TextEditState::load(ui.ctx(), edit_id).unwrap_or_default();
+                            state.cursor.set_char_range(Some(egui::text::CCursorRange::one(
+                                egui::text::CCursor::new(char_idx),
+                            )));
+                            state.store(ui.ctx(), edit_id);
+                            response.response.request_focus();
+                        }
+
                         Self::paint_line_numbers(ui, &response, gutter_rect, diagnostics_for_file);
                         Self::paint_squiggles(ui, &response, diagnostics_for_file);
 
@@ -424,6 +421,14 @@ impl Editor {
         });
         if let Some(scroll_y) = updated_scroll_y {
             self.tabs[idx].scroll_offset = scroll_y;
+        }
+
+        if should_request_editor_focus {
+            if !has_jump {
+                restore_saved_cursor(ui.ctx(), edit_id, self.tabs[idx].last_cursor_range);
+            }
+            ui.memory_mut(|m| m.request_focus(edit_id));
+            self.focus_editor_requested = false;
         }
 
         if content_changed && let Some(lsp) = lsp_client {
@@ -449,7 +454,7 @@ impl Editor {
         // LSP interactions — hover, go-to-definition, completion
         // (runs after frame.show so we can re-borrow self freely)
         // -----------------------------------------------------------------------
-        self.process_lsp_interactions(ui, idx, &tab_path, lsp_client, &saved_response);
+        self.process_lsp_interactions(ui, idx, &tab_path, lsp_client, &saved_response, i18n);
 
         clicked
     }
@@ -529,6 +534,7 @@ impl Editor {
                     .inner_margin(egui::Margin::same(8));
 
                 frame.show(ui, |ui| {
+                    self.handle_smart_typing(ui, edit_id, idx);
                     let highlighter = &self.highlighter;
                     let tab = &mut self.tabs[idx];
 
@@ -710,6 +716,8 @@ impl Editor {
         if content_changed && self.show_search {
             self.update_search();
         }
+
+        self.process_lsp_interactions(ui, idx, &tab_path, lsp_client, &saved_response, i18n);
 
         clicked
     }
@@ -1033,6 +1041,7 @@ impl Editor {
         tab_path: &std::path::Path,
         lsp_client: Option<&crate::app::lsp::LspClient>,
         saved_response: &Option<egui::text_edit::TextEditOutput>,
+        i18n: &crate::i18n::I18n,
     ) {
         use super::LSP_HOVER_DEBOUNCE_MS;
         use super::LspCompletionState;
@@ -1082,7 +1091,8 @@ impl Editor {
                     && let Ok(path) = loc.uri.to_file_path()
                 {
                     let line = loc.range.start.line as usize + 1; // → 1-based
-                    self.pending_lsp_navigate = Some((path, line));
+                    let col = loc.range.start.character as usize + 1;
+                    self.pending_lsp_navigate = Some((path, line, col));
                 }
             }
         }
@@ -1104,6 +1114,53 @@ impl Editor {
                     selected: 0,
                     screen_pos: self.lsp_completion_cursor_pos.unwrap_or_default(),
                 });
+            }
+        }
+
+        // References result
+        if let Some(rx) = &self.lsp_references_rx
+            && let Ok(result) = rx.try_recv()
+        {
+            self.lsp_references_rx = None;
+            if let Some(locations) = result {
+                if locations.is_empty() {
+                    self.lsp_status = Some((i18n.get("lsp-references-none"), std::time::Instant::now()));
+                } else if locations.len() == 1 {
+                    // Single result -> jump directly
+                    let loc = &locations[0];
+                    if let Ok(path) = loc.uri.to_file_path() {
+                        let line = loc.range.start.line as usize + 1;
+                        let col = loc.range.start.character as usize + 1;
+                        self.pending_lsp_navigate = Some((path, line, col));
+                        self.lsp_status = Some((i18n.get("lsp-references-found"), std::time::Instant::now()));
+                    }
+                } else {
+                    // Multiple results -> show picker
+                    let mut items = Vec::new();
+                    for loc in locations {
+                        if let Ok(path) = loc.uri.to_file_path() {
+                            items.push(super::LspReferenceItem {
+                                path,
+                                line: loc.range.start.line as usize + 1,
+                                character: loc.range.start.character as usize + 1,
+                                text: String::new(), 
+                            });
+                        }
+                    }
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("count", items.len() as i64);
+                    let msg = i18n.get_args("lsp-references-found", &args);
+                    self.lsp_status = Some((msg, std::time::Instant::now()));
+
+                    self.lsp_references = Some(super::LspReferencesState {
+                        items,
+                        selected: 0,
+                        focus_requested: true,
+                        scroll_to_selected: true,
+                    });
+                }
+            } else {
+                self.lsp_status = Some((i18n.get("lsp-references-error"), std::time::Instant::now()));
             }
         }
 
@@ -1134,7 +1191,12 @@ impl Editor {
             && let (Some(lsp), Some(pos)) = (lsp_client, cursor_lsp_pos)
             && let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(tab_path)
         {
-            self.lsp_definition_rx = Some(lsp.request_goto_definition(uri, pos));
+            if ui.ctx().input(|i| i.modifiers.shift) {
+                self.lsp_references_rx = Some(lsp.request_references(uri, pos));
+                self.lsp_status = Some((i18n.get("lsp-references-searching"), std::time::Instant::now()));
+            } else {
+                self.lsp_definition_rx = Some(lsp.request_goto_definition(uri, pos));
+            }
         }
 
         // --- Keyboard: Ctrl+Space — trigger completion ---
@@ -1311,11 +1373,104 @@ impl Editor {
             let screen_pos = popup.screen_pos;
             Self::render_hover_popup(ui, &content, screen_pos);
         }
+
+        // --- Render searching indicator ---
+        if self.lsp_references_rx.is_some() {
+            let modal = egui::Modal::new(egui::Id::new("lsp_searching_modal"));
+            modal.show(ui.ctx(), |ui| {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.add_space(8.0);
+                    ui.label(i18n.get("lsp-references-searching"));
+                });
+            });
+        }
+
+        // --- Render references picker ---
+        if self.lsp_references.is_some() {
+            if let Some((path, line, col)) = self.render_references_picker(ui.ctx(), i18n) {
+                self.pending_lsp_navigate = Some((path, line, col));
+                self.lsp_references = None;
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
     // LSP popup rendering
     // -----------------------------------------------------------------------
+
+    /// Renders a modal-like picker for multiple LSP references.
+    fn render_references_picker(&mut self, ctx: &egui::Context, i18n: &crate::i18n::I18n) -> Option<(std::path::PathBuf, usize, usize)> {
+        let picker = self.lsp_references.as_mut()?;
+
+        let key_up = ctx.input(|i| i.key_pressed(egui::Key::ArrowUp));
+        let key_down = ctx.input(|i| i.key_pressed(egui::Key::ArrowDown));
+        let key_enter = ctx.input(|i| i.key_pressed(egui::Key::Enter));
+        let key_esc = ctx.input(|i| i.key_pressed(egui::Key::Escape));
+
+        if key_up && picker.selected > 0 {
+            picker.selected -= 1;
+            picker.scroll_to_selected = true;
+        }
+        if key_down && picker.selected + 1 < picker.items.len() {
+            picker.selected += 1;
+            picker.scroll_to_selected = true;
+        }
+
+        let mut result = None;
+        let mut close = key_esc;
+
+        if key_enter && !picker.items.is_empty() {
+            let item = &picker.items[picker.selected];
+            result = Some((item.path.clone(), item.line, item.character));
+            close = true;
+        }
+
+        let modal = egui::Modal::new(egui::Id::new("lsp_references_modal"));
+        modal.show(ctx, |ui| {
+            ui.set_min_width(520.0);
+            ui.heading(i18n.get("lsp-references-heading"));
+            ui.add_space(8.0);
+
+            egui::ScrollArea::vertical()
+                .max_height(320.0)
+                .id_salt("lsp_ref_scroll")
+                .show(ui, |ui| {
+                    for (i, item) in picker.items.iter().enumerate() {
+                        let is_sel = i == picker.selected;
+                        let filename = item.path.file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_else(|| "???".to_string());
+                        
+                        let text = egui::RichText::new(format!("{}:{}:{}", filename, item.line, item.character))
+                            .monospace()
+                            .size(12.0);
+                        
+                        let r = ui.selectable_label(is_sel, text);
+                        if is_sel && picker.scroll_to_selected {
+                            r.scroll_to_me(None);
+                        }
+                        if r.clicked() {
+                            result = Some((item.path.clone(), item.line, item.character));
+                            close = true;
+                        }
+                        if ui.is_rect_visible(r.rect) {
+                            ui.label(egui::RichText::new(item.path.to_string_lossy()).weak().size(10.0));
+                        }
+                        ui.separator();
+                    }
+                });
+            // Reset scroll flag after rendering the selected item
+            if picker.scroll_to_selected {
+                picker.scroll_to_selected = false;
+            }
+        });
+
+        if close {
+            self.lsp_references = None;
+        }
+        result
+    }
 
     /// Renders the hover documentation popup as a floating Area.
     /// Properly parses markdown code fences — code blocks are rendered monospace,
@@ -1431,6 +1586,95 @@ impl Editor {
             });
 
         accepted
+    }
+
+    /// Handles smart typing: auto-indent on Enter and smart un-indent on '}'.
+    fn handle_smart_typing(&mut self, ui: &mut egui::Ui, edit_id: egui::Id, idx: usize) {
+        if !ui.memory(|m| m.has_focus(edit_id))
+            || self.lsp_completion.is_some()
+            || self.lsp_references.is_some()
+        {
+            return;
+        }
+
+        let mut typed_brace = false;
+        let enter = ui.input_mut(|i| {
+            // Check for '}' text event
+            i.events.retain(|e| {
+                if let egui::Event::Text(t) = e {
+                    if t == "}" {
+                        typed_brace = true;
+                        return false; // consume
+                    }
+                }
+                true
+            });
+            i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)
+        });
+
+        if !enter && !typed_brace {
+            return;
+        }
+
+        let tab = &mut self.tabs[idx];
+        let mut state =
+            egui::text_edit::TextEditState::load(ui.ctx(), edit_id).unwrap_or_default();
+        
+        if let Some(range) = state.cursor.char_range() {
+            let cursor_char_idx = range.primary.index;
+            let byte_idx = tab
+                .content
+                .char_indices()
+                .nth(cursor_char_idx)
+                .map(|(i, _)| i)
+                .unwrap_or(tab.content.len());
+
+            if enter {
+                let prefix = &tab.content[..byte_idx];
+                let line_start_byte_idx = prefix.rfind('\n').map(|i| i + 1).unwrap_or(0);
+                let current_line = &tab.content[line_start_byte_idx..byte_idx];
+
+                let whitespace: String = current_line
+                    .chars()
+                    .take_while(|c| c.is_whitespace() && *c != '\n')
+                    .collect();
+
+                let mut to_insert = format!("\n{}", whitespace);
+                if current_line.trim_end().ends_with('{') {
+                    to_insert.push_str("    ");
+                }
+
+                tab.content.insert_str(byte_idx, &to_insert);
+                let new_cursor_char_idx = cursor_char_idx + to_insert.chars().count();
+                state.cursor.set_char_range(Some(egui::text::CCursorRange::one(
+                    egui::text::CCursor::new(new_cursor_char_idx),
+                )));
+            } else if typed_brace {
+                let prefix = &tab.content[..byte_idx];
+                let line_start_byte_idx = prefix.rfind('\n').map(|i| i + 1).unwrap_or(0);
+                let line_to_cursor = &tab.content[line_start_byte_idx..byte_idx];
+
+                // If line is only whitespace and has at least 4 spaces, un-indent
+                if line_to_cursor.chars().all(|c| c.is_whitespace()) && line_to_cursor.ends_with("    ") {
+                    tab.content.replace_range(byte_idx - 4..byte_idx, "}");
+                    let new_cursor_char_idx = cursor_char_idx - 3; // -4 spaces + 1 brace
+                    state.cursor.set_char_range(Some(egui::text::CCursorRange::one(
+                        egui::text::CCursor::new(new_cursor_char_idx),
+                    )));
+                } else {
+                    tab.content.insert_str(byte_idx, "}");
+                    let new_cursor_char_idx = cursor_char_idx + 1;
+                    state.cursor.set_char_range(Some(egui::text::CCursorRange::one(
+                        egui::text::CCursor::new(new_cursor_char_idx),
+                    )));
+                }
+            }
+
+            tab.modified = true;
+            tab.last_edit = Some(std::time::Instant::now());
+            tab.save_status = super::SaveStatus::Modified;
+            state.store(ui.ctx(), edit_id);
+        }
     }
 }
 

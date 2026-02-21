@@ -139,15 +139,31 @@ fn render_build_panel(
 
     if !dialog_open
         && let Some(terminal) = &mut ws.build_terminal
-        && terminal.ui(
+    {
+        let terminal_action = terminal.ui(
             ui,
             focused == FocusedPanel::Build,
             config::EDITOR_FONT_SIZE,
             i18n,
-        )
-    {
-        ws.focused_panel = FocusedPanel::Build;
-        *any_clicked = true;
+        );
+        match terminal_action {
+            Some(super::terminal::TerminalAction::Clicked) | Some(super::terminal::TerminalAction::Hovered) => {
+                ws.focused_panel = FocusedPanel::Build;
+                *any_clicked = true;
+            }
+            Some(super::terminal::TerminalAction::Navigate(path, line, col)) => {
+                let abs_path = if path.is_absolute() {
+                    path
+                } else {
+                    ws.root_path.join(path)
+                };
+                open_file_in_ws(ws, abs_path);
+                ws.editor.jump_to_location(line, col);
+                ws.focused_panel = FocusedPanel::Editor;
+                *any_clicked = true;
+            }
+            None => {}
+        }
     }
 
     if !ws.build_errors.is_empty() {

@@ -15,10 +15,10 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 **Cíl:** Přechod k "opravdovému IDE" bez ztráty výkonu.
 
 - [x] **LSP klient MVP** — podpora rust-analyzer (autocomplete, inline chyby, hover docs).
-- [ ] **LSP rozšíření** — go-to-definition, find-references pro Rust.
-- [ ] **AI kontext** — agent v terminálu automaticky vidí otevřené soubory a chyby z buildu.
+- [x] **LSP rozšíření** — go-to-definition, find-references pro Rust.
+- [x] **AI kontext** — agent v terminálu automaticky vidí otevřené soubory a chyby z buildu.
 - [ ] **AI diff náhled** — vizuální porovnání navržených změn před aplikací na disk.
-- [ ] **Klikatelné cesty v terminálu** — výstup cargo s přímým skokem na řádek v editoru.
+- [x] **Klikatelné cesty v terminálu** — výstup cargo s přímým skokem na řádek v editoru.
 
 ## Q4 2026 — Rozšíření platformy (měsíce 7–9)
 **Cíl:** Příprava na více platforem a rozšiřitelnost.

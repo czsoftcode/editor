@@ -4,8 +4,19 @@ use std::sync::mpsc::Receiver;
 use alacritty_terminal::grid::Dimensions;
 use eframe::egui;
 use egui_term::{BackendSettings, PtyEvent, TerminalBackend, TerminalView};
+use regex::Regex;
 
 use crate::config;
+
+#[derive(Clone, Debug)]
+pub enum TerminalAction {
+    /// User is hovering or interacting with the terminal area.
+    Hovered,
+    /// User clicked in the terminal area, but not on a specific path.
+    Clicked,
+    /// User clicked on a file path: (path, line, col).
+    Navigate(PathBuf, usize, usize),
+}
 
 #[cfg(unix)]
 pub struct Terminal {
@@ -18,6 +29,10 @@ pub struct Terminal {
     exited: bool,
     /// Accumulator for sub-pixel drag scrolling
     scroll_drag_acc: f32,
+    /// Regex for Rust error paths: "file.rs:line:col" or "file.rs:line"
+    path_regex: Regex,
+    /// Cache for path detection to save CPU: (Point, Option<Action>)
+    path_cache: Option<((i32, usize), Option<TerminalAction>)>,
 }
 
 impl Terminal {
@@ -27,6 +42,9 @@ impl Terminal {
         working_dir: &std::path::Path,
         init_command: Option<&str>,
     ) -> Self {
+        // Path regex: looks for something like src/main.rs:10:5 or src/main.rs:10
+        let path_regex = Regex::new(r"([a-zA-Z0-9._/\\-]+\.rs):(\d+)(?::(\d+))?").unwrap();
+
         match Self::create_backend(id, ctx, working_dir, init_command) {
             Ok((backend, pty_receiver)) => Self {
                 id,
@@ -37,6 +55,8 @@ impl Terminal {
                 error: None,
                 exited: false,
                 scroll_drag_acc: 0.0,
+                path_regex,
+                path_cache: None,
             },
             Err(err) => Self {
                 id,
@@ -47,6 +67,8 @@ impl Terminal {
                 error: Some(err),
                 exited: false,
                 scroll_drag_acc: 0.0,
+                path_regex,
+                path_cache: None,
             },
         }
     }
@@ -121,14 +143,16 @@ impl Terminal {
         self.exited
     }
 
-    /// Renders the terminal. Returns `true` if the user clicked into the terminal area.
+    /// Renders the terminal. Returns Some(TerminalAction) if the user clicked or requested navigation.
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
         focused: bool,
         font_size: f32,
         i18n: &crate::i18n::I18n,
-    ) -> bool {
+    ) -> Option<TerminalAction> {
+        let mut action = None;
+
         // Process events from PTY — limit per frame, the rest will be consumed in the next frame.
         // Without a limit, an output burst (cargo build, grep, etc.) would block the UI for tens of ms.
         // PtyWrite events (CPR responses, color queries, …) are collected and written back to the PTY
@@ -171,14 +195,15 @@ impl Terminal {
             });
             if restart {
                 self.restart(ui.ctx());
+                return Some(TerminalAction::Clicked);
             }
-            return false;
+            return None;
         }
 
         // 'R' key restarts the terminal after exit (must be focused)
         if self.exited && focused && ui.input(|i| i.key_pressed(egui::Key::R)) {
             self.restart(ui.ctx());
-            return true;
+            return Some(TerminalAction::Clicked);
         }
 
         // On exit, reserve the bottom strip for the exit banner; the terminal is still displayed
@@ -187,7 +212,7 @@ impl Terminal {
         let term_height = (ui.available_height() - exit_banner_height).max(1.0);
         let term_width = (ui.available_width() - config::TERMINAL_SCROLLBAR_WIDTH).max(10.0);
         if self.backend.is_none() {
-            return false;
+            return None;
         }
 
         let term_font = egui_term::TerminalFont::new(egui_term::FontSettings {
@@ -195,7 +220,7 @@ impl Terminal {
         });
         let terminal = {
             let Some(backend) = self.backend.as_mut() else {
-                return false;
+                return None;
             };
             TerminalView::new(ui, backend)
                 // Defocus terminal after exit — history is shown without cursor
@@ -205,6 +230,78 @@ impl Terminal {
         };
 
         let response = ui.add(terminal);
+
+        if response.clicked() || response.has_focus() {
+            action = Some(TerminalAction::Clicked);
+        } else if response.hovered() {
+            action = Some(TerminalAction::Hovered);
+        }
+
+        // --- PATH DETECTION AND NAVIGATION (OPTIMIZED) ---
+        if let Some(pos) = response.interact_pointer_pos() {
+            if let Some(backend) = &self.backend {
+                let content = backend.last_content();
+                let cell_w = content.terminal_size.cell_width as f32;
+                let cell_h = content.terminal_size.cell_height as f32;
+                if cell_w > 0.0 && cell_h > 0.0 {
+                    let rel_x = pos.x - response.rect.min.x;
+                    let rel_y = pos.y - response.rect.min.y;
+                    let col_idx = (rel_x / cell_w) as usize;
+                    let display_offset = content.grid.display_offset();
+                    let line_idx = (rel_y / cell_h) as i32;
+                    let grid_line_idx = line_idx - display_offset as i32;
+                    
+                    // Check cache
+                    let current_point = (grid_line_idx, col_idx);
+                    let cached_result = if let Some((point, res)) = &self.path_cache {
+                        if *point == current_point { Some(res.clone()) } else { None }
+                    } else { None };
+
+                    let nav_action = if let Some(res) = cached_result {
+                        res
+                    } else {
+                        // Cache miss: detect path
+                        let mut detected = None;
+                        let grid_line = alacritty_terminal::index::Line(grid_line_idx);
+                        
+                        let num_lines = content.grid.total_lines();
+                        // Alacritty line indexing is tricky. total_lines includes history.
+                        // We check bounds safely.
+                        if grid_line.0 < num_lines as i32 {
+                            let row = &content.grid[grid_line];
+                            let mut line_text = String::new();
+                            let num_cols = content.grid.columns();
+                            for col in 0..num_cols {
+                                let cell = &row[alacritty_terminal::index::Column(col)];
+                                line_text.push(cell.c);
+                            }
+                            
+                            for cap in self.path_regex.captures_iter(&line_text) {
+                                let mat = cap.get(0).unwrap();
+                                if col_idx >= mat.start() && col_idx < mat.end() {
+                                    let path_str = &cap[1];
+                                    let line = cap[2].parse().unwrap_or(1);
+                                    let col = cap.get(3).map(|m| m.as_str().parse().unwrap_or(1)).unwrap_or(1);
+                                    detected = Some(TerminalAction::Navigate(PathBuf::from(path_str), line, col));
+                                    break;
+                                }
+                            }
+                        }
+                        self.path_cache = Some((current_point, detected.clone()));
+                        detected
+                    };
+
+                    if let Some(TerminalAction::Navigate(p, l, c)) = nav_action {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        if response.clicked() {
+                            action = Some(TerminalAction::Navigate(p, l, c));
+                        }
+                    }
+                }
+            }
+        } else {
+            self.path_cache = None;
+        }
 
         // On Linux, Ctrl+X is delivered as Event::Cut (not Event::Key), but TerminalView only
         // handles Event::Copy — Event::Cut is never forwarded to the PTY.  Map it here.
@@ -253,7 +350,7 @@ impl Terminal {
         if !focused {
             let painter = ui.painter_at(response.rect);
             let Some(content) = self.backend.as_ref().map(|b| b.last_content()) else {
-                return false;
+                return action;
             };
             let cell_w = content.terminal_size.cell_width as f32;
             let cell_h = content.terminal_size.cell_height as f32;
@@ -367,7 +464,7 @@ impl Terminal {
             });
         }
 
-        response.hovered()
+        action
     }
 
     /// Explicitly terminates the shell process group (Unix). Called implicitly from Drop.

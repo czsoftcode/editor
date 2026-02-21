@@ -33,6 +33,24 @@ pub(super) struct LspCompletionState {
     pub screen_pos: egui::Pos2,
 }
 
+/// A single reference location for the references picker.
+pub(super) struct LspReferenceItem {
+    pub path: PathBuf,
+    pub line: usize,
+    pub character: usize,
+    /// Line content (if fetched or available).
+    pub text: String,
+}
+
+/// State for the find-references result picker.
+pub(super) struct LspReferencesState {
+    pub items: Vec<LspReferenceItem>,
+    pub selected: usize,
+    pub focus_requested: bool,
+    /// Flag to force scroll to the selected item (only set on keyboard nav).
+    pub scroll_to_selected: bool,
+}
+
 #[derive(PartialEq)]
 pub enum SaveStatus {
     None,
@@ -43,7 +61,7 @@ pub enum SaveStatus {
 
 pub(super) struct Tab {
     content: String,
-    path: PathBuf,
+    pub(super) path: PathBuf,
     modified: bool,
     deleted: bool,
     last_edit: Option<Instant>,
@@ -82,8 +100,8 @@ pub struct Editor {
     pub(super) md_split_ratio: f32,
     pub(super) tab_scroll_x: f32,
     pub(super) scroll_to_active: bool,
-    /// Pending jump to line (1-based)
-    pub(super) pending_jump: Option<usize>,
+    /// Pending jump to (line, column) — 1-based
+    pub(super) pending_jump: Option<(usize, usize)>,
     pub(super) show_goto_line: bool,
     pub(super) goto_line_input: String,
     pub(super) goto_line_focus_requested: bool,
@@ -103,8 +121,8 @@ pub struct Editor {
     /// Pending go-to-definition request channel.
     pub(super) lsp_definition_rx:
         Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::GotoDefinitionResponse>>>,
-    /// Pending navigation from go-to-definition result: (file path, 1-based line).
-    pub pending_lsp_navigate: Option<(std::path::PathBuf, usize)>,
+    /// Pending navigation from LSP result: (file path, 1-based line, 1-based column).
+    pub pending_lsp_navigate: Option<(std::path::PathBuf, usize, usize)>,
     /// Pending completion request channel.
     pub(super) lsp_completion_rx:
         Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::CompletionResponse>>>,
@@ -112,6 +130,13 @@ pub struct Editor {
     pub(super) lsp_completion: Option<LspCompletionState>,
     /// Cursor screen position at the time completion was triggered.
     pub(super) lsp_completion_cursor_pos: Option<egui::Pos2>,
+    /// Pending find-references request channel.
+    pub(super) lsp_references_rx:
+        Option<std::sync::mpsc::Receiver<Option<Vec<async_lsp::lsp_types::Location>>>>,
+    /// Active references picker state.
+    pub(super) lsp_references: Option<LspReferencesState>,
+    /// Temporary status message (text, timestamp).
+    pub(super) lsp_status: Option<(String, std::time::Instant)>,
 }
 
 impl Editor {
@@ -146,6 +171,9 @@ impl Editor {
             lsp_completion_rx: None,
             lsp_completion: None,
             lsp_completion_cursor_pos: None,
+            lsp_references_rx: None,
+            lsp_references: None,
+            lsp_status: None,
         }
     }
 
@@ -368,7 +396,11 @@ impl Editor {
     }
 
     pub fn jump_to_line(&mut self, line: usize) {
-        self.pending_jump = Some(line.max(1));
+        self.pending_jump = Some((line.max(1), 1));
+    }
+
+    pub fn jump_to_location(&mut self, line: usize, column: usize) {
+        self.pending_jump = Some((line.max(1), column.max(1)));
     }
 
     pub fn request_editor_focus(&mut self) {
@@ -607,6 +639,7 @@ impl Editor {
         }
 
         // Send didOpen for the active tab — only after LSP handshake is complete
+        // For now, we only support Rust LSP (rust-analyzer), so we only notify for .rs files.
         if let (Some(idx), Some(lsp)) = (self.active_tab, lsp_client) {
             let tab = &mut self.tabs[idx];
             if tab.lsp_version == 0
@@ -615,8 +648,10 @@ impl Editor {
                 && let Ok(uri) = Url::from_file_path(&tab.path)
             {
                 let lang_id = lang_id_from_path(&tab.path);
-                lsp.notify_did_open(uri, lang_id, 1, tab.content.clone());
-                tab.lsp_version = 1;
+                if lang_id == "rust" {
+                    lsp.notify_did_open(uri, lang_id, 1, tab.content.clone());
+                    tab.lsp_version = 1;
+                }
             }
         }
 
@@ -624,11 +659,13 @@ impl Editor {
 
         let current_diagnostics: Option<Vec<async_lsp::lsp_types::Diagnostic>> = lsp_client
             .and_then(|lsp| {
-                self.active_path().and_then(|path| {
-                    Url::from_file_path(path)
-                        .ok()
-                        .and_then(|uri| lsp.diagnostics().lock().unwrap().get(&uri).cloned())
-                })
+                let tab = self.active()?;
+                if tab.lsp_version == 0 {
+                    return None;
+                }
+                Url::from_file_path(&tab.path)
+                    .ok()
+                    .and_then(|uri| lsp.diagnostics().lock().unwrap().get(&uri).cloned())
             });
 
         if is_binary {
@@ -762,6 +799,14 @@ impl Editor {
                 egui::RichText::new(tab.path.to_string_lossy().to_string()).color(primary_color),
             );
             ui.separator();
+
+            if let Some((msg, time)) = &self.lsp_status {
+                if time.elapsed().as_secs() < 3 {
+                    ui.label(egui::RichText::new(msg).color(status_ok_color));
+                    ui.separator();
+                }
+            }
+
             match tab.save_status {
                 SaveStatus::None => {}
                 SaveStatus::Modified => {

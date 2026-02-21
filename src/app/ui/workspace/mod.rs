@@ -210,10 +210,10 @@ pub(crate) fn render_workspace(
         }
     });
 
-    // Go-to-definition navigation: open file and jump to line
-    if let Some((path, line)) = ws.editor.pending_lsp_navigate.take() {
+    // LSP navigation: open file and jump to precise location
+    if let Some((path, line, col)) = ws.editor.pending_lsp_navigate.take() {
         open_file_in_ws(ws, path);
-        ws.editor.jump_to_line(line);
+        ws.editor.jump_to_location(line, col);
     }
 
     // If the tab was switched, switch FileWatcher to the directory of the new tab.

@@ -62,6 +62,17 @@ lsp-installing = Installing rust-analyzer...
 lsp-install-success = rust-analyzer installed successfully. Restarting LSP...
 lsp-install-error = Installation failed: { $error }
 
+## Find References (Shift+F12)
+lsp-references-heading = References
+lsp-references-searching = Searching for references...
+lsp-references-none = No references found.
+lsp-references-found =
+    { $count ->
+        [one] 1 reference found.
+       *[other] { $count } references found.
+    }
+lsp-references-error = LSP: Error searching for references.
+
 ## Terminal
 terminal-unavailable = Terminal is not available.
 terminal-retry = Try again
@@ -147,6 +158,8 @@ ai-hover-checking = Checking AI CLI tools availability…
 ai-hover-start = Starts { $tool } (`{ $cmd }`) in terminal
 ai-hover-missing = Command `{ $cmd }` not found in PATH. Install the tool and click ↻.
 ai-btn-start = ▶ Start
+ai-btn-sync = ⟳ Sync
+ai-hover-sync = Send context (open files, build errors) to the AI agent
 ai-float-dock = Dock to panel
 ai-float-undock = Undock to floating window
 ai-viewport-open = Open in separate window

@@ -106,10 +106,67 @@ fn render_ai_tool_controls(
     if start_response.clicked() {
         let cmd = ws.claude_tool.command().to_owned();
         let active = ws.claude_active_tab;
+        let context = generate_ai_context(ws);
         if let Some(terminal) = ws.claude_tabs.get_mut(active) {
             terminal.send_command(&cmd);
+            terminal.send_command(&context);
         }
     }
+
+    // Sync context button
+    let active_tab = ws.claude_tabs.get(ws.claude_active_tab);
+    let can_sync = active_tab.map(|t| !t.is_exited()).unwrap_or(false);
+
+    if ui
+        .add_enabled(can_sync, egui::Button::new(i18n.get("ai-btn-sync")))
+        .on_hover_text(i18n.get("ai-hover-sync"))
+        .clicked()
+    {
+        let context = generate_ai_context(ws);
+        if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
+            terminal.send_command(&context);
+        }
+    }
+}
+
+fn generate_ai_context(ws: &WorkspaceState) -> String {
+    let mut context = String::new();
+
+    context.push_str("Context info:\n");
+
+    // 1. Open files
+    if !ws.editor.tabs.is_empty() {
+        context.push_str("Open files:\n");
+        for (i, tab) in ws.editor.tabs.iter().enumerate() {
+            let path = tab.path.strip_prefix(&ws.root_path).unwrap_or(&tab.path);
+            let active = if Some(i) == ws.editor.active_tab {
+                " (active)"
+            } else {
+                ""
+            };
+            context.push_str(&format!("- {}{}\n", path.display(), active));
+        }
+    }
+
+    // 2. Build errors
+    if !ws.build_errors.is_empty() {
+        context.push_str("\nBuild errors:\n");
+        for err in &ws.build_errors {
+            let level = if err.is_warning { "Warning" } else { "Error" };
+            let path = err.file.strip_prefix(&ws.root_path).unwrap_or(&err.file);
+            context.push_str(&format!(
+                "[{}] {}:{}: {}\n",
+                level,
+                path.display(),
+                err.line,
+                err.message
+            ));
+        }
+    } else {
+        context.push_str("\nBuild is clean.\n");
+    }
+
+    context
 }
 
 /// Renders terminal tabs and returns the requested action.
@@ -293,10 +350,26 @@ pub(crate) fn render_ai_panel_content(
 
     if !dialog_open
         && let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab)
-        && terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n)
     {
-        ws.focused_panel = FocusedPanel::Claude;
-        any_clicked = true;
+        let terminal_action = terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n);
+        match terminal_action {
+            Some(super::terminal::TerminalAction::Clicked) | Some(super::terminal::TerminalAction::Hovered) => {
+                ws.focused_panel = FocusedPanel::Claude;
+                any_clicked = true;
+            }
+            Some(super::terminal::TerminalAction::Navigate(path, line, col)) => {
+                let abs_path = if path.is_absolute() {
+                    path
+                } else {
+                    ws.root_path.join(path)
+                };
+                super::workspace::open_file_in_ws(ws, abs_path);
+                ws.editor.jump_to_location(line, col);
+                ws.focused_panel = FocusedPanel::Editor;
+                any_clicked = true;
+            }
+            None => {}
+        }
     }
 
     if let Some(action) = tab_action {

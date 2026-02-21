@@ -3,13 +3,16 @@ use async_lsp::lsp_types::notification::{
     DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, Initialized,
     PublishDiagnostics,
 };
-use async_lsp::lsp_types::request::{Completion, GotoDefinition, HoverRequest, Initialize};
+use async_lsp::lsp_types::request::{
+    Completion, GotoDefinition, HoverRequest, Initialize, References,
+};
 use async_lsp::lsp_types::{
     ClientCapabilities, ClientInfo, CompletionClientCapabilities, CompletionItemCapability,
     CompletionParams, CompletionResponse, Diagnostic, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, GotoCapability, GotoDefinitionParams,
     GotoDefinitionResponse, Hover, HoverClientCapabilities, HoverParams, InitializeParams,
-    InitializedParams, MarkupKind, ServerCapabilities, TextDocumentClientCapabilities,
+    InitializedParams, Location, MarkupKind, ReferenceClientCapabilities, ReferenceContext,
+    ReferenceParams, ServerCapabilities, TextDocumentClientCapabilities,
     TextDocumentContentChangeEvent, TextDocumentIdentifier, TextDocumentItem,
     TextDocumentPositionParams, TextDocumentSyncClientCapabilities, TraceValue, Url,
     VersionedTextDocumentIdentifier, WorkspaceFolder,
@@ -132,6 +135,9 @@ impl LspClient {
                         definition: Some(GotoCapability {
                             dynamic_registration: Some(false),
                             link_support: Some(false),
+                        }),
+                        references: Some(ReferenceClientCapabilities {
+                            dynamic_registration: Some(false),
                         }),
                         completion: Some(CompletionClientCapabilities {
                             dynamic_registration: Some(false),
@@ -291,6 +297,35 @@ impl LspClient {
                     },
                     work_done_progress_params: Default::default(),
                     partial_result_params: Default::default(),
+                })
+                .await
+                .ok()
+                .flatten();
+            let _ = tx.send(result);
+        });
+        rx
+    }
+
+    /// Sends a find-references request for the given document position.
+    pub fn request_references(
+        &self,
+        uri: Url,
+        position: async_lsp::lsp_types::Position,
+    ) -> std::sync::mpsc::Receiver<Option<Vec<Location>>> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let socket = self._client_socket.clone();
+        self._runtime.spawn(async move {
+            let result = socket
+                .request::<References>(ReferenceParams {
+                    text_document_position: TextDocumentPositionParams {
+                        text_document: TextDocumentIdentifier { uri },
+                        position,
+                    },
+                    work_done_progress_params: Default::default(),
+                    partial_result_params: Default::default(),
+                    context: ReferenceContext {
+                        include_declaration: true,
+                    },
                 })
                 .await
                 .ok()

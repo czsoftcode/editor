@@ -2,6 +2,43 @@
 
 All notable changes to the PolyCredo Editor project will be documented in this file.
 
+## [0.5.6] - 2026-02-21
+
+### Added
+- **AI Context Awareness**: The AI assistant in the terminal now automatically receives context about the current project state.
+  - **Open Files**: Automatically lists currently open files in the editor when starting an AI tool.
+  - **Build Errors**: Provides details about the latest build errors and warnings to the AI agent.
+  - **Manual Sync**: Added a "Sync" button in the AI panel to refresh the context (e.g., after opening more files or fixing errors) without restarting the tool.
+
+## [0.5.5] - 2026-02-21
+
+### Added
+- **Smart Typing & Auto-indent**: Implemented intelligent text handling for a smoother coding experience.
+  - **Auto-indent**: Pressing Enter now automatically preserves the indentation level of the previous line.
+  - **Smart Indent**: Pressing Enter after an opening brace `{` automatically adds an extra level of indentation (4 spaces).
+  - **Smart Un-indent**: Typing a closing brace `}` at the start of an indented line automatically removes 4 spaces, aligning it with the corresponding opening block.
+
+## [0.5.4] - 2026-02-21
+
+### Added
+- **Precise LSP Navigation**: Jumps (F12 and Shift+F12) now place the cursor at the exact character position (line and column) provided by the LSP server.
+- **Search Feedback**: Added a visible modal with a spinner when searching for references, providing immediate feedback that the operation is in progress.
+- **LSP Status Messages**: Integrated a temporary status indicator in the bottom bar for LSP operations (e.g., "Searching...", "No references found").
+
+### Fixed
+- **Stable Reference Picker**: Fixed an issue where the references list would jump to the top on every interaction. Scrolling is now stable and only follows the selection when using keyboard navigation.
+- **Editor Focus**: The editor now automatically requests focus after any LSP jump, ensuring the cursor is visible and the user can immediately continue typing.
+- **Improved Cursor Placement**: Corrected the character index calculation to handle different line ending scenarios and multi-byte characters more reliably.
+
+## [0.5.3] - 2026-02-21
+
+### Added
+- **Find References (Shift+F12)**: Pressing Shift+F12 sends a `textDocument/references` request. If multiple references are found, a modal picker is displayed showing file name, line, and character. Selecting an item jumps to that location. If only one reference is found, the editor jumps directly.
+
+### Fixed
+- **LSP Scoping**: Restricted LSP notifications (`didOpen`) and diagnostics display to `.rs` files. This prevents `rust-analyzer` from incorrectly reporting syntax errors in non-Rust files such as Markdown (`.md`), SVG (`.svg`), or plain text.
+- **Diagnostics Isolation**: Even if the LSP server sends background diagnostics for ignored files, they are no longer displayed in the editor or status bar if the file's `lsp_version` is 0 (non-Rust).
+
 ## [0.5.2] - 2026-02-21
 
 ### Fixed

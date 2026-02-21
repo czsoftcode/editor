@@ -64,6 +64,18 @@ lsp-installing = Instaluji rust-analyzer...
 lsp-install-success = rust-analyzer byl úspěšně nainstalován. Restartuji LSP...
 lsp-install-error = Instalace selhala: { $error }
 
+## Find References (Shift+F12)
+lsp-references-heading = Reference
+lsp-references-searching = Hledám reference...
+lsp-references-none = Nenalezeny žádné reference.
+lsp-references-found =
+    { $count ->
+        [one] Nalezena 1 reference.
+        [few] Nalezeny { $count } reference.
+       *[other] Nalezeno { $count } referencí.
+    }
+lsp-references-error = LSP: Chyba při hledání referencí.
+
 ## Terminál
 terminal-unavailable = Terminál není dostupný.
 terminal-retry = Zkusit znovu
@@ -149,6 +161,8 @@ ai-hover-checking = Ověřuji dostupnost AI CLI nástrojů…
 ai-hover-start = Spustí { $tool } (`{ $cmd }`) v terminálu
 ai-hover-missing = Příkaz `{ $cmd }` nebyl nalezen v PATH. Nainstaluj nástroj a klikni na ↻.
 ai-btn-start = ▶ Spustit
+ai-btn-sync = ⟳ Sync
+ai-hover-sync = Odeslat kontext (otevřené soubory, chyby buildu) AI agentovi
 ai-float-dock = Přikovat do panelu
 ai-float-undock = Odpojit do plovoucího okna
 ai-viewport-open = Otevřít v samostatném okně

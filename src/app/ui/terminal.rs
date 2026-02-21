@@ -409,18 +409,31 @@ impl Terminal {
                 if let Some(range) = content.selectable_range {
                     let mut last_line = None;
                     let mut current_line_buffer = String::new();
+                    let mut was_wrapped = false;
                     for indexed in content.grid.display_iter() {
                         if range.contains(indexed.point) {
                             if let Some(last) = last_line
                                 && indexed.point.line != last
                             {
-                                // New line started, trim previous line buffer and add newline
-                                result.push_str(current_line_buffer.trim_end());
-                                result.push('\n');
+                                // New line started, add newline if not wrapped
+                                if was_wrapped {
+                                    let trimmed = current_line_buffer.trim_end();
+                                    result.push_str(trimmed);
+                                    if current_line_buffer.len() > trimmed.len() {
+                                        result.push(' ');
+                                    }
+                                } else {
+                                    result.push_str(current_line_buffer.trim_end());
+                                    result.push('\n');
+                                }
                                 current_line_buffer.clear();
                             }
                             current_line_buffer.push(indexed.c);
                             last_line = Some(indexed.point.line);
+                            was_wrapped = indexed
+                                .cell
+                                .flags
+                                .contains(alacritty_terminal::term::cell::Flags::WRAPLINE);
                         }
                     }
                     // Append the last line buffer

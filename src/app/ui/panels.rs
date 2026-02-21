@@ -34,7 +34,46 @@ pub(super) fn render_left_panel(
 
             egui::Frame::NONE.show(ui, |ui| {
                 ui.set_max_height(tree_height);
-                ui.heading(i18n.get("panel-files"));
+
+                ui.horizontal(|ui| {
+                    let title = if ws.file_tree_in_sandbox {
+                        egui::RichText::new(i18n.get("panel-files-sandbox"))
+                            .color(egui::Color32::from_rgb(255, 230, 100))
+                            .strong()
+                    } else {
+                        egui::RichText::new(i18n.get("panel-files")).strong()
+                    };
+                    ui.heading(title);
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let prev_in_sandbox = ws.file_tree_in_sandbox;
+                        if ui
+                            .selectable_label(
+                                !ws.file_tree_in_sandbox,
+                                i18n.get("btn-tree-project"),
+                            )
+                            .clicked()
+                        {
+                            ws.file_tree_in_sandbox = false;
+                        }
+                        if ui
+                            .selectable_label(ws.file_tree_in_sandbox, i18n.get("btn-tree-sandbox"))
+                            .clicked()
+                        {
+                            ws.file_tree_in_sandbox = true;
+                        }
+
+                        if ws.file_tree_in_sandbox != prev_in_sandbox {
+                            let target_dir = if ws.file_tree_in_sandbox {
+                                &ws.sandbox.root
+                            } else {
+                                &ws.root_path
+                            };
+                            ws.file_tree.load(target_dir);
+                        }
+                    });
+                });
+
                 ui.separator();
                 egui::ScrollArea::both()
                     .auto_shrink([false, false])
@@ -77,6 +116,42 @@ fn render_build_panel(
         ui.strong(i18n.get("panel-build"));
         ui.separator();
 
+        // Sandbox Mode Toggle
+        let prev_in_sandbox = ws.build_in_sandbox;
+        let sandbox_label = if ws.build_in_sandbox {
+            egui::RichText::new(i18n.get("btn-build-sandbox-on"))
+                .color(egui::Color32::from_rgb(255, 230, 100))
+                .strong()
+        } else {
+            egui::RichText::new(i18n.get("btn-build-sandbox-off"))
+        };
+
+        if ui
+            .selectable_label(ws.build_in_sandbox, sandbox_label)
+            .on_hover_text(i18n.get("hover-build-sandbox"))
+            .clicked()
+        {
+            ws.build_in_sandbox = !ws.build_in_sandbox;
+        }
+
+        if ws.build_in_sandbox != prev_in_sandbox {
+            // Directory changed -> restart terminal
+            let target_dir = if ws.build_in_sandbox {
+                &ws.sandbox.root
+            } else {
+                &ws.root_path
+            };
+            ws.next_terminal_id += 1;
+            ws.build_terminal = Some(super::terminal::Terminal::new(
+                ws.next_terminal_id,
+                ui.ctx(),
+                target_dir,
+                None,
+            ));
+        }
+
+        ui.separator();
+
         // Runner Profile Dropdown (The "rozklikávací" part)
         let combo = egui::ComboBox::from_id_salt("runner_select")
             .selected_text(i18n.get("btn-run-profile"))
@@ -98,9 +173,14 @@ fn render_build_panel(
 
                 if let Some(idx) = run_profile_idx {
                     let profile = ws.profiles.runners[idx].clone();
+                    let target_dir = if ws.build_in_sandbox {
+                        &ws.sandbox.root
+                    } else {
+                        &ws.root_path
+                    };
                     let terminal = crate::app::build_runner::run_profile(
                         ui.ctx(),
-                        &ws.root_path,
+                        target_dir,
                         &profile,
                         &mut ws.next_terminal_id,
                     );
@@ -109,7 +189,7 @@ fn render_build_panel(
                     ws.focused_panel = FocusedPanel::Build;
                     // For Rust profiles, also start error check
                     if profile.error_parser == crate::app::types::ErrorParserType::Rust {
-                        ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
+                        ws.build_error_rx = Some(run_build_check(target_dir.clone()));
                         ws.build_errors.clear();
                     }
                 }
@@ -121,19 +201,25 @@ fn render_build_panel(
             }
         });
 
-        if ui.button(i18n.get("btn-create-deb")).clicked() {
-            let cmd = "./packaging/deb/build-deb.sh";
-            ws.next_terminal_id += 1;
-            let terminal = super::terminal::Terminal::new(
-                ws.next_terminal_id,
-                ui.ctx(),
-                &ws.root_path,
-                Some(cmd),
-            );
-            ws.build_terminal = Some(terminal);
-            ws.show_build_terminal = true;
-            ws.focused_panel = FocusedPanel::Build;
-        }
+        ui.add_enabled_ui(!ws.build_in_sandbox, |ui| {
+            if ui
+                .button(i18n.get("btn-create-deb"))
+                .on_disabled_hover_text(i18n.get("hover-create-deb-disabled"))
+                .clicked()
+            {
+                let cmd = "./packaging/deb/build-deb.sh";
+                ws.next_terminal_id += 1;
+                let terminal = super::terminal::Terminal::new(
+                    ws.next_terminal_id,
+                    ui.ctx(),
+                    &ws.root_path,
+                    Some(cmd),
+                );
+                ws.build_terminal = Some(terminal);
+                ws.show_build_terminal = true;
+                ws.focused_panel = FocusedPanel::Build;
+            }
+        });
     });
     ui.separator();
 

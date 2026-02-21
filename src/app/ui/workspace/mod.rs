@@ -83,7 +83,12 @@ pub(crate) fn render_workspace(
         if let Some(t) = &mut ws.build_terminal {
             t.send_command("cargo build 2>&1");
         }
-        ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
+        let build_path = if ws.build_in_sandbox {
+            ws.sandbox.root.clone()
+        } else {
+            ws.root_path.clone()
+        };
+        ws.build_error_rx = Some(run_build_check(build_path));
         ws.build_errors.clear();
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R))
@@ -218,31 +223,34 @@ pub(crate) fn render_workspace(
             ws.focused_panel = FocusedPanel::Editor;
         }
 
-        if let Some((path_str, action, _new_text)) = editor_res.diff_action {
-            if action == crate::app::ui::editor::DiffAction::Accepted {
-                let path = PathBuf::from(&path_str);
-                let rel_path = path.strip_prefix(&ws.root_path).unwrap_or(&path).to_path_buf();
-                let sandbox_path = ws.sandbox.root.join(&rel_path);
+        if let Some((path_str, action, _new_text)) = editor_res.diff_action
+            && action == crate::app::ui::editor::DiffAction::Accepted
+        {
+            let path = PathBuf::from(&path_str);
+            let rel_path = path
+                .strip_prefix(&ws.root_path)
+                .unwrap_or(&path)
+                .to_path_buf();
+            let sandbox_path = ws.sandbox.root.join(&rel_path);
 
-                if sandbox_path.exists() {
-                    if let Err(e) = ws.sandbox.promote_file(&rel_path) {
-                        ws.toasts
-                            .push(Toast::error(format!("AI Promotion failed: {}", e)));
-                    } else {
-                        // If file was not open in editor (e.g. newly created file by AI), open it now.
-                        if !ws.editor.tabs.iter().any(|t| t.path == path) {
-                            open_file_in_ws(ws, path.clone());
-                        }
-                        ws.promotion_success = Some(path);
-                    }
+            if sandbox_path.exists() {
+                if let Err(e) = ws.sandbox.promote_file(&rel_path) {
+                    ws.toasts
+                        .push(Toast::error(format!("AI Promotion failed: {}", e)));
                 } else {
-                    // It might be a deletion (exists in project, but not in sandbox)
-                    if let Err(e) = ws.sandbox.promote_file(&rel_path) {
-                        ws.toasts
-                            .push(Toast::error(format!("AI Promotion failed: {}", e)));
-                    } else {
-                        ws.promotion_success = Some(path);
+                    // If file was not open in editor (e.g. newly created file by AI), open it now.
+                    if !ws.editor.tabs.iter().any(|t| t.path == path) {
+                        open_file_in_ws(ws, path.clone());
                     }
+                    ws.promotion_success = Some(path);
+                }
+            } else {
+                // It might be a deletion (exists in project, but not in sandbox)
+                if let Err(e) = ws.sandbox.promote_file(&rel_path) {
+                    ws.toasts
+                        .push(Toast::error(format!("AI Promotion failed: {}", e)));
+                } else {
+                    ws.promotion_success = Some(path);
                 }
             }
         }
@@ -319,7 +327,11 @@ fn render_lsp_setup_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &cra
     });
 }
 
-fn render_sandbox_staged_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+fn render_sandbox_staged_bar(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    i18n: &crate::i18n::I18n,
+) {
     let staged_files = ws.sandbox.get_staged_files();
     if staged_files.is_empty() {
         return;
@@ -330,7 +342,8 @@ fn render_sandbox_staged_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n:
             ui.add_space(2.0);
             ui.horizontal(|ui| {
                 // Warning/Info colors (Yellowish)
-                ui.visuals_mut().widgets.noninteractive.bg_fill = egui::Color32::from_rgb(80, 70, 20);
+                ui.visuals_mut().widgets.noninteractive.bg_fill =
+                    egui::Color32::from_rgb(80, 70, 20);
                 ui.spacing_mut().item_spacing.x = 12.0;
 
                 ui.label(
@@ -346,6 +359,50 @@ fn render_sandbox_staged_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n:
 
                 if ui.button(i18n.get("ai-staged-bar-review")).clicked() {
                     ws.show_sandbox_staged = true;
+                }
+
+                if ui
+                    .button(
+                        egui::RichText::new(i18n.get("ai-staged-bar-promote-all"))
+                            .color(egui::Color32::from_rgb(150, 255, 150)),
+                    )
+                    .clicked()
+                {
+                    let files_to_promote = ws.sandbox.get_staged_files();
+                    let mut success_count = 0;
+                    for rel_path in files_to_promote {
+                        let full_path = ws.root_path.join(&rel_path);
+                        if let Err(e) = ws.sandbox.promote_file(&rel_path) {
+                            ws.toasts.push(Toast::error(format!(
+                                "Promotion failed for {}: {}",
+                                rel_path.display(),
+                                e
+                            )));
+                        } else {
+                            success_count += 1;
+                            // If file not in editor, open it
+                            if !ws.editor.tabs.iter().any(|t| t.path == full_path)
+                                && full_path.exists()
+                            {
+                                open_file_in_ws(ws, full_path);
+                            } else if let Some(tab) =
+                                ws.editor.tabs.iter_mut().find(|t| t.path == full_path)
+                            {
+                                // If it was in editor, reload its state (it's no longer modified in sandbox)
+                                if let Ok(content) = std::fs::read_to_string(&full_path) {
+                                    tab.content = content.clone();
+                                    tab.last_saved_content = content;
+                                    tab.modified = false;
+                                }
+                            }
+                        }
+                    }
+                    if success_count > 0 {
+                        ws.toasts.push(Toast::info(format!(
+                            "Successfully promoted {} files to project.",
+                            success_count
+                        )));
+                    }
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

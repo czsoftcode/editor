@@ -16,7 +16,6 @@ pub struct LocalHistory {
 #[derive(Debug, Clone)]
 pub struct HistoryEntry {
     pub timestamp: u64,
-    pub path: PathBuf,
     pub hash: u64,
 }
 
@@ -64,6 +63,14 @@ impl LocalHistory {
     /// Takes a snapshot of the current content if it differs from the last saved snapshot.
     /// Returns the Path to the snapshot if it was newly created, or None if skipped (unmodified).
     pub fn take_snapshot(&mut self, relative_file_path: &Path, content: &str) -> Option<PathBuf> {
+        // Never take snapshots of the internal .polycredo directory (history, sandbox, etc.)
+        if relative_file_path
+            .components()
+            .any(|c| c.as_os_str() == ".polycredo")
+        {
+            return None;
+        }
+
         let new_hash = Self::compute_hash(content);
         let safe_name = Self::encode_path(relative_file_path);
         let file_history_dir = self.base_dir.join(&safe_name);
@@ -126,7 +133,6 @@ impl LocalHistory {
                     {
                         entries.push(HistoryEntry {
                             timestamp: ts,
-                            path,
                             hash,
                         });
                     }
@@ -149,15 +155,22 @@ impl LocalHistory {
                     let mut versions = Vec::new();
                     if let Ok(file_dir) = fs::read_dir(entry.path()) {
                         for f_entry in file_dir.flatten() {
-                            if let Ok(meta) = f_entry.metadata()
-                                && let Ok(modified) = meta.modified()
+                            let path = f_entry.path();
+                            if path.is_file()
+                                && let Some(file_name) =
+                                    path.file_name().map(|n| n.to_string_lossy())
                             {
-                                versions.push((f_entry.path(), modified));
+                                // Parse timestamp from filename (timestamp_hash.txt)
+                                if let Some(ts_str) = file_name.split('_').next()
+                                    && let Ok(ts) = ts_str.parse::<u64>()
+                                {
+                                    versions.push((path, ts));
+                                }
                             }
                         }
                     }
 
-                    // Sort newest first
+                    // Sort newest first (by timestamp)
                     versions.sort_by(|a, b| b.1.cmp(&a.1));
 
                     // Remove versions exceeding the limit

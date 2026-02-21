@@ -28,17 +28,16 @@ impl Editor {
                 font_size,
                 settings.diff_side_by_side,
             ) {
-                if action == super::DiffAction::Accepted {
-                    if let Some(tab) = self
+                if action == super::DiffAction::Accepted
+                    && let Some(tab) = self
                         .tabs
                         .iter_mut()
                         .find(|t| t.path.to_string_lossy() == path)
-                    {
-                        tab.content = new_text.clone();
-                        tab.modified = true;
-                        tab.last_edit = Some(std::time::Instant::now());
-                        tab.save_status = super::SaveStatus::Modified;
-                    }
+                {
+                    tab.content = new_text.clone();
+                    tab.modified = true;
+                    tab.last_edit = Some(std::time::Instant::now());
+                    tab.save_status = super::SaveStatus::Modified;
                 }
                 diff_action = Some((path, action, new_text));
                 self.pending_ai_diff = None;

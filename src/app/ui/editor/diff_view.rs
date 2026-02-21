@@ -153,4 +153,3 @@ pub fn render_diff_modal(
 
     result
 }
-

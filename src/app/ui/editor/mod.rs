@@ -80,12 +80,12 @@ pub enum SaveStatus {
 }
 
 pub(super) struct Tab {
-    content: String,
+    pub(crate) content: String,
     pub(super) path: PathBuf,
-    modified: bool,
-    deleted: bool,
-    last_edit: Option<Instant>,
-    save_status: SaveStatus,
+    pub(crate) modified: bool,
+    pub(super) deleted: bool,
+    pub(super) last_edit: Option<Instant>,
+    pub(crate) save_status: SaveStatus,
     pub(super) last_saved_content: String,
     scroll_offset: f32,
     md_scroll_offset: f32,

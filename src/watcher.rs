@@ -94,11 +94,12 @@ impl ProjectWatcher {
         let watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
             if let Ok(event) = res {
                 for p in &event.paths {
-                    // Ignore changes in .git, target, etc.
+                    // Ignore changes in .git, target, history, etc.
                     let skip = p.components().any(|c| {
                         let s = c.as_os_str().to_string_lossy();
                         matches!(s.as_ref(), ".git" | "target" | "node_modules")
-                    });
+                    }) || p.to_string_lossy().contains(".polycredo/history");
+
                     if skip {
                         continue;
                     }

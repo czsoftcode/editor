@@ -2,3 +2,10 @@
 /docs
 .polycredo/history
 .aider*
+.polycredo/sandbox/
+.build_number
+.gemini-notes.md
+.claude-notes.md
+.codex-notes.md
+parse_diff_test.rs
+check.sh

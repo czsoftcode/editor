@@ -2,6 +2,9 @@
 
 ## Panely
 panel-files = Súbory
+panel-files-sandbox = Súbory (Sandbox)
+btn-tree-project = Projekt
+btn-tree-sandbox = Sandbox
 panel-runners = Spúšťače
 panel-build = Build
 panel-build-errors =
@@ -13,11 +16,15 @@ panel-build-errors =
 
 ## Tlačidlá buildu
 btn-build = ▶ Build
+btn-build-sandbox-on = Sandbox ON
+btn-build-sandbox-off = Sandbox OFF
+hover-build-sandbox = Prepnúť medzi spúšťaním v projekte a v AI sandboxe
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Vytvoriť .deb
+hover-create-deb-disabled = Nemožno vytvárať balíček v režime sandboxu. Prepnite na Sandbox OFF.
 btn-run-profile = ▶ Spustiť...
 btn-edit-profiles = ⚙ Upraviť
 runner-none = Nie sú definované žiadne profily.
@@ -155,6 +162,18 @@ ai-float-undock = Odpojiť do plávajúceho okna
 ai-viewport-open = Otvoriť v samostatnom okne
 ai-tab-close-hover = Zatvoriť záložku
 ai-tab-new-hover = Nová záložka terminálu
+ai-staged-bar-msg = AI navrhlo zmeny v projekte
+ai-staged-bar-review = Skontrolovať zmeny
+ai-staged-bar-promote-all = Preniesť všetko
+ai-staged-modal-hint = Kliknite na súbor pre zobrazenie rozdielov a schválenie zmien:
+ai-staged-files = Navrhnuté zmeny (Sandbox)
+ai-staged-new = [NOVÝ]
+ai-staged-mod = [MOD]
+ai-staged-del = [ZMAZANÝ]
+ai-promotion-success-title = Zmeny aplikované
+ai-promotion-success-body = Nasledujúci súbor bol úspešne aktualizovaný vo vašom projekte:
+ai-promotion-success = Zmeny boli úspešne aplikované do projektu.
+ai-promotion-failed = Nepodarilo sa aplikovať zmeny: { $error }
 
 ## Nastavenia
 settings-title = Nastavenia
@@ -163,6 +182,7 @@ settings-language-restart = Zmena jazyka sa prejaví okamžite.
 settings-theme = Téma
 settings-theme-dark = Tmavá
 settings-theme-light = Svetlá
+settings-auto-show-diff = Automaticky otvárať náhľad zmien AI
 settings-diff-mode = Zobrazenie AI Diffu
 settings-diff-inline = Zlúčené (+ / -)
 settings-diff-side-by-side = Vedľa seba
@@ -189,14 +209,14 @@ file-tree-delete-error = Nemožno odstrániť: { $reason }
 
 ## Dialóg externého konfliktu
 conflict-title = Súbor zmenený externe
-conflict-message = Súbor „{ $name }" bol zmenený iným programom, ale v editore má neuložené zmeny.
-conflict-choose = Vyberte, ktorá verzia má byť zachovaná:
-conflict-load-disk = Načítať z disku
-conflict-keep-editor = Ponechať moje
-conflict-dismiss = Zavrieť
-conflict-hover-disk = Zahodiť zmeny editora a načítať verziu uloženú na disku
-conflict-hover-keep = Ponechať zmeny editora; súbor na disku bude prepísaný pri uložení
-conflict-hover-dismiss = Zatvoriť upozornenie bez zmien
+conflict-message = Súbor „{ $name }" bol zmenený (pravdepodobne prevodom zo sandboxu), ale v editore má neuložené zmeny.
+conflict-choose = Vyberte, ktorú verziu chcete zachovať:
+conflict-load-disk = Prepísať zo sandboxu
+conflict-keep-editor = Zachovať z projektu
+conflict-dismiss = Zrušiť
+conflict-hover-disk = Zahodiť neuložené zmeny v editore a načítať verziu, ktorá bola práve prenesená zo sandboxu
+conflict-hover-keep = Ponechať rozpracované zmeny v editore; verzia zo sandboxu na disku bude prepísaná pri vašom najbližšom uložení (Ctrl+S)
+conflict-hover-dismiss = Zatvoriť upozornenie bez vykonania zmien
 
 md-open-external = ⧉ Otvoriť vo vonkajšom prehliadači
 

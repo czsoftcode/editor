@@ -2,6 +2,37 @@
 
 All notable changes to the PolyCredo Editor project will be documented in this file.
 
+## [0.6.0] - 2026-02-21
+
+### Added
+- **Complete Sandbox Mode**:
+  - **Sandbox File Tree**: Added a "Project | Sandbox" toggle above the file tree to browse AI-generated files and directories without polluting the main workspace view.
+  - **Sandbox Build/Run**: Introduced a "Sandbox ON/OFF" toggle in the Build panel. When active, all `cargo` commands and build runners execute within the sandbox.
+  - **Error Parsing in Sandbox**: Build errors from sandbox execution are correctly parsed, allowing navigation to code proposed by AI before promotion.
+- **Visual Feedback**: The UI now uses high-visibility indicators (yellow themes) when viewing or building in sandbox mode to prevent accidental confusion.
+- **Enhanced Bulk Actions**: Completed localization and improved stability of the "Promote All" feature.
+
+### Changed
+- **Version Milestone**: Incremented major minor version to reflect the stability and completeness of the AI Sandbox integration.
+
+## [0.5.9] - 2026-02-21
+
+### Added
+- **Bulk AI Promotion**: New "Promote All" button in the AI Staging Bar to approve all sandbox changes at once.
+- **AI Diff Auto-show Toggle**: Added a global setting to enable/disable the automatic appearance of the AI Diff modal.
+- **Multilingual Support**: Fully localized all new AI Sandbox and settings strings into Czech, Slovak, English, German, and Russian.
+
+### Changed
+- **Major Architecture Refactoring**:
+  - Split the monolithic `src/app/mod.rs` by moving font management to `src/app/fonts.rs` and startup logic to `src/app/startup.rs`.
+  - Refactored `src/app/ui/workspace/modal_dialogs.rs` into a modular structure under `src/app/ui/workspace/modal_dialogs/` (about, settings, ai, conflict, terminal).
+- **Code Quality Improvements**:
+  - Resolved multiple Clippy warnings regarding nested `if` statements (collapsible if).
+  - Cleaned up unused imports and dead code in `LocalHistory` and `Startup` modules.
+- **UI Enhancements**:
+  - New checkbox in Settings for AI Diff behavior.
+  - Improved feedback for bulk file promotion with summary toasts.
+
 ## [0.5.8] - 2026-02-21
 
 ### Added

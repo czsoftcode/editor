@@ -17,7 +17,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - [x] **LSP klient MVP** — podpora rust-analyzer (autocomplete, inline chyby, hover docs).
 - [x] **LSP rozšíření** — go-to-definition, find-references pro Rust.
 - [x] **AI kontext** — agent v terminálu automaticky vidí otevřené soubory a chyby z buildu.
-- [ ] **AI diff náhled** — vizuální porovnání navržených změn před aplikací na disk.
+- [x] **AI diff náhled** — vizuální porovnání navržených změn před aplikací na disk.
 - [x] **Klikatelné cesty v terminálu** — výstup cargo s přímým skokem na řádek v editoru.
 
 ## Q4 2026 — Rozšíření platformy (měsíce 7–9)

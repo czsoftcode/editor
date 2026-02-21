@@ -61,19 +61,21 @@ impl Sandbox {
 
     /// Checks if a path should be ignored during sandbox sync from project.
     fn is_ignored_in_project(path: &Path) -> bool {
-        let s = path.to_string_lossy();
-        Self::is_ignored_common(path) || s.contains("/.polycredo/") || s.ends_with("/.polycredo")
+        path.components().any(|c| {
+            let s = c.as_os_str().to_string_lossy();
+            matches!(
+                s.as_ref(),
+                ".git" | "target" | "node_modules" | ".polycredo"
+            )
+        })
     }
 
     /// Common ignores for both project and sandbox (build artifacts, git, etc).
     fn is_ignored_common(path: &Path) -> bool {
-        let s = path.to_string_lossy();
-        s.contains("/.git/")
-            || s.ends_with("/.git")
-            || s.contains("/target/")
-            || s.ends_with("/target")
-            || s.contains("/node_modules/")
-            || s.ends_with("/node_modules")
+        path.components().any(|c| {
+            let s = c.as_os_str().to_string_lossy();
+            matches!(s.as_ref(), ".git" | "target" | "node_modules")
+        })
     }
 
     /// Promotes a file from sandbox back to the real project.
@@ -119,15 +121,25 @@ impl Sandbox {
                 let is_staged = if !abs_project_path.exists() {
                     true
                 } else {
-                    let Ok(m_sandbox) = abs_sandbox_path.metadata() else { continue };
-                    let Ok(m_project) = abs_project_path.metadata() else { continue };
+                    let Ok(m_sandbox) = abs_sandbox_path.metadata() else {
+                        continue;
+                    };
+                    let Ok(m_project) = abs_project_path.metadata() else {
+                        continue;
+                    };
 
-                    let Ok(t_sandbox) = m_sandbox.modified() else { continue };
-                    let Ok(t_project) = m_project.modified() else { continue };
+                    let Ok(t_sandbox) = m_sandbox.modified() else {
+                        continue;
+                    };
+                    let Ok(t_project) = m_project.modified() else {
+                        continue;
+                    };
 
                     if t_sandbox > t_project {
-                        let s_content = std::fs::read_to_string(abs_sandbox_path).unwrap_or_default();
-                        let p_content = std::fs::read_to_string(&abs_project_path).unwrap_or_default();
+                        let s_content =
+                            std::fs::read_to_string(abs_sandbox_path).unwrap_or_default();
+                        let p_content =
+                            std::fs::read_to_string(&abs_project_path).unwrap_or_default();
                         s_content != p_content
                     } else {
                         false

@@ -2,6 +2,9 @@
 
 ## Панели
 panel-files = Файлы
+panel-files-sandbox = Файлы (Sandbox)
+btn-tree-project = Проект
+btn-tree-sandbox = Sandbox
 panel-build = Build
 panel-build-errors =
     { $count ->
@@ -13,11 +16,18 @@ panel-build-errors =
 
 ## Кнопки сборки
 btn-build = ▶ Build
+btn-build-sandbox-on = Sandbox ВКЛ
+btn-build-sandbox-off = Sandbox ВЫКЛ
+hover-build-sandbox = Переключение между выполнением в корне проекта и в ИИ-песочнице
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Создать .deb
+hover-create-deb-disabled = Невозможно создать пакет в режиме песочницы. Переключитесь на Sandbox ВЫКЛ.
+btn-run-profile = ▶ Запустить профиль...
+btn-edit-profiles = ⚙ Изменить
+runner-none = Профили не определены.
 
 ## Строка состояния
 statusbar-line-col = Строка { $line }, Столбец { $col }
@@ -154,6 +164,18 @@ ai-float-undock = Открепить в плавающее окно
 ai-viewport-open = Открыть в отдельном окне
 ai-tab-close-hover = Закрыть вкладку
 ai-tab-new-hover = Новая вкладка терминала
+ai-staged-bar-msg = ИИ предложил изменения в проекте
+ai-staged-bar-review = Проверить изменения
+ai-staged-bar-promote-all = Принять всё
+ai-staged-modal-hint = Нажмите на файл, чтобы увидеть различия и одобрить изменения:
+ai-staged-files = Предложенные изменения (Sandbox)
+ai-staged-new = [НОВЫЙ]
+ai-staged-mod = [MOD]
+ai-staged-del = [УДАЛЁН]
+ai-promotion-success-title = Изменения применены
+ai-promotion-success-body = Следующий файл успешно обновлён в вашем проекте:
+ai-promotion-success = Изменения успешно применены к проекту.
+ai-promotion-failed = Не удалось применить изменения: { $error }
 
 ## Настройки
 settings-title = Настройки
@@ -162,6 +184,7 @@ settings-language-restart = Изменение языка применяется
 settings-theme = Тема
 settings-theme-dark = Тёмная
 settings-theme-light = Светлая
+settings-auto-show-diff = Автоматически открывать просмотр изменений ИИ
 settings-diff-mode = Вид ИИ Diff
 settings-diff-inline = Вместе (+ / -)
 settings-diff-side-by-side = Рядом
@@ -188,14 +211,14 @@ file-tree-delete-error = Невозможно удалить: { $reason }
 
 ## Диалог внешнего конфликта
 conflict-title = Файл изменён извне
-conflict-message = Файл «{ $name }» был изменён другой программой, но в редакторе есть несохранённые изменения.
-conflict-choose = Выберите, какую версию оставить:
-conflict-load-disk = Загрузить с диска
-conflict-keep-editor = Оставить мои изменения
-conflict-dismiss = Закрыть
-conflict-hover-disk = Отменить изменения редактора и загрузить версию с диска
-conflict-hover-keep = Сохранить изменения редактора; файл на диске будет перезаписан при сохранении
-conflict-hover-dismiss = Закрыть уведомление без изменений
+conflict-message = Файл «{ $name }» был изменён (вероятно, при переносе из песочницы), но в редакторе есть несохранённые изменения.
+conflict-choose = Выберите, какую версию вы хотите сохранить:
+conflict-load-disk = Перезаписать из песочницы
+conflict-keep-editor = Сохранить из проекта
+conflict-dismiss = Отмена
+conflict-hover-disk = Отменить несохранённые изменения в редакторе и загрузить версию, только что перенесённую из песочницы
+conflict-hover-keep = Оставить текущие изменения в редакторе; версия из песочницы на диске будет перезаписана при следующем сохранении (Ctrl+S)
+conflict-hover-dismiss = Закрыть уведомление без внесения изменений
 
 md-open-external = ⧉ Открыть во внешнем просмотрщике
 

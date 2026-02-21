@@ -2,6 +2,9 @@
 
 ## Panely
 panel-files = Soubory
+panel-files-sandbox = Soubory (Sandbox)
+btn-tree-project = Projekt
+btn-tree-sandbox = Sandbox
 panel-runners = Spouštěče
 panel-build = Build
 panel-build-errors =
@@ -13,11 +16,15 @@ panel-build-errors =
 
 ## Build tlačítka
 btn-build = ▶ Build
+btn-build-sandbox-on = Sandbox ON
+btn-build-sandbox-off = Sandbox OFF
+hover-build-sandbox = Přepnout mezi spouštěním v projektu a v AI sandboxu
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Vytvořit .deb
+hover-create-deb-disabled = Nelze vytvářet balíček v režimu sandboxu. Přepněte na Sandbox OFF.
 btn-run-profile = ▶ Spustit...
 btn-edit-profiles = ⚙ Upravit
 runner-none = Nejsou definovány žádné profily.
@@ -172,6 +179,7 @@ ai-tab-close-hover = Zavřít záložku
 ai-tab-new-hover = Nová záložka terminálu
 ai-staged-bar-msg = AI navrhlo změny v projektu
 ai-staged-bar-review = Zkontrolovat změny
+ai-staged-bar-promote-all = Přenést vše
 ai-staged-modal-hint = Klikněte na soubor pro zobrazení rozdílů a schválení změn:
 ai-staged-files = Navržené změny (Sandbox)
 ai-staged-new = [NOVÝ]
@@ -189,6 +197,7 @@ settings-language-restart = Jazyk se změní okamžitě.
 settings-theme = Téma
 settings-theme-dark = Tmavé
 settings-theme-light = Světlé
+settings-auto-show-diff = Automaticky otevírat náhled změn AI
 settings-diff-mode = Zobrazení AI Diffu
 settings-diff-inline = Sloučené (+ / -)
 settings-diff-side-by-side = Vedle sebe
@@ -215,14 +224,14 @@ file-tree-delete-error = Nelze smazat: { $reason }
 
 ## Dialog externího konfliktu
 conflict-title = Soubor změněn externě
-conflict-message = Soubor „{ $name }" byl změněn jiným programem, ale obsahuje neuložené změny v editoru.
-conflict-choose = Vyberte, která verze má vyhrát:
-conflict-load-disk = Načíst z disku
-conflict-keep-editor = Zachovat moje
-conflict-dismiss = Ignorovat
-conflict-hover-disk = Zahodit změny v editoru a načíst verzi uloženou na disku
-conflict-hover-keep = Ponechat změny v editoru; soubor na disku bude přepsán při uložení
-conflict-hover-dismiss = Zavřít upozornění bez změny
+conflict-message = Soubor „{ $name }" byl změněn (pravděpodobně převodem ze sandboxu), ale obsahuje neuložené změny v editoru.
+conflict-choose = Vyberte, kterou verzi chcete zachovat:
+conflict-load-disk = Přepsat ze sandboxu
+conflict-keep-editor = Zachovat z projektu
+conflict-dismiss = Zrušit
+conflict-hover-disk = Zahodit neuložené změny v editoru a načíst verzi, která byla právě přenesena ze sandboxu
+conflict-hover-keep = Ponechat rozpracované změny v editoru; verze ze sandboxu na disku bude přepsána při vašem příštím uložení (Ctrl+S)
+conflict-hover-dismiss = Zavřít upozornění bez provedení změn
 
 md-open-external = ↗ Otevřít v externím prohlížeči
 

@@ -17,6 +17,9 @@ fn default_dark_theme() -> bool {
 fn default_lang() -> String {
     crate::i18n::detect_system_lang()
 }
+fn default_auto_show_ai_diff() -> bool {
+    true
+}
 
 pub fn default_project_path() -> String {
     dirs::home_dir()
@@ -57,6 +60,10 @@ pub struct Settings {
     /// Whether the user has accepted the privacy policy.
     #[serde(default)]
     pub privacy_accepted: bool,
+
+    /// Whether to automatically show the AI diff modal when changes are detected.
+    #[serde(default = "default_auto_show_ai_diff")]
+    pub auto_show_ai_diff: bool,
 }
 
 impl Default for Settings {
@@ -68,6 +75,7 @@ impl Default for Settings {
             lang: default_lang(),
             diff_side_by_side: false,
             privacy_accepted: false,
+            auto_show_ai_diff: true,
         }
     }
 }

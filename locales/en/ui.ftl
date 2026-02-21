@@ -2,6 +2,9 @@
 
 ## Panels
 panel-files = Files
+panel-files-sandbox = Files (Sandbox)
+btn-tree-project = Project
+btn-tree-sandbox = Sandbox
 panel-runners = Runners
 panel-build = Build
 panel-build-errors =
@@ -12,11 +15,15 @@ panel-build-errors =
 
 ## Build buttons
 btn-build = ▶ Build
+btn-build-sandbox-on = Sandbox ON
+btn-build-sandbox-off = Sandbox OFF
+hover-build-sandbox = Toggle between running in project root and AI sandbox
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Create .deb
+hover-create-deb-disabled = Cannot create package in sandbox mode. Switch to Sandbox OFF.
 btn-run-profile = ▶ Run Profile...
 btn-edit-profiles = ⚙ Edit
 runner-none = No profiles defined.
@@ -169,6 +176,7 @@ ai-tab-close-hover = Close tab
 ai-tab-new-hover = New terminal tab
 ai-staged-bar-msg = AI suggested changes to the project
 ai-staged-bar-review = Review Changes
+ai-staged-bar-promote-all = Promote All
 ai-staged-modal-hint = Click a file to review differences and accept changes:
 ai-staged-files = Suggested Changes (Sandbox)
 ai-staged-new = [NEW]
@@ -186,6 +194,7 @@ settings-language-restart = Language changes take effect immediately.
 settings-theme = Theme
 settings-theme-dark = Dark
 settings-theme-light = Light
+settings-auto-show-diff = Automatically open AI change preview
 settings-diff-mode = AI Diff Layout
 settings-diff-inline = Inline (+ / -)
 settings-diff-side-by-side = Side-by-side
@@ -212,14 +221,14 @@ file-tree-delete-error = Cannot delete: { $reason }
 
 ## External conflict dialog
 conflict-title = File Changed Externally
-conflict-message = File "{ $name }" was changed by another program, but has unsaved changes in the editor.
-conflict-choose = Choose which version should win:
-conflict-load-disk = Load from disk
-conflict-keep-editor = Keep mine
-conflict-dismiss = Dismiss
-conflict-hover-disk = Discard editor changes and load the version saved on disk
-conflict-hover-keep = Keep editor changes; the disk file will be overwritten on save
-conflict-hover-dismiss = Close notification without changes
+conflict-message = File "{ $name }" was changed (likely by sandbox promotion), but has unsaved changes in the editor.
+conflict-choose = Choose which version you want to keep:
+conflict-load-disk = Overwrite from Sandbox
+conflict-keep-editor = Keep Project Version
+conflict-dismiss = Cancel
+conflict-hover-disk = Discard unsaved editor changes and load the version just promoted from sandbox
+conflict-hover-keep = Keep your work-in-progress changes in the editor; the sandbox version on disk will be overwritten when you save (Ctrl+S)
+conflict-hover-dismiss = Close notification without making changes
 
 md-open-external = ↗ Open in External Viewer
 

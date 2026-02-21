@@ -171,6 +171,10 @@ pub(crate) struct WorkspaceState {
     pub promotion_success: Option<PathBuf>,
     /// Whether to show the modal listing all staged files in sandbox.
     pub show_sandbox_staged: bool,
+    /// Whether to run build/cargo commands in sandbox instead of project root.
+    pub build_in_sandbox: bool,
+    /// Whether the file tree shows sandbox instead of project root.
+    pub file_tree_in_sandbox: bool,
     /// Cancellation flag for git refresh threads.
     /// Set to true on workspace drop → threads terminate git process and do not process result.
     pub git_cancel: Arc<AtomicBool>,
@@ -330,6 +334,8 @@ pub(crate) fn init_workspace(
         ai_viewport_open: false,
         promotion_success: None,
         show_sandbox_staged: false,
+        build_in_sandbox: false,
+        file_tree_in_sandbox: false,
         git_cancel,
         local_history,
         sandbox,

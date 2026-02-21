@@ -82,11 +82,14 @@ pub(super) fn process_background_events(
                             && let Ok(new_content) = std::fs::read_to_string(path)
                         {
                             let real_path = ws.root_path.join(rel_path);
-                            ws.editor.pending_ai_diff = Some((
-                                real_path.to_string_lossy().to_string(),
-                                String::new(), // Empty original content
-                                new_content,
-                            ));
+                            let auto_show = shared.lock().unwrap().settings.auto_show_ai_diff;
+                            if auto_show {
+                                ws.editor.pending_ai_diff = Some((
+                                    real_path.to_string_lossy().to_string(),
+                                    String::new(), // Empty original content
+                                    new_content,
+                                ));
+                            }
                         }
                     }
                 }
@@ -113,12 +116,15 @@ pub(super) fn process_background_events(
                                 std::fs::read_to_string(&real_path).unwrap_or_default()
                             };
 
-                            // Trigger AI Diff modal
-                            ws.editor.pending_ai_diff = Some((
-                                real_path.to_string_lossy().to_string(),
-                                original_content,
-                                new_content,
-                            ));
+                            let auto_show = shared.lock().unwrap().settings.auto_show_ai_diff;
+                            if auto_show {
+                                // Trigger AI Diff modal
+                                ws.editor.pending_ai_diff = Some((
+                                    real_path.to_string_lossy().to_string(),
+                                    original_content,
+                                    new_content,
+                                ));
+                            }
                         }
                     } else {
                         // MODIFIED IN REAL PROJECT (Main workspace)

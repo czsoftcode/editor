@@ -2,6 +2,9 @@
 
 ## Panels
 panel-files = Dateien
+panel-files-sandbox = Dateien (Sandbox)
+btn-tree-project = Projekt
+btn-tree-sandbox = Sandbox
 panel-runners = Runner
 panel-build = Build
 panel-build-errors =
@@ -12,11 +15,15 @@ panel-build-errors =
 
 ## Build-Schaltflächen
 btn-build = ▶ Build
+btn-build-sandbox-on = Sandbox EIN
+btn-build-sandbox-off = Sandbox AUS
+hover-build-sandbox = Zwischen Projekt-Root und KI-Sandbox zum Ausführen umschalten
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = .deb erstellen
+hover-create-deb-disabled = Paket-Erstellung im Sandbox-Modus nicht möglich. Auf Sandbox AUS schalten.
 btn-run-profile = ▶ Profil ausführen...
 btn-edit-profiles = ⚙ Bearbeiten
 runner-none = Keine Profile definiert.
@@ -152,6 +159,18 @@ ai-float-undock = Als schwebendes Fenster lösen
 ai-viewport-open = In separatem Fenster öffnen
 ai-tab-close-hover = Tab schließen
 ai-tab-new-hover = Neuer Terminal-Tab
+ai-staged-bar-msg = KI hat Änderungen im Projekt vorgeschlagen
+ai-staged-bar-review = Änderungen überprüfen
+ai-staged-bar-promote-all = Alle übernehmen
+ai-staged-modal-hint = Klicken Sie auf eine Datei, um Unterschiede anzuzeigen und Änderungen zu genehmigen:
+ai-staged-files = Vorgeschlagene Änderungen (Sandbox)
+ai-staged-new = [NEU]
+ai-staged-mod = [MOD]
+ai-staged-del = [GELÖSCHT]
+ai-promotion-success-title = Änderungen angewendet
+ai-promotion-success-body = Die folgende Datei wurde erfolgreich in Ihrem Projekt aktualisiert:
+ai-promotion-success = Die Änderungen wurden erfolgreich in das Projekt übernommen.
+ai-promotion-failed = Änderungen konnten nicht angewendet werden: { $error }
 
 ## Einstellungen
 settings-title = Einstellungen
@@ -160,6 +179,7 @@ settings-language-restart = Sprachänderungen werden sofort wirksam.
 settings-theme = Design
 settings-theme-dark = Dunkel
 settings-theme-light = Hell
+settings-auto-show-diff = KI-Änderungsvorschau automatisch öffnen
 settings-diff-mode = KI-Diff-Layout
 settings-diff-inline = Zusammengefügt (+ / -)
 settings-diff-side-by-side = Nebeneinander
@@ -186,14 +206,14 @@ file-tree-delete-error = Löschen nicht möglich: { $reason }
 
 ## Dialog für externen Konflikt
 conflict-title = Datei extern geändert
-conflict-message = Die Datei „{ $name }" wurde von einem anderen Programm geändert, hat aber ungespeicherte Änderungen im Editor.
-conflict-choose = Wählen Sie, welche Version erhalten bleiben soll:
-conflict-load-disk = Von Festplatte laden
-conflict-keep-editor = Meine behalten
-conflict-dismiss = Schließen
-conflict-hover-disk = Editor-Änderungen verwerfen und die auf der Festplatte gespeicherte Version laden
-conflict-hover-keep = Editor-Änderungen behalten; die Datei auf der Festplatte wird beim Speichern überschrieben
-conflict-hover-dismiss = Benachrichtigung ohne Änderungen schließen
+conflict-message = Die Datei „{ $name }" wurde geändert (wahrscheinlich durch Sandbox-Übernahme), hat aber ungespeicherte Änderungen im Editor.
+conflict-choose = Wählen Sie, welche Version Sie behalten möchten:
+conflict-load-disk = Aus Sandbox überschreiben
+conflict-keep-editor = Aus Projekt beibehalten
+conflict-dismiss = Abbrechen
+conflict-hover-disk = Nicht gespeicherte Editor-Änderungen verwerfen und die gerade aus der Sandbox übernommene Version laden
+conflict-hover-keep = In Arbeit befindliche Änderungen im Editor behalten; die Sandbox-Version auf der Festplatte wird beim nächsten Speichern (Strg+S) überschrieben
+conflict-hover-dismiss = Benachrichtigung schließen, ohne Änderungen vorzunehmen
 
 md-open-external = ⧉ In externem Betrachter öffnen
 

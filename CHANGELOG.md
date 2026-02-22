@@ -1,3 +1,12 @@
+## [0.6.5] - 2026-02-22
+
+### Fixed
+- **Infinite Sync Loop (Performance)**: Fixed a critical bug where changes in the `.polycredo` directory (including the sandbox) were being synced back to the sandbox in an infinite loop, causing ~20% CPU usage.
+- **Optimized Project Watcher**: Refactored the file watcher path filter in `src/watcher.rs` to avoid redundant string allocations and expensive path component iterations for every file system event, resulting in a significantly lower CPU footprint (from ~20% to <3% in idle).
+
+### Changed
+- **Sync Logic Safeguard**: Added explicit checks to ensure that the project-to-sandbox synchronization ignores all paths within the `.polycredo` directory.
+
 ## [0.6.4] - 2026-02-22
 
 ### Added

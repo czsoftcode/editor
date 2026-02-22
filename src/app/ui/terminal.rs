@@ -673,6 +673,16 @@ fn terminal_key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<
 
 impl Drop for Terminal {
     fn drop(&mut self) {
+        if !self.exited {
+            // Try graceful exit first to trigger Event::Exit in the vendor's thread loop.
+            // This prevents the busy-loop bug in egui_term where recv() returns Err
+            // but the loop continues.
+            if let Some(backend) = &mut self.backend {
+                backend.process_command(egui_term::BackendCommand::Write(b"exit\n".to_vec()));
+                // Give it a tiny moment to process and send the Event::Exit
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
         #[cfg(unix)]
         self.kill_process_group();
     }

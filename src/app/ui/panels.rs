@@ -46,20 +46,6 @@ pub(super) fn render_left_panel(
                     ui.heading(title);
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ws.file_tree_in_sandbox {
-                            let sync_btn_text = if ws.sandbox_sync_disabled {
-                                egui::RichText::new("Zapnout synchronizaci")
-                                    .color(egui::Color32::LIGHT_GREEN)
-                            } else {
-                                egui::RichText::new("Zakázat synchronizaci")
-                                    .color(egui::Color32::LIGHT_RED)
-                            };
-                            if ui.button(sync_btn_text).clicked() {
-                                ws.sandbox_sync_disabled = !ws.sandbox_sync_disabled;
-                            }
-                            ui.separator();
-                        }
-
                         let prev_in_sandbox = ws.file_tree_in_sandbox;
                         if ui
                             .selectable_label(

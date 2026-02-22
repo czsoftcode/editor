@@ -2,12 +2,15 @@
 
 ### Added
 - **Plugin Foundation (Internal)**: Introduced a centralized `Registry` system for managing commands and UI panels.
-  - **Command Registry**: Commands are now registered with unique string IDs (e.g., `editor.open_file`), i18n keys, and shortcuts. This decouples the command definitions from the UI components.
-  - **Panel Registry**: Added infrastructure for managing dynamic panels in different UI areas (Left, Right, Bottom), preparing the codebase for more modular extensions.
-- **Decoupled Command Palette**: Refactored the Command Palette to pull its actions directly from the global command registry, making it extensible without modifying the widget's code.
+  - **Command Registry**: Commands are now registered with unique string IDs (e.g., `editor.open_file`), i18n keys, and shortcuts.
+  - **Panel Registry**: Added infrastructure for managing dynamic panels in different UI areas (Left, Right, Bottom).
+- **Decoupled Command Palette**: Refactored the Command Palette to pull its actions directly from the global command registry.
+
+### Fixed
+- **Terminal Busy-Loop Prevention**: Implemented a graceful shutdown for terminals in `Drop`. By sending `exit\n` to the shell before closing, we ensure the PTY event loop in the vendor code (egui_term) terminates correctly, preventing a "zombie" thread from consuming 100% CPU on a disconnected channel.
 
 ### Changed
-- **Architecture Refactoring**: Migrated all hardcoded internal commands to the new registry-based initialization in `AppShared`.
+- **Simplified Sandbox Sync**: Removed manual synchronization toggles from the File Tree and AI panel. Synchronization between the project and sandbox is now always automatic (both on file changes and tool startup), ensuring a seamless and reliable AI agent experience with less UI clutter.
 
 ## [0.6.8] - 2026-02-22
 

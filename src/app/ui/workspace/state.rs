@@ -168,7 +168,6 @@ pub(crate) struct WorkspaceState {
     pub sandbox_staged_dirty: bool,
     pub sandbox_staged_last_dirty: std::time::Instant,
     pub sandbox_staged_last_refresh: std::time::Instant,
-    pub sandbox_sync_disabled: bool,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
 }
 
@@ -325,7 +324,6 @@ pub(crate) fn init_workspace(
         sandbox_staged_dirty: true,
         sandbox_staged_last_dirty: std::time::Instant::now(),
         sandbox_staged_last_refresh: std::time::Instant::now(),
-        sandbox_sync_disabled: false,
         background_io_rx: None,
     }
 }

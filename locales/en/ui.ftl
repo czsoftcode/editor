@@ -128,6 +128,7 @@ command-name-show-about = About
 command-name-show-settings = Settings
 command-name-quit = Quit PolyCredo Editor
 command-name-plugin-hello = Plugin: Say Hello
+command-name-plugin-gemini = Plugin: Ask Gemini
 
 ## Quick file open (Ctrl+P)
 file-picker-heading = Open File
@@ -201,7 +202,21 @@ ai-staged-del = [DELETED]
 ai-promotion-success-title = Changes Applied
 ai-promotion-success-body = The following file has been successfully updated in your project:
 ai-promotion-success = Changes successfully applied to the project.
+ai-promotion-all-success = Successfully promoted { $count } files to project.
 ai-promotion-failed = Failed to apply changes: { $error }
+
+## Sync before starting AI
+ai-sync-title = Sync before start
+ai-sync-msg = Differences detected between project and sandbox. Latest versions should be synchronized.
+ai-sync-to-sandbox = Update Sandbox ({ $count } newer in project)
+ai-sync-to-project = Promote to Project ({ $count } newer in sandbox)
+ai-sync-btn-sync = Sync and Start
+ai-sync-btn-skip = Start without sync
+
+## Plugin Permissions
+plugin-auth-bar-msg = Plugin "{ $name }" requests internet access ({ $hosts }).
+plugin-auth-bar-allow = Allow and Start
+plugin-auth-bar-deny = Deny
 
 ## Settings
 settings-title = Settings
@@ -218,6 +233,32 @@ settings-editor-font = Editor — font size
 settings-ai-font = AI Terminal — font size
 settings-default-path = Default project path
 settings-creates-in = Will be created at:
+
+## Plugins
+plugins-title = Plugin Manager
+plugins-config-label = Plugin Configuration:
+plugins-unknown-agent = Unknown Agent
+plugins-security-info = 🛡 Security: You can manage the file/directory blacklist in the main Settings.
+plugins-settings-saved = Plugin settings saved. Restart recommended for some changes.
+plugins-placeholder-api-key = API Key (e.g. Gemini, Anthropic)
+plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
+command-name-show-plugins = Plugins
+
+## Gemini AI
+gemini-title = Gemini AI Assistant
+gemini-label-response = Response:
+gemini-loading = Gemini is thinking…
+gemini-label-prompt = Your prompt:
+gemini-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
+gemini-btn-send = Send
+gemini-btn-new = New Query
+
+## Settings
+settings-suggested-patterns = Suggested patterns:
+
+## Plugin Error
+plugin-error-title = Plugin Error
+plugin-error-heading = Plugin Failure
 
 ## File tree
 file-tree-new-file = New File
@@ -259,3 +300,8 @@ sandbox-delete-title = File deleted in sandbox
 sandbox-delete-msg = File "{ $name }" was deleted in AI sandbox but still exists in project. What would you like to do?
 sandbox-delete-keep-project = Keep in project (restore to sandbox)
 sandbox-delete-also-project = Also delete in project
+
+## Settings updates
+settings-blacklist = Plugin Blacklist (blocked files)
+settings-blacklist-add = Add pattern
+settings-blacklist-hint = Patterns like *.env, secret/*. Auto-blocks .gitignore.

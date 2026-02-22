@@ -8,6 +8,18 @@ pub struct Sandbox {
     project_root: PathBuf,
 }
 
+#[derive(Default, Clone)]
+pub struct SyncPlan {
+    pub to_sandbox: Vec<PathBuf>, // Newer in Project
+    pub to_project: Vec<PathBuf>, // Newer in Sandbox
+}
+
+impl SyncPlan {
+    pub fn is_empty(&self) -> bool {
+        self.to_sandbox.is_empty() && self.to_project.is_empty()
+    }
+}
+
 impl Sandbox {
     pub fn new(project_root: &Path) -> Self {
         let root = project_root.join(".polycredo").join("sandbox");
@@ -30,9 +42,107 @@ impl Sandbox {
         Some(xxh64(&bytes, 0))
     }
 
+    /// Analyzes differences and returns a plan for bidirectional sync.
+    pub fn get_sync_plan(&self) -> SyncPlan {
+        let mut plan = SyncPlan::default();
+
+        // 1. Check Project -> Sandbox (Newer in Project)
+        for entry in WalkDir::new(&self.project_root)
+            .into_iter()
+            .filter_entry(|e| !Self::is_ignored_in_project(e.path()))
+        {
+            let Ok(entry) = entry else { continue };
+            if entry.file_type().is_file() {
+                let rel_path = entry.path().strip_prefix(&self.project_root).unwrap();
+                let sandbox_path = self.root.join(rel_path);
+
+                if !sandbox_path.exists() {
+                    plan.to_sandbox.push(rel_path.to_path_buf());
+                } else {
+                    let Ok(m_project) = entry.metadata() else {
+                        continue;
+                    };
+                    let Ok(m_sandbox) = sandbox_path.metadata() else {
+                        continue;
+                    };
+
+                    // Only consider if size or hash differs
+                    let different = if m_project.len() != m_sandbox.len() {
+                        true
+                    } else {
+                        let h_project = Self::calculate_file_hash(entry.path());
+                        let h_sandbox = Self::calculate_file_hash(&sandbox_path);
+                        h_project != h_sandbox
+                    };
+
+                    if different {
+                        let Ok(t_project) = m_project.modified() else {
+                            continue;
+                        };
+                        let Ok(t_sandbox) = m_sandbox.modified() else {
+                            continue;
+                        };
+                        if t_project > t_sandbox {
+                            plan.to_sandbox.push(rel_path.to_path_buf());
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Check Sandbox -> Project (Newer in Sandbox)
+        for entry in WalkDir::new(&self.root)
+            .into_iter()
+            .filter_entry(|e| !Self::is_ignored_common(e.path()))
+        {
+            let Ok(entry) = entry else { continue };
+            if entry.file_type().is_file() {
+                let rel_path = entry.path().strip_prefix(&self.root).unwrap();
+                let project_path = self.project_root.join(rel_path);
+
+                if project_path.exists() {
+                    let Ok(m_sandbox) = entry.metadata() else {
+                        continue;
+                    };
+                    let Ok(m_project) = project_path.metadata() else {
+                        continue;
+                    };
+
+                    // Only consider if size or hash differs
+                    let different = if m_sandbox.len() != m_project.len() {
+                        true
+                    } else {
+                        let h_sandbox = Self::calculate_file_hash(entry.path());
+                        let h_project = Self::calculate_file_hash(&project_path);
+                        h_sandbox != h_project
+                    };
+
+                    if different {
+                        let Ok(t_sandbox) = m_sandbox.modified() else {
+                            continue;
+                        };
+                        let Ok(t_project) = m_project.modified() else {
+                            continue;
+                        };
+                        if t_sandbox > t_project {
+                            plan.to_project.push(rel_path.to_path_buf());
+                        }
+                    }
+                } else {
+                    // New files in sandbox are handled by the standard "promote" UI,
+                    // but we can include them here if we want full auto-sync.
+                    // For now, let's keep it to modified files only to be safe.
+                }
+            }
+        }
+
+        plan
+    }
+
     /// Synchronizes the sandbox with the project root.
     /// Only copies files that are missing or different in the sandbox.
     /// Skips .git, target and other ignored directories.
+    #[allow(dead_code)]
     pub fn sync_from_project(&self) -> Result<(), String> {
         for entry in WalkDir::new(&self.project_root)
             .into_iter()

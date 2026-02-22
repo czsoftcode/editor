@@ -29,6 +29,7 @@ pub(crate) struct MenuActions {
     pub toggle_float: bool,
     pub about: bool,
     pub settings: bool,
+    pub plugins: bool,
     pub build: bool,
     pub run: bool,
     pub open_file_picker: bool,
@@ -282,6 +283,11 @@ pub(super) fn process_menu_actions(
     }
     if actions.settings {
         ws.show_settings = true;
+    }
+    if actions.plugins {
+        ws.show_plugins = true;
+        let shared_lock = shared.lock().expect("lock");
+        ws.settings_draft = Some((*shared_lock.settings).clone());
     }
     if actions.new_project {
         ws.show_new_project = true;

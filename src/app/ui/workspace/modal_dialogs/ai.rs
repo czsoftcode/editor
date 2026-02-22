@@ -1,8 +1,44 @@
+use crate::app::types::AppShared;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::i18n::I18n;
 use eframe::egui;
+use std::sync::{Arc, Mutex};
 
-pub fn show(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n) {
+pub fn show(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &I18n,
+) {
+    // Plugin error dialog
+    if let Some(err) = ws.plugin_error.clone() {
+        egui::Window::new(i18n.get("plugin-error-title"))
+            .id(egui::Id::new("plugin_error_win"))
+            .collapsible(false)
+            .resizable(true)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .default_size([500.0, 300.0])
+            .show(ctx, |ui: &mut egui::Ui| {
+                ui.label(
+                    egui::RichText::new(i18n.get("plugin-error-heading"))
+                        .color(egui::Color32::RED)
+                        .strong(),
+                );
+                ui.add_space(8.0);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut err.clone())
+                            .code_editor()
+                            .desired_width(f32::INFINITY),
+                    );
+                });
+                ui.add_space(12.0);
+                if ui.button(i18n.get("btn-close")).clicked() {
+                    ws.plugin_error = None;
+                }
+            });
+    }
+
     // Promotion success dialog
     if let Some(path) = ws.promotion_success.clone() {
         let filename = path
@@ -36,6 +72,105 @@ pub fn show(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n) {
                     ui.add_space(8.0);
                 });
             });
+    }
+
+    // Sync confirmation dialog before starting AI
+    if let Some(plan) = ws.sync_confirmation.clone() {
+        let mut close_requested = false;
+        let mut do_sync = false;
+        let mut do_skip = false;
+
+        egui::Window::new(i18n.get("ai-sync-title"))
+            .id(egui::Id::new("ai_sync_confirm_win"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui: &mut egui::Ui| {
+                ui.label(i18n.get("ai-sync-msg"));
+                ui.add_space(8.0);
+
+                if !plan.to_sandbox.is_empty() {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("count", plan.to_sandbox.len());
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "\u{2193} {}",
+                            i18n.get_args("ai-sync-to-sandbox", &args)
+                        ))
+                        .color(egui::Color32::from_rgb(100, 150, 255)),
+                    );
+                }
+
+                if !plan.to_project.is_empty() {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("count", plan.to_project.len());
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "\u{2191} {}",
+                            i18n.get_args("ai-sync-to-project", &args)
+                        ))
+                        .color(egui::Color32::from_rgb(255, 200, 100)),
+                    );
+                }
+
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    if ui
+                        .button(egui::RichText::new(i18n.get("ai-sync-btn-sync")).strong())
+                        .clicked()
+                    {
+                        do_sync = true;
+                        close_requested = true;
+                    }
+                    if ui.button(i18n.get("ai-sync-btn-skip")).clicked() {
+                        do_skip = true;
+                        close_requested = true;
+                    }
+                    if ui.button(i18n.get("btn-cancel")).clicked() {
+                        close_requested = true;
+                    }
+                });
+            });
+
+        if do_sync {
+            // Perform bidirectional sync
+            for rel_path in &plan.to_sandbox {
+                let src = ws.root_path.join(rel_path);
+                let dst = ws.sandbox.root.join(rel_path);
+                if let Some(parent) = dst.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                let _ = std::fs::copy(src, dst);
+            }
+            for rel_path in &plan.to_project {
+                let _ = ws.sandbox.promote_file(rel_path);
+            }
+            ws.sandbox_staged_dirty = true;
+            do_skip = true; // Trigger agent start after sync
+        }
+
+        if do_skip && let Some(agent_id) = ws.pending_agent_id.take() {
+            let agents = {
+                let sh = shared.lock().expect("lock");
+                sh.registry.agents.get_all().to_vec()
+            };
+            if let Some(agent) = agents.iter().find(|a| a.id == agent_id) {
+                let cmd = agent.command.clone();
+                let active = ws.claude_active_tab;
+                let context = crate::app::ui::ai_panel::generate_ai_context(ws);
+                if let Some(terminal) = ws.claude_tabs.get_mut(active) {
+                    terminal.send_command(&cmd);
+                    if agent.context_aware {
+                        terminal.send_command(&context);
+                    }
+                }
+            }
+        }
+
+        if close_requested {
+            ws.sync_confirmation = None;
+            ws.pending_agent_id = None;
+        }
     }
 
     // List of all staged files in Sandbox.

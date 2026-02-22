@@ -41,7 +41,7 @@ git-checkout-file = git checkout (файл)
 git-checkout-branch = git checkout (ветка)
 git-pull = git pull
 git-reset-hard = git reset --hard
-hover-git-disabled-sandbox = Git operations are disabled until all sandbox changes are resolved (use 'Review Changes' or 'Promote All' in the yellow bar).
+hover-git-disabled-sandbox = Операции Git отключены до тех пор, пока не будут разрешены все изменения в песочнице (используйте кнопку «Проверить изменения» или «Принять все» на желтой панели).
 
 ## Строка состояния
 statusbar-line-col = Строка { $line }, Столбец { $col }
@@ -120,6 +120,8 @@ command-name-show-about = О программе
 command-name-show-settings = Настройки
 command-name-quit = Выйти из PolyCredo Editor
 command-name-plugin-hello = Плагин: Поздороваться
+command-name-plugin-gemini = Плагин: Спросить Gemini
+command-name-show-plugins = Плагины
 
 ## Быстрое открытие файла (Ctrl+P)
 file-picker-heading = Открыть файл
@@ -157,7 +159,7 @@ btn-open = Открыть
 btn-refresh = Обновить
 btn-save = Сохранить
 btn-rename = Переименовать
-btn-copy = Копировать
+btn-copy = Kopировать
 btn-paste = Вставить
 btn-delete = Удалить
 btn-name-label = Имя:
@@ -191,7 +193,21 @@ ai-staged-del = [УДАЛЁН]
 ai-promotion-success-title = Изменения применены
 ai-promotion-success-body = Следующий файл успешно обновлён в вашем проекте:
 ai-promotion-success = Изменения успешно применены к проекту.
+ai-promotion-all-success = Успешно перенесено { $count } файлов в проект.
 ai-promotion-failed = Не удалось применить изменения: { $error }
+
+## Синхронизация перед запуском ИИ
+ai-sync-title = Синхронизация перед запуском
+ai-sync-msg = Обнаружены различия между проектом и песочницей. Последние версии файлов должны быть синхронизированы.
+ai-sync-to-sandbox = Обновить песочницу ({ $count } новее в проекте)
+ai-sync-to-project = Перенести в проект ({ $count } новее в песочнице)
+ai-sync-btn-sync = Синхронизировать и запустить
+ai-sync-btn-skip = Запустить без синхронизации
+
+## Разрешения плагинов
+plugin-auth-bar-msg = Плагин «{ $name }» запрашивает доступ к интернету ({ $hosts }).
+plugin-auth-bar-allow = Разрешить и запустить
+plugin-auth-bar-deny = Отклонить
 
 ## Настройки
 settings-title = Настройки
@@ -208,6 +224,32 @@ settings-editor-font = Редактор — размер шрифта
 settings-ai-font = AI-Терминал — размер шрифта
 settings-default-path = Путь проектов по умолчанию
 settings-creates-in = Будет создано в:
+settings-blacklist = Черный список (запрещенные файлы для плагинов)
+settings-blacklist-hint = Шаблоны типа *.env, secret/*. Автоматически блокирует файлы из .gitignore.
+settings-blacklist-add = Добавить шаблон
+settings-suggested-patterns = Рекомендуемые шаблоны:
+
+## Плагины
+plugins-title = Менеджер плагинов
+plugins-config-label = Конфигурация плагина:
+plugins-unknown-agent = Неизвестный агент
+plugins-security-info = 🛡 Безопасность: Вы можете управлять черным списком файлов/папок в основных настройках.
+plugins-settings-saved = Настройки плагинов сохранены. Для некоторых изменений рекомендуется перезапуск.
+plugins-placeholder-api-key = API-ключ (например, Gemini, Anthropic)
+plugins-placeholder-model = ID модели (например, gemini-1.5-flash)
+
+## Gemini AI
+gemini-title = ИИ-ассистент Gemini
+gemini-label-response = Ответ:
+gemini-loading = Gemini думает…
+gemini-label-prompt = Ваш запрос:
+gemini-placeholder-prompt = Введите задание для ИИ...
+gemini-btn-send = Отправить
+gemini-btn-new = Новый запрос
+
+## Ошибка плагина
+plugin-error-title = Ошибка плагина
+plugin-error-heading = Сбой плагина
 
 ## Дерево файлов
 file-tree-new-file = Новый файл

@@ -1,3 +1,24 @@
+## [0.7.1] - 2026-02-23
+
+### Added
+- **Context-Aware AI Assistant**: The internal Gemini plugin now has "eyes" into the project.
+  - **Host Functions**: Implemented `read_project_file`, `list_project_files`, `get_active_file_path`, and `get_active_file_content`.
+  - **Automatic Context**: Content of the active editor tab is automatically included in AI queries.
+  - **Project Awareness**: AI can now see the project structure and answer questions about other files.
+- **Capability-Based Security Model**:
+  - **Plugin Blacklist**: Global setting to block plugins from accessing sensitive files (e.g., `.env`, `*.key`).
+  - **Git-Native Blocking**: Automatically inherits ignore patterns from `.gitignore`.
+  - **Dynamic Enforcement**: Security checks are performed within the Host Functions before data is passed to WASM.
+- **Enhanced UI & UX**:
+  - **Flexible Modals**: Gemini dialog is now resizable and persists across user interactions.
+  - **Font Synchronization**: AI modal font size now matches the editor's global font settings.
+  - **Improved Focus Logic**: Prevented the terminal from stealing keyboard input when the AI modal is active.
+- **Multi-language Localization**: Full support for CS, EN, SK, DE, RU in Plugin Manager and AI components.
+
+### Fixed
+- **Extism Runtime Stability**: Resolved low-level memory management issues in Host Functions for Extism 1.13.
+- **Async UI Pacing**: Ensure non-blocking plugin calls to keep the editor responsive during network/WASM execution.
+
 ## [0.7.0] - 2026-02-22
 
 ### Added

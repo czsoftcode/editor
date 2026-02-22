@@ -163,6 +163,7 @@ pub(crate) fn render_workspace(
 
     render_sandbox_staged_bar(ctx, ws, i18n);
     render_lsp_setup_bar(ctx, ws, i18n);
+    render_plugin_auth_bar(ctx, shared, i18n);
     render_sandbox_deletion_sync_dialog(ctx, ws, i18n);
 
     // Auto-restart LSP if missing (with 30s debounce)
@@ -193,6 +194,7 @@ pub(crate) fn render_workspace(
                     if crate::app::ui::ai_panel::render_ai_panel_content(
                         ui,
                         ws,
+                        shared,
                         false,
                         ws.focused_panel,
                         config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0,
@@ -218,7 +220,14 @@ pub(crate) fn render_workspace(
     if let Some(cmd_id) = render_command_palette(ctx, ws, shared, i18n) {
         let mut actions = MenuActions::default();
         if let Some(plugin_res) = execute_command(cmd_id, &mut actions, shared) {
-            ws.toasts.push(crate::app::types::Toast::info(plugin_res));
+            if plugin_res == "OPEN_GEMINI_MODAL" {
+                ws.gemini_prompt = " ".to_string(); // Trigger the modal show
+                ws.gemini_response = None;
+            } else if plugin_res.starts_with("Plugin error:") {
+                ws.plugin_error = Some(plugin_res);
+            } else {
+                ws.toasts.push(crate::app::types::Toast::info(plugin_res));
+            }
         }
         if let Some(path) = process_menu_actions(ws, shared, actions, i18n) {
             open_here_path = Some(path);
@@ -232,8 +241,12 @@ pub(crate) fn render_workspace(
                 .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
         });
 
-    let dialog_open = ws.file_tree.has_open_dialog() || ws.command_palette.is_some();
-    let ai_clicked = render_ai_panel(ctx, ws, dialog_open, i18n);
+    let dialog_open = ws.file_tree.has_open_dialog()
+        || ws.command_palette.is_some()
+        || ws.show_plugins
+        || ws.show_settings
+        || (!ws.gemini_prompt.is_empty() || ws.gemini_loading || ws.gemini_response.is_some());
+    let ai_clicked = render_ai_panel(ctx, ws, shared, dialog_open, i18n);
     let left_clicked = render_left_panel(ctx, ws, dialog_open, i18n);
     let prev_active_path = ws.editor.active_path().cloned();
 
@@ -362,15 +375,74 @@ fn render_sandbox_staged_bar(
                         let _ = ws.sandbox.promote_file(&rel_path);
                     }
                     ws.sandbox_staged_dirty = true;
-                    ws.toasts.push(Toast::info(format!(
-                        "Successfully promoted {} files to project.",
-                        staged_files.len()
-                    )));
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("count", staged_files.len());
+                    ws.toasts.push(Toast::info(
+                        i18n.get_args("ai-promotion-all-success", &args),
+                    ));
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button(i18n.get("btn-dismiss")).clicked() { /* dismiss logic */ }
                 });
             });
+            ui.add_space(2.0);
+        });
+    });
+}
+
+fn render_plugin_auth_bar(
+    ctx: &egui::Context,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
+    let pending = {
+        let sh = shared.lock().expect("lock");
+        sh.registry.plugins.get_pending_authorizations()
+    };
+
+    if pending.is_empty() {
+        return;
+    }
+
+    egui::TopBottomPanel::top("plugin_auth_bar").show(ctx, |ui| {
+        ui.vertical(|ui| {
+            ui.add_space(2.0);
+            for (id, meta) in pending {
+                ui.horizontal(|ui| {
+                    ui.visuals_mut().widgets.noninteractive.bg_fill =
+                        egui::Color32::from_rgb(40, 60, 100);
+                    ui.spacing_mut().item_spacing.x = 12.0;
+
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("name", meta.name.clone());
+                    args.set("hosts", meta.allowed_hosts.join(", "));
+
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "\u{1F6E1} {}",
+                            i18n.get_args("plugin-auth-bar-msg", &args)
+                        ))
+                        .color(egui::Color32::from_rgb(150, 200, 255))
+                        .strong(),
+                    );
+
+                    if ui.button(i18n.get("plugin-auth-bar-allow")).clicked() {
+                        let sh = shared.lock().expect("lock");
+                        let config = sh
+                            .settings
+                            .plugins
+                            .get(&id)
+                            .map(|s| s.config.clone())
+                            .unwrap_or_default();
+                        let _ = sh.registry.plugins.authorize(&id, &config);
+                    }
+
+                    if ui.button(i18n.get("plugin-auth-bar-deny")).clicked() {
+                        // For now deny just hides it by changing status
+                        // In real app we could mark it as Denied in PluginManager
+                    }
+                });
+            }
             ui.add_space(2.0);
         });
     });

@@ -7,7 +7,7 @@ use eframe::egui;
 
 use super::super::super::build_runner::BuildError;
 use super::super::super::types::{
-    AiTool, FocusedPanel, PersistentState, ProjectProfiles, Toast, default_wizard_path,
+    FocusedPanel, PersistentState, ProjectProfiles, Toast, default_wizard_path,
 };
 use super::super::background::{fetch_git_branch, fetch_git_status};
 use super::super::dialogs::WizardState;
@@ -123,11 +123,12 @@ pub(crate) struct WorkspaceState {
     pub show_build_terminal: bool,
     pub show_about: bool,
     pub show_settings: bool,
+    pub show_plugins: bool,
     pub ai_font_scale: u32,
     pub profiles: ProjectProfiles,
     pub build_errors: Vec<BuildError>,
     pub build_error_rx: Option<mpsc::Receiver<Vec<BuildError>>>,
-    pub claude_tool: AiTool,
+    pub selected_agent_id: String,
     pub claude_float: bool,
     pub show_new_project: bool,
     pub wizard: WizardState,
@@ -147,8 +148,8 @@ pub(crate) struct WorkspaceState {
     pub lsp_last_retry: std::time::Instant,
     pub settings_draft: Option<crate::settings::Settings>,
     pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
-    pub ai_tool_available: HashMap<AiTool, bool>,
-    pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<AiTool, bool>>>,
+    pub ai_tool_available: HashMap<String, bool>,
+    pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<String, bool>>>,
     pub ai_tool_last_check: std::time::Instant,
     pub external_change_conflict: Option<PathBuf>,
     /// Pending sync: file was deleted in sandbox but still exists in project.
@@ -158,6 +159,13 @@ pub(crate) struct WorkspaceState {
     pub ai_viewport_open: bool,
     pub promotion_success: Option<PathBuf>,
     pub show_sandbox_staged: bool,
+    pub plugin_error: Option<String>,
+    pub gemini_prompt: String,
+    pub gemini_response: Option<String>,
+    pub gemini_loading: bool,
+    pub markdown_cache: egui_commonmark::CommonMarkCache,
+    pub sync_confirmation: Option<crate::app::sandbox::SyncPlan>,
+    pub pending_agent_id: Option<String>,
     pub build_in_sandbox: bool,
     pub file_tree_in_sandbox: bool,
     pub git_cancel: Arc<AtomicBool>,
@@ -213,11 +221,13 @@ fn is_command_available(command: &str) -> bool {
     }
 }
 
-pub(crate) fn spawn_ai_tool_check() -> mpsc::Receiver<HashMap<AiTool, bool>> {
+pub(crate) fn spawn_ai_tool_check(
+    agents: Vec<(String, String)>,
+) -> mpsc::Receiver<HashMap<String, bool>> {
     crate::app::ui::background::spawn_task(move || {
         let mut status = HashMap::new();
-        for tool in AiTool::ALL {
-            status.insert(tool, is_command_available(tool.command()));
+        for (id, cmd) in agents {
+            status.insert(id, is_command_available(&cmd));
         }
         status
     })
@@ -240,7 +250,6 @@ pub(crate) fn init_workspace(
     let git_status_rx = fetch_git_status(&root_path, Arc::clone(&git_cancel));
     let project_index = Arc::new(super::ProjectIndex::new(root_path.clone()));
     project_index.full_rescan();
-    let ai_tool_check_rx = spawn_ai_tool_check();
     let profiles = load_profiles(&root_path);
     let mut wizard = WizardState::default();
     wizard.path = default_wizard_path();
@@ -281,11 +290,12 @@ pub(crate) fn init_workspace(
         show_build_terminal: panel_state.show_build_terminal,
         show_about: false,
         show_settings: false,
+        show_plugins: false,
         ai_font_scale: panel_state.ai_font_scale,
         profiles,
         build_errors: Vec::new(),
         build_error_rx: None,
-        claude_tool: AiTool::ClaudeCode,
+        selected_agent_id: "gemini".to_string(),
         claude_float: panel_state.claude_float,
         show_new_project: false,
         wizard,
@@ -306,7 +316,7 @@ pub(crate) fn init_workspace(
         settings_draft: None,
         settings_folder_pick_rx: None,
         ai_tool_available: HashMap::new(),
-        ai_tool_check_rx: Some(ai_tool_check_rx),
+        ai_tool_check_rx: None,
         ai_tool_last_check: std::time::Instant::now(),
         external_change_conflict: None,
         sandbox_deletion_sync: None,
@@ -314,6 +324,13 @@ pub(crate) fn init_workspace(
         ai_viewport_open: false,
         promotion_success: None,
         show_sandbox_staged: false,
+        plugin_error: None,
+        gemini_prompt: String::new(),
+        gemini_response: None,
+        gemini_loading: false,
+        markdown_cache: egui_commonmark::CommonMarkCache::default(),
+        sync_confirmation: None,
+        pending_agent_id: None,
         build_in_sandbox: false,
         file_tree_in_sandbox: false,
         git_cancel,

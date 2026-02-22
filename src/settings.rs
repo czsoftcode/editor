@@ -1,8 +1,25 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 const SETTINGS_FILE: &str = "settings.toml";
 const OLD_SETTINGS_FILE: &str = "settings.json";
 const CONFIG_DIR_NAME: &str = "polycredo-editor";
+
+// ---------------------------------------------------------------------------
+// PluginSettings — configuration for individual WASM plugins
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+pub struct PluginSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub config: HashMap<String, String>,
+}
+
+fn default_true() -> bool {
+    true
+}
 
 // ---------------------------------------------------------------------------
 // Default values (needed for serde default attrs)
@@ -64,6 +81,14 @@ pub struct Settings {
     /// Whether to automatically show the AI diff modal when changes are detected.
     #[serde(default = "default_auto_show_ai_diff")]
     pub auto_show_ai_diff: bool,
+
+    /// Configuration for individual plugins. Key = plugin ID (file stem).
+    #[serde(default)]
+    pub plugins: HashMap<String, PluginSettings>,
+
+    /// Global blacklist for plugins (glob patterns, e.g. ["*.env", "secret/*"]).
+    #[serde(default)]
+    pub blacklist: Vec<String>,
 }
 
 impl Default for Settings {
@@ -76,6 +101,13 @@ impl Default for Settings {
             diff_side_by_side: false,
             privacy_accepted: false,
             auto_show_ai_diff: true,
+            plugins: HashMap::new(),
+            blacklist: vec![
+                ".env*".to_string(),
+                "*.key".to_string(),
+                "id_rsa*".to_string(),
+                "Cargo.lock".to_string(),
+            ],
         }
     }
 }

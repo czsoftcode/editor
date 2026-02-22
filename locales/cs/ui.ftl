@@ -131,6 +131,7 @@ command-name-show-about = O aplikaci
 command-name-show-settings = Nastavení
 command-name-quit = Ukončit PolyCredo Editor
 command-name-plugin-hello = Plugin: Pozdravit svět
+command-name-plugin-gemini = Plugin: Zeptat se Gemini
 
 ## Rychlé otevření souboru (Ctrl+P)
 file-picker-heading = Otevřít soubor
@@ -204,7 +205,21 @@ ai-staged-del = [SMAZÁNO]
 ai-promotion-success-title = Změny aplikovány
 ai-promotion-success-body = Následující soubor byl úspěšně aktualizován ve vašem projektu:
 ai-promotion-success = Změny byly úspěšně aplikovány do projektu.
+ai-promotion-all-success = Úspěšně přeneseno { $count } souborů do projektu.
 ai-promotion-failed = Nepodařilo se aplikovat změny: { $error }
+
+## Synchronizace před spuštěním AI
+ai-sync-title = Synchronizace před spuštěním
+ai-sync-msg = Byly detekovány rozdíly mezi projektem a sandboxem. Nejnovější verze souborů by měly být synchronizovány.
+ai-sync-to-sandbox = Aktualizovat Sandbox ({ $count } novějších v projektu)
+ai-sync-to-project = Povýšit do Projektu ({ $count } novějších v sandboxu)
+ai-sync-btn-sync = Synchronizovat a spustit
+ai-sync-btn-skip = Spustit bez synchronizace
+
+## Oprávnění pluginů
+plugin-auth-bar-msg = Plugin „{ $name }“ žádá o přístup k internetu ({ $hosts }).
+plugin-auth-bar-allow = Povolit a spustit
+plugin-auth-bar-deny = Zakázat
 
 ## Nastavení
 settings-title = Nastavení
@@ -221,6 +236,35 @@ settings-editor-font = Editor — velikost fontu
 settings-ai-font = AI terminál — velikost fontu
 settings-default-path = Výchozí cesta projektů
 settings-creates-in = Vytvoří se v:
+settings-blacklist = Blacklist (zakázané soubory pro pluginy)
+settings-blacklist-hint = Podporuje vzory jako *.env, secret/* nebo konkrétní názvy souborů. Automaticky zakazuje soubory v .gitignore.
+settings-blacklist-add = Přidat vzor
+
+## Pluginy
+plugins-title = Správce pluginů
+plugins-config-label = Konfigurace pluginu:
+plugins-unknown-agent = Neznámý agent
+plugins-security-info = 🛡 Zabezpečení: Blacklist souborů a adresářů můžete spravovat v hlavním Nastavení.
+plugins-settings-saved = Nastavení pluginů uloženo. U některých změn je doporučen restart.
+plugins-placeholder-api-key = API klíč (např. Gemini, Anthropic)
+plugins-placeholder-model = ID modelu (např. gemini-1.5-flash)
+command-name-show-plugins = Pluginy
+
+## Gemini AI
+gemini-title = Gemini AI asistent
+gemini-label-response = Odpověď:
+gemini-loading = Gemini přemýšlí…
+gemini-label-prompt = Tvůj dotaz:
+gemini-placeholder-prompt = Napiš zadání pro AI (např. „Vysvětli tento kód“ nebo „Navrhni refaktoring“)...
+gemini-btn-send = Odeslat
+gemini-btn-new = Nový dotaz
+
+## Nastavení
+settings-suggested-patterns = Doporučené vzory:
+
+## Chyba pluginu
+plugin-error-title = Chyba pluginu
+plugin-error-heading = Selhání pluginu
 
 ## Soubory
 file-tree-new-file = Nový soubor

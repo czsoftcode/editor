@@ -40,7 +40,7 @@ git-checkout-file = git checkout (Datei)
 git-checkout-branch = git checkout (Zweig)
 git-pull = git pull
 git-reset-hard = git reset --hard
-hover-git-disabled-sandbox = Git operations are disabled until all sandbox changes are resolved (use 'Review Changes' or 'Promote All' in the yellow bar).
+hover-git-disabled-sandbox = Git-Operationen sind deaktiviert, bis alle Sandbox-Änderungen gelöst sind (Schaltfläche 'Änderungen überprüfen' oder 'Alle übernehmen' in der gelben Leiste verwenden).
 
 ## Statusleiste
 statusbar-line-col = Zeile { $line }, Spalte { $col }
@@ -117,6 +117,8 @@ command-name-show-about = Über
 command-name-show-settings = Einstellungen
 command-name-quit = PolyCredo Editor beenden
 command-name-plugin-hello = Plugin: Hallo sagen
+command-name-plugin-gemini = Plugin: Gemini fragen
+command-name-show-plugins = Pluginy
 
 ## Schnelles Öffnen (Ctrl+P)
 file-picker-heading = Datei öffnen
@@ -186,7 +188,21 @@ ai-staged-del = [GELÖSCHT]
 ai-promotion-success-title = Änderungen angewendet
 ai-promotion-success-body = Die folgende Datei wurde erfolgreich in Ihrem Projekt aktualisiert:
 ai-promotion-success = Die Änderungen wurden erfolgreich in das Projekt übernommen.
+ai-promotion-all-success = Erfolgreich { $count } Dateien in das Projekt übertragen.
 ai-promotion-failed = Änderungen konnten nicht angewendet werden: { $error }
+
+## Synchronisierung vor dem Start von AI
+ai-sync-title = Synchronisierung vor dem Start
+ai-sync-msg = Unterschiede zwischen Projekt und Sandbox erkannt. Die neuesten Versionen sollten synchronisiert werden.
+ai-sync-to-sandbox = Sandbox aktualisieren ({ $count } neuere im Projekt)
+ai-sync-to-project = Ins Projekt befördern ({ $count } neuere in der Sandbox)
+ai-sync-btn-sync = Synchronisieren und Starten
+ai-sync-btn-skip = Ohne Synchronisierung starten
+
+## Plugin-Berechtigungen
+plugin-auth-bar-msg = Das Plugin „{ $name }“ beantragt Internetzugriff ({ $hosts }).
+plugin-auth-bar-allow = Zulassen und Starten
+plugin-auth-bar-deny = Ablehnen
 
 ## Einstellungen
 settings-title = Einstellungen
@@ -203,6 +219,32 @@ settings-editor-font = Editor — Schriftgröße
 settings-ai-font = KI-Terminal — Schriftgröße
 settings-default-path = Standard-Projektpfad
 settings-creates-in = Wird erstellt unter:
+settings-blacklist = Blacklist (gesperrte Dateien für Plugins)
+settings-blacklist-hint = Unterstützt Muster wie *.env, secret/*. Sperrt automatisch .gitignore-Dateien.
+settings-blacklist-add = Muster hinzufügen
+settings-suggested-patterns = Empfohlene Muster:
+
+## Pluginy
+plugins-title = Plugin-Manager
+plugins-config-label = Plugin-Konfiguration:
+plugins-unknown-agent = Unbekannter Agent
+plugins-security-info = 🛡 Sicherheit: Sie können die Datei/Ordner-Blacklist in den Haupteinstellungen verwalten.
+plugins-settings-saved = Plugin-Einstellungen gespeichert. Neustart bei einigen Änderungen empfohlen.
+plugins-placeholder-api-key = API-Schlüssel (z. B. Gemini, Anthropic)
+plugins-placeholder-model = Modell-ID (z. B. gemini-1.5-flash)
+
+## Gemini AI
+gemini-title = Gemini KI-Assistent
+gemini-label-response = Antwort:
+gemini-loading = Gemini denkt nach…
+gemini-label-prompt = Deine Frage:
+gemini-placeholder-prompt = Gib eine Anweisung für die KI ein...
+gemini-btn-send = Senden
+gemini-btn-new = Neue Anfrage
+
+## Plugin-Fehler
+plugin-error-title = Plugin-Fehler
+plugin-error-heading = Plugin-Fehlgeschlagen
 
 ## Dateibaum
 file-tree-new-file = Neue Datei

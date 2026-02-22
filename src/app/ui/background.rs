@@ -259,7 +259,16 @@ pub(super) fn process_background_events(
     if ws.ai_tool_last_check.elapsed().as_secs() >= crate::config::AI_TOOL_CHECK_INTERVAL_SECS
         && ws.ai_tool_check_rx.is_none()
     {
-        ws.ai_tool_check_rx = Some(spawn_ai_tool_check());
+        let check_list: Vec<(String, String)> = {
+            let sh = shared.lock().expect("lock");
+            sh.registry
+                .agents
+                .get_all()
+                .iter()
+                .map(|a| (a.id.clone(), a.command.clone()))
+                .collect()
+        };
+        ws.ai_tool_check_rx = Some(spawn_ai_tool_check(check_list));
     }
 
     // --- 5. Async results ---

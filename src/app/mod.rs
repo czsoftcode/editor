@@ -144,11 +144,38 @@ impl EditorApp {
         let settings = std::sync::Arc::new(crate::settings::Settings::load());
         let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
 
-        let mut registry = crate::app::registry::Registry::new();
+        let sandbox_root = paths_to_open
+            .first()
+            .map(|p| p.join(".polycredo").join("sandbox"))
+            .unwrap_or_else(|| PathBuf::from("/tmp/polycredo-sandbox"));
+
+        let mut registry = crate::app::registry::Registry::new(sandbox_root);
         registry.init_defaults();
+
+        // Register default agents
+        registry.agents.register(crate::app::registry::Agent {
+            id: "gemini".to_string(),
+            label: "Gemini CLI".to_string(),
+            command: "gemini".to_string(),
+            context_aware: true,
+        });
+        registry.agents.register(crate::app::registry::Agent {
+            id: "claude".to_string(),
+            label: "Claude Code".to_string(),
+            command: "claude".to_string(),
+            context_aware: true,
+        });
+        registry.agents.register(crate::app::registry::Agent {
+            id: "aider".to_string(),
+            label: "Aider".to_string(),
+            command: "aider".to_string(),
+            context_aware: true,
+        });
 
         // Load WASM plugins from ~/.polycredo-editor/plugins
         let plugins_dir = ipc::plugins_dir();
+        registry.plugins.set_blacklist(settings.blacklist.clone());
+
         if let Err(e) = registry.plugins.load_from_dir(&plugins_dir) {
             eprintln!("Failed to load plugins: {}", e);
         }
@@ -166,6 +193,23 @@ impl EditorApp {
                 action: crate::app::registry::CommandAction::Plugin {
                     plugin_id: "hello".to_string(),
                     func_name: "hello".to_string(),
+                },
+            });
+        }
+
+        // Auto-register "gemini" plugin command if loaded
+        if registry
+            .plugins
+            .get_loaded_ids()
+            .contains(&"gemini".to_string())
+        {
+            registry.commands.register(crate::app::registry::Command {
+                id: "plugin.gemini".to_string(),
+                i18n_key: "command-name-plugin-gemini",
+                shortcut: None,
+                action: crate::app::registry::CommandAction::Plugin {
+                    plugin_id: "gemini".to_string(),
+                    func_name: "ask_gemini".to_string(),
                 },
             });
         }
@@ -319,6 +363,17 @@ impl EditorApp {
                 AppAction::QuitAll => {
                     self.show_close_project_confirm = false;
                     self.show_quit_confirm = true;
+                }
+                AppAction::PluginResponse(id, result) => {
+                    if let Some(ws) = &mut self.root_ws
+                        && id == "gemini"
+                    {
+                        ws.gemini_loading = false;
+                        match result {
+                            Ok(text) => ws.gemini_response = Some(text),
+                            Err(err) => ws.plugin_error = Some(err),
+                        }
+                    }
                 }
             }
         }

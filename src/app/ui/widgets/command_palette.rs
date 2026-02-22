@@ -20,6 +20,7 @@ pub(crate) enum CommandId {
     ToggleFloat,
     About,
     Settings,
+    Plugins,
     Quit,
 }
 
@@ -204,6 +205,7 @@ pub(crate) fn execute_command(
                 CommandId::ToggleFloat => actions.toggle_float = true,
                 CommandId::About => actions.about = true,
                 CommandId::Settings => actions.settings = true,
+                CommandId::Plugins => actions.plugins = true,
                 CommandId::Quit => actions.quit = true,
             }
             None
@@ -212,13 +214,25 @@ pub(crate) fn execute_command(
             plugin_id,
             func_name,
         } => {
-            let mut shared = shared
+            if plugin_id == "gemini" {
+                // Special case for our interactive AI plugin
+                // We'll signal the UI to open the Gemini modal
+                return Some("OPEN_GEMINI_MODAL".to_string());
+            }
+            let shared = shared
                 .lock()
                 .expect("Failed to lock AppShared in execute_command");
+            let config = shared
+                .settings
+                .plugins
+                .get(&plugin_id)
+                .map(|s| s.config.clone())
+                .unwrap_or_default();
+
             match shared
                 .registry
                 .plugins
-                .call(&plugin_id, &func_name, "command-palette")
+                .call(&plugin_id, &func_name, "command-palette", &config)
             {
                 Ok(res) => Some(res),
                 Err(e) => {

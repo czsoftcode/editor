@@ -134,6 +134,56 @@ pub fn show(
                     browse_start_dir = Some(draft.default_project_path.clone());
                 }
             });
+            ui.add_space(10.0);
+
+            // Blacklist
+            ui.strong(i18n.get("settings-blacklist"));
+            ui.label(
+                egui::RichText::new(i18n.get("settings-blacklist-hint"))
+                    .weak()
+                    .size(10.0),
+            );
+            ui.add_space(4.0);
+
+            let mut to_remove = None;
+            egui::ScrollArea::vertical()
+                .id_salt("settings_blacklist_scroll")
+                .max_height(100.0)
+                .show(ui, |ui| {
+                    for (i, pattern) in draft.blacklist.iter_mut().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::TextEdit::singleline(pattern).desired_width(200.0));
+                            if ui.button("✖").clicked() {
+                                to_remove = Some(i);
+                            }
+                        });
+                    }
+                });
+            if let Some(idx) = to_remove {
+                draft.blacklist.remove(idx);
+            }
+
+            if ui.button(i18n.get("settings-blacklist-add")).clicked() {
+                draft.blacklist.push("".to_string());
+            }
+
+            ui.add_space(10.0);
+            ui.label(
+                egui::RichText::new(i18n.get("settings-suggested-patterns"))
+                    .strong()
+                    .size(11.0),
+            );
+            ui.horizontal_wrapped(|ui| {
+                let suggestions = [".env", "*.key", "id_rsa", "Cargo.lock", "target/*"];
+                for s in suggestions {
+                    if !draft.blacklist.contains(&s.to_string())
+                        && ui.small_button(format!("+ {}", s)).clicked()
+                    {
+                        draft.blacklist.push(s.to_string());
+                    }
+                }
+            });
+
             ui.add_space(14.0);
 
             ui.horizontal(|ui| {

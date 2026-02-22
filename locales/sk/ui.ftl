@@ -81,7 +81,7 @@ editor-preview-label = Náhľad
 # LSP / rust-analyzer
 lsp-missing-title = Chýba rust-analyzer
 lsp-missing-msg = Pre chytré funkcie (doplňovanie, chyby) je potrebný rust-analyzer. Chcete ho nainštalovať?
-lsp-install-btn = Nainštalovať
+lsp-install-btn = Inštalovať
 lsp-installing = Inštalujem rust-analyzer...
 lsp-install-success = rust-analyzer bol úspešne nainštalovaný. Reštartujem LSP...
 lsp-install-error = Inštalácia zlyhala: { $error }
@@ -119,6 +119,8 @@ command-name-show-about = O aplikácii
 command-name-show-settings = Nastavenia
 command-name-quit = Ukončiť PolyCredo Editor
 command-name-plugin-hello = Plugin: Pozdraviť svet
+command-name-plugin-gemini = Plugin: Spýtať sa Gemini
+command-name-show-plugins = Pluginy
 
 ## Rýchle otvorenie súboru (Ctrl+P)
 file-picker-heading = Otvoriť súbor
@@ -189,7 +191,21 @@ ai-staged-del = [ZMAZANÝ]
 ai-promotion-success-title = Zmeny aplikované
 ai-promotion-success-body = Nasledujúci súbor bol úspešne aktualizovaný vo vašom projekte:
 ai-promotion-success = Zmeny boli úspešne aplikované do projektu.
+ai-promotion-all-success = Úspešne prenesených { $count } súborov do projektu.
 ai-promotion-failed = Nepodarilo sa aplikovať zmeny: { $error }
+
+## Synchronizácia pred spustením AI
+ai-sync-title = Synchronizácia pred spustením
+ai-sync-msg = Boli detegované rozdiely medzi projektom a sandboxom. Najnovšie verzie súborov by mali byť synchronizované.
+ai-sync-to-sandbox = Aktualizovať Sandbox ({ $count } novších v projekte)
+ai-sync-to-project = Povýšiť do Projektu ({ $count } novších v sandboxe)
+ai-sync-btn-sync = Synchronizovať a spustiť
+ai-sync-btn-skip = Spustiť bez synchronizácie
+
+## Oprávnenia pluginov
+plugin-auth-bar-msg = Plugin „{ $name }“ žiada o prístup k internetu ({ $hosts }).
+plugin-auth-bar-allow = Povoliť a spustiť
+plugin-auth-bar-deny = Zakázať
 
 ## Nastavenia
 settings-title = Nastavenia
@@ -206,6 +222,32 @@ settings-editor-font = Editor — veľkosť písma
 settings-ai-font = AI Terminál — veľkosť písma
 settings-default-path = Predvolená cesta projektov
 settings-creates-in = Bude vytvorené v:
+settings-blacklist = Blacklist (zakázané súbory pre pluginy)
+settings-blacklist-hint = Podporuje vzory ako *.env, secret/*. Automaticky zakazuje súbory v .gitignore.
+settings-blacklist-add = Pridať vzor
+settings-suggested-patterns = Odporúčané vzory:
+
+## Pluginy
+plugins-title = Správca pluginov
+plugins-config-label = Konfigurácia pluginu:
+plugins-unknown-agent = Neznámy agent
+plugins-security-info = 🛡 Zabezpečenie: Blacklist súborov a adresárov môžete spravovať v hlavnom Nastavení.
+plugins-settings-saved = Nastavenia pluginov uložené. Pri niektorých zmenách je odporúčaný reštart.
+plugins-placeholder-api-key = API kľúč (napr. Gemini, Anthropic)
+plugins-placeholder-model = ID modelu (napr. gemini-1.5-flash)
+
+## Gemini AI
+gemini-title = Gemini AI asistent
+gemini-label-response = Odpoveď:
+gemini-loading = Gemini premýšľa…
+gemini-label-prompt = Tvoj dotaz:
+gemini-placeholder-prompt = Napíš zadanie pre AI...
+gemini-btn-send = Odoslať
+gemini-btn-new = Nový dotaz
+
+## Chyba pluginu
+plugin-error-title = Chyba pluginu
+plugin-error-heading = Zlyhanie pluginu
 
 ## Strom súborov
 file-tree-new-file = Nový súbor
@@ -247,10 +289,10 @@ sandbox-delete-title = Súbor zmazaný v sandboxe
 sandbox-delete-msg = Súbor „{ $name }" bol zmazaný v AI sandboxe, ale v projekte stále existuje. Čo si želáte urobiť?
 sandbox-delete-keep-project = Ponechať v projekte (obnoviť do sandboxu)
 sandbox-delete-also-project = Zmazať aj v projekte
-panel-runners = Runners
-btn-run-profile = Run Profile...
-btn-edit-profiles = Edit
-runner-none = None
+panel-runners = Spúšťače
+btn-run-profile = Spustiť profil...
+btn-edit-profiles = Upraviť
+runner-none = Žiadne
 
 ## Find References (Shift+F12)
 lsp-references-heading = Referencie
@@ -259,6 +301,7 @@ lsp-references-none = Žiadne referencie neboli nájdené.
 lsp-references-found =
     { $count ->
         [one] 1 referencia nájdená.
+        [few] { $count } referencie nájdené.
        *[other] { $count } referencií nájdených.
     }
 lsp-references-error = LSP: Chyba pri hľadaní referencií.

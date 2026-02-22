@@ -4,6 +4,47 @@ use crate::app::registry::plugins::PluginManager;
 use crate::app::ui::widgets::command_palette::CommandId;
 use std::collections::HashMap;
 
+/// Metadata for an AI agent or CLI tool.
+#[derive(Clone)]
+pub struct Agent {
+    pub id: String,
+    pub label: String,
+    pub command: String,
+    /// If true, the editor will send file context and build errors upon start/sync.
+    pub context_aware: bool,
+}
+
+/// Registry for managing available AI agents.
+pub struct AgentRegistry {
+    agents: Vec<Agent>,
+    by_id: HashMap<String, usize>,
+}
+
+impl AgentRegistry {
+    pub fn new() -> Self {
+        Self {
+            agents: Vec::new(),
+            by_id: HashMap::new(),
+        }
+    }
+
+    pub fn register(&mut self, agent: Agent) {
+        let id = agent.id.clone();
+        let idx = self.agents.len();
+        self.agents.push(agent);
+        self.by_id.insert(id, idx);
+    }
+
+    pub fn get_all(&self) -> &[Agent] {
+        &self.agents
+    }
+
+    #[allow(dead_code)]
+    pub fn find(&self, id: &str) -> Option<&Agent> {
+        self.by_id.get(id).map(|&idx| &self.agents[idx])
+    }
+}
+
 /// Represents an area where a panel can be placed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
@@ -98,20 +139,24 @@ impl PanelRegistry {
     }
 }
 
+use std::sync::Arc;
+
 /// The root registry holding all extension points.
 pub struct Registry {
     pub commands: CommandRegistry,
+    pub agents: AgentRegistry,
     #[allow(dead_code)]
     pub panels: PanelRegistry,
-    pub plugins: PluginManager,
+    pub plugins: Arc<PluginManager>,
 }
 
 impl Registry {
-    pub fn new() -> Self {
+    pub fn new(sandbox_root: std::path::PathBuf) -> Self {
         Self {
             commands: CommandRegistry::new(),
+            agents: AgentRegistry::new(),
             panels: PanelRegistry::new(),
-            plugins: PluginManager::new(),
+            plugins: Arc::new(PluginManager::new(sandbox_root)),
         }
     }
 
@@ -188,6 +233,12 @@ impl Registry {
                 "command-name-show-settings",
                 None,
                 Settings,
+            ),
+            (
+                "ui.show_plugins",
+                "command-name-show-plugins",
+                None,
+                Plugins,
             ),
             ("ui.show_about", "command-name-show-about", None, About),
             ("app.quit", "command-name-quit", None, Quit),

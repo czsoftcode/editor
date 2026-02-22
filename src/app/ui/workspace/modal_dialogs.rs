@@ -8,6 +8,8 @@ use super::state::WorkspaceState;
 mod about;
 mod ai;
 mod conflict;
+mod gemini;
+mod plugins;
 mod settings;
 mod terminal;
 
@@ -33,7 +35,13 @@ pub(super) fn render_dialogs(
     // 2. Settings dialog
     settings::show(ctx, ws, shared, i18n, &id_salt);
 
-    // 3. New project wizard (within workspace)
+    // 3. Plugins dialog
+    plugins::show(ctx, ws, shared, i18n, &id_salt);
+
+    // 4. Gemini AI dialog
+    gemini::show(ctx, ws, shared, i18n);
+
+    // 5. New project wizard (within workspace)
     if ws.show_new_project {
         let wizard_modal_id = format!("ws_new_project_modal_{}", ws.root_path.display());
         show_project_wizard(
@@ -59,6 +67,6 @@ pub(super) fn render_dialogs(
     // 5. Terminal close confirmation dialog
     terminal::show(ctx, ws, i18n, &id_salt);
 
-    // 6. AI related dialogs (Promotion success, Sandbox staged files)
-    ai::show(ctx, ws, i18n);
+    // 6. AI related dialogs (Promotion success, Sandbox staged files, Sync confirmation)
+    ai::show(ctx, ws, shared, i18n);
 }

@@ -1,32 +1,34 @@
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 
-use super::super::types::{AiTool, FocusedPanel};
+use super::super::types::{AppShared, FocusedPanel};
 use super::terminal::Terminal;
 use super::widgets::tab_bar::{TabBarAction, TabItem, render_compact_tab_bar};
 use super::workspace::{WorkspaceState, spawn_ai_tool_check};
+use crate::app::registry::Agent;
 use crate::config;
 
 // ---------------------------------------------------------------------------
 // Helper functions
 // ---------------------------------------------------------------------------
 
-fn ai_tool_is_available(available: &HashMap<AiTool, bool>, tool: AiTool) -> bool {
-    available.get(&tool).copied().unwrap_or(false)
+fn ai_tool_is_available(available: &HashMap<String, bool>, id: &str) -> bool {
+    available.get(id).copied().unwrap_or(false)
 }
 
 fn ai_tool_status_label(
-    tool: AiTool,
-    available: &HashMap<AiTool, bool>,
+    agent: &Agent,
+    available: &HashMap<String, bool>,
     checking: bool,
     i18n: &crate::i18n::I18n,
 ) -> String {
     let mut args = fluent_bundle::FluentArgs::new();
-    args.set("tool", tool.label());
+    args.set("tool", agent.label.clone());
     if checking {
         i18n.get_args("ai-tool-status-checking", &args)
-    } else if ai_tool_is_available(available, tool) {
+    } else if ai_tool_is_available(available, &agent.id) {
         i18n.get_args("ai-tool-status-available", &args)
     } else {
         i18n.get_args("ai-tool-status-missing", &args)
@@ -36,20 +38,28 @@ fn ai_tool_status_label(
 fn render_ai_tool_picker(
     ui: &mut egui::Ui,
     id_salt: &'static str,
-    selected: &mut AiTool,
-    available: &HashMap<AiTool, bool>,
+    selected_id: &mut String,
+    available: &HashMap<String, bool>,
+    agents: &[Agent],
     checking: bool,
     i18n: &crate::i18n::I18n,
 ) {
+    let selected_agent = agents.iter().find(|a| a.id == *selected_id);
+    let label = if let Some(agent) = selected_agent {
+        ai_tool_status_label(agent, available, checking, i18n)
+    } else {
+        i18n.get("plugins-unknown-agent")
+    };
+
     egui::ComboBox::from_id_salt(id_salt)
-        .selected_text(ai_tool_status_label(*selected, available, checking, i18n))
+        .selected_text(label)
         .width(190.0)
         .show_ui(ui, |ui| {
-            for tool in AiTool::ALL {
+            for agent in agents {
                 ui.selectable_value(
-                    selected,
-                    tool,
-                    ai_tool_status_label(tool, available, checking, i18n),
+                    selected_id,
+                    agent.id.clone(),
+                    ai_tool_status_label(agent, available, checking, i18n),
                 );
             }
         });
@@ -58,17 +68,23 @@ fn render_ai_tool_picker(
 fn render_ai_tool_controls(
     ui: &mut egui::Ui,
     ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
     combo_id: &'static str,
     i18n: &crate::i18n::I18n,
 ) {
     let checking = ws.ai_tool_check_rx.is_some();
+    let agents = {
+        let sh = shared.lock().expect("lock");
+        sh.registry.agents.get_all().to_vec()
+    };
 
     ui.label(i18n.get("ai-label-assistant"));
     render_ai_tool_picker(
         ui,
         combo_id,
-        &mut ws.claude_tool,
+        &mut ws.selected_agent_id,
         &ws.ai_tool_available,
+        &agents,
         checking,
         i18n,
     );
@@ -80,37 +96,56 @@ fn render_ai_tool_controls(
     };
     if ui.small_button("↻").on_hover_text(hover_reverify).clicked() && ws.ai_tool_check_rx.is_none()
     {
-        ws.ai_tool_check_rx = Some(spawn_ai_tool_check());
+        let check_list: Vec<(String, String)> = agents
+            .iter()
+            .map(|a| (a.id.clone(), a.command.clone()))
+            .collect();
+        ws.ai_tool_check_rx = Some(spawn_ai_tool_check(check_list));
     }
 
-    let checking = ws.ai_tool_check_rx.is_some();
-    let installed = ai_tool_is_available(&ws.ai_tool_available, ws.claude_tool);
-    let can_start = installed && !checking;
+    let current_agent = agents.iter().find(|a| a.id == ws.selected_agent_id);
+    let installed = ai_tool_is_available(&ws.ai_tool_available, &ws.selected_agent_id);
+    let can_start = installed && !checking && current_agent.is_some();
 
     let hover_text = if checking {
         i18n.get("ai-hover-checking")
-    } else if installed {
-        let mut args = fluent_bundle::FluentArgs::new();
-        args.set("tool", ws.claude_tool.label());
-        args.set("cmd", ws.claude_tool.command());
-        i18n.get_args("ai-hover-start", &args)
+    } else if let Some(agent) = current_agent {
+        if installed {
+            let mut args = fluent_bundle::FluentArgs::new();
+            args.set("tool", agent.label.clone());
+            args.set("cmd", agent.command.clone());
+            i18n.get_args("ai-hover-start", &args)
+        } else {
+            let mut args = fluent_bundle::FluentArgs::new();
+            args.set("cmd", agent.command.clone());
+            i18n.get_args("ai-hover-missing", &args)
+        }
     } else {
-        let mut args = fluent_bundle::FluentArgs::new();
-        args.set("cmd", ws.claude_tool.command());
-        i18n.get_args("ai-hover-missing", &args)
+        String::new()
     };
 
     let start_response = ui
         .add_enabled(can_start, egui::Button::new(i18n.get("ai-btn-start")))
         .on_hover_text(hover_text);
-    if start_response.clicked() {
-        let _ = ws.sandbox.sync_from_project();
-        let cmd = ws.claude_tool.command().to_owned();
-        let active = ws.claude_active_tab;
-        let context = generate_ai_context(ws);
-        if let Some(terminal) = ws.claude_tabs.get_mut(active) {
-            terminal.send_command(&cmd);
-            terminal.send_command(&context);
+    if start_response.clicked()
+        && let Some(agent) = current_agent
+    {
+        let plan = ws.sandbox.get_sync_plan();
+        if plan.is_empty() {
+            // No sync needed, start immediately
+            let cmd = agent.command.clone();
+            let active = ws.claude_active_tab;
+            let context = generate_ai_context(ws);
+            if let Some(terminal) = ws.claude_tabs.get_mut(active) {
+                terminal.send_command(&cmd);
+                if agent.context_aware {
+                    terminal.send_command(&context);
+                }
+            }
+        } else {
+            // Differences found, show confirmation dialog
+            ws.sync_confirmation = Some(plan);
+            ws.pending_agent_id = Some(agent.id.clone());
         }
     }
 
@@ -122,6 +157,8 @@ fn render_ai_tool_controls(
         .add_enabled(can_sync, egui::Button::new(i18n.get("ai-btn-sync")))
         .on_hover_text(i18n.get("ai-hover-sync"))
         .clicked()
+        && let Some(agent) = current_agent
+        && agent.context_aware
     {
         let context = generate_ai_context(ws);
         if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
@@ -130,7 +167,7 @@ fn render_ai_tool_controls(
     }
 }
 
-fn generate_ai_context(ws: &WorkspaceState) -> String {
+pub(crate) fn generate_ai_context(ws: &WorkspaceState) -> String {
     let mut context = String::new();
 
     context.push_str("Context info (paths are relative to current working directory):\n");
@@ -207,6 +244,7 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
 pub(super) fn render_ai_panel(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
     dialog_open: bool,
     i18n: &crate::i18n::I18n,
 ) -> bool {
@@ -230,6 +268,7 @@ pub(super) fn render_ai_panel(
                 any_clicked |= render_ai_panel_content(
                     ui,
                     ws,
+                    shared,
                     dialog_open,
                     focused,
                     font_size,
@@ -250,6 +289,7 @@ pub(super) fn render_ai_panel(
                 any_clicked |= render_ai_panel_content(
                     ui,
                     ws,
+                    shared,
                     dialog_open,
                     focused,
                     font_size,
@@ -267,6 +307,7 @@ pub(super) fn render_ai_panel(
 pub(crate) fn render_ai_panel_content(
     ui: &mut egui::Ui,
     ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
     dialog_open: bool,
     focused: FocusedPanel,
     font_size: f32,
@@ -329,7 +370,7 @@ pub(crate) fn render_ai_panel_content(
         } else {
             "ai_tool_combo_docked"
         };
-        render_ai_tool_controls(ui, ws, combo_id, i18n);
+        render_ai_tool_controls(ui, ws, shared, combo_id, i18n);
     });
 
     let items: Vec<TabItem> = (0..ws.claude_tabs.len())

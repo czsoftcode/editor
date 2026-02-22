@@ -94,11 +94,16 @@ impl ProjectWatcher {
         let watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
             if let Ok(event) = res {
                 for p in &event.paths {
-                    // Ignore changes in .git, target, history, etc.
+                    let path_str = p.to_string_lossy();
+                    // Ignore changes in sensitive or high-frequency directories/files.
                     let skip = p.components().any(|c| {
                         let s = c.as_os_str().to_string_lossy();
-                        matches!(s.as_ref(), ".git" | "target" | "node_modules")
-                    }) || p.to_string_lossy().contains(".polycredo/history");
+                        matches!(
+                            s.as_ref(),
+                            ".git" | "target" | "node_modules" | ".polycredo" | "history" | "sandbox"
+                        )
+                    }) || path_str.contains(".build_number")
+                        || path_str.contains(".gemini-notes.md");
 
                     if skip {
                         continue;

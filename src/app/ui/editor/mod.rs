@@ -100,6 +100,11 @@ pub(super) struct Tab {
     pub(super) svg_modal_shown: bool,
     /// LSP document version — 0 = didOpen not yet sent, >0 = open with this version.
     pub(super) lsp_version: i32,
+    /// Last version successfully sent to the LSP server.
+    pub(super) lsp_synced_version: i32,
+    /// Flag indicating that there was an error reading the file (Audit Task 1.2).
+    /// If true, saving should be disabled or redirected.
+    pub(super) read_error: bool,
 }
 
 // ---------------------------------------------------------------------------

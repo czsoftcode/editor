@@ -31,7 +31,7 @@ pub(super) type FolderPickResult = (Option<PathBuf>, bool);
 pub(crate) struct FilePicker {
     pub query: String,
     /// All project files (relative paths)
-    pub files: Vec<PathBuf>,
+    pub files: Arc<Vec<PathBuf>>,
     /// Indices into `files` matching the current filter
     pub filtered: Vec<usize>,
     /// Currently highlighted item in the list
@@ -40,7 +40,7 @@ pub(crate) struct FilePicker {
 }
 
 impl FilePicker {
-    pub(super) fn new(files: Vec<PathBuf>) -> Self {
+    pub(super) fn new(files: Arc<Vec<PathBuf>>) -> Self {
         let filtered: Vec<usize> = (0..files.len()).collect();
         Self {
             query: String::new(),
@@ -94,6 +94,17 @@ impl Default for ProjectSearch {
             cancel_epoch: Arc::new(AtomicU64::new(0)),
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Background I/O Results
+// ---------------------------------------------------------------------------
+
+pub(crate) enum FsChangeResult {
+    /// Result of reading a file for AI Diff: (real_path, original_content, new_content)
+    AiDiff(String, String, String),
+    /// Result of reading an external modification for Local History: (rel_path, content)
+    LocalHistory(PathBuf, String),
 }
 
 // ---------------------------------------------------------------------------
@@ -190,6 +201,8 @@ pub(crate) struct WorkspaceState {
     pub sandbox_staged_dirty: bool,
     /// Last refresh time of `sandbox_staged_files`.
     pub sandbox_staged_last_refresh: std::time::Instant,
+    /// Channel for background I/O results (Audit Task 2.1).
+    pub(crate) background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
 }
 
 impl Drop for WorkspaceState {
@@ -352,6 +365,7 @@ pub(crate) fn init_workspace(
         sandbox_staged_rx: None,
         sandbox_staged_dirty: false,
         sandbox_staged_last_refresh: std::time::Instant::now(),
+        background_io_rx: None,
     }
 }
 

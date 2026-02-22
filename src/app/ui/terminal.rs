@@ -247,6 +247,10 @@ impl Terminal {
                     let line_idx = (rel_y / cell_h) as i32;
                     let grid_line_idx = line_idx - display_offset as i32;
 
+                    if grid_line_idx < 0 {
+                        return None;
+                    }
+
                     // Check cache
                     let current_point = (grid_line_idx, col_idx);
                     let cached_result = if let Some((point, res)) = &self.path_cache {

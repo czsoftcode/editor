@@ -47,7 +47,11 @@ pub(super) fn render_menu_bar(
     i18n: &crate::i18n::I18n,
 ) -> MenuActions {
     let mut actions = MenuActions::default();
-    let recent_snapshot = shared.lock().unwrap().recent_projects.clone();
+    let recent_snapshot = shared
+        .lock()
+        .expect("Failed to lock AppShared for recent projects snapshot")
+        .recent_projects
+        .clone();
 
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
         egui::menu::bar(ui, |ui| {
@@ -241,12 +245,20 @@ pub(super) fn process_menu_actions(
     i18n: &crate::i18n::I18n,
 ) -> Option<PathBuf> {
     if actions.quit {
-        shared.lock().unwrap().actions.push(AppAction::QuitAll);
+        shared
+            .lock()
+            .expect("Failed to lock AppShared for quit action")
+            .actions
+            .push(AppAction::QuitAll);
     }
     if actions.save
-        && let Some(err) = ws
-            .editor
-            .save(i18n, &shared.lock().unwrap().is_internal_save)
+        && let Some(err) = ws.editor.save(
+            i18n,
+            &shared
+                .lock()
+                .expect("Failed to lock AppShared for save action")
+                .is_internal_save,
+        )
     {
         ws.toasts.push(Toast::error(err));
     }
@@ -298,7 +310,9 @@ pub(super) fn process_menu_actions(
     if let Some(path) = actions.open_recent
         && path.is_dir()
     {
-        let mut sh = shared.lock().unwrap();
+        let mut sh = shared
+            .lock()
+            .expect("Failed to lock AppShared for open recent action");
         sh.actions.push(AppAction::AddRecent(path.clone()));
         sh.actions.push(AppAction::OpenInNewWindow(path));
     }
@@ -312,7 +326,9 @@ pub(super) fn process_menu_actions(
         if let Some(dir) = maybe_path {
             let path = dir.canonicalize().unwrap_or(dir);
             if in_new_window {
-                let mut sh = shared.lock().unwrap();
+                let mut sh = shared
+                    .lock()
+                    .expect("Failed to lock AppShared for folder pick result");
                 sh.actions.push(AppAction::AddRecent(path.clone()));
                 sh.actions.push(AppAction::OpenInNewWindow(path));
             } else {

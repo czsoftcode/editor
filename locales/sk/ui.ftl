@@ -48,6 +48,7 @@ statusbar-encoding = UTF-8
 statusbar-unsaved = Neuložené
 statusbar-saving = Ukladám…
 statusbar-saved = Uložené
+statusbar-lsp-initializing = LSP sa inicializuje...
 statusbar-filetype-plain = Obyčajný text
 
 ## Záložky editora

@@ -8,6 +8,7 @@ error-file-deleted = Файл был удалён: { $path }
 error-file-delete = Ошибка удаления { $name }: { $reason }
 error-file-rename = Ошибка переименования: { $reason }
 error-file-create = Ошибка создания файла { $name }: { $reason }
+error-file-read-only-error = Не удалось сохранить «{ $name }», так как файл не был корректно прочитан. Эта вкладка теперь доступна только для чтения во избежание потери данных.
 error-file-watch = Ошибка отслеживания файлов
 
 ## Папки

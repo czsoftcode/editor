@@ -296,7 +296,12 @@ pub(crate) fn show_project_wizard(
     if let Some((project_type, raw_name, base_path)) = create_project {
         state.error.clear();
         state.creating = true;
-        let i18n_arc = std::sync::Arc::clone(&shared.lock().unwrap().i18n);
+        let i18n_arc = std::sync::Arc::clone(
+            &shared
+                .lock()
+                .expect("Failed to lock AppShared for i18n in project wizard")
+                .i18n,
+        );
         state.create_rx = Some(crate::app::ui::background::spawn_task(move || {
             let i18n = &*i18n_arc;
             let name = if project_type == ProjectType::Rust {

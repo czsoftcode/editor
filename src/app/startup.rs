@@ -24,7 +24,10 @@ pub fn render(ctx: &egui::Context, state: StartupState) {
 
     // 1. Startup Dialog
     let (recent_snapshot, i18n_arc) = {
-        let shared = state.shared.lock().unwrap();
+        let shared = state
+            .shared
+            .lock()
+            .expect("Failed to lock AppShared for startup dialog state");
         (
             shared.recent_projects.clone(),
             std::sync::Arc::clone(&shared.i18n),
@@ -61,7 +64,7 @@ pub fn render(ctx: &egui::Context, state: StartupState) {
             state
                 .shared
                 .lock()
-                .unwrap()
+                .expect("Failed to lock AppShared for quit app action in startup")
                 .actions
                 .push(AppAction::QuitAll);
         }
@@ -111,7 +114,9 @@ fn open_workspace(
 
     // Add to recent
     {
-        let mut s = shared.lock().unwrap();
+        let mut s = shared
+            .lock()
+            .expect("Failed to lock AppShared for adding to recent in open_workspace");
         s.recent_projects.retain(|p| p != &path);
         s.recent_projects.insert(0, path.clone());
         s.recent_projects

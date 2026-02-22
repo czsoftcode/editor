@@ -160,7 +160,7 @@ pub(crate) enum AppAction {
 pub(crate) struct AppShared {
     pub recent_projects: Vec<PathBuf>,
     pub actions: Vec<AppAction>,
-    pub settings: crate::settings::Settings,
+    pub settings: std::sync::Arc<crate::settings::Settings>,
     /// Active UI translations. `Arc` allows sharing without repeated mutex locking.
     pub i18n: std::sync::Arc<crate::i18n::I18n>,
     /// Flag to distinguish between editor's own saves and external (AI) modifications.

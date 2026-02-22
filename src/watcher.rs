@@ -68,8 +68,13 @@ impl FileWatcher {
 
     pub fn try_recv(&self) -> Vec<FileEvent> {
         let mut events = Vec::new();
+        let mut count = 0;
         while let Ok(ev) = self.receiver.try_recv() {
             events.push(ev);
+            count += 1;
+            if count >= 500 {
+                break;
+            }
         }
         events
     }
@@ -106,11 +111,12 @@ impl ProjectWatcher {
                 for p in &event.paths {
                     let path_str = p.to_string_lossy();
                     // Ignore changes in sensitive or high-frequency directories/files.
+                    // Audit Task V-1: removed "sandbox" from skip list to support event-driven refresh.
                     let skip = p.components().any(|c| {
                         let s = c.as_os_str().to_string_lossy();
                         matches!(
                             s.as_ref(),
-                            ".git" | "target" | "node_modules" | ".polycredo" | "history" | "sandbox"
+                            ".git" | "target" | "node_modules" | ".polycredo" | "history"
                         )
                     }) || path_str.contains(".build_number")
                         || path_str.contains(".gemini-notes.md");
@@ -148,8 +154,13 @@ impl ProjectWatcher {
 
     pub fn poll(&self) -> Vec<FsChange> {
         let mut changes = Vec::new();
+        let mut count = 0;
         while let Ok(change) = self.receiver.try_recv() {
             changes.push(change);
+            count += 1;
+            if count >= 500 {
+                break;
+            }
         }
         changes
     }

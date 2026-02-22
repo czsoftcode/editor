@@ -8,20 +8,25 @@ use std::sync::{Arc, Mutex};
 /// in the project, which is used by Ctrl+P, global search, and potentially the file tree.
 pub(crate) struct ProjectIndex {
     root: PathBuf,
-    files: Arc<Mutex<Vec<PathBuf>>>,
+    files: Arc<Mutex<Arc<Vec<PathBuf>>>>,
 }
 
 impl ProjectIndex {
     pub fn new(root: PathBuf) -> Self {
         Self {
             root,
-            files: Arc::new(Mutex::new(Vec::new())),
+            files: Arc::new(Mutex::new(Arc::new(Vec::new()))),
         }
     }
 
-    /// Returns a clone of the current file list (relative paths).
-    pub fn get_files(&self) -> Vec<PathBuf> {
-        self.files.lock().unwrap().clone()
+    /// Returns a reference-counted handle to the current file list (relative paths).
+    pub fn get_files(&self) -> Arc<Vec<PathBuf>> {
+        Arc::clone(
+            &self
+                .files
+                .lock()
+                .expect("Failed to lock ProjectIndex files"),
+        )
     }
 
     /// Triggers a full re-scan of the project in the background.
@@ -31,8 +36,10 @@ impl ProjectIndex {
 
         std::thread::spawn(move || {
             let new_files = collect_project_files(&root);
-            let mut lock = files_arc.lock().unwrap();
-            *lock = new_files;
+            let mut lock = files_arc
+                .lock()
+                .expect("Failed to lock ProjectIndex files for full re-scan");
+            *lock = Arc::new(new_files);
         });
     }
 
@@ -44,19 +51,31 @@ impl ProjectIndex {
                 if path.is_file()
                     && let Ok(rel) = path.strip_prefix(&self.root)
                 {
-                    let mut lock = self.files.lock().unwrap();
+                    let mut lock = self
+                        .files
+                        .lock()
+                        .expect("Failed to lock ProjectIndex files for creation");
                     let rel_path = rel.to_path_buf();
                     if !lock.contains(&rel_path) {
-                        lock.push(rel_path);
-                        lock.sort();
+                        let mut new_vec = (**lock).clone();
+                        new_vec.push(rel_path);
+                        new_vec.sort();
+                        *lock = Arc::new(new_vec);
                     }
                 }
             }
             crate::watcher::FsChange::Removed(path) => {
                 if let Ok(rel) = path.strip_prefix(&self.root) {
-                    let mut lock = self.files.lock().unwrap();
+                    let mut lock = self
+                        .files
+                        .lock()
+                        .expect("Failed to lock ProjectIndex files for removal");
                     let rel_path = rel.to_path_buf();
-                    lock.retain(|p| p != &rel_path);
+                    if lock.contains(&rel_path) {
+                        let mut new_vec = (**lock).clone();
+                        new_vec.retain(|p| p != &rel_path);
+                        *lock = Arc::new(new_vec);
+                    }
                 }
             }
             crate::watcher::FsChange::Modified(_) => {

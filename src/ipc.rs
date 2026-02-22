@@ -109,6 +109,21 @@ fn parse_paths(content: &str) -> Vec<PathBuf> {
 }
 
 fn load_paths(file_path: &std::path::Path) -> Vec<PathBuf> {
+    // Audit Task 4.1: Recovery from .tmp file if main file is missing
+    if !file_path.exists() {
+        let tmp = file_path.with_extension("tmp");
+        if tmp.exists() {
+            eprintln!(
+                "ipc: recovering {} from {}",
+                file_path.display(),
+                tmp.display()
+            );
+            if let Err(e) = std::fs::rename(&tmp, file_path) {
+                eprintln!("ipc: recovery failed: {e}");
+            }
+        }
+    }
+
     let Ok(content) = std::fs::read_to_string(file_path) else {
         return vec![];
     };
@@ -186,7 +201,7 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
     }
 
     if line == "RECENT" {
-        let st = state.lock().unwrap();
+        let st = state.lock().expect("Failed to lock ServerState for RECENT");
         let mut lines: Vec<String> = st
             .recent
             .iter()
@@ -201,14 +216,23 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
             return vec!["OPEN".into()];
         };
         // Read PID without holding the lock during network call
-        let pid_opt = state.lock().unwrap().registered.get(&path).copied();
+        let pid_opt = state
+            .lock()
+            .expect("Failed to lock ServerState for QUERY")
+            .registered
+            .get(&path)
+            .copied();
         if let Some(pid) = pid_opt {
             if focus_process_window(pid) {
                 // Process responded — requested focus for its window
                 return vec!["FOCUSED".into()];
             } else {
                 // Process is dead — clear registration
-                state.lock().unwrap().registered.remove(&path);
+                state
+                    .lock()
+                    .expect("Failed to lock ServerState to remove dead process")
+                    .registered
+                    .remove(&path);
             }
         }
         return vec!["OPEN".into()];
@@ -221,7 +245,9 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
             let Some(path) = normalize_project_path_str(path_str) else {
                 return vec!["ERR bad REGISTER".into()];
             };
-            let mut st = state.lock().unwrap();
+            let mut st = state
+                .lock()
+                .expect("Failed to lock ServerState for REGISTER");
             // Add registration (do not clear other entries of this PID — one PID can
             // own multiple projects in a multi-viewport architecture)
             st.registered.insert(path, pid);
@@ -232,14 +258,20 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
 
     if let Some(pid_str) = line.strip_prefix("UNREGISTER ") {
         if let Ok(pid) = pid_str.parse::<u32>() {
-            state.lock().unwrap().registered.retain(|_, v| *v != pid);
+            state
+                .lock()
+                .expect("Failed to lock ServerState for UNREGISTER")
+                .registered
+                .retain(|_, v| *v != pid);
         }
         return vec!["OK".into()];
     }
 
     if let Some(path_str) = line.strip_prefix("ADD_RECENT ") {
         if let Some(path) = normalize_project_path_str(path_str) {
-            let mut st = state.lock().unwrap();
+            let mut st = state
+                .lock()
+                .expect("Failed to lock ServerState for ADD_RECENT");
             st.recent.retain(|p| p != &path);
             st.recent.insert(0, path);
             st.recent.truncate(config::MAX_RECENT_PROJECTS);
@@ -257,7 +289,9 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
             .into_iter()
             .map(PathBuf::from)
             .collect();
-        let _guard = state.lock().unwrap();
+        let _guard = state
+            .lock()
+            .expect("Failed to lock ServerState for SAVE_SESSION");
         save_paths(&session_path(), &paths);
         return vec!["OK".into()];
     }
@@ -265,7 +299,9 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
     // OPEN_IN_NEW_WINDOW /abs/path — secondary instance requests the primary to open a project.
     if let Some(path_str) = line.strip_prefix("OPEN_IN_NEW_WINDOW ") {
         if let Some(path) = normalize_project_path_str(path_str) {
-            let st = state.lock().unwrap();
+            let st = state
+                .lock()
+                .expect("Failed to lock ServerState for OPEN_IN_NEW_WINDOW");
             let _ = st.open_tx.send(path);
         }
         return vec!["OK".into()];
@@ -273,7 +309,13 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
 
     // FOCUS_MAIN — secondary instance without arguments requests the primary to be brought to the foreground.
     if line == "FOCUS_MAIN" {
-        let pid_opt = state.lock().unwrap().registered.values().next().copied();
+        let pid_opt = state
+            .lock()
+            .expect("Failed to lock ServerState for FOCUS_MAIN")
+            .registered
+            .values()
+            .next()
+            .copied();
         if let Some(pid) = pid_opt
             && focus_process_window(pid)
         {

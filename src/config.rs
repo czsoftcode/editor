@@ -51,7 +51,3 @@ pub const TERMINAL_MAX_EVENTS_PER_FRAME: usize = 64;
 /// Interval for automatic re-detection of AI CLI tools (claude, aider, …) in seconds.
 /// Detection runs in the background and is unobtrusive; manual re-check is provided by the ↻ button.
 pub const AI_TOOL_CHECK_INTERVAL_SECS: u64 = 60;
-
-/// Interval for refreshing sandbox staged-files snapshot (in ms).
-/// The full staged scan walks project trees and is expensive, so we avoid doing it every frame.
-pub const SANDBOX_STAGED_REFRESH_MS: u64 = 3000;

@@ -8,6 +8,7 @@ error-file-deleted = Súbor bol odstránený: { $path }
 error-file-delete = Chyba pri odstraňovaní { $name }: { $reason }
 error-file-rename = Chyba premenovania: { $reason }
 error-file-create = Chyba pri vytváraní súboru { $name }: { $reason }
+error-file-read-only-error = Súbor „{ $name }“ nie je možné uložiť, pretože sa ho nepodarilo správne prečítať. Táto karta je teraz len na čítanie, aby sa zabránilo strate údajov.
 error-file-watch = Chyba sledovania súborov
 
 ## Priečinky

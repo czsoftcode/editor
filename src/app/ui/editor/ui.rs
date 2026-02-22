@@ -163,9 +163,13 @@ impl Editor {
                 if tab.lsp_version == 0 {
                     return None;
                 }
-                Url::from_file_path(&tab.path)
-                    .ok()
-                    .and_then(|uri| lsp.diagnostics().lock().unwrap().get(&uri).cloned())
+                Url::from_file_path(&tab.path).ok().and_then(|uri| {
+                    lsp.diagnostics()
+                        .lock()
+                        .expect("Failed to lock DiagnosticsMap in editor UI")
+                        .get(&uri)
+                        .cloned()
+                })
             });
 
         let clicked = if is_binary {
@@ -309,6 +313,16 @@ impl Editor {
                 && time.elapsed().as_secs() < 3
             {
                 ui.label(egui::RichText::new(msg).color(status_ok_color));
+                ui.separator();
+            }
+
+            if let Some(lsp) = lsp_client
+                && !lsp.is_initialized()
+            {
+                ui.label(
+                    egui::RichText::new(i18n.get("statusbar-lsp-initializing"))
+                        .color(secondary_color),
+                );
                 ui.separator();
             }
 

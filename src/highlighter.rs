@@ -4,9 +4,15 @@ use syntect::highlighting::{FontStyle, ThemeSet};
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
 
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+
 pub struct Highlighter {
     syntax_set: SyntaxSet,
     theme_set: ThemeSet,
+    /// Simple MRU cache for highlighted layout jobs (Audit Task V-4).
+    /// Key is hash of (text, extension, filename, font_size).
+    cache: std::sync::Mutex<HashMap<u64, egui::text::LayoutJob>>,
 }
 
 impl Highlighter {
@@ -14,6 +20,7 @@ impl Highlighter {
         Self {
             syntax_set: SyntaxSet::load_defaults_newlines(),
             theme_set: ThemeSet::load_defaults(),
+            cache: std::sync::Mutex::new(HashMap::new()),
         }
     }
 
@@ -24,7 +31,24 @@ impl Highlighter {
         filename: &str,
         font_size: f32,
     ) -> egui::text::LayoutJob {
+        // Compute cache key
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        text.hash(&mut hasher);
+        extension.hash(&mut hasher);
+        filename.hash(&mut hasher);
+        ((font_size * 100.0) as u32).hash(&mut hasher);
+        let key = hasher.finish();
+
+        {
+            let cache = self.cache.lock().expect("Failed to lock Highlighter cache");
+            if let Some(job) = cache.get(&key) {
+                return job.clone();
+            }
+        }
+
         let mut job = egui::text::LayoutJob::default();
+        // ... (rest of the logic) ...
+        // (will replace the whole function in next step to be sure)
 
         let is_env_file = filename.starts_with(".env");
         let mapped_ext = if is_env_file {
@@ -76,6 +100,18 @@ impl Highlighter {
                 }
                 job.append(segment, 0.0, text_format);
             }
+        }
+
+        {
+            let mut cache = self
+                .cache
+                .lock()
+                .expect("Failed to lock Highlighter cache for storage");
+            // Basic size limit to avoid memory leaks
+            if cache.len() >= 20 {
+                cache.clear();
+            }
+            cache.insert(key, job.clone());
         }
 
         job

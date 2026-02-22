@@ -140,7 +140,7 @@ impl EditorApp {
             })
             .collect();
 
-        let settings = crate::settings::Settings::load();
+        let settings = std::sync::Arc::new(crate::settings::Settings::load());
         let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
 
         let shared = Arc::new(Mutex::new(AppShared {
@@ -153,7 +153,9 @@ impl EditorApp {
 
         // Update local cache of recent projects
         {
-            let mut s = shared.lock().unwrap();
+            let mut s = shared
+                .lock()
+                .expect("Failed to lock AppShared during initialization");
             for p in &paths_to_open {
                 s.recent_projects.retain(|rp| rp != p);
                 s.recent_projects.insert(0, p.clone());
@@ -222,7 +224,10 @@ impl EditorApp {
 
     fn push_recent(&mut self, path: PathBuf) {
         Ipc::add_recent(&path);
-        let mut shared = self.shared.lock().unwrap();
+        let mut shared = self
+            .shared
+            .lock()
+            .expect("Failed to lock AppShared in push_recent");
         shared.recent_projects.retain(|p| p != &path);
         shared.recent_projects.insert(0, path);
         shared.recent_projects.truncate(config::MAX_RECENT_PROJECTS);
@@ -264,7 +269,13 @@ impl EditorApp {
     }
 
     fn process_actions(&mut self, ctx: &egui::Context) {
-        let actions = std::mem::take(&mut self.shared.lock().unwrap().actions);
+        let actions = std::mem::take(
+            &mut self
+                .shared
+                .lock()
+                .expect("Failed to lock AppShared in process_actions")
+                .actions,
+        );
         for action in actions {
             match action {
                 AppAction::OpenInNewWindow(path) => {
@@ -310,7 +321,9 @@ impl EditorApp {
                         close_requested.store(true, Ordering::SeqCst);
                     }
 
-                    let mut ws = ws_arc.lock().unwrap();
+                    let mut ws = ws_arc
+                        .lock()
+                        .expect("Failed to lock WorkspaceState in deferred viewport");
                     if let Some(new_path) = render_workspace(ctx, &mut ws, &shared_arc) {
                         let panel = ws_to_panel_state(&ws);
                         let new_path_clone = new_path.clone();
@@ -321,7 +334,7 @@ impl EditorApp {
                         )));
                         shared_arc
                             .lock()
-                            .unwrap()
+                            .expect("Failed to lock AppShared in AddRecent action")
                             .actions
                             .push(AppAction::AddRecent(new_path_clone));
                     }
@@ -329,7 +342,16 @@ impl EditorApp {
                     if close_requested.load(Ordering::SeqCst) {
                         let modal_id = format!("close_project_modal_{vid:?}");
                         let project_path = ws.root_path.display().to_string();
-                        let i18n_arc = { std::sync::Arc::clone(&shared_arc.lock().unwrap().i18n) };
+                        let i18n_arc = {
+                            std::sync::Arc::clone(
+                                &shared_arc
+                                    .lock()
+                                    .expect(
+                                        "Failed to lock AppShared for i18n in deferred viewport",
+                                    )
+                                    .i18n,
+                            )
+                        };
                         match show_close_project_confirm_dialog(
                             ctx,
                             &modal_id,
@@ -340,7 +362,7 @@ impl EditorApp {
                                 close_requested.store(false, Ordering::SeqCst);
                                 shared_arc
                                     .lock()
-                                    .unwrap()
+                                    .expect("Failed to lock AppShared in CloseWorkspace action")
                                     .actions
                                     .push(AppAction::CloseWorkspace(vid));
                             }
@@ -356,7 +378,15 @@ impl EditorApp {
     }
 
     fn show_quit_confirm_dialog(&mut self, ctx: &egui::Context) {
-        let i18n_arc = { std::sync::Arc::clone(&self.shared.lock().unwrap().i18n) };
+        let i18n_arc = {
+            std::sync::Arc::clone(
+                &self
+                    .shared
+                    .lock()
+                    .expect("Failed to lock AppShared for i18n in quit confirmation")
+                    .i18n,
+            )
+        };
         match show_quit_confirm_dialog(ctx, &i18n_arc) {
             QuitDialogResult::Confirmed => {
                 self.save_session();
@@ -378,7 +408,15 @@ impl EditorApp {
         };
 
         let project_path = ws.root_path.display().to_string();
-        let i18n_arc = { std::sync::Arc::clone(&self.shared.lock().unwrap().i18n) };
+        let i18n_arc = {
+            std::sync::Arc::clone(
+                &self
+                    .shared
+                    .lock()
+                    .expect("Failed to lock AppShared for i18n in close project confirmation")
+                    .i18n,
+            )
+        };
         match show_close_project_confirm_dialog(
             ctx,
             "close_project_root_modal",
@@ -424,25 +462,41 @@ impl eframe::App for EditorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Apply settings (theme, font) on every frame
         {
-            let shared = self.shared.lock().unwrap();
+            let shared = self
+                .shared
+                .lock()
+                .expect("Failed to lock AppShared for settings apply");
             shared.settings.apply(ctx);
         }
 
         let (privacy_accepted, i18n_arc) = {
-            let shared = self.shared.lock().unwrap();
+            let shared = self
+                .shared
+                .lock()
+                .expect("Failed to lock AppShared for privacy check");
             (shared.settings.privacy_accepted, Arc::clone(&shared.i18n))
         };
 
         if !privacy_accepted {
             match show_privacy_dialog(ctx, &mut self.privacy_state, &i18n_arc) {
                 PrivacyResult::Accepted => {
-                    let mut shared = self.shared.lock().unwrap();
-                    shared.settings.privacy_accepted = true;
-                    shared.settings.save();
+                    let mut shared = self
+                        .shared
+                        .lock()
+                        .expect("Failed to lock AppShared for privacy acceptance");
+                    let mut settings = (*shared.settings).clone();
+                    settings.privacy_accepted = true;
+                    settings.save();
+                    shared.settings = Arc::new(settings);
                 }
                 PrivacyResult::LanguageChanged(new_lang) => {
-                    let mut shared = self.shared.lock().unwrap();
-                    shared.settings.lang = new_lang.clone();
+                    let mut shared = self
+                        .shared
+                        .lock()
+                        .expect("Failed to lock AppShared for language change");
+                    let mut settings = (*shared.settings).clone();
+                    settings.lang = new_lang.clone();
+                    shared.settings = Arc::new(settings);
                     shared.i18n = std::sync::Arc::new(crate::i18n::I18n::new(&new_lang));
                     // Reset content to reload in the new language
                     self.privacy_state.content = None;
@@ -506,7 +560,15 @@ impl eframe::App for EditorApp {
             let mut ws = self.root_ws.take().unwrap();
             // One-time info toasts about projects that could not be restored from session
             if !self.missing_session_paths.is_empty() {
-                let i18n_arc = { std::sync::Arc::clone(&self.shared.lock().unwrap().i18n) };
+                let i18n_arc = {
+                    std::sync::Arc::clone(
+                        &self
+                            .shared
+                            .lock()
+                            .expect("Failed to lock AppShared for i18n in missing session restore")
+                            .i18n,
+                    )
+                };
                 let i18n = &*i18n_arc;
                 for path in self.missing_session_paths.drain(..) {
                     let mut args = fluent_bundle::FluentArgs::new();

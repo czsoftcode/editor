@@ -76,7 +76,10 @@ pub fn show(
                 ws.editor.save_path(
                     &conflict_path,
                     i18n,
-                    &shared.lock().unwrap().is_internal_save,
+                    &shared
+                        .lock()
+                        .expect("Failed to lock AppShared for conflict resolution save")
+                        .is_internal_save,
                 );
                 ws.external_change_conflict = None;
             }

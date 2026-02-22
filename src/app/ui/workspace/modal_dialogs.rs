@@ -44,7 +44,9 @@ pub(super) fn render_dialogs(
             shared,
             i18n,
             |path, sh| {
-                let mut sh = sh.lock().unwrap();
+                let mut sh = sh
+                    .lock()
+                    .expect("Failed to lock AppShared in new project wizard callback");
                 sh.actions.push(AppAction::AddRecent(path.clone()));
                 sh.actions.push(AppAction::OpenInNewWindow(path));
             },

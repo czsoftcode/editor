@@ -134,6 +134,7 @@ impl Editor {
                                     tab.modified = true;
                                     tab.last_edit = Some(Instant::now());
                                     tab.save_status = SaveStatus::Modified;
+                                    tab.lsp_version += 1;
                                     content_changed = true;
                                 }
                                 saved_response = Some(response);
@@ -206,17 +207,15 @@ impl Editor {
                         heading.size = font_size * 1.4;
                     }
 
-                    let (content, md_scroll_offset) = {
-                        let tab = &self.tabs[idx];
-                        (tab.content.clone(), tab.md_scroll_offset)
-                    };
+                    let md_scroll_offset = self.tabs[idx].md_scroll_offset;
 
                     let preview_scroll_output = egui::ScrollArea::vertical()
                         .id_salt("md_preview_scroll")
                         .auto_shrink([false, false])
                         .vertical_scroll_offset(md_scroll_offset)
                         .show(ui, |ui| {
-                            self.render_markdown_preview(ui, &content);
+                            let content = &self.tabs[idx].content;
+                            Self::render_markdown_preview(ui, &mut self.markdown_cache, content);
                         });
 
                     let tab = &mut self.tabs[idx];
@@ -243,14 +242,19 @@ impl Editor {
                 (preview_scroll_pct * editor_max_scroll).clamp(0.0, editor_max_scroll);
         }
 
-        if content_changed && let Some(lsp) = lsp_client {
+        if let Some(lsp) = lsp_client {
             let tab = &mut self.tabs[idx];
-            // Only send didChange if didOpen was already sent (lsp_version > 0).
-            // If lsp_version == 0, didOpen will fire next frame with current content.
+            // Only send didChange if didOpen was already sent (lsp_version > 0),
+            // and if there are unsynced changes that have aged enough (debounce).
+            let needs_sync = tab.lsp_version > tab.lsp_synced_version;
+            let debounce_passed = tab.last_edit.is_none_or(|e| e.elapsed().as_millis() >= 500);
+
             if tab.lsp_version > 0
+                && needs_sync
+                && debounce_passed
                 && let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(&tab.path)
             {
-                tab.lsp_version += 1;
+                tab.lsp_synced_version = tab.lsp_version;
                 lsp.notify_did_change(uri, tab.lsp_version, tab.content.clone());
             }
         }

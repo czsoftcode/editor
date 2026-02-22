@@ -15,7 +15,13 @@ pub fn show(
     if ws.show_settings {
         // Initialize draft only once (at the first opening of the dialog)
         if ws.settings_draft.is_none() {
-            ws.settings_draft = Some(shared.lock().unwrap().settings.clone());
+            ws.settings_draft = Some(
+                (*shared
+                    .lock()
+                    .expect("Failed to lock AppShared for settings draft initialization")
+                    .settings)
+                    .clone(),
+            );
         }
         if let Some(rx) = ws.settings_folder_pick_rx.as_ref()
             && let Ok(picked) = rx.try_recv()
@@ -158,8 +164,10 @@ pub fn show(
             ws.wizard.path = draft.default_project_path.clone();
             let new_lang = draft.lang.clone();
             {
-                let mut s = shared.lock().unwrap();
-                s.settings = draft;
+                let mut s = shared
+                    .lock()
+                    .expect("Failed to lock AppShared for saving settings");
+                s.settings = std::sync::Arc::new(draft);
                 s.i18n = std::sync::Arc::new(crate::i18n::I18n::new(&new_lang));
             }
             ws.show_settings = false;

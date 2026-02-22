@@ -6,8 +6,8 @@ pub(crate) mod state;
 // Re-exports for external callers (panels.rs, ai_panel.rs, background.rs, app/mod.rs, …)
 pub(crate) use index::ProjectIndex;
 pub(crate) use state::{
-    FilePicker, SearchResult, SecondaryWorkspace, WorkspaceState, init_workspace, open_and_jump,
-    open_file_in_ws, ws_to_panel_state,
+    FilePicker, FsChangeResult, SearchResult, SecondaryWorkspace, WorkspaceState, init_workspace,
+    open_and_jump, open_file_in_ws, ws_to_panel_state,
 };
 // Visible to siblings in ui/ (background.rs, ai_panel.rs)
 pub(super) use state::spawn_ai_tool_check;
@@ -39,7 +39,7 @@ fn trigger_sandbox_staged_refresh(ws: &mut WorkspaceState) {
     ws.sandbox_staged_rx = Some(rx);
 
     std::thread::spawn(move || {
-        // We reuse the logic but in a thread. 
+        // We reuse the logic but in a thread.
         // For now, call the existing method but we can optimize it later.
         // Actually, Sandbox needs project_root and root path.
         let sb = crate::app::sandbox::Sandbox::new_with_roots(project, sandbox);
@@ -49,8 +49,7 @@ fn trigger_sandbox_staged_refresh(ws: &mut WorkspaceState) {
 }
 
 fn refresh_sandbox_staged_cache_if_due(ws: &mut WorkspaceState) {
-    let elapsed = ws.sandbox_staged_last_refresh.elapsed().as_millis();
-    if ws.sandbox_staged_dirty || elapsed >= config::SANDBOX_STAGED_REFRESH_MS as u128 {
+    if ws.sandbox_staged_dirty {
         trigger_sandbox_staged_refresh(ws);
         ws.sandbox_staged_dirty = false;
     }
@@ -67,7 +66,14 @@ pub(crate) fn render_workspace(
     shared: &Arc<Mutex<AppShared>>,
 ) -> Option<PathBuf> {
     // Extract i18n from shared (short-term lock, then work only with Arc)
-    let i18n_arc = { std::sync::Arc::clone(&shared.lock().unwrap().i18n) };
+    let i18n_arc = {
+        std::sync::Arc::clone(
+            &shared
+                .lock()
+                .expect("Failed to lock AppShared for i18n in render_workspace")
+                .i18n,
+        )
+    };
     let i18n = &*i18n_arc;
 
     // Lazy initialization of terminals
@@ -93,10 +99,13 @@ pub(crate) fn render_workspace(
 
     // Keyboard shortcuts
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        if let Some(err) = ws
-            .editor
-            .save(i18n, &shared.lock().unwrap().is_internal_save)
-        {
+        if let Some(err) = ws.editor.save(
+            i18n,
+            &shared
+                .lock()
+                .expect("Failed to lock AppShared for editor save")
+                .is_internal_save,
+        ) {
             ws.toasts.push(Toast::error(err));
         }
         // After saving, immediately update git status
@@ -241,9 +250,13 @@ pub(crate) fn render_workspace(
     let prev_active_path = ws.editor.active_path().cloned();
 
     egui::CentralPanel::default().show(ctx, |ui| {
-        // Construct a dummy settings object just for the fields we need, or clone the whole settings.
-        // Let's just clone settings.
-        let settings = shared.lock().unwrap().settings.clone();
+        // Use shared Arc<Settings> instead of cloning the entire structure every frame.
+        let settings = Arc::clone(
+            &shared
+                .lock()
+                .expect("Failed to lock AppShared for editor UI settings")
+                .settings,
+        );
         let editor_res = ws
             .editor
             .ui(ui, dialog_open, i18n, ws.lsp_client.as_ref(), &settings);

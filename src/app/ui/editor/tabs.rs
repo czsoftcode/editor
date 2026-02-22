@@ -48,6 +48,8 @@ impl Editor {
                         binary_data: Some(bytes),
                         svg_modal_shown: false,
                         lsp_version: 0,
+                        lsp_synced_version: 0,
+                        read_error: false,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -70,6 +72,8 @@ impl Editor {
                         binary_data: None,
                         svg_modal_shown: false,
                         lsp_version: 0,
+                        lsp_synced_version: 0,
+                        read_error: true,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -95,6 +99,8 @@ impl Editor {
                         binary_data: None,
                         svg_modal_shown: false,
                         lsp_version: 0,
+                        lsp_synced_version: 0,
+                        read_error: false,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -117,6 +123,8 @@ impl Editor {
                         binary_data: None,
                         svg_modal_shown: false,
                         lsp_version: 0,
+                        lsp_synced_version: 0,
+                        read_error: true,
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);

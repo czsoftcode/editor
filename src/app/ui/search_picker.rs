@@ -189,7 +189,7 @@ pub(super) fn render_file_picker(
 /// Starts project-wide search in the background (pure Rust, no external tools).
 fn run_project_search(
     root: PathBuf,
-    files: Vec<PathBuf>,
+    files: Arc<Vec<PathBuf>>,
     query: String,
     epoch: u64,
     cancel_epoch: Arc<AtomicU64>,
@@ -201,11 +201,11 @@ fn run_project_search(
         }
         let q = query.to_lowercase();
         let mut results = Vec::new();
-        'outer: for rel in files {
+        'outer: for rel in files.iter() {
             if cancel_epoch.load(Ordering::Relaxed) != epoch {
                 return;
             }
-            let abs = root.join(&rel);
+            let abs = root.join(rel);
             let Ok(content) = std::fs::read_to_string(&abs) else {
                 continue;
             };

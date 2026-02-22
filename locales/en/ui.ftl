@@ -47,6 +47,7 @@ statusbar-encoding = UTF-8
 statusbar-unsaved = Unsaved
 statusbar-saving = Saving…
 statusbar-saved = Saved
+statusbar-lsp-initializing = LSP initializing...
 statusbar-filetype-plain = Plain Text
 
 ## Editor tabs

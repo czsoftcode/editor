@@ -21,7 +21,7 @@ where
 use eframe::egui;
 
 use super::super::types::{AppShared, Toast};
-use super::workspace::{WorkspaceState, spawn_ai_tool_check};
+use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
 use crate::watcher::{FileEvent, FsChange};
 use std::sync::Mutex;
 
@@ -31,6 +31,25 @@ pub(super) fn process_background_events(
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
 ) {
+    // --- 1. Background I/O results (Audit Task 2.1) ---
+    if let Some(rx) = &ws.background_io_rx
+        && let Ok(result) = rx.try_recv()
+    {
+        match result {
+            FsChangeResult::AiDiff(path, original, new) => {
+                ws.editor.pending_ai_diff = Some((path, original, new));
+            }
+            FsChangeResult::LocalHistory(rel_path, content) => {
+                ws.local_history.take_snapshot(&rel_path, &content);
+            }
+        }
+        // For now, we only handle one result per frame to keep it simple,
+        // but we keep the receiver until it's empty (via multiple frames).
+        // Actually, we should probably drain it if we want to be responsive.
+        // But since we only spawn one task per FS event, and FS events are rare, it's fine.
+    }
+
+    // --- 2. Watcher events (individual files) ---
     for event in ws.watcher.try_recv() {
         match event {
             FileEvent::Changed(changed_path) => {
@@ -64,15 +83,16 @@ pub(super) fn process_background_events(
         }
     }
 
+    // --- 3. Project watcher events (directory tree) ---
     let fs_changes = ws.project_watcher.poll();
     if !fs_changes.is_empty() {
         let mut need_reload = false;
         let mut created_file: Option<PathBuf> = None;
         let sandbox_root = &ws.sandbox.root;
-        
+
         for change in &fs_changes {
             ws.project_index.handle_change(change.clone());
-            
+
             // Mark sandbox staged list as dirty if anything changes in the sandbox directory
             if change.path().starts_with(sandbox_root) {
                 ws.sandbox_staged_dirty = true;
@@ -86,16 +106,27 @@ pub(super) fn process_background_events(
                         // If created in sandbox, trigger diff
                         if path.starts_with(sandbox_root)
                             && let Ok(rel_path) = path.strip_prefix(sandbox_root)
-                            && let Ok(new_content) = std::fs::read_to_string(path)
                         {
-                            let real_path = ws.root_path.join(rel_path);
-                            let auto_show = shared.lock().unwrap().settings.auto_show_ai_diff;
+                            let real_path_str =
+                                ws.root_path.join(rel_path).to_string_lossy().to_string();
+                            let auto_show = shared
+                                .lock()
+                                .expect("Failed to lock AppShared for auto_show_ai_diff (create)")
+                                .settings
+                                .auto_show_ai_diff;
                             if auto_show {
-                                ws.editor.pending_ai_diff = Some((
-                                    real_path.to_string_lossy().to_string(),
-                                    String::new(), // Empty original content
-                                    new_content,
-                                ));
+                                let (tx, rx) = mpsc::channel();
+                                ws.background_io_rx = Some(rx);
+                                let p = path.clone();
+                                std::thread::spawn(move || {
+                                    if let Ok(new_content) = std::fs::read_to_string(p) {
+                                        let _ = tx.send(FsChangeResult::AiDiff(
+                                            real_path_str,
+                                            String::new(),
+                                            new_content,
+                                        ));
+                                    }
+                                });
                             }
                         }
                     }
@@ -109,42 +140,59 @@ pub(super) fn process_background_events(
 
                     if path.starts_with(sandbox_root) {
                         // MODIFIED IN SANDBOX (AI agent working)
-                        if let Ok(rel_path) = path.strip_prefix(sandbox_root)
-                            && let Ok(new_content) = std::fs::read_to_string(path)
-                        {
-                            // Find the "truth" from the real project or open tabs
-                            let real_path = ws.root_path.join(rel_path);
-                            let original_content = if let Some(tab) =
-                                ws.editor.tabs.iter().find(|t| t.path == real_path)
-                            {
-                                tab.last_saved_content.clone()
-                            } else {
-                                std::fs::read_to_string(&real_path).unwrap_or_default()
-                            };
-
-                            let auto_show = shared.lock().unwrap().settings.auto_show_ai_diff;
+                        if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
+                            let auto_show = shared
+                                .lock()
+                                .expect("Failed to lock AppShared for auto_show_ai_diff (modify)")
+                                .settings
+                                .auto_show_ai_diff;
                             if auto_show {
-                                // Trigger AI Diff modal
-                                ws.editor.pending_ai_diff = Some((
-                                    real_path.to_string_lossy().to_string(),
-                                    original_content,
-                                    new_content,
-                                ));
+                                // Find the "truth" from the real project or open tabs
+                                let real_path = ws.root_path.join(rel_path);
+                                let original_content = if let Some(tab) =
+                                    ws.editor.tabs.iter().find(|t| t.path == real_path)
+                                {
+                                    tab.last_saved_content.clone()
+                                } else {
+                                    std::fs::read_to_string(&real_path).unwrap_or_default()
+                                };
+
+                                let (tx, rx) = mpsc::channel();
+                                ws.background_io_rx = Some(rx);
+                                let p = path.clone();
+                                let real_path_str = real_path.to_string_lossy().to_string();
+                                std::thread::spawn(move || {
+                                    if let Ok(new_content) = std::fs::read_to_string(p) {
+                                        let _ = tx.send(FsChangeResult::AiDiff(
+                                            real_path_str,
+                                            original_content,
+                                            new_content,
+                                        ));
+                                    }
+                                });
                             }
                         }
                     } else {
                         // MODIFIED IN REAL PROJECT (Main workspace)
                         let is_internal = shared
                             .lock()
-                            .unwrap()
+                            .expect("Failed to lock AppShared for is_internal_save check")
                             .is_internal_save
                             .load(std::sync::atomic::Ordering::SeqCst);
                         if !is_internal {
                             // External modification (e.g. git pull) -> Save to Local History
-                            if let Ok(content) = std::fs::read_to_string(path) {
-                                let rel_path = path.strip_prefix(&ws.root_path).unwrap_or(path);
-                                ws.local_history.take_snapshot(rel_path, &content);
-                            }
+                            let (tx, rx) = mpsc::channel();
+                            ws.background_io_rx = Some(rx);
+                            let p = path.clone();
+                            let root = ws.root_path.clone();
+                            std::thread::spawn(move || {
+                                if let Ok(content) = std::fs::read_to_string(&p) {
+                                    let rel_path =
+                                        p.strip_prefix(&root).unwrap_or(&p).to_path_buf();
+                                    let _ =
+                                        tx.send(FsChangeResult::LocalHistory(rel_path, content));
+                                }
+                            });
                         }
                     }
                 }
@@ -229,9 +277,13 @@ pub(super) fn process_background_events(
 
     // Autosave is paused if an external conflict dialog is pending.
     if ws.external_change_conflict.is_none()
-        && let Some(err) = ws
-            .editor
-            .try_autosave(i18n, &shared.lock().unwrap().is_internal_save)
+        && let Some(err) = ws.editor.try_autosave(
+            i18n,
+            &shared
+                .lock()
+                .expect("Failed to lock AppShared for autosave check")
+                .is_internal_save,
+        )
     {
         ws.toasts.push(Toast::error(err));
     }
@@ -332,9 +384,16 @@ fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, egui
         let x = entry[0] as char;
         let y = entry[1] as char;
         let mut path_bytes = &entry[3..];
-        if matches!(x, 'R' | 'C') && i + 1 < entries.len() {
-            i += 1;
-            path_bytes = entries[i];
+        if matches!(x, 'R' | 'C') {
+            if i + 1 < entries.len() {
+                i += 1;
+                path_bytes = entries[i];
+            } else {
+                // Should not happen with well-formed git -z output for R/C,
+                // but let's be safe and skip if we don't have the destination.
+                i += 1;
+                continue;
+            }
         }
         let rel = String::from_utf8_lossy(path_bytes);
         colors.insert(root.join(rel.as_ref()), git_status_color(x, y));

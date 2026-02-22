@@ -48,6 +48,7 @@ statusbar-encoding = UTF-8
 statusbar-unsaved = Не сохранено
 statusbar-saving = Сохранение…
 statusbar-saved = Сохранено
+statusbar-lsp-initializing = LSP инициализируется...
 statusbar-filetype-plain = Обычный текст
 
 ## Вкладки редактора

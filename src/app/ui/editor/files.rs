@@ -69,6 +69,20 @@ impl Editor {
         is_internal_save: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Option<String> {
         let tab = self.active_mut()?;
+
+        if tab.read_error {
+            let mut args = fluent_bundle::FluentArgs::new();
+            args.set(
+                "name",
+                tab.path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned(),
+            );
+            return Some(i18n.get_args("error-file-read-only-error", &args));
+        }
+
         tab.save_status = SaveStatus::Saving;
 
         is_internal_save.store(true, std::sync::atomic::Ordering::SeqCst);
@@ -118,6 +132,20 @@ impl Editor {
         is_internal_save: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Option<String> {
         let tab = self.tabs.iter_mut().find(|t| t.path == *path)?;
+
+        if tab.read_error {
+            let mut args = fluent_bundle::FluentArgs::new();
+            args.set(
+                "name",
+                tab.path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned(),
+            );
+            return Some(i18n.get_args("error-file-read-only-error", &args));
+        }
+
         tab.save_status = SaveStatus::Saving;
 
         is_internal_save.store(true, std::sync::atomic::Ordering::SeqCst);

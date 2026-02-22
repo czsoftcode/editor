@@ -88,26 +88,38 @@ impl Sandbox {
         let src = self.root.join(relative_path);
         let dst = self.project_root.join(relative_path);
 
-        if src.exists() {
-            // Ensure destination directory exists
-            if let Some(parent) = dst.parent() {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        match (src.exists(), dst.exists()) {
+            (true, _) => {
+                // Ensure destination directory exists
+                if let Some(parent) = dst.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|e| format!("Failed to create destination directory: {}", e))?;
+                }
+                fs::copy(&src, &dst)
+                    .map_err(|e| format!("Failed to copy file from sandbox: {}", e))?;
+                Ok(())
             }
-            fs::copy(src, dst).map_err(|e| e.to_string())?;
-            Ok(())
-        } else if dst.exists() {
-            // File was deleted in sandbox, so delete it in project too
-            fs::remove_file(dst).map_err(|e| e.to_string())?;
-            Ok(())
-        } else {
-            Err("File does not exist in either sandbox or project".to_string())
+            (false, true) => {
+                // File was deleted in sandbox, so delete it in project too
+                fs::remove_file(&dst)
+                    .map_err(|e| format!("Failed to remove file from project: {}", e))?;
+                Ok(())
+            }
+            (false, false) => {
+                // Neither exists - might have been deleted externally while we were promoting
+                Err(format!(
+                    "Promotion failed: File {} does not exist in sandbox or project",
+                    relative_path.display()
+                ))
+            }
         }
     }
 
     /// Returns a list of relative paths of files that are different in the sandbox
     /// compared to the project root.
     pub fn get_staged_files(&self) -> Vec<PathBuf> {
-        let mut staged = Vec::new();
+        use std::collections::HashSet;
+        let mut staged_set = HashSet::new();
 
         // 1. Detect New and Modified files (present in sandbox)
         for entry in WalkDir::new(&self.root)
@@ -151,7 +163,7 @@ impl Sandbox {
                 };
 
                 if is_staged {
-                    staged.push(rel_path.to_path_buf());
+                    staged_set.insert(rel_path.to_path_buf());
                 }
             }
         }
@@ -167,14 +179,12 @@ impl Sandbox {
                 let sandbox_path = self.root.join(rel_path);
 
                 if !sandbox_path.exists() {
-                    let p = rel_path.to_path_buf();
-                    if !staged.contains(&p) {
-                        staged.push(p);
-                    }
+                    staged_set.insert(rel_path.to_path_buf());
                 }
             }
         }
 
+        let mut staged: Vec<PathBuf> = staged_set.into_iter().collect();
         staged.sort();
         staged
     }

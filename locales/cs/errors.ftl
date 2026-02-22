@@ -8,6 +8,7 @@ error-file-deleted = Soubor byl smazán: { $path }
 error-file-delete = Chyba mazání souboru { $name }: { $reason }
 error-file-rename = Chyba přejmenování: { $reason }
 error-file-create = Chyba vytváření souboru { $name }: { $reason }
+error-file-read-only-error = Nelze uložit soubor „{ $name }“, protože jej nebylo možné správně přečíst. Tento tab je nyní pouze pro čtení, aby se zabránilo ztrátě dat.
 error-file-watch = Chyba sledování souborů
 
 ## Složky

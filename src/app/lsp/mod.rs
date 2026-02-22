@@ -83,12 +83,16 @@ impl LspClient {
             let last_repaint_handler = last_repaint.clone();
 
             router.notification::<PublishDiagnostics>(move |_, params| {
-                let mut diag_map = diagnostics_handler.lock().unwrap();
+                let mut diag_map = diagnostics_handler
+                    .lock()
+                    .expect("Failed to lock DiagnosticsMap in LSP handler");
                 diag_map.insert(params.uri, params.diagnostics);
 
                 // Throttle repaints — at most 2 per second (every 500ms) to avoid CPU spikes
                 // when rust-analyzer sends many rapid diagnostics during indexing.
-                let mut last = last_repaint_handler.lock().unwrap();
+                let mut last = last_repaint_handler
+                    .lock()
+                    .expect("Failed to lock last_repaint in LSP handler");
                 if last.elapsed().as_millis() > 500 {
                     egui_ctx_handler.request_repaint_after(std::time::Duration::from_millis(100));
                     *last = std::time::Instant::now();
@@ -169,18 +173,21 @@ impl LspClient {
                 work_done_progress_params: Default::default(),
             };
 
-            match client_socket_init
-                .request::<Initialize>(initialize_params)
-                .await
-            {
-                Ok(result) => {
-                    let mut caps = server_capabilities_clone.lock().unwrap();
+            let init_future = client_socket_init.request::<Initialize>(initialize_params);
+            match tokio::time::timeout(std::time::Duration::from_secs(10), init_future).await {
+                Ok(Ok(result)) => {
+                    let mut caps = server_capabilities_clone
+                        .lock()
+                        .expect("Failed to lock server_capabilities in LSP init");
                     *caps = Some(result.capabilities);
                     let _ = client_socket_init.notify::<Initialized>(InitializedParams {});
                     initialized_clone.store(true, Ordering::Release);
                 }
-                Err(e) => {
+                Ok(Err(e)) => {
                     eprintln!("LSP initialization request failed: {:?}", e);
+                }
+                Err(_) => {
+                    eprintln!("LSP initialization timed out after 10 seconds");
                 }
             }
         });

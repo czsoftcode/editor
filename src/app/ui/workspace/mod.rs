@@ -45,7 +45,19 @@ fn trigger_sandbox_staged_refresh(ws: &mut WorkspaceState) {
 }
 
 fn refresh_sandbox_staged_cache_if_due(ws: &mut WorkspaceState) {
-    if ws.sandbox_staged_dirty {
+    if !ws.sandbox_staged_dirty {
+        return;
+    }
+
+    // Debounce: Wait at least 1000ms after the LAST change to let things settle.
+    // Also wait at least 3000ms between scans to avoid I/O spam.
+    let debounce_ms = 1000;
+    let min_interval_ms = 3000;
+
+    let time_since_dirty = ws.sandbox_staged_last_dirty.elapsed().as_millis();
+    let time_since_refresh = ws.sandbox_staged_last_refresh.elapsed().as_millis();
+
+    if time_since_dirty >= debounce_ms && time_since_refresh >= min_interval_ms {
         trigger_sandbox_staged_refresh(ws);
         ws.sandbox_staged_dirty = false;
     }

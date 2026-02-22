@@ -22,7 +22,6 @@ impl Editor {
         let bg = self.highlighter.background_color();
         let ext = self.extension();
         let fname = self.filename();
-        let search_matches = self.search_matches.clone();
         let current_match = self.current_match;
         let tab_path = self.tabs[idx].path.clone();
         let current_scroll_y = self.tabs[idx].scroll_offset;
@@ -82,6 +81,7 @@ impl Editor {
                 .vertical_scroll_offset(scroll_y)
                 .show(ui, |ui| {
                     let highlighter = &self.highlighter;
+                    let search_matches = &self.search_matches;
                     let tab = &mut self.tabs[idx];
 
                     let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
@@ -95,7 +95,7 @@ impl Editor {
                         // This is still much faster than re-parsing the whole file.
                         let mut job = (*job_arc).clone();
                         job.wrap.max_width = wrap_width;
-                        apply_search_highlights(&mut job, &search_matches, current_match);
+                        apply_search_highlights(&mut job, search_matches, current_match);
                         ui.fonts(|f| f.layout_job(job))
                     };
 

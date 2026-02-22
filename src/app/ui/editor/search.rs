@@ -219,16 +219,24 @@ pub(super) fn apply_search_highlights(
     let highlight_bg = egui::Color32::from_rgba_unmultiplied(255, 255, 0, 60);
     let current_bg = egui::Color32::from_rgba_unmultiplied(255, 165, 0, 100);
 
+    let mut match_idx = 0;
     for section in &mut job.sections {
-        for (idx, &(m_start, m_end)) in matches.iter().enumerate() {
-            if m_start < section.byte_range.end && m_end > section.byte_range.start {
-                section.format.background = if Some(idx) == current {
-                    current_bg
-                } else {
-                    highlight_bg
-                };
+        // Skip matches that end before this section starts
+        while match_idx < matches.len() && matches[match_idx].1 <= section.byte_range.start {
+            match_idx += 1;
+        }
+
+        // Check if any subsequent matches overlap this section
+        let mut i = match_idx;
+        while i < matches.len() && matches[i].0 < section.byte_range.end {
+            // Overlap detected
+            let is_current = Some(i) == current;
+            section.format.background = if is_current { current_bg } else { highlight_bg };
+            // Priority to current match
+            if is_current {
                 break;
             }
+            i += 1;
         }
     }
 }

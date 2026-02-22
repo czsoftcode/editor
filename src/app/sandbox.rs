@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+use xxhash_rust::xxh64::xxh64;
 
 pub struct Sandbox {
     pub root: PathBuf,
@@ -21,6 +22,12 @@ impl Sandbox {
 
     pub fn new_with_roots(project_root: PathBuf, root: PathBuf) -> Self {
         Self { root, project_root }
+    }
+
+    fn calculate_file_hash(path: &Path) -> Option<u64> {
+        let bytes = fs::read(path).ok()?;
+        // Seed 0 for consistency
+        Some(xxh64(&bytes, 0))
     }
 
     /// Synchronizes the sandbox with the project root.
@@ -83,7 +90,6 @@ impl Sandbox {
     }
 
     /// Promotes a file from sandbox back to the real project.
-    /// If the file exists in the project but NOT in the sandbox, it will be DELETED from the project.
     pub fn promote_file(&self, relative_path: &Path) -> Result<(), String> {
         let src = self.root.join(relative_path);
         let dst = self.project_root.join(relative_path);
@@ -101,17 +107,12 @@ impl Sandbox {
             }
             (false, true) => {
                 // SAFETY: We no longer automatically delete files in the real project
-                // if they are missing in the sandbox, to avoid accidental data loss.
-                // In the future, we might implement an explicit "deleted" list.
                 Ok(())
             }
-            (false, false) => {
-                // Neither exists - might have been deleted externally while we were promoting
-                Err(format!(
-                    "Promotion failed: File {} does not exist in sandbox or project",
-                    relative_path.display()
-                ))
-            }
+            (false, false) => Err(format!(
+                "Promotion failed: File {} does not exist in sandbox or project",
+                relative_path.display()
+            )),
         }
     }
 
@@ -144,21 +145,14 @@ impl Sandbox {
                         continue;
                     };
 
-                    let Ok(t_sandbox) = m_sandbox.modified() else {
-                        continue;
-                    };
-                    let Ok(t_project) = m_project.modified() else {
-                        continue;
-                    };
-
-                    if t_sandbox > t_project {
-                        let s_content =
-                            std::fs::read_to_string(abs_sandbox_path).unwrap_or_default();
-                        let p_content =
-                            std::fs::read_to_string(&abs_project_path).unwrap_or_default();
-                        s_content != p_content
+                    // Metadata first: if sizes differ, they are definitely different.
+                    if m_sandbox.len() != m_project.len() {
+                        true
                     } else {
-                        false
+                        // For identical sizes, use fast xxh64 hashing for 100% accuracy.
+                        let h_sandbox = Self::calculate_file_hash(abs_sandbox_path);
+                        let h_project = Self::calculate_file_hash(&abs_project_path);
+                        h_sandbox != h_project
                     }
                 };
 
@@ -167,10 +161,6 @@ impl Sandbox {
                 }
             }
         }
-
-        // 2. Detect Deleted files (Removed this logic for now as it's dangerous)
-        // A file missing in the sandbox shouldn't automatically delete the real file
-        // unless we have a specific 'deleted' marker.
 
         let mut staged: Vec<PathBuf> = staged_set.into_iter().collect();
         staged.sort();

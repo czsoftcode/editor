@@ -1,3 +1,14 @@
+## [0.6.7] - 2026-02-22
+
+### Fixed
+- **Terminal CPU Usage**: Implemented a `dirty` flag for the terminal backend. This eliminates deep-cloning of the entire Alacritty grid (potentially several MBs) 60 times per second when the terminal is idle, dramatically reducing CPU load.
+- **Editor Render Optimization**: Removed redundant cloning of search matches and tab paths in the main render loop for both normal and markdown editors.
+- **Search Highlight Performance**: Optimized the search highlight overlay algorithm from $O(N \cdot M)$ to $O(N + M)$ by leveraging sorted sections and matches, ensuring smooth rendering even with thousands of search results in large files.
+
+### Changed
+- **High-Performance Sandbox Sync**: Optimized the sandbox-to-project file comparison to use file size metadata first, then `xxh64` hashing for identical sizes. This replaces the expensive "read-to-string" content comparison and eliminates significant disk I/O and memory allocations.
+- **Sandbox Scan Debouncing**: Implemented a time-based debounce for sandbox staged files scanning (minimum 1s after the last change and 3s between scans) to prevent CPU and I/O spikes during rapid file activity by AI agents.
+
 ## [0.6.6] - 2026-02-22
 
 ### Added

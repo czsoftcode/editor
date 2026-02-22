@@ -23,6 +23,7 @@ use std::cmp::min;
 use std::io::Result;
 use std::ops::{Index, RangeInclusive};
 use std::sync::mpsc::Sender;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 
 pub type TerminalMode = TermMode;
@@ -140,6 +141,7 @@ pub struct TerminalBackend {
     size: TerminalSize,
     notifier: Notifier,
     last_content: RenderableContent,
+    pub dirty: Arc<AtomicBool>,
     /// PID shellu spuštěného v PTY (pouze Unix). Slouží k ukončení procesní skupiny při dropu.
     #[cfg(unix)]
     pub child_pid: u32,
@@ -179,10 +181,13 @@ impl TerminalBackend {
         let notifier = Notifier(pty_event_loop.channel());
         let url_regex = RegexSearch::new(r#"(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file://|git://|ssh:|ftp://)[^\u{0000}-\u{001F}\u{007F}-\u{009F}<>"\s{-}\^⟨⟩`]+"#).unwrap();
         let _pty_event_loop_thread = pty_event_loop.spawn();
+        let dirty = Arc::new(AtomicBool::new(true));
+        let dirty_clone = dirty.clone();
         let _pty_event_subscription = std::thread::Builder::new()
             .name(format!("pty_event_subscription_{}", id))
             .spawn(move || loop {
                 if let Ok(event) = event_receiver.recv() {
+                    dirty_clone.store(true, Ordering::SeqCst);
                     pty_event_proxy_sender
                         .send((id, event.clone()))
                         .unwrap_or_else(|_| {
@@ -202,12 +207,14 @@ impl TerminalBackend {
             size: terminal_size,
             notifier,
             last_content: initial_content,
+            dirty,
             #[cfg(unix)]
             child_pid,
         })
     }
 
     pub fn process_command(&mut self, cmd: BackendCommand) {
+        self.dirty.store(true, Ordering::SeqCst);
         let term = self.term.clone();
         let mut term = term.lock();
         match cmd {
@@ -265,6 +272,10 @@ impl TerminalBackend {
     }
 
     pub fn sync(&mut self) -> &RenderableContent {
+        if !self.dirty.swap(false, Ordering::SeqCst) {
+            return self.last_content();
+        }
+
         let term = self.term.clone();
         let mut terminal = term.lock();
         let selectable_range = match &terminal.selection {

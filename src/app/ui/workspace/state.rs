@@ -166,6 +166,7 @@ pub(crate) struct WorkspaceState {
     pub sandbox_staged_files: Vec<PathBuf>,
     pub sandbox_staged_rx: Option<mpsc::Receiver<Vec<PathBuf>>>,
     pub sandbox_staged_dirty: bool,
+    pub sandbox_staged_last_dirty: std::time::Instant,
     pub sandbox_staged_last_refresh: std::time::Instant,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
 }
@@ -321,6 +322,7 @@ pub(crate) fn init_workspace(
         sandbox_staged_files,
         sandbox_staged_rx: None,
         sandbox_staged_dirty: true,
+        sandbox_staged_last_dirty: std::time::Instant::now(),
         sandbox_staged_last_refresh: std::time::Instant::now(),
         background_io_rx: None,
     }

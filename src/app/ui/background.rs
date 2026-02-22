@@ -84,6 +84,7 @@ pub(super) fn process_background_events(
         for change in &fs_changes {
             ws.project_index.handle_change(change.clone());
             ws.sandbox_staged_dirty = true;
+            ws.sandbox_staged_last_dirty = std::time::Instant::now();
 
             match change {
                 FsChange::Created(path) => {

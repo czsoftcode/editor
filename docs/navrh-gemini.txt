@@ -1,0 +1,34 @@
+# Návrh na další postup a vylepšení aplikace PolyCredo Editor
+
+Tento dokument shrnuje doporučení pro další vývoj na základě auditu kódu (2026-02-19) a analýzy stávající architektury.
+
+## 1. Kritické opravy a stabilita (Priorita 1)
+
+*   **UTF-8 bezpečná vyhledávací logika:** V `src/app/modules/editor/search.rs` je nutné odstranit slicing přes byte indexy (`content[start..end]`), který způsobuje pád při hledání v souborech s diakritikou. Nahradit robustnějším řešením přes iterátory znaků nebo `find` metodu.
+*   **Ošetření symlinků a cyklů:** Upravit rekurzivní průchody v `FileTree` a `collect_project_files`, aby detekovaly symlinky a předcházely nekonečné rekurzi (využití `HashSet` canonical cest).
+*   **Robustní I/O operace:** Doplnit chybějící error handling u zápisů do souborů (persistence, IPC) a informovat uživatele pomocí Toast zpráv v případě selhání (např. plný disk, chybějící oprávnění).
+
+## 2. Výkon a plynulost UI (Priorita 2)
+
+*   **Asynchronní indexace souborů:** Přesunout skenování projektu pro `Ctrl+P` (Fuzzy Picker) plně do pozadí. Implementovat inkrementální aktualizaci indexu pomocí událostí z `ProjectWatcher`.
+*   **Optimalizace Editoru:** Prověřit zbytečné klonování dat v každém snímku (zejména `search_matches` a stavy layoutu). Využít `egui::Id` pro efektivnější caching výsledků highlighteru.
+*   **Lazy Loading stromu souborů:** Pro velké projekty (tisíce souborů) implementovat virtuální skrolování nebo odložené načítání metadat souborů.
+
+## 3. Integrace AI a Workflow (Priorita 3)
+
+*   **Kontextová AI automatizace:** Rozšířit integraci s `Claude Code` a `Gemini CLI` o možnost automatického předávání kontextu (např. seznam otevřených souborů, aktuální chyby z build terminálu).
+*   **AI "Diff" náhled:** Při generování kódu pomocí AI přidat možnost vizuálního porovnání (diff) navržených změn před jejich aplikací na disk.
+*   **Rozšíření AI nástrojů:** Přidat podporu pro další nástroje (Aider, Copilot CLI) s automatickou detekcí jejich dostupnosti v systému.
+
+## 4. Architektonické vylepšení a Funkce (Dlouhodobé)
+
+*   **Podpora LSP (Language Server Protocol):** Pro skutečně "polyglot" editor je klíčové zavést podporu LSP, což přinese inteligentní doplňování kódu, definice symbolů a refaktorování napříč jazyky (Rust, PHP, JS).
+*   **Flexibilní Layout:** Umožnit uživateli libovolné horizontální a vertikální rozdělení oken (splity) i mimo Markdown náhled.
+*   **Plugin systém:** Definovat API (např. přes WASM nebo RPC) pro komunitní rozšíření highlighterů a specifických nástrojů.
+*   **Zlepšení Build Runneru:** Umožnit definici vlastních build/run profilů (např. `docker-compose up`, `npm run dev`) přímo v konfiguračním souboru projektu.
+
+## 5. UI/UX Polishing
+
+*   **Vylepšení témat:** Podpora pro uživatelská barevná schémata kompatibilní s formáty VS Code nebo Syntect.
+*   **Lokalizace:** Dokončit překlady všech dialogů a chybových hlášení v `locales/` pro kompletní české a anglické prostředí.
+*   **Klávesové zkratky:** Přidat konfigurovatelnou mapu klávesových zkratek.

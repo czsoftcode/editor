@@ -116,6 +116,7 @@ command-name-toggle-float = Schwebendes KI-Panel umschalten
 command-name-show-about = Über
 command-name-show-settings = Einstellungen
 command-name-quit = PolyCredo Editor beenden
+command-name-plugin-hello = Plugin: Hallo sagen
 
 ## Schnelles Öffnen (Ctrl+P)
 file-picker-heading = Datei öffnen

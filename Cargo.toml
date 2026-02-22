@@ -1,6 +1,6 @@
 [package]
 name = "polycredo-editor"
-version = "0.6.9"
+version = "0.7.0"
 edition = "2024"
 
 [dependencies]
@@ -30,6 +30,8 @@ async-lsp = "0.2.2"
 tower = { version = "0.4", features = ["full"] }
 similar = "2.7.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh64"] }
+extism = "1.5"
+anyhow = "1"
 
 
 

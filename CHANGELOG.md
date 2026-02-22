@@ -1,3 +1,22 @@
+## [0.7.0] - 2026-02-22
+
+### Added
+- **WASM Plugin Foundation**: Implemented a robust, sandboxed plugin system based on WebAssembly using the Extism runtime.
+  - **Plugin Manager**: Automated loading of `.wasm` modules from the `~/.config/polycredo-editor/plugins` directory.
+  - **Host-Guest Communication**: Support for calling WASM functions with string-based input/output.
+  - **Plugin Commands**: Extended `CommandAction` to allow plugins to register and handle editor commands.
+  - **SDK Sample**: Added a "Hello World" plugin sample in `docs/samples/hello-plugin` to demonstrate WASM plugin development using Rust and `extism-pdk`.
+- **UI Toasts for Plugins**: Responses from WASM plugins are now displayed as informative toasts in the editor UI.
+
+### Fixed
+- **Command Palette Input Leakage**: The Command Palette now correctly blocks keyboard input (like arrow keys) from leaking into background terminals.
+- **Improved Palette Scrolling**: Fixed an issue where the Command Palette would reset its scroll position to the top when using the mouse wheel.
+- **Command Palette Visibility**: Switched from `Modal` to `Window` with explicit anchoring and visual dimming for more reliable rendering across different window states.
+
+### Changed
+- **Command Palette Refactoring**: Updated the Command Palette to handle both internal and external (plugin) actions, with improved safety using `Clone` for command metadata.
+- **Version Milestone**: Bumped version to 0.7.0 to mark the introduction of the external plugin system.
+
 ## [0.6.9] - 2026-02-22
 
 ### Added

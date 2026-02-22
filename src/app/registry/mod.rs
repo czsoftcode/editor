@@ -1,3 +1,6 @@
+pub mod plugins;
+
+use crate::app::registry::plugins::PluginManager;
 use crate::app::ui::widgets::command_palette::CommandId;
 use std::collections::HashMap;
 
@@ -20,10 +23,16 @@ pub struct Command {
 }
 
 /// The type of action a command performs.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum CommandAction {
     /// An internal command handled by the hardcoded `execute_command`.
     Internal(CommandId),
+    /// A command provided by a plugin.
+    #[allow(dead_code)]
+    Plugin {
+        plugin_id: String,
+        func_name: String,
+    },
 }
 
 /// Registry for managing all commands in the application.
@@ -94,6 +103,7 @@ pub struct Registry {
     pub commands: CommandRegistry,
     #[allow(dead_code)]
     pub panels: PanelRegistry,
+    pub plugins: PluginManager,
 }
 
 impl Registry {
@@ -101,6 +111,7 @@ impl Registry {
         Self {
             commands: CommandRegistry::new(),
             panels: PanelRegistry::new(),
+            plugins: PluginManager::new(),
         }
     }
 

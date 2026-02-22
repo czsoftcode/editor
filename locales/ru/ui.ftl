@@ -119,6 +119,7 @@ command-name-toggle-float = Переключить плавающую ИИ-па�
 command-name-show-about = О программе
 command-name-show-settings = Настройки
 command-name-quit = Выйти из PolyCredo Editor
+command-name-plugin-hello = Плагин: Поздороваться
 
 ## Быстрое открытие файла (Ctrl+P)
 file-picker-heading = Открыть файл

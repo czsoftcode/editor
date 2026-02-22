@@ -147,6 +147,29 @@ impl EditorApp {
         let mut registry = crate::app::registry::Registry::new();
         registry.init_defaults();
 
+        // Load WASM plugins from ~/.polycredo-editor/plugins
+        let plugins_dir = ipc::plugins_dir();
+        if let Err(e) = registry.plugins.load_from_dir(&plugins_dir) {
+            eprintln!("Failed to load plugins: {}", e);
+        }
+
+        // Auto-register "hello" plugin command if loaded
+        if registry
+            .plugins
+            .get_loaded_ids()
+            .contains(&"hello".to_string())
+        {
+            registry.commands.register(crate::app::registry::Command {
+                id: "plugin.hello".to_string(),
+                i18n_key: "command-name-plugin-hello",
+                shortcut: None,
+                action: crate::app::registry::CommandAction::Plugin {
+                    plugin_id: "hello".to_string(),
+                    func_name: "hello".to_string(),
+                },
+            });
+        }
+
         let shared = Arc::new(Mutex::new(AppShared {
             recent_projects,
             actions: Vec::new(),

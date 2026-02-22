@@ -1,0 +1,24 @@
+  Vše je zapsáno a připraveno. LSP je nyní ve verzi 0.5.4 vysoce spolehlivé a uživatelsky přívětivé.
+
+
+  Máš nějaký další nápad, co vylepšit, nebo se podíváme na ty „Klikatelné cesty v terminálu“, které by teď díky hotovým skokům šly
+  implementovat velmi snadno? (Například když cargo vyhodí chybu, stačilo by na ni kliknout a editor by vás hodil na přesný řádek a znak.)
+  
+  
+  
+  
+  
+  
+  $ cmjdfpiodmjfgvfodipgjdfpogjdfskfjdsvfůyxjnjddfdsmfdsjfůkdmjfdsmfůkmdfdmff dsfjmkvdjflkdmvůfdvmfůdsjvfjdsfjdsfvdsjůdsj    fdjmcdjfvdůfds
+  
+  
+  alomeného textu:
+bash: ✦: příkaz nenalezen
+$    - Pokud se řádek v terminálu přirozeně zalomil, při kopírování se řádky spojí.
+bash: -: příkaz nenalezen
+$    - Pokud tam byly mezery navíc, zredukují se na jednu, aby text zůstal čitelný.
+bash: -: příkaz nenalezen
+$    - Pevné konce řádků (enter) zůstávají zachovány jako dřív.
+
+
+$   $ cmjdfpiodmjfgvfodipgjdfpogjdfskfjdsvfůyxjnjddfdsmfdsjfůkdmjfdsmfůkmdfdmff dsfjmkvdjflkdmvůfdvmfůdsj vfjdsfjdsfvdsjůdsj fdjmcdjfvdůfds

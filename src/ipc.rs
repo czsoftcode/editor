@@ -48,6 +48,10 @@ fn session_path() -> PathBuf {
     config_dir().join("session.json")
 }
 
+pub fn plugins_dir() -> PathBuf {
+    config_dir().join("plugins")
+}
+
 fn normalize_project_path(path: &Path) -> Option<PathBuf> {
     if !path.is_absolute() {
         return None;

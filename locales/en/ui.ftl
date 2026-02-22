@@ -127,6 +127,7 @@ command-name-toggle-float = Toggle Floating AI Panel
 command-name-show-about = About
 command-name-show-settings = Settings
 command-name-quit = Quit PolyCredo Editor
+command-name-plugin-hello = Plugin: Say Hello
 
 ## Quick file open (Ctrl+P)
 file-picker-heading = Open File

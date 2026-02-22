@@ -130,6 +130,7 @@ command-name-toggle-float = Přepnout plovoucí AI panel
 command-name-show-about = O aplikaci
 command-name-show-settings = Nastavení
 command-name-quit = Ukončit PolyCredo Editor
+command-name-plugin-hello = Plugin: Pozdravit svět
 
 ## Rychlé otevření souboru (Ctrl+P)
 file-picker-heading = Otevřít soubor

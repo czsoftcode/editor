@@ -1,0 +1,504 @@
+ANALÝZA DUPLICIT KÓDU - POLYCREDO EDITOR
+========================================
+Datum: 19. února 2026
+Předmět: Technický rozbor duplicitního kódu a návrhy na sjednocení
+
+1. ASYNCHRONNÍ VZORCE (THREADS + MPSC CHANNELS)
+-----------------------------------------------
+Nejvýraznější duplicita v projektu. Téměř každá operace na pozadí implementuje vlastní `std::thread::spawn` v kombinaci s `mpsc::channel`.
+
+Lokace:
+- `src/app/ui/workspace/state.rs`: `spawn_file_index_scan`, `spawn_ai_tool_check`.
+- `src/app/ui/background.rs`: `fetch_git_branch`, `fetch_git_status`.
+- `src/app/build_runner.rs`: `run_build_check`.
+- `src/app/ui/dialogs.rs`: `spawn_folder_picker`.
+- `src/app/ui/workspace/modal_dialogs.rs`: Výběr složky v nastavení (inline thread).
+
+Technický detail:
+Funkce `fetch_git_branch` a `fetch_git_status` obsahují identickou logiku pro polling procesu a kontrolu zrušení přes `Arc<AtomicBool>`.
+
+Návrh řešení: 
+Vytvořit generický `TaskRunner` nebo pomocnou funkci v `src/app/background.rs`, která přijme `FnOnce` a zajistí bezpečné spuštění, ošetření chyb a správu kanálu.
+
+
+2. SPRÁVA ZÁLOŽEK (TAB MANAGEMENT)
+----------------------------------
+Logika pro manipulaci se záložkami (přepínání, zavírání, renderování barů) je implementována dvakrát s velmi podobnými strukturami.
+
+Lokace:
+- `src/app/ui/editor/render.rs`: `Editor::tab_bar` a `TabAction`.
+- `src/app/ui/ai_panel.rs`: `render_tab_bar`, `apply_tab_action` a `TermTabAction`.
+
+Technický detail:
+Zatímco editor podporuje skrolování a názvy souborů, AI panel používá jen čísla, ale vnitřní logika práce s indexy (`active_tab`, `remove(idx)`, `saturating_sub(1)`) je analogická.
+
+Návrh řešení:
+Abstrahovat "Tab Control" do samostatné UI komponenty, která bude konfigurovatelná (vlastní popisky, podpora skrolování).
+
+
+3. MODÁLNÍ DIALOGY A UI KONZISTENCE
+-----------------------------------
+Využití `egui::Modal` je roztříštěné a vede k duplicitě v kódu pro vykreslování standardních prvků (nadpis, tlačítka, potvrzení klávesou Enter).
+
+Lokace:
+- `src/app/ui/file_tree.rs`: `show_new_item_dialog`, `show_rename_dialog`, `show_delete_dialog`.
+- `src/app/ui/workspace/modal_dialogs.rs`: About, Settings, Conflict.
+- `src/app/ui/dialogs.rs`: Startup dialog, Project Wizard, Quit Confirm.
+
+Technický detail:
+Obsluha klávesy Enter (`ui.input(|i| i.key_pressed(Key::Enter))`) a focusu (`request_focus()`) se opakuje v každém interaktivním dialogu zvlášť.
+
+Návrh řešení:
+Vytvořit wrapper nad `egui::Modal`, který bude automaticky obsluhovat standardní akce (Enter pro potvrzení, Escape pro zrušení) a sjednotí paddingy a stylování.
+
+
+4. LOGIKA "OPEN AND JUMP"
+-------------------------
+Identický kód pro reakci na kliknutí na řádek v seznamu výsledků.
+
+Lokace:
+- `src/app/ui/panels.rs`: 
+    * Řádky 119–122 (v `render_build_panel` pro chyby).
+    * Řádky 169–172 (v `render_build_panel` pro výsledky hledání).
+
+Kód:
+```rust
+if let Some((path, line)) = open_result {
+    open_file_in_ws(ws, path);
+    ws.editor.jump_to_line(line);
+}
+```
+
+Návrh řešení:
+Přidat metodu `WorkspaceState::open_and_jump(path, line)`, která tuto operaci zapouzdří.
+
+
+5. VALIDACE NÁZVŮ
+-----------------
+Dvě podobné, ale mírně odlišné funkce pro kontrolu vstupů.
+
+Lokace:
+- `src/app/ui/file_tree.rs`: `is_safe_filename` (řeší traversals a path separátory).
+- `src/app/ui/dialogs.rs`: `is_valid_project_name` (řeší ASCII a zakázané znaky).
+
+Návrh řešení:
+Sjednotit validaci do modulu `src/app/types.rs` pod jednotné API pro kontrolu "systémově bezpečných názvů".
+
+
+6. KONTEXTOVÁ MENU
+------------------
+Logika pro definici kontextových menu je rozeseta přímo v renderovacím kódu.
+
+Lokace:
+- `src/app/ui/editor/render.rs`: `show_editor_context_menu`.
+- `src/app/ui/file_tree.rs`: Definováno inline pomocí `header_response.context_menu`.
+
+Návrh řešení:
+Sjednotit API pro kontextová menu, aby bylo možné snadněji přidávat globální akce (např. "Copy Path").
+
+
+========================================
+NÁVRH NA ŘEŠENÍ DUPLICIT — IMPLEMENTAČNÍ PLÁN
+========================================
+Datum: 19. února 2026
+
+Níže je seřazen plán refaktorování od nejnižší složitosti a největšího poměru
+přínos/riziko po nejsložitější. Každý bod obsahuje přesné názvy souborů,
+signatury funkcí/typů a konkrétní kroky migrace.
+
+────────────────────────────────────────
+A. OKAMŽITÉ ZÁSAHY (1–2 soubory, nulové riziko)
+────────────────────────────────────────
+
+A1. WorkspaceState::open_and_jump  [duplicita #4]
+--------------------------------------------------
+Problém: Identický blok se opakuje na řádcích 144–147 a 195–198 v
+src/app/ui/panels.rs:
+
+    if let Some((path, line)) = open_error_file {
+        open_file_in_ws(ws, path);
+        ws.editor.jump_to_line(line);
+    }
+
+Řešení: Přidat metodu přímo do WorkspaceState
+(soubor src/app/ui/workspace/state.rs):
+
+    pub(crate) fn open_and_jump(&mut self, path: PathBuf, line: usize) {
+        open_file_in_ws(self, path);
+        self.editor.jump_to_line(line);
+    }
+
+Pomocná funkce open_file_in_ws zůstane jako volná funkce v
+src/app/ui/workspace/mod.rs a bude volaná uvnitř open_and_jump.
+Oba výskyty v panels.rs se nahradí za:
+
+    if let Some((path, line)) = open_error_file {
+        ws.open_and_jump(path, line);
+    }
+
+Dopad: 3 soubory, čistě aditivní změna, nulové přerušení API.
+
+────────────────────────────────────────
+B. SJEDNOCENÍ VALIDACE  [duplicita #5]
+────────────────────────────────────────
+
+B1. Nový modul src/app/validation.rs
+--------------------------------------
+Aktuální stav:
+- src/app/ui/file_tree.rs:90  → fn is_safe_filename(name: &str) -> bool
+  chrání před path traversal, separátory a null byty.
+- src/app/ui/dialogs.rs:62    → pub(crate) fn is_valid_project_name(name: &str) -> bool
+  povoluje pouze ASCII alfanumeriku + '_' + '-', zakazuje začátek '-'.
+
+Obě funkce mají odlišnou bezpečnostní doménu, ale v budoucnu se budou
+prolínat (název projektu se stane názvem adresáře na disku). Správné místo
+pro obě je sdílený modul bez závislosti na egui.
+
+Nový soubor src/app/validation.rs:
+
+    /// Bezpečný název souboru/adresáře: bez separátorů, traversal a null bytů.
+    pub fn is_safe_filename(name: &str) -> bool {
+        !name.is_empty()
+            && name != "."
+            && name != ".."
+            && !name.contains('/')
+            && !name.contains('\\')
+            && !name.contains('\0')
+    }
+
+    /// Platný název projektu: ASCII alfanumerika + '_' + '-', nesmí začínat '-'.
+    pub fn is_valid_project_name(name: &str) -> bool {
+        if name.is_empty() || name.starts_with('-') {
+            return false;
+        }
+        name.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    }
+
+    /// Bezpečný název projektu = musí splňovat obě pravidla najednou.
+    /// Použít při vytváření adresáře projektu na disku.
+    pub fn is_safe_project_name(name: &str) -> bool {
+        is_valid_project_name(name) && is_safe_filename(name)
+    }
+
+Registrace v src/app/mod.rs:
+    pub(crate) mod validation;
+
+Migrace:
+1. V file_tree.rs nahradit lokální is_safe_filename importem:
+   use crate::app::validation::is_safe_filename;
+2. V dialogs.rs nahradit lokální is_valid_project_name importem:
+   use crate::app::validation::is_valid_project_name;
+   a původní definici smazat.
+3. Volání is_safe_project_name přidat do míst, kde se vytváří adresář
+   projektu na disku (aktuálně chybí tato kombinovaná kontrola).
+
+────────────────────────────────────────
+C. GENERICKÝ TASK RUNNER  [duplicita #1]
+────────────────────────────────────────
+
+C1. Pomocná funkce wait_for_child v background.rs
+---------------------------------------------------
+Nejviditelnější duplicita: fetch_git_branch (řádky 163–204) a
+fetch_git_status (řádky 222–284) v src/app/ui/background.rs sdílejí
+identickou smyčku pro polling podprocesu s cancel tokenem:
+
+    loop {
+        if cancel.load(Ordering::Relaxed) { child.kill(); return; }
+        match child.try_wait() {
+            Ok(Some(_)) => { ... tx.send(...); return; }
+            Ok(None)    => thread::sleep(Duration::from_millis(25)),
+            Err(_)      => { tx.send(výchozí); return; }
+        }
+    }
+
+Řešení: přidat do background.rs soukromou pomocnou funkci:
+
+    /// Polling na dokončení podprocesu (25 ms intervaly) s podporou zrušení.
+    /// Vrátí Some(Output) při úspěchu, None pokud byl cancel nebo chyba.
+    fn wait_for_child(
+        mut child: std::process::Child,
+        cancel: &Arc<AtomicBool>,
+    ) -> Option<std::process::Output> {
+        loop {
+            if cancel.load(Ordering::Relaxed) {
+                let _ = child.kill();
+                return None;
+            }
+            match child.try_wait() {
+                Ok(Some(_)) => return child.wait_with_output().ok(),
+                Ok(None)    => std::thread::sleep(std::time::Duration::from_millis(25)),
+                Err(_)      => return None,
+            }
+        }
+    }
+
+fetch_git_branch se pak zjednodušší na ~15 řádků:
+
+    pub(super) fn fetch_git_branch(root: &PathBuf, cancel: Arc<AtomicBool>)
+        -> mpsc::Receiver<Option<String>>
+    {
+        let (tx, rx) = mpsc::channel();
+        let root = root.clone();
+        std::thread::spawn(move || {
+            let result = std::process::Command::new("git")
+                .args(["rev-parse", "--abbrev-ref", "HEAD"])
+                .current_dir(&root)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .ok()
+                .and_then(|c| wait_for_child(c, &cancel))
+                .filter(|o| o.status.success())
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .map(|s| s.trim().to_string());
+            let _ = tx.send(result);
+        });
+        rx
+    }
+
+Analogicky fetch_git_status. Celkově se odstraní ~60 řádků duplikátu.
+
+C2. Generický spawn_task pro jednoduché FnOnce úlohy
+------------------------------------------------------
+Funkce spawn_file_index_scan (state.rs:191), spawn_ai_tool_check
+(state.rs:218), spawn_folder_picker (dialogs.rs:42) a inline thready
+v menubar.rs:332, menubar.rs:345 a modal_dialogs.rs:157 sdílejí
+totožný pattern:
+
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || { let _ = tx.send(výsledek); });
+    rx
+
+Řešení: generická funkce přidaná do src/app/ui/background.rs
+(nebo nový src/app/task.rs):
+
+    pub(crate) fn spawn_task<T, F>(f: F) -> mpsc::Receiver<T>
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
+    {
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || { let _ = tx.send(f()); });
+        rx
+    }
+
+Migrace spawn_file_index_scan:
+
+    pub(crate) fn spawn_file_index_scan(root: PathBuf) -> mpsc::Receiver<Vec<PathBuf>> {
+        spawn_task(move || collect_project_files(&root))
+    }
+
+Migrace inline folder pick v menubar.rs:332:
+
+    ws.folder_pick_rx = Some(spawn_task(move || {
+        (rfd::FileDialog::new().set_directory(&projects_dir).pick_folder(), true)
+    }));
+
+Migrace spawn_folder_picker v dialogs.rs:42:
+
+    fn spawn_folder_picker(start_dir: String) -> mpsc::Receiver<Option<PathBuf>> {
+        spawn_task(move || {
+            let d = rfd::FileDialog::new();
+            if start_dir.trim().is_empty() { d.pick_folder() }
+            else { d.set_directory(start_dir).pick_folder() }
+        })
+    }
+
+────────────────────────────────────────
+D. GENERICKÁ TAB BAR KOMPONENTA  [duplicita #2]
+────────────────────────────────────────
+
+D1. Nový modul src/app/ui/widgets/tab_bar.rs
+----------------------------------------------
+Dvě implementace:
+- Editor::tab_bar v src/app/ui/editor/render.rs:49
+  — záložky s cestami souborů, indikátor ● a ⚠, horizontální scroll,
+    tlačítka ◀▶, střední tlačítko myši pro zavření.
+- render_tab_bar v src/app/ui/ai_panel.rs:129
+  — záložky jen s čísly (Tab 1, Tab 2…), tlačítko + pro nový tab,
+    bez scrollování.
+
+Nový modul src/app/ui/widgets/mod.rs (re-exportuje tab_bar):
+    pub mod tab_bar;
+
+Soubor src/app/ui/widgets/tab_bar.rs:
+
+    use eframe::egui;
+
+    pub struct TabItem {
+        pub label: String,   // zobrazený text
+        pub closable: bool,  // zobrazit tlačítko ×
+    }
+
+    #[derive(Debug)]
+    pub enum TabBarAction {
+        Switch(usize),
+        Close(usize),
+        New,
+    }
+
+    pub struct TabBarConfig {
+        /// Zapne horizontální scroll + šipky ◀▶
+        pub scrollable: bool,
+        /// Zobrazí tlačítko + na konci listu záložek
+        pub show_new_btn: bool,
+        /// Unikátní ID pro egui scroll area (vyžaduje 'static str nebo Id)
+        pub id_salt: &'static str,
+    }
+
+    impl Default for TabBarConfig {
+        fn default() -> Self {
+            Self { scrollable: false, show_new_btn: false, id_salt: "tab_bar" }
+        }
+    }
+
+    /// Vykreslí řadu záložek a vrátí případnou akci uživatele.
+    pub fn render_tab_bar(
+        ui: &mut egui::Ui,
+        items: &[TabItem],
+        active: usize,
+        cfg: &TabBarConfig,
+    ) -> Option<TabBarAction> {
+        // ... sdílená implementace ...
+    }
+
+Migrace — Editor (src/app/ui/editor/render.rs):
+- Konstruovat items: Vec<TabItem> z self.tabs těsně před voláním.
+- Volat render_tab_bar(ui, &items, active, &TabBarConfig { scrollable: true, .. }).
+- match action { Some(TabBarAction::Switch(i)) => ..., ... }
+- Smazat lokální enum TabAction a metodu tab_bar z Editor.
+
+Migrace — AI panel (src/app/ui/ai_panel.rs):
+- Konstruovat items z ws.claude_tabs (label = format!("Tab {}", i+1)).
+- Volat render_tab_bar s TabBarConfig { show_new_btn: true, .. }.
+- Smazat lokální enum TermTabAction, funkce render_tab_bar a apply_tab_action.
+
+────────────────────────────────────────
+E. WRAPPER NAD MODÁLNÍMI DIALOGY  [duplicita #3]
+────────────────────────────────────────
+
+E1. Nový modul src/app/ui/widgets/modal.rs
+--------------------------------------------
+Opakující se vzor (přítomen v alespoň 8 dialozích): ruční obsluha klávesy
+Enter pro potvrzení, Escape pro zrušení, opakující se set_min_width,
+heading a separator.
+
+Nový typ výsledku dialogu:
+
+    pub enum ModalResult<T> {
+        Confirmed(T),
+        Cancelled,
+        Pending,
+    }
+
+Pomocná funkce (generická přes návratový typ obsahu):
+
+    /// Zobrazí modální okno s nadpisem, obsahem a tlačítky OK/Zrušit.
+    /// Enter potvrzuje (pokud content vrátí Some(T)), Escape ruší.
+    /// Pokud content vrátí None, je tlačítko OK deaktivováno.
+    pub fn show_modal<T>(
+        ctx: &egui::Context,
+        id: impl Into<egui::Id>,
+        title: impl Into<String>,
+        ok_label: impl Into<String>,
+        cancel_label: impl Into<String>,
+        content: impl FnOnce(&mut egui::Ui) -> Option<T>,
+    ) -> ModalResult<T> {
+        let mut result = ModalResult::Pending;
+        let modal = egui::Modal::new(id.into());
+        modal.show(ctx, |ui| {
+            ui.set_min_width(300.0);
+            ui.heading(title.into());
+            ui.separator();
+            let value = content(ui);
+            ui.separator();
+            ui.horizontal(|ui| {
+                let can_confirm = value.is_some();
+                if ui.add_enabled(can_confirm, egui::Button::new(ok_label.into())).clicked()
+                    || (can_confirm && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                {
+                    result = ModalResult::Confirmed(value.unwrap());
+                }
+                if ui.button(cancel_label.into()).clicked()
+                    || ui.input(|i| i.key_pressed(egui::Key::Escape))
+                {
+                    result = ModalResult::Cancelled;
+                }
+            });
+        });
+        result
+    }
+
+Použití v file_tree.rs (rename dialog):
+
+    match show_modal(ctx, "rename_dlg", i18n.get("dlg-rename"),
+        i18n.get("btn-ok"), i18n.get("btn-cancel"),
+        |ui| {
+            ui.text_edit_singleline(&mut self.rename_buf);
+            is_safe_filename(&self.rename_buf).then(|| self.rename_buf.clone())
+        }
+    ) {
+        ModalResult::Confirmed(new_name) => { /* provést přejmenování */ }
+        ModalResult::Cancelled => { self.rename_buf.clear(); }
+        ModalResult::Pending => {}
+    }
+
+Kde ušetříme: show_new_item_dialog, show_rename_dialog, show_delete_dialog
+v file_tree.rs (~120 řádků) a dialogy About/Conflict v modal_dialogs.rs.
+Settings dialog je příliš složitý na přímé použití wrapperu — tam stačí
+sdílet pouze logiku klávesových zkratek a paddingů.
+
+────────────────────────────────────────
+F. SJEDNOCENÍ KONTEXTOVÝCH MENU  [duplicita #6]
+────────────────────────────────────────
+
+Tato duplicita je nejméně naléhavá, ale nejlépe připravuje půdu pro budoucí
+rozšíření (přidat "Copy Path" nebo "Copy Relative Path" globálně).
+
+Aktuální stav:
+- show_editor_context_menu v editor/render.rs — volá ui.menu_button s
+  kopírováním/vkládáním textu přímo (přístup ke clipboardu přes egui ctx).
+- File tree context menu — inline header_response.context_menu(|ui| { ... })
+  s operacemi specifickými pro soubory/adresáře.
+
+Návrh — akce jako enum místo přímého vykonání:
+
+    // src/app/ui/widgets/context_menu.rs nebo přímo v types.rs
+    pub enum ContextAction {
+        CopyText(String),
+        PasteToEditor,
+        CopyPath(std::path::PathBuf),
+        CopyRelPath(std::path::PathBuf),
+    }
+
+Editor context menu vrátí Option<ContextAction> místo okamžitého zápisu
+do clipboardu. Vykonání přesune volající kód v workspace/render.rs, kde
+je k dispozici AppShared a arboard handle.
+
+File tree context menu stávající inline closure ponechá, ale přidá položky:
+    if ui.button("Kopírovat cestu").clicked() {
+        action = Some(ContextAction::CopyPath(node.path.clone()));
+        ui.close_menu();
+    }
+
+Výsledkem je: globální akce implementovány jednou, kontextová menu jen
+deklarují co chtějí, nikoliv jak to vykonat.
+
+────────────────────────────────────────
+DOPORUČENÉ POŘADÍ IMPLEMENTACE
+────────────────────────────────────────
+
+Priorita  Bod   Odhadovaný čas  Přínos
+──────────────────────────────────────────────────────────────────────
+  1.      A1    ~15 min         Odstranění 6 opakujících řádků, nulové riziko
+  2.      B1    ~30 min         Jedna autorita pro validaci, zlepšuje bezpečnost
+  3.      C2    ~1 h            Méně boilerplate pro všechny background úlohy
+  4.      C1    ~1.5 h          Zjednodušení git polling smyček (~60 řádků méně)
+  5.      D1    ~3 h            Sdílená tab bar komponenta (nejvíce UI kódu)
+  6.      E1    ~4 h            Wrapper modálů (velký dopad na čitelnost dialogů)
+  7.      F     ~2 h            Kontextová menu (nízká priorita, dobrá rozšiřitelnost)
+
+Celkový odhadovaný rozsah: ~12–15 hodin implementace + integrace.
+Výsledkem je redukce ~400 řádků duplicitního kódu a výrazně jednotnější
+architektura UI vrstvy.

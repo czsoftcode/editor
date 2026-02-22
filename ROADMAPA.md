@@ -2,16 +2,18 @@
 
 Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerpá z dokumentu `docs/vize.md`.
 
-## Q2 2026 — Produktivita a základ pro růst (měsíce 1–3)
-**Cíl:** Přechod na editor preferovaný pro denní práci.
+## Q1 2026 — Architektura a pluginy (Právě probíhá)
+**Cíl:** Příprava na rozšiřitelnost a integraci externích modulů.
 
 - [x] **Command palette** (`Ctrl+Shift+P`) — centrální přístup ke všem akcím klávesnicí.
+- [x] **Plugin foundation (interní)** — definice extension bodů (command registry, panel registry).
+- [x] **WASM Plugin Manager (POC)** — bezpečné načítání externích `.wasm` modulů přes Wasmtime/Extism.
+- [ ] **Plugin SDK for Rust** — knihovna pro snadný vývoj pluginů v Rustu.
+- [ ] **Capability-based Security** — definice oprávnění pro pluginy (např. přístup k souborům, síti).
 - [x] **Sdílený file index** — jeden inkrementální index pro Ctrl+P, project search a file tree.
-- [x] **CI/CD quality gate** — `cargo fmt`, `cargo clippy -D warnings`, `cargo test` jako podmínka merge.
 - [x] **Settings.toml** — uložení konfigurace do souboru, import/export nastavení.
-- [x] **Build runner profily** — vlastní příkazy (docker-compose, npm run dev) definované v projektu.
 
-## Q3 2026 — LSP a inteligentní editor (měsíce 4–6)
+## Q2 2026 — LSP a inteligentní editor
 **Cíl:** Přechod k "opravdovému IDE" bez ztráty výkonu.
 
 - [x] **LSP klient MVP** — podpora rust-analyzer (autocomplete, inline chyby, hover docs).
@@ -20,18 +22,17 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - [x] **AI diff náhled** — vizuální porovnání navržených změn před aplikací na disk.
 - [x] **Klikatelné cesty v terminálu** — výstup cargo s přímým skokem na řádek v editoru.
 
-## Q4 2026 — Rozšíření platformy (měsíce 7–9)
-**Cíl:** Příprava na více platforem a rozšiřitelnost.
+## Q3 2026 — Rozšíření platformy
+**Cíl:** Příprava na více platforem a plná podpora LSP.
 
 - [ ] **LSP plná sada** — refaktoring, rename symbol, code actions přes LSP.
-- [x] **Plugin foundation (interní)** — definice extension bodů (command registry, panel registry).
 - [ ] **macOS build** — funkční binárka pro macOS (Apple Silicon + Intel).
 - [ ] **Distribuce Linuxu** — AppImage / .deb balíček; Flatpak.
+- [ ] **WASM plugin API (beta)** — první vlna komunitních pluginů.
 
-## Q1 2027 — Ekosystém a v1.0 (měsíce 10–12)
+## Q4 2026 — Ekosystém a v1.0
 **Cíl:** Veřejné vydání jako stabilní produkt připravený na komunitu.
 
-- [ ] **WASM plugin API (alpha)** — externí pluginy v sandboxu.
 - [ ] **Windows build alpha** — základní funkčnost na Windows 11.
 - [ ] **PolyCredo Hub (lite)** — sdílení snippetů, AI promptů a nastavení (local-first).
 - [ ] **v1.0 release** — stabilní API, changelog, dokumentace.

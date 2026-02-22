@@ -217,7 +217,9 @@ pub(crate) fn render_workspace(
     render_project_search_dialog(ctx, ws, i18n);
     if let Some(cmd_id) = render_command_palette(ctx, ws, shared, i18n) {
         let mut actions = MenuActions::default();
-        execute_command(cmd_id, &mut actions);
+        if let Some(plugin_res) = execute_command(cmd_id, &mut actions, shared) {
+            ws.toasts.push(crate::app::types::Toast::info(plugin_res));
+        }
         if let Some(path) = process_menu_actions(ws, shared, actions, i18n) {
             open_here_path = Some(path);
         }
@@ -230,7 +232,7 @@ pub(crate) fn render_workspace(
                 .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
         });
 
-    let dialog_open = ws.file_tree.has_open_dialog();
+    let dialog_open = ws.file_tree.has_open_dialog() || ws.command_palette.is_some();
     let ai_clicked = render_ai_panel(ctx, ws, dialog_open, i18n);
     let left_clicked = render_left_panel(ctx, ws, dialog_open, i18n);
     let prev_active_path = ws.editor.active_path().cloned();

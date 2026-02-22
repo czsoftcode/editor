@@ -116,9 +116,10 @@ impl ProjectWatcher {
                         let s = c.as_os_str().to_string_lossy();
                         matches!(
                             s.as_ref(),
-                            ".git" | "target" | "node_modules" | ".polycredo" | "history"
+                            ".git" | "target" | "node_modules" | "history"
                         )
-                    }) || path_str.contains(".build_number")
+                    }) || (path_str.contains(".polycredo") && !path_str.contains("sandbox"))
+                        || path_str.contains(".build_number")
                         || path_str.contains(".gemini-notes.md");
 
                     if skip {

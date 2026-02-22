@@ -100,9 +100,9 @@ impl Sandbox {
                 Ok(())
             }
             (false, true) => {
-                // File was deleted in sandbox, so delete it in project too
-                fs::remove_file(&dst)
-                    .map_err(|e| format!("Failed to remove file from project: {}", e))?;
+                // SAFETY: We no longer automatically delete files in the real project 
+                // if they are missing in the sandbox, to avoid accidental data loss.
+                // In the future, we might implement an explicit "deleted" list.
                 Ok(())
             }
             (false, false) => {
@@ -168,21 +168,9 @@ impl Sandbox {
             }
         }
 
-        // 2. Detect Deleted files (present in project, missing in sandbox)
-        for entry in WalkDir::new(&self.project_root)
-            .into_iter()
-            .filter_entry(|e| !Self::is_ignored_in_project(e.path()))
-        {
-            let Ok(entry) = entry else { continue };
-            if entry.file_type().is_file() {
-                let rel_path = entry.path().strip_prefix(&self.project_root).unwrap();
-                let sandbox_path = self.root.join(rel_path);
-
-                if !sandbox_path.exists() {
-                    staged_set.insert(rel_path.to_path_buf());
-                }
-            }
-        }
+        // 2. Detect Deleted files (Removed this logic for now as it's dangerous)
+        // A file missing in the sandbox shouldn't automatically delete the real file 
+        // unless we have a specific 'deleted' marker.
 
         let mut staged: Vec<PathBuf> = staged_set.into_iter().collect();
         staged.sort();

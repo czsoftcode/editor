@@ -15,13 +15,12 @@ use super::super::editor::Editor;
 use super::super::file_tree::FileTree;
 use super::super::terminal::Terminal;
 use super::super::widgets::command_palette::CommandPaletteState;
-use crate::app::lsp::LspClient; // Added LspClient import
+use crate::app::lsp::LspClient;
 use crate::app::project_config::load_profiles;
 use crate::watcher::{FileWatcher, ProjectWatcher};
 use async_lsp::lsp_types::Url;
 
 /// Result of an asynchronous folder selection.
-/// bool = true → open in a new window; false → replace current workspace.
 pub(super) type FolderPickResult = (Option<PathBuf>, bool);
 
 // ---------------------------------------------------------------------------
@@ -30,11 +29,8 @@ pub(super) type FolderPickResult = (Option<PathBuf>, bool);
 
 pub(crate) struct FilePicker {
     pub query: String,
-    /// All project files (relative paths)
     pub files: Arc<Vec<PathBuf>>,
-    /// Indices into `files` matching the current filter
     pub filtered: Vec<usize>,
-    /// Currently highlighted item in the list
     pub selected: usize,
     pub focus_requested: bool,
 }
@@ -101,9 +97,7 @@ impl Default for ProjectSearch {
 // ---------------------------------------------------------------------------
 
 pub(crate) enum FsChangeResult {
-    /// Result of reading a file for AI Diff: (real_path, original_content, new_content)
     AiDiff(String, String, String),
-    /// Result of reading an external modification for Local History: (rel_path, content)
     LocalHistory(PathBuf, String),
 }
 
@@ -134,98 +128,59 @@ pub(crate) struct WorkspaceState {
     pub build_error_rx: Option<mpsc::Receiver<Vec<BuildError>>>,
     pub claude_tool: AiTool,
     pub claude_float: bool,
-    // New project wizard (for this window)
     pub show_new_project: bool,
     pub wizard: WizardState,
     pub toasts: Vec<Toast>,
-    /// Channel for the result of an asynchronous file dialog (folder selection).
     pub folder_pick_rx: Option<mpsc::Receiver<FolderPickResult>>,
-    /// Ctrl+Shift+P — command palette
     pub command_palette: Option<CommandPaletteState>,
-    /// Shared file index for Ctrl+P, search, etc.
     pub project_index: Arc<super::ProjectIndex>,
-    /// Ctrl+P — fuzzy file picker
     pub file_picker: Option<FilePicker>,
-    /// Project-wide search
     pub project_search: ProjectSearch,
-    /// LSP client for this workspace.
     pub lsp_client: Option<LspClient>,
-    /// Whether rust-analyzer was found missing.
     pub lsp_binary_missing: bool,
-    /// Progress of an asynchronous LSP tool installation.
     pub lsp_install_rx: Option<mpsc::Receiver<Result<(), String>>>,
-    /// Git — current branch
     pub git_branch: Option<String>,
     pub git_branch_rx: Option<mpsc::Receiver<Option<String>>>,
-    /// Git — file status (absolute path → color for file tree)
     pub git_status_rx: Option<mpsc::Receiver<std::collections::HashMap<PathBuf, egui::Color32>>>,
-    /// Timer for periodic git refresh
     pub git_last_refresh: std::time::Instant,
-    /// Settings draft — initialized when dialog opens, discarded when closed
+    pub lsp_last_retry: std::time::Instant,
     pub settings_draft: Option<crate::settings::Settings>,
-    /// Asynchronous default projects path selection in settings dialog
     pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
-    /// Availability of AI CLI tools (according to PATH)
     pub ai_tool_available: HashMap<AiTool, bool>,
-    /// Asynchronous AI CLI tool availability check
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<AiTool, bool>>>,
-    /// Time of the last (automatic) AI CLI tool re-detection
     pub ai_tool_last_check: std::time::Instant,
-    /// Pending conflict: file was modified externally, but tab has unsaved changes.
-    /// Value = path to conflict; None = no conflict.
     pub external_change_conflict: Option<PathBuf>,
-    /// Which terminal tab is pending closure confirmation (index into claude_tabs).
+    /// Pending sync: file was deleted in sandbox but still exists in project.
+    /// Value = relative path to file.
+    pub sandbox_deletion_sync: Option<PathBuf>,
     pub terminal_close_requested: Option<usize>,
-    /// Whether the AI panel is open in a separate viewport (window).
     pub ai_viewport_open: bool,
-    /// Path of the file that was successfully promoted from sandbox (triggers success modal).
     pub promotion_success: Option<PathBuf>,
-    /// Whether to show the modal listing all staged files in sandbox.
     pub show_sandbox_staged: bool,
-    /// Whether to run build/cargo commands in sandbox instead of project root.
     pub build_in_sandbox: bool,
-    /// Whether the file tree shows sandbox instead of project root.
     pub file_tree_in_sandbox: bool,
-    /// Cancellation flag for git refresh threads.
-    /// Set to true on workspace drop → threads terminate git process and do not process result.
     pub git_cancel: Arc<AtomicBool>,
-    /// Local history to snapshot files before AI modifications
     pub local_history: crate::app::local_history::LocalHistory,
-    /// Sandbox for isolated AI tool execution
     pub sandbox: crate::app::sandbox::Sandbox,
-    /// Cached list of staged sandbox files to avoid expensive full scan on every frame.
     pub sandbox_staged_files: Vec<PathBuf>,
-    /// Receiver for asynchronous sandbox staged files scan results.
     pub sandbox_staged_rx: Option<mpsc::Receiver<Vec<PathBuf>>>,
-    /// Whether the sandbox staged files cache needs to be refreshed (triggered by FS events).
     pub sandbox_staged_dirty: bool,
-    /// Last refresh time of `sandbox_staged_files`.
     pub sandbox_staged_last_refresh: std::time::Instant,
-    /// Channel for background I/O results (Audit Task 2.1).
-    pub(crate) background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
+    pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
 }
 
 impl Drop for WorkspaceState {
     fn drop(&mut self) {
-        // Signal git refresh threads to terminate git process and not return result.
         self.git_cancel
             .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }
-
-// ---------------------------------------------------------------------------
-// SecondaryWorkspace — secondary viewport (one project in a new window)
-// ---------------------------------------------------------------------------
 
 pub(crate) struct SecondaryWorkspace {
     pub viewport_id: egui::ViewportId,
     pub state: Arc<Mutex<WorkspaceState>>,
     pub close_requested: Arc<AtomicBool>,
 }
-
-// ---------------------------------------------------------------------------
-// Helper functions
-// ---------------------------------------------------------------------------
 
 pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
     PersistentState {
@@ -288,7 +243,6 @@ pub(crate) fn init_workspace(
     let mut wizard = WizardState::default();
     wizard.path = default_wizard_path();
 
-    // Initialize LSP client if this is a Rust project
     let is_rust = root_path.join("Cargo.toml").exists();
     let lsp_installed = LspClient::is_installed();
 
@@ -346,12 +300,14 @@ pub(crate) fn init_workspace(
         git_branch_rx: Some(git_branch_rx),
         git_status_rx: Some(git_status_rx),
         git_last_refresh: std::time::Instant::now(),
+        lsp_last_retry: std::time::Instant::now(),
         settings_draft: None,
         settings_folder_pick_rx: None,
         ai_tool_available: HashMap::new(),
         ai_tool_check_rx: Some(ai_tool_check_rx),
         ai_tool_last_check: std::time::Instant::now(),
         external_change_conflict: None,
+        sandbox_deletion_sync: None,
         terminal_close_requested: None,
         ai_viewport_open: false,
         promotion_success: None,
@@ -363,7 +319,7 @@ pub(crate) fn init_workspace(
         sandbox,
         sandbox_staged_files,
         sandbox_staged_rx: None,
-        sandbox_staged_dirty: false,
+        sandbox_staged_dirty: true,
         sandbox_staged_last_refresh: std::time::Instant::now(),
         background_io_rx: None,
     }

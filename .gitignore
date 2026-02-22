@@ -4,7 +4,7 @@
 .aider*
 .polycredo/sandbox/
 .build_number
-.gemini-notes.md
+.gemini-*
 .claude-notes.md
 .codex-notes.md
 parse_diff_test.rs

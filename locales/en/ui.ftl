@@ -251,3 +251,9 @@ svg-open-external = ↗ Open preview in viewer
 svg-modal-title = SVG File
 svg-modal-body = This file is an SVG image. Do you want to open it in the system viewer, or edit it as XML text?
 svg-modal-edit = Edit as text
+
+## Sandbox deletion sync dialog
+sandbox-delete-title = File deleted in sandbox
+sandbox-delete-msg = File "{ $name }" was deleted in AI sandbox but still exists in project. What would you like to do?
+sandbox-delete-keep-project = Keep in project (restore to sandbox)
+sandbox-delete-also-project = Also delete in project

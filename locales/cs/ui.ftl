@@ -254,3 +254,9 @@ svg-open-external = ↗ Otevřít náhled v prohlížeči
 svg-modal-title = SVG soubor
 svg-modal-body = Tento soubor je SVG obrázek. Chcete ho otevřít v systémovém prohlížeči, nebo upravovat jako XML text?
 svg-modal-edit = Upravovat jako text
+
+## Dialog synchronizace smazání v sandboxu
+sandbox-delete-title = Soubor smazán v sandboxu
+sandbox-delete-msg = Soubor „{ $name }" byl smazán v AI sandboxu, ale v projektu stále existuje. Co si přejete udělat?
+sandbox-delete-keep-project = Ponechat v projektu (obnovit do sandboxu)
+sandbox-delete-also-project = Smazat i v projektu

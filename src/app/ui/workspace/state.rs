@@ -182,6 +182,14 @@ pub(crate) struct WorkspaceState {
     pub local_history: crate::app::local_history::LocalHistory,
     /// Sandbox for isolated AI tool execution
     pub sandbox: crate::app::sandbox::Sandbox,
+    /// Cached list of staged sandbox files to avoid expensive full scan on every frame.
+    pub sandbox_staged_files: Vec<PathBuf>,
+    /// Receiver for asynchronous sandbox staged files scan results.
+    pub sandbox_staged_rx: Option<mpsc::Receiver<Vec<PathBuf>>>,
+    /// Whether the sandbox staged files cache needs to be refreshed (triggered by FS events).
+    pub sandbox_staged_dirty: bool,
+    /// Last refresh time of `sandbox_staged_files`.
+    pub sandbox_staged_last_refresh: std::time::Instant,
 }
 
 impl Drop for WorkspaceState {
@@ -255,6 +263,7 @@ pub(crate) fn init_workspace(
     let mut project_watcher = ProjectWatcher::new(&root_path);
     let sandbox = crate::app::sandbox::Sandbox::new(&root_path);
     project_watcher.add_path(&sandbox.root);
+    let sandbox_staged_files = sandbox.get_staged_files();
 
     let git_cancel = Arc::new(AtomicBool::new(false));
     let git_branch_rx = fetch_git_branch(&root_path, Arc::clone(&git_cancel));
@@ -339,6 +348,10 @@ pub(crate) fn init_workspace(
         git_cancel,
         local_history,
         sandbox,
+        sandbox_staged_files,
+        sandbox_staged_rx: None,
+        sandbox_staged_dirty: false,
+        sandbox_staged_last_refresh: std::time::Instant::now(),
     }
 }
 

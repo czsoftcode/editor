@@ -29,6 +29,33 @@ pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
 use modal_dialogs::render_dialogs;
 
+fn trigger_sandbox_staged_refresh(ws: &mut WorkspaceState) {
+    if ws.sandbox_staged_rx.is_some() {
+        return; // Already scanning
+    }
+    let sandbox = ws.sandbox.root.clone();
+    let project = ws.root_path.clone();
+    let (tx, rx) = std::sync::mpsc::channel();
+    ws.sandbox_staged_rx = Some(rx);
+
+    std::thread::spawn(move || {
+        // We reuse the logic but in a thread. 
+        // For now, call the existing method but we can optimize it later.
+        // Actually, Sandbox needs project_root and root path.
+        let sb = crate::app::sandbox::Sandbox::new_with_roots(project, sandbox);
+        let files = sb.get_staged_files();
+        let _ = tx.send(files);
+    });
+}
+
+fn refresh_sandbox_staged_cache_if_due(ws: &mut WorkspaceState) {
+    let elapsed = ws.sandbox_staged_last_refresh.elapsed().as_millis();
+    if ws.sandbox_staged_dirty || elapsed >= config::SANDBOX_STAGED_REFRESH_MS as u128 {
+        trigger_sandbox_staged_refresh(ws);
+        ws.sandbox_staged_dirty = false;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // render_workspace — Orchestrator for rendering a single workspace
 // Returns Some(path) if the workspace should be reinitialized with a new path.
@@ -57,6 +84,7 @@ pub(crate) fn render_workspace(
 
     // Background events (watcher, build, autosave)
     process_background_events(ws, shared, i18n);
+    refresh_sandbox_staged_cache_if_due(ws);
 
     // Periodic repaint for autosave and watcher
     ctx.request_repaint_after(std::time::Duration::from_millis(
@@ -253,6 +281,7 @@ pub(crate) fn render_workspace(
                     ws.promotion_success = Some(path);
                 }
             }
+            ws.sandbox_staged_dirty = true;
         }
     });
 
@@ -332,7 +361,7 @@ fn render_sandbox_staged_bar(
     ws: &mut WorkspaceState,
     i18n: &crate::i18n::I18n,
 ) {
-    let staged_files = ws.sandbox.get_staged_files();
+    let staged_files = ws.sandbox_staged_files.clone();
     if staged_files.is_empty() {
         return;
     }
@@ -358,6 +387,7 @@ fn render_sandbox_staged_bar(
                 );
 
                 if ui.button(i18n.get("ai-staged-bar-review")).clicked() {
+                    ws.sandbox_staged_dirty = true;
                     ws.show_sandbox_staged = true;
                 }
 
@@ -368,7 +398,7 @@ fn render_sandbox_staged_bar(
                     )
                     .clicked()
                 {
-                    let files_to_promote = ws.sandbox.get_staged_files();
+                    let files_to_promote = staged_files.clone();
                     let mut success_count = 0;
                     for rel_path in files_to_promote {
                         let full_path = ws.root_path.join(&rel_path);
@@ -394,6 +424,7 @@ fn render_sandbox_staged_bar(
                         }
                     }
                     if success_count > 0 {
+                        ws.sandbox_staged_dirty = true;
                         ws.toasts.push(Toast::info(format!(
                             "Successfully promoted {} files to project.",
                             success_count

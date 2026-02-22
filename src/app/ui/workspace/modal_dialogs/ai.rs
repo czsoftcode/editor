@@ -40,7 +40,7 @@ pub fn show(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n) {
 
     // List of all staged files in Sandbox.
     if ws.show_sandbox_staged {
-        let staged_files = ws.sandbox.get_staged_files();
+        let staged_files = ws.sandbox_staged_files.clone();
         if staged_files.is_empty() {
             ws.show_sandbox_staged = false;
         } else {

@@ -82,6 +82,16 @@ pub enum FsChange {
     Modified(PathBuf),
 }
 
+impl FsChange {
+    pub fn path(&self) -> &PathBuf {
+        match self {
+            FsChange::Created(p) => p,
+            FsChange::Removed(p) => p,
+            FsChange::Modified(p) => p,
+        }
+    }
+}
+
 pub struct ProjectWatcher {
     _watcher: Option<RecommendedWatcher>,
     receiver: mpsc::Receiver<FsChange>,

@@ -4,7 +4,7 @@ pub const MAX_RECENT_PROJECTS: usize = 10;
 /// UI repaint interval for autosave and watcher (in ms).
 /// The terminal and watcher manage their own repaints via ctx.request_repaint() —
 /// this interval serves only as a fallback for background channel polling.
-pub const REPAINT_INTERVAL_MS: u64 = 500;
+pub const REPAINT_INTERVAL_MS: u64 = 2000;
 
 /// Base font size for the editor (monospace).
 pub const EDITOR_FONT_SIZE: f32 = 14.0;
@@ -46,8 +46,12 @@ pub const BUILD_ERROR_LIST_MAX_HEIGHT: f32 = 150.0;
 
 /// Maximum number of PTY events processed per UI frame.
 /// Prevents UI blocking during output bursts from the terminal process.
-pub const TERMINAL_MAX_EVENTS_PER_FRAME: usize = 256;
+pub const TERMINAL_MAX_EVENTS_PER_FRAME: usize = 64;
 
 /// Interval for automatic re-detection of AI CLI tools (claude, aider, …) in seconds.
 /// Detection runs in the background and is unobtrusive; manual re-check is provided by the ↻ button.
 pub const AI_TOOL_CHECK_INTERVAL_SECS: u64 = 60;
+
+/// Interval for refreshing sandbox staged-files snapshot (in ms).
+/// The full staged scan walks project trees and is expensive, so we avoid doing it every frame.
+pub const SANDBOX_STAGED_REFRESH_MS: u64 = 3000;

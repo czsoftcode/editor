@@ -19,6 +19,10 @@ impl Sandbox {
         }
     }
 
+    pub fn new_with_roots(project_root: PathBuf, root: PathBuf) -> Self {
+        Self { root, project_root }
+    }
+
     /// Synchronizes the sandbox with the project root.
     /// Only copies files that are missing or different in the sandbox.
     /// Skips .git, target and other ignored directories.

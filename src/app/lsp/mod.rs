@@ -74,18 +74,25 @@ impl LspClient {
         let diagnostics = DiagnosticsMap::default();
         let diagnostics_clone = diagnostics.clone();
         let egui_ctx_clone = egui_ctx.clone();
+        let last_repaint = Arc::new(Mutex::new(std::time::Instant::now()));
 
         let (main_loop, client_socket) = MainLoop::new_client(|_socket| {
             let mut router = Router::new(());
             let diagnostics_handler = diagnostics_clone.clone();
             let egui_ctx_handler = egui_ctx_clone.clone();
+            let last_repaint_handler = last_repaint.clone();
 
             router.notification::<PublishDiagnostics>(move |_, params| {
                 let mut diag_map = diagnostics_handler.lock().unwrap();
                 diag_map.insert(params.uri, params.diagnostics);
-                // Throttle repaints — at most 10 per second to avoid CPU spikes
+
+                // Throttle repaints — at most 2 per second (every 500ms) to avoid CPU spikes
                 // when rust-analyzer sends many rapid diagnostics during indexing.
-                egui_ctx_handler.request_repaint_after(std::time::Duration::from_millis(100));
+                let mut last = last_repaint_handler.lock().unwrap();
+                if last.elapsed().as_millis() > 500 {
+                    egui_ctx_handler.request_repaint_after(std::time::Duration::from_millis(100));
+                    *last = std::time::Instant::now();
+                }
                 ControlFlow::Continue(())
             });
 

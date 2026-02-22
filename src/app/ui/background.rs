@@ -68,15 +68,22 @@ pub(super) fn process_background_events(
     if !fs_changes.is_empty() {
         let mut need_reload = false;
         let mut created_file: Option<PathBuf> = None;
+        let sandbox_root = &ws.sandbox.root;
+        
         for change in &fs_changes {
             ws.project_index.handle_change(change.clone());
+            
+            // Mark sandbox staged list as dirty if anything changes in the sandbox directory
+            if change.path().starts_with(sandbox_root) {
+                ws.sandbox_staged_dirty = true;
+            }
+
             match change {
                 FsChange::Created(path) => {
                     need_reload = true;
                     if path.is_file() {
                         created_file = Some(path.clone());
                         // If created in sandbox, trigger diff
-                        let sandbox_root = &ws.sandbox.root;
                         if path.starts_with(sandbox_root)
                             && let Ok(rel_path) = path.strip_prefix(sandbox_root)
                             && let Ok(new_content) = std::fs::read_to_string(path)
@@ -100,7 +107,6 @@ pub(super) fn process_background_events(
                 FsChange::Modified(path) => {
                     need_reload = true;
 
-                    let sandbox_root = &ws.sandbox.root;
                     if path.starts_with(sandbox_root) {
                         // MODIFIED IN SANDBOX (AI agent working)
                         if let Ok(rel_path) = path.strip_prefix(sandbox_root)
@@ -201,8 +207,8 @@ pub(super) fn process_background_events(
         ws.file_tree.set_git_colors(colors);
         ws.git_status_rx = None;
     }
-    // Git: periodic refresh every 5 seconds
-    if ws.git_last_refresh.elapsed().as_secs() >= 5 {
+    // Git: periodic refresh every 15 seconds
+    if ws.git_last_refresh.elapsed().as_secs() >= 15 {
         ws.git_last_refresh = std::time::Instant::now();
         if ws.git_branch_rx.is_none() {
             ws.git_branch_rx = Some(fetch_git_branch(&ws.root_path, Arc::clone(&ws.git_cancel)));
@@ -210,6 +216,15 @@ pub(super) fn process_background_events(
         if ws.git_status_rx.is_none() {
             ws.git_status_rx = Some(fetch_git_status(&ws.root_path, Arc::clone(&ws.git_cancel)));
         }
+    }
+
+    // Sandbox: receiving background staged scan results
+    if let Some(rx) = &ws.sandbox_staged_rx
+        && let Ok(files) = rx.try_recv()
+    {
+        ws.sandbox_staged_files = files;
+        ws.sandbox_staged_rx = None;
+        ws.sandbox_staged_last_refresh = std::time::Instant::now();
     }
 
     // Autosave is paused if an external conflict dialog is pending.

@@ -2,6 +2,21 @@
 
 All notable changes to the PolyCredo Editor project will be documented in this file.
 
+## [0.6.1] - 2026-02-22
+
+### Fixed
+- **Critical CPU Usage Optimization**: 
+  - **Asynchronous Sandbox Scanning**: Moved `get_staged_files()` scan from the main UI thread to a background thread. This eliminates periodic UI stuttering every 3 seconds during sandbox updates.
+  - **Intelligent Staging Cache**: Implemented a "dirty" flag system for the sandbox cache. The scan is now triggered only periodically or immediately after a change is detected in the sandbox directory.
+  - **LSP Diagnostic Throttling**: Limited UI repaints from LSP diagnostics to a maximum of 2 per second (500ms throttle), preventing CPU spikes during initial project indexing.
+  - **Reduced UI Polling**: Increased the default `REPAINT_INTERVAL_MS` to 2000ms and Git refresh interval to 15 seconds.
+  - **Terminal Event Limiting**: Capped terminal PTY event processing to 64 events per frame to maintain UI responsiveness during high-output build processes.
+  - **Efficient Project Indexing**: Replaced full disk rescans with incremental updates for file system changes in the `ProjectIndex`.
+
+### Added
+- **Git UI Section**: Added a dedicated row for Git operations (status, diff, commit, etc.) in the left panel, visible when Sandbox mode is OFF.
+- **Improved Promotion UX**: Bulk promotion of sandbox files no longer automatically opens new tabs for previously closed files, keeping the workspace clean.
+
 ## [0.6.0] - 2026-02-21
 
 ### Added

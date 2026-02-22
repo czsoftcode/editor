@@ -246,7 +246,7 @@ fn render_build_panel(
                     git_cmd = Some("git add .");
                 }
                 if ui.button(i18n.get("git-commit")).clicked() {
-                    git_cmd = Some("git commit -m \"");
+                    git_cmd = Some("git commit -m '");
                 }
                 if ui.button(i18n.get("git-push")).clicked() {
                     git_cmd = Some("git push");

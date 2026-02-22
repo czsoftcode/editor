@@ -89,12 +89,14 @@ impl Editor {
                         .vertical_scroll_offset(tab.scroll_offset)
                         .show(ui, |ui| {
                             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                                let mut job = highlighter.highlight(
+                                let job_arc = highlighter.highlight(
                                     text,
                                     &ext,
                                     &fname,
                                     Self::current_editor_font_size(ui),
                                 );
+                                // Cloned for dynamic overlays (wrap, search).
+                                let mut job = (*job_arc).clone();
                                 job.wrap.max_width = wrap_width;
                                 apply_search_highlights(&mut job, &search_matches, current_match);
                                 ui.fonts(|f| f.layout_job(job))

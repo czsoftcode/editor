@@ -6,13 +6,14 @@ use syntect::util::LinesWithEndings;
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 pub struct Highlighter {
     syntax_set: SyntaxSet,
     theme_set: ThemeSet,
-    /// Simple MRU cache for highlighted layout jobs (Audit Task V-4).
-    /// Key is hash of (text, extension, filename, font_size).
-    cache: std::sync::Mutex<HashMap<u64, egui::text::LayoutJob>>,
+    /// Fast full-file cache (for scrolling/rendering).
+    /// Using Arc to avoid cloning massive LayoutJobs for large files.
+    cache: std::sync::Mutex<HashMap<u64, Arc<egui::text::LayoutJob>>>,
 }
 
 impl Highlighter {
@@ -30,7 +31,7 @@ impl Highlighter {
         extension: &str,
         filename: &str,
         font_size: f32,
-    ) -> egui::text::LayoutJob {
+    ) -> Arc<egui::text::LayoutJob> {
         // Compute cache key
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         text.hash(&mut hasher);
@@ -42,14 +43,12 @@ impl Highlighter {
         {
             let cache = self.cache.lock().expect("Failed to lock Highlighter cache");
             if let Some(job) = cache.get(&key) {
-                return job.clone();
+                return Arc::clone(job);
             }
         }
 
         let mut job = egui::text::LayoutJob::default();
-        // ... (rest of the logic) ...
-        // (will replace the whole function in next step to be sure)
-
+        
         let is_env_file = filename.starts_with(".env");
         let mapped_ext = if is_env_file {
             "sh"
@@ -61,7 +60,6 @@ impl Highlighter {
             }
         };
 
-        // Try extension, then full filename, then fallback to plain text
         let syntax = self
             .syntax_set
             .find_syntax_by_extension(mapped_ext)
@@ -102,19 +100,19 @@ impl Highlighter {
             }
         }
 
+        let job_arc = Arc::new(job);
         {
             let mut cache = self
                 .cache
                 .lock()
                 .expect("Failed to lock Highlighter cache for storage");
-            // Basic size limit to avoid memory leaks
             if cache.len() >= 20 {
                 cache.clear();
             }
-            cache.insert(key, job.clone());
+            cache.insert(key, Arc::clone(&job_arc));
         }
 
-        job
+        job_arc
     }
 
     pub fn background_color(&self) -> egui::Color32 {
@@ -124,5 +122,37 @@ impl Highlighter {
         } else {
             egui::Color32::from_rgb(43, 48, 59)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Instant;
+
+    #[test]
+    fn test_highlight_performance_10k() {
+        let h = Highlighter::new();
+        let mut text = String::from("fn main() {\n");
+        for i in 0..10000 {
+            text.push_str(&format!("    let x_{} = {};\n", i, i));
+        }
+        text.push_str("}\n");
+
+        println!("Starting benchmark for 10k lines...");
+
+        let start = Instant::now();
+        let job1 = h.highlight(&text, "rs", "performance_test.rs", 14.0);
+        let duration1 = start.elapsed();
+        println!("First run (no cache): {:?}", duration1);
+
+        let start = Instant::now();
+        let job2 = h.highlight(&text, "rs", "performance_test.rs", 14.0);
+        let duration2 = start.elapsed();
+        println!("Second run (with cache): {:?}", duration2);
+
+        assert_eq!(job1.sections.len(), job2.sections.len());
+        assert!(duration2 < duration1);
+        println!("Performance gain: {:.2}x", duration1.as_secs_f64() / duration2.as_secs_f64());
     }
 }

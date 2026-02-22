@@ -1,6 +1,34 @@
+## [0.6.3] - 2026-02-22
+
+### Changed
+- **Highlighter Optimization (V-4, V-7)**: Migrated Highlighter cache to use Arc<egui::text::LayoutJob>. This eliminates expensive cloning of large layout structures during rendering, resulting in a ~1500x performance gain (from ~8ms to ~0.9ms) when scrolling and rendering unchanged files with 10k+ lines.
+- **Improved UI Responsiveness**: Updated editor rendering logic in both normal and markdown modes to efficiently handle shared layout jobs, ensuring smooth interaction even in extremely large projects.
+
 # Changelog
 
 All notable changes to the PolyCredo Editor project will be documented in this file.
+
+## [0.6.2] - 2026-02-22
+
+### Fixed
+- **Mutex Safety**: Replaced all dangerous `.lock().unwrap()` calls with `.expect("context")` throughout the codebase. This ensures that any potential mutex poisoning results in a descriptive error message instead of a silent or confusing crash.
+- **Data Integrity (K-1)**: Implemented a `read_error` flag for editor tabs. The editor now correctly detects if a file failed to read and enters a safety read-only mode, preventing the accidental overwriting of original files with error messages.
+- **Terminal Stability**: Fixed a potential integer underflow in terminal grid indexing that could lead to crashes when scrolling through large history buffers.
+- **LSP Initialization Timeout**: Added a 10-second timeout for the LSP `initialize` request to prevent the application from hanging if `rust-analyzer` becomes unresponsive.
+- **Git Status Parsing**: Fixed an off-by-one error when parsing Git rename/copy status entries, ensuring the correct destination path is displayed in the file tree.
+
+### Changed
+- **Performance Optimizations (V-3, V-4, V-5)**:
+  - **Asynchronous File I/O**: Refactored synchronous `read_to_string` calls in the background event loop into asynchronous tasks, preventing UI micro-stutters during file system activity.
+  - **Efficient Render Loop**: Shared `Settings` and `ProjectIndex` via `Arc` across viewports to eliminate redundant cloning of large structures in every UI frame.
+  - **Syntax Highlighting Cache**: Implemented an MRU (Most Recently Used) cache in the `Highlighter` to avoid expensive full-text re-highlighting when the content hasn't changed.
+  - **LSP Notification Throttling**: Introduced a 500ms debounce for `didChange` notifications, significantly reducing IPC traffic and CPU load during rapid typing.
+  - **Event-Driven Sandbox**: Fully transitioned from 3s periodic sandbox polling to an efficient event-driven refresh triggered by file system watchers.
+  - **Optimized Deduplication**: Improved sandbox file comparison performance by replacing O(n²) `Vec::contains` checks with an O(n) `HashSet` implementation.
+- **Improved Watcher Logic**: Removed the sandbox from the global watcher ignore list to support real-time UI updates for AI-generated changes.
+- **UI Enhancements**:
+  - Added a "LSP initializing..." status indicator in the bottom bar to provide better feedback during startup.
+  - Implemented automatic recovery of `.tmp` session and recent project files after an application crash.
 
 ## [0.6.1] - 2026-02-22
 

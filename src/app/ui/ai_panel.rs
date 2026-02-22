@@ -104,7 +104,9 @@ fn render_ai_tool_controls(
         .add_enabled(can_start, egui::Button::new(i18n.get("ai-btn-start")))
         .on_hover_text(hover_text);
     if start_response.clicked() {
-        let _ = ws.sandbox.sync_from_project();
+        if !ws.sandbox_sync_disabled {
+            let _ = ws.sandbox.sync_from_project();
+        }
         let cmd = ws.claude_tool.command().to_owned();
         let active = ws.claude_active_tab;
         let context = generate_ai_context(ws);
@@ -112,6 +114,25 @@ fn render_ai_tool_controls(
             terminal.send_command(&cmd);
             terminal.send_command(&context);
         }
+    }
+
+    // Sandbox Sync Toggle
+    let sync_icon = if ws.sandbox_sync_disabled {
+        "📁"
+    } else {
+        "🔄"
+    };
+    let sync_hover = if ws.sandbox_sync_disabled {
+        "Synchronizace zakázána (kliknutím povolíte)"
+    } else {
+        "Synchronizace povolena (automaticky při startu)"
+    };
+    if ui
+        .selectable_label(!ws.sandbox_sync_disabled, sync_icon)
+        .on_hover_text(sync_hover)
+        .clicked()
+    {
+        ws.sandbox_sync_disabled = !ws.sandbox_sync_disabled;
     }
 
     // Sync context button
@@ -123,7 +144,6 @@ fn render_ai_tool_controls(
         .on_hover_text(i18n.get("ai-hover-sync"))
         .clicked()
     {
-        let _ = ws.sandbox.sync_from_project();
         let context = generate_ai_context(ws);
         if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
             terminal.send_command(&context);

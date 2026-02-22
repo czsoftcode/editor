@@ -1,3 +1,9 @@
+## [0.6.8] - 2026-02-22
+
+### Changed
+- **AI Panel UI**: Removed the "Synchronizovat nyní" button to reduce clutter.
+- **Enhanced AI Synchronization**: Added a synchronization toggle (🔄/📁) directly to the AI panel. When enabled, the editor automatically synchronizes the project state to the sandbox before starting any AI tool, ensuring the assistant always works with the latest code.
+
 ## [0.6.7] - 2026-02-22
 
 ### Fixed

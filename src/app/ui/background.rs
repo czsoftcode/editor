@@ -93,7 +93,9 @@ pub(super) fn process_background_events(
                         created_file = Some(path.clone());
                         if path.starts_with(sandbox_root) {
                             // Created in sandbox
-                            if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
+                            if !ws.sandbox_sync_disabled
+                                && let Ok(rel_path) = path.strip_prefix(sandbox_root)
+                            {
                                 let real_path_str =
                                     ws.root_path.join(rel_path).to_string_lossy().to_string();
                                 let auto_show = shared
@@ -116,7 +118,9 @@ pub(super) fn process_background_events(
                                     });
                                 }
                             }
-                        } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root)
+                        } else if !ws.sandbox_sync_disabled
+                            && path.starts_with(&ws.root_path)
+                            && !path.starts_with(sandbox_root)
                         {
                             // Created in REAL PROJECT -> Auto-sync TO SANDBOX
                             if let Ok(rel_path) = path.strip_prefix(&ws.root_path) {
@@ -138,7 +142,9 @@ pub(super) fn process_background_events(
 
                     if path.starts_with(sandbox_root) {
                         // DELETED IN SANDBOX
-                        if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
+                        if !ws.sandbox_sync_disabled
+                            && let Ok(rel_path) = path.strip_prefix(sandbox_root)
+                        {
                             let project_path = ws.root_path.join(rel_path);
                             if project_path.exists() && ws.sandbox_deletion_sync.is_none() {
                                 // File was deleted in sandbox but exists in project -> show modal
@@ -151,7 +157,9 @@ pub(super) fn process_background_events(
                     need_reload = true;
                     if path.starts_with(sandbox_root) {
                         // Modified in sandbox
-                        if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
+                        if !ws.sandbox_sync_disabled
+                            && let Ok(rel_path) = path.strip_prefix(sandbox_root)
+                        {
                             let auto_show = shared
                                 .lock()
                                 .expect("lock shared")
@@ -177,7 +185,10 @@ pub(super) fn process_background_events(
                                 });
                             }
                         }
-                    } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root) {
+                    } else if !ws.sandbox_sync_disabled
+                        && path.starts_with(&ws.root_path)
+                        && !path.starts_with(sandbox_root)
+                    {
                         // Modified in REAL PROJECT -> Auto-sync TO SANDBOX
                         if let Ok(rel_path) = path.strip_prefix(&ws.root_path) {
                             // Skip if the relative path is inside .polycredo itself

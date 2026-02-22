@@ -100,7 +100,7 @@ impl Sandbox {
                 Ok(())
             }
             (false, true) => {
-                // SAFETY: We no longer automatically delete files in the real project 
+                // SAFETY: We no longer automatically delete files in the real project
                 // if they are missing in the sandbox, to avoid accidental data loss.
                 // In the future, we might implement an explicit "deleted" list.
                 Ok(())
@@ -169,7 +169,7 @@ impl Sandbox {
         }
 
         // 2. Detect Deleted files (Removed this logic for now as it's dangerous)
-        // A file missing in the sandbox shouldn't automatically delete the real file 
+        // A file missing in the sandbox shouldn't automatically delete the real file
         // unless we have a specific 'deleted' marker.
 
         let mut staged: Vec<PathBuf> = staged_set.into_iter().collect();

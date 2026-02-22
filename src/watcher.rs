@@ -88,6 +88,7 @@ pub enum FsChange {
 }
 
 impl FsChange {
+    #[allow(dead_code)]
     pub fn path(&self) -> &PathBuf {
         match self {
             FsChange::Created(p) => p,
@@ -112,7 +113,8 @@ impl ProjectWatcher {
                     // Optimized skip check: avoid iterating components and excessive allocations.
                     // We only want to watch the sandbox inside .polycredo, everything else in .polycredo is ignored.
                     let is_in_polycredo = p.as_path().to_string_lossy().contains(".polycredo");
-                    let is_in_sandbox = is_in_polycredo && p.as_path().to_string_lossy().contains("sandbox");
+                    let is_in_sandbox =
+                        is_in_polycredo && p.as_path().to_string_lossy().contains("sandbox");
 
                     let skip = if is_in_polycredo && !is_in_sandbox {
                         true

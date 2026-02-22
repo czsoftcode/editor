@@ -41,6 +41,7 @@ git-checkout-file = git checkout (soubor)
 git-checkout-branch = git checkout (větev)
 git-pull = git pull
 git-reset-hard = git reset --hard
+hover-git-disabled-sandbox = Git operace jsou zakázány, dokud nejsou vyřešeny změny v sandboxu (použijte tlačítko 'Zkontrolovat změny' nebo 'Přenést vše' ve žluté liště).
 
 ## Status bar
 statusbar-line-col = Řádek { $line }, Sloupec { $col }

@@ -1,3 +1,12 @@
+## [0.6.6] - 2026-02-22
+
+### Added
+- **Git Safety Gate**: Git operations that modify the repository (add, commit, push, pull, checkout, reset) are now automatically disabled in the left panel if there are pending sandbox changes. This prevents accidental commits of partial or unreviewed AI-generated work.
+- **UI Tooltips**: Added informative tooltips explaining why Git buttons are disabled and how to re-enable them (by promoting or discarding sandbox changes).
+
+### Changed
+- **Localizations**: Added `hover-git-disabled-sandbox` string to English and Czech localization files.
+
 ## [0.6.5] - 2026-02-22
 
 ### Fixed

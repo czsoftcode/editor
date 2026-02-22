@@ -242,28 +242,60 @@ fn render_build_panel(
                     git_cmd = Some("git diff");
                 }
                 ui.separator();
-                if ui.button(i18n.get("git-add-all")).clicked() {
-                    git_cmd = Some("git add .");
-                }
-                if ui.button(i18n.get("git-commit")).clicked() {
-                    git_cmd = Some("git commit -m '");
-                }
-                if ui.button(i18n.get("git-push")).clicked() {
-                    git_cmd = Some("git push");
-                }
-                if ui.button(i18n.get("git-pull")).clicked() {
-                    git_cmd = Some("git pull");
-                }
-                ui.separator();
-                if ui.button(i18n.get("git-checkout-file")).clicked() {
-                    git_cmd = Some("git checkout -- ");
-                }
-                if ui.button(i18n.get("git-checkout-branch")).clicked() {
-                    git_cmd = Some("git checkout ");
-                }
-                if ui.button(i18n.get("git-reset-hard")).clicked() {
-                    git_cmd = Some("git reset --hard HEAD");
-                }
+
+                let sandbox_clean = ws.sandbox_staged_files.is_empty();
+                ui.add_enabled_ui(sandbox_clean, |ui| {
+                    if ui
+                        .button(i18n.get("git-add-all"))
+                        .on_disabled_hover_text(i18n.get("hover-git-disabled-sandbox"))
+                        .clicked()
+                    {
+                        git_cmd = Some("git add .");
+                    }
+                    if ui
+                        .button(i18n.get("git-commit"))
+                        .on_disabled_hover_text(i18n.get("hover-git-disabled-sandbox"))
+                        .clicked()
+                    {
+                        git_cmd = Some("git commit -m '");
+                    }
+                    if ui
+                        .button(i18n.get("git-push"))
+                        .on_disabled_hover_text(i18n.get("hover-git-disabled-sandbox"))
+                        .clicked()
+                    {
+                        git_cmd = Some("git push");
+                    }
+                    if ui
+                        .button(i18n.get("git-pull"))
+                        .on_disabled_hover_text(i18n.get("hover-git-disabled-sandbox"))
+                        .clicked()
+                    {
+                        git_cmd = Some("git pull");
+                    }
+                    ui.separator();
+                    if ui
+                        .button(i18n.get("git-checkout-file"))
+                        .on_disabled_hover_text(i18n.get("hover-git-disabled-sandbox"))
+                        .clicked()
+                    {
+                        git_cmd = Some("git checkout -- ");
+                    }
+                    if ui
+                        .button(i18n.get("git-checkout-branch"))
+                        .on_disabled_hover_text(i18n.get("hover-git-disabled-sandbox"))
+                        .clicked()
+                    {
+                        git_cmd = Some("git checkout ");
+                    }
+                    if ui
+                        .button(i18n.get("git-reset-hard"))
+                        .on_disabled_hover_text(i18n.get("hover-git-disabled-sandbox"))
+                        .clicked()
+                    {
+                        git_cmd = Some("git reset --hard HEAD");
+                    }
+                });
 
                 if let Some(cmd) = git_cmd {
                     ws.next_terminal_id += 1;

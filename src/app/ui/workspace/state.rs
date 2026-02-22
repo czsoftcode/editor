@@ -98,6 +98,7 @@ impl Default for ProjectSearch {
 
 pub(crate) enum FsChangeResult {
     AiDiff(String, String, String),
+    #[allow(dead_code)]
     LocalHistory(PathBuf, String),
 }
 

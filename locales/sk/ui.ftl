@@ -41,8 +41,9 @@ git-checkout-file = git checkout (súbor)
 git-checkout-branch = git checkout (vetva)
 git-pull = git pull
 git-reset-hard = git reset --hard
+hover-git-disabled-sandbox = Git operácie sú zakázané, kým nie sú vyriešené zmeny v sandboxe (použite tlačidlo 'Skontrolovať zmeny' alebo 'Preniesť všetko' v žltej lište).
 
-## Stavový riadok
+## Status bar
 statusbar-line-col = Riadok { $line }, Stĺpec { $col }
 statusbar-encoding = UTF-8
 statusbar-unsaved = Neuložené
@@ -239,6 +240,12 @@ svg-open-external = ⧉ Otvoriť náhľad v prehliadači
 svg-modal-title = SVG súbor
 svg-modal-body = Tento súbor je SVG obrázok. Chcete ho otvoriť v systémovom prehliadači, alebo upravovať ako XML text?
 svg-modal-edit = Upravovať ako text
+
+## Dialóg synchronizácie zmazania v sandboxe
+sandbox-delete-title = Súbor zmazaný v sandboxe
+sandbox-delete-msg = Súbor „{ $name }" bol zmazaný v AI sandboxe, ale v projekte stále existuje. Čo si želáte urobiť?
+sandbox-delete-keep-project = Ponechať v projekte (obnoviť do sandboxu)
+sandbox-delete-also-project = Zmazať aj v projekte
 panel-runners = Runners
 btn-run-profile = Run Profile...
 btn-edit-profiles = Edit

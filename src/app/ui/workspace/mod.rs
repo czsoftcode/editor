@@ -5,11 +5,11 @@ pub(crate) mod state;
 
 // Re-exports for external callers
 pub(crate) use index::ProjectIndex;
+pub(super) use state::spawn_ai_tool_check;
 pub(crate) use state::{
     FilePicker, FsChangeResult, SearchResult, SecondaryWorkspace, WorkspaceState, init_workspace,
     open_and_jump, open_file_in_ws, ws_to_panel_state,
 };
-pub(super) use state::spawn_ai_tool_check;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -88,30 +88,46 @@ pub(crate) fn render_workspace(
 
     // Keyboard shortcuts
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        if let Some(err) = ws.editor.save(i18n, &shared.lock().expect("lock").is_internal_save) {
+        if let Some(err) = ws
+            .editor
+            .save(i18n, &shared.lock().expect("lock").is_internal_save)
+        {
             ws.toasts.push(Toast::error(err));
         }
         if ws.git_status_rx.is_none() {
-            ws.git_status_rx = Some(super::background::fetch_git_status(&ws.root_path, Arc::clone(&ws.git_cancel)));
+            ws.git_status_rx = Some(super::background::fetch_git_status(
+                &ws.root_path,
+                Arc::clone(&ws.git_cancel),
+            ));
         }
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) {
         ws.editor.clear();
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::B)) {
-        if let Some(t) = &mut ws.build_terminal { t.send_command("cargo build 2>&1"); }
-        let build_path = if ws.build_in_sandbox { ws.sandbox.root.clone() } else { ws.root_path.clone() };
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("cargo build 2>&1");
+        }
+        let build_path = if ws.build_in_sandbox {
+            ws.sandbox.root.clone()
+        } else {
+            ws.root_path.clone()
+        };
         ws.build_error_rx = Some(run_build_check(build_path));
         ws.build_errors.clear();
     }
-    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R)) && let Some(t) = &mut ws.build_terminal {
+    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R))
+        && let Some(t) = &mut ws.build_terminal
+    {
         t.send_command("cargo run 2>&1");
     }
     if ctx.input(|i| i.modifiers.ctrl && !i.modifiers.shift && i.key_pressed(egui::Key::P)) {
         if ws.file_picker.is_none() {
             let files = ws.project_index.get_files();
             ws.file_picker = Some(FilePicker::new(files));
-        } else { ws.file_picker = None; }
+        } else {
+            ws.file_picker = None;
+        }
     }
     if ctx.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::F)) {
         ws.project_search.show_input = true;
@@ -119,8 +135,11 @@ pub(crate) fn render_workspace(
     }
     if ctx.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::P)) {
         if ws.command_palette.is_none() {
-            ws.command_palette = Some(crate::app::ui::widgets::command_palette::CommandPaletteState::new());
-        } else { ws.command_palette = None; }
+            ws.command_palette =
+                Some(crate::app::ui::widgets::command_palette::CommandPaletteState::new());
+        } else {
+            ws.command_palette = None;
+        }
     }
 
     let actions = render_menu_bar(ctx, ws, shared, i18n);
@@ -131,11 +150,14 @@ pub(crate) fn render_workspace(
     render_sandbox_deletion_sync_dialog(ctx, ws, i18n);
 
     // Auto-restart LSP if missing (with 30s debounce)
-    if !ws.lsp_binary_missing && ws.lsp_client.is_none() && ws.root_path.join("Cargo.toml").exists()
+    if !ws.lsp_binary_missing
+        && ws.lsp_client.is_none()
+        && ws.root_path.join("Cargo.toml").exists()
         && ws.lsp_last_retry.elapsed().as_secs() > 30
     {
         ws.lsp_last_retry = std::time::Instant::now();
-        let root_uri = async_lsp::lsp_types::Url::from_directory_path(&ws.root_path).expect("valid root path for Url");
+        let root_uri = async_lsp::lsp_types::Url::from_directory_path(&ws.root_path)
+            .expect("valid root path for Url");
         if let Some(client) = crate::app::lsp::LspClient::new(ctx.clone(), root_uri) {
             ws.lsp_client = Some(client);
         }
@@ -143,29 +165,54 @@ pub(crate) fn render_workspace(
 
     let mut ai_viewport_clicked = false;
     if ws.ai_viewport_open {
-        let viewport_id = egui::ViewportId::from_hash_of(format!("ai_viewport_{}", ws.root_path.display()));
-        ctx.show_viewport_immediate(viewport_id, egui::ViewportBuilder::default().with_title(format!("AI Terminal — {}", ws.root_path.display())).with_inner_size([600.0, 500.0]), |ctx, _| {
-            egui::CentralPanel::default().show(ctx, |ui| {
-                if crate::app::ui::ai_panel::render_ai_panel_content(ui, ws, false, ws.focused_panel, config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0, i18n, false, true) {
-                    ai_viewport_clicked = true;
-                    ws.focused_panel = FocusedPanel::Claude;
+        let viewport_id =
+            egui::ViewportId::from_hash_of(format!("ai_viewport_{}", ws.root_path.display()));
+        ctx.show_viewport_immediate(
+            viewport_id,
+            egui::ViewportBuilder::default()
+                .with_title(format!("AI Terminal — {}", ws.root_path.display()))
+                .with_inner_size([600.0, 500.0]),
+            |ctx, _| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    if crate::app::ui::ai_panel::render_ai_panel_content(
+                        ui,
+                        ws,
+                        false,
+                        ws.focused_panel,
+                        config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0,
+                        i18n,
+                        false,
+                        true,
+                    ) {
+                        ai_viewport_clicked = true;
+                        ws.focused_panel = FocusedPanel::Claude;
+                    }
+                });
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    ws.ai_viewport_open = false;
                 }
-            });
-            if ctx.input(|i| i.viewport().close_requested()) { ws.ai_viewport_open = false; }
-        });
+            },
+        );
     }
 
-    if let Some(path) = render_file_picker(ctx, ws, i18n) { open_file_in_ws(ws, path); }
+    if let Some(path) = render_file_picker(ctx, ws, i18n) {
+        open_file_in_ws(ws, path);
+    }
     render_project_search_dialog(ctx, ws, i18n);
     if let Some(cmd_id) = render_command_palette(ctx, ws, shared, i18n) {
         let mut actions = MenuActions::default();
         execute_command(cmd_id, &mut actions);
-        if let Some(path) = process_menu_actions(ws, shared, actions, i18n) { open_here_path = Some(path); }
+        if let Some(path) = process_menu_actions(ws, shared, actions, i18n) {
+            open_here_path = Some(path);
+        }
     }
 
-    egui::TopBottomPanel::bottom("status_bar").exact_height(config::STATUS_BAR_HEIGHT).show(ctx, |ui| {
-        ws.editor.status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
-    });
+    egui::TopBottomPanel::bottom("status_bar")
+        .exact_height(config::STATUS_BAR_HEIGHT)
+        .show(ctx, |ui| {
+            ws.editor
+                .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
+        });
 
     let dialog_open = ws.file_tree.has_open_dialog();
     let ai_clicked = render_ai_panel(ctx, ws, dialog_open, i18n);
@@ -174,16 +221,25 @@ pub(crate) fn render_workspace(
 
     egui::CentralPanel::default().show(ctx, |ui| {
         let settings = Arc::clone(&shared.lock().expect("lock").settings);
-        let editor_res = ws.editor.ui(ui, dialog_open, i18n, ws.lsp_client.as_ref(), &settings);
-        if editor_res.clicked { ws.focused_panel = FocusedPanel::Editor; }
+        let editor_res = ws
+            .editor
+            .ui(ui, dialog_open, i18n, ws.lsp_client.as_ref(), &settings);
+        if editor_res.clicked {
+            ws.focused_panel = FocusedPanel::Editor;
+        }
 
         if let Some((path_str, action, _new_text)) = editor_res.diff_action
             && action == crate::app::ui::editor::DiffAction::Accepted
         {
             let path = PathBuf::from(&path_str);
-            let rel_path = path.strip_prefix(&ws.root_path).unwrap_or(&path).to_path_buf();
+            let rel_path = path
+                .strip_prefix(&ws.root_path)
+                .unwrap_or(&path)
+                .to_path_buf();
             let _ = ws.sandbox.promote_file(&rel_path);
-            if !ws.editor.tabs.iter().any(|t| t.path == path) { open_file_in_ws(ws, path.clone()); }
+            if !ws.editor.tabs.iter().any(|t| t.path == path) {
+                open_file_in_ws(ws, path.clone());
+            }
             ws.promotion_success = Some(path);
             ws.sandbox_staged_dirty = true;
         }
@@ -195,13 +251,20 @@ pub(crate) fn render_workspace(
     }
 
     let new_active_path = ws.editor.active_path().cloned();
-    if new_active_path != prev_active_path && let Some(path) = &new_active_path && let Some(parent) = path.parent() {
+    if new_active_path != prev_active_path
+        && let Some(path) = &new_active_path
+        && let Some(parent) = path.parent()
+    {
         ws.watcher.watch(parent);
     }
 
     if !ai_clicked && !left_clicked && !ai_viewport_clicked {
-        let in_terminal = ws.focused_panel == FocusedPanel::Claude || ws.focused_panel == FocusedPanel::Build;
-        if in_terminal { ws.focused_panel = FocusedPanel::Editor; ws.editor.request_editor_focus(); }
+        let in_terminal =
+            ws.focused_panel == FocusedPanel::Claude || ws.focused_panel == FocusedPanel::Build;
+        if in_terminal {
+            ws.focused_panel = FocusedPanel::Editor;
+            ws.editor.request_editor_focus();
+        }
     }
 
     render_dialogs(ctx, ws, shared, i18n);
@@ -211,42 +274,80 @@ pub(crate) fn render_workspace(
 }
 
 fn render_lsp_setup_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
-    if !ws.lsp_binary_missing && ws.lsp_install_rx.is_none() { return; }
+    if !ws.lsp_binary_missing && ws.lsp_install_rx.is_none() {
+        return;
+    }
     egui::TopBottomPanel::top("lsp_setup_bar").show(ctx, |ui| {
         ui.horizontal(|ui| {
             ui.visuals_mut().widgets.noninteractive.bg_fill = egui::Color32::from_rgb(60, 50, 20);
-            ui.label(egui::RichText::new(format!("\u{26A0} {}", i18n.get("lsp-missing-msg"))).color(egui::Color32::from_rgb(255, 200, 100)));
+            ui.label(
+                egui::RichText::new(format!("\u{26A0} {}", i18n.get("lsp-missing-msg")))
+                    .color(egui::Color32::from_rgb(255, 200, 100)),
+            );
             if ui.button(i18n.get("lsp-install-btn")).clicked() {
                 ws.toasts.push(Toast::info(i18n.get("lsp-installing")));
                 let (tx, rx) = std::sync::mpsc::channel();
                 ws.lsp_install_rx = Some(rx);
                 std::thread::spawn(move || {
-                    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap();
                     let res = rt.block_on(crate::app::lsp::LspClient::install_rust_analyzer());
                     let _ = tx.send(res);
                 });
             }
-            if ui.button("\u{00D7}").clicked() { ws.lsp_binary_missing = false; }
+            if ui.button("\u{00D7}").clicked() {
+                ws.lsp_binary_missing = false;
+            }
         });
     });
 }
 
-fn render_sandbox_staged_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+fn render_sandbox_staged_bar(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    i18n: &crate::i18n::I18n,
+) {
     let staged_files = ws.sandbox_staged_files.clone();
-    if staged_files.is_empty() { return; }
+    if staged_files.is_empty() {
+        return;
+    }
     egui::TopBottomPanel::top("sandbox_staged_bar").show(ctx, |ui| {
         ui.vertical(|ui| {
             ui.add_space(2.0);
             ui.horizontal(|ui| {
-                ui.visuals_mut().widgets.noninteractive.bg_fill = egui::Color32::from_rgb(80, 70, 20);
+                ui.visuals_mut().widgets.noninteractive.bg_fill =
+                    egui::Color32::from_rgb(80, 70, 20);
                 ui.spacing_mut().item_spacing.x = 12.0;
-                ui.label(egui::RichText::new(format!("\u{26A0} {}", i18n.get("ai-staged-bar-msg"))).color(egui::Color32::from_rgb(255, 230, 100)).strong());
-                ui.label(egui::RichText::new(format!("({})", staged_files.len())).color(egui::Color32::from_rgb(255, 255, 255)));
-                if ui.button(i18n.get("ai-staged-bar-review")).clicked() { ws.sandbox_staged_dirty = true; ws.show_sandbox_staged = true; }
-                if ui.button(egui::RichText::new(i18n.get("ai-staged-bar-promote-all")).color(egui::Color32::from_rgb(150, 255, 150))).clicked() {
-                    for rel_path in staged_files.clone() { let _ = ws.sandbox.promote_file(&rel_path); }
+                ui.label(
+                    egui::RichText::new(format!("\u{26A0} {}", i18n.get("ai-staged-bar-msg")))
+                        .color(egui::Color32::from_rgb(255, 230, 100))
+                        .strong(),
+                );
+                ui.label(
+                    egui::RichText::new(format!("({})", staged_files.len()))
+                        .color(egui::Color32::from_rgb(255, 255, 255)),
+                );
+                if ui.button(i18n.get("ai-staged-bar-review")).clicked() {
                     ws.sandbox_staged_dirty = true;
-                    ws.toasts.push(Toast::info(format!("Successfully promoted {} files to project.", staged_files.len())));
+                    ws.show_sandbox_staged = true;
+                }
+                if ui
+                    .button(
+                        egui::RichText::new(i18n.get("ai-staged-bar-promote-all"))
+                            .color(egui::Color32::from_rgb(150, 255, 150)),
+                    )
+                    .clicked()
+                {
+                    for rel_path in staged_files.clone() {
+                        let _ = ws.sandbox.promote_file(&rel_path);
+                    }
+                    ws.sandbox_staged_dirty = true;
+                    ws.toasts.push(Toast::info(format!(
+                        "Successfully promoted {} files to project.",
+                        staged_files.len()
+                    )));
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button(i18n.get("btn-dismiss")).clicked() { /* dismiss logic */ }
@@ -257,7 +358,11 @@ fn render_sandbox_staged_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n:
     });
 }
 
-fn render_sandbox_deletion_sync_dialog(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+fn render_sandbox_deletion_sync_dialog(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    i18n: &crate::i18n::I18n,
+) {
     if let Some(rel_path) = ws.sandbox_deletion_sync.clone() {
         let fname = rel_path.file_name().unwrap_or_default().to_string_lossy();
         let mut args = fluent_bundle::FluentArgs::new();
@@ -276,12 +381,20 @@ fn render_sandbox_deletion_sync_dialog(ctx: &egui::Context, ws: &mut WorkspaceSt
                             // Restore to sandbox from project
                             let src = ws.root_path.join(&rel_path);
                             let dst = ws.sandbox.root.join(&rel_path);
-                            if let Some(parent) = dst.parent() { let _ = std::fs::create_dir_all(parent); }
+                            if let Some(parent) = dst.parent() {
+                                let _ = std::fs::create_dir_all(parent);
+                            }
                             let _ = std::fs::copy(src, dst);
                             ws.sandbox_deletion_sync = None;
                             ws.sandbox_staged_dirty = true;
                         }
-                        if ui.button(egui::RichText::new(i18n.get("sandbox-delete-also-project")).color(egui::Color32::RED)).clicked() {
+                        if ui
+                            .button(
+                                egui::RichText::new(i18n.get("sandbox-delete-also-project"))
+                                    .color(egui::Color32::RED),
+                            )
+                            .clicked()
+                        {
                             // Delete from project too
                             let project_path = ws.root_path.join(&rel_path);
                             let _ = std::fs::remove_file(project_path);

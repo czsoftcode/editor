@@ -40,6 +40,7 @@ git-checkout-file = git checkout (Datei)
 git-checkout-branch = git checkout (Zweig)
 git-pull = git pull
 git-reset-hard = git reset --hard
+hover-git-disabled-sandbox = Git operations are disabled until all sandbox changes are resolved (use 'Review Changes' or 'Promote All' in the yellow bar).
 
 ## Statusleiste
 statusbar-line-col = Zeile { $line }, Spalte { $col }
@@ -236,6 +237,12 @@ svg-open-external = ⧉ Vorschau im Betrachter öffnen
 svg-modal-title = SVG-Datei
 svg-modal-body = Diese Datei ist ein SVG-Bild. Möchten Sie sie im Systembetrachter öffnen oder als XML-Text bearbeiten?
 svg-modal-edit = Als Text bearbeiten
+
+## Dialog zur Synchronisation des Löschens in der Sandbox
+sandbox-delete-title = Datei in der Sandbox gelöscht
+sandbox-delete-msg = Die Datei „{ $name }" wurde in der KI-Sandbox gelöscht, existiert aber im Projekt noch. Was möchten Sie tun?
+sandbox-delete-keep-project = Im Projekt behalten (in der Sandbox wiederherstellen)
+sandbox-delete-also-project = Auch im Projekt löschen
 panel-runners = Runners
 btn-run-profile = Run Profile...
 btn-edit-profiles = Edit

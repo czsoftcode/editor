@@ -48,7 +48,7 @@ impl Highlighter {
         }
 
         let mut job = egui::text::LayoutJob::default();
-        
+
         let is_env_file = filename.starts_with(".env");
         let mapped_ext = if is_env_file {
             "sh"
@@ -153,6 +153,9 @@ mod tests {
 
         assert_eq!(job1.sections.len(), job2.sections.len());
         assert!(duration2 < duration1);
-        println!("Performance gain: {:.2}x", duration1.as_secs_f64() / duration2.as_secs_f64());
+        println!(
+            "Performance gain: {:.2}x",
+            duration1.as_secs_f64() / duration2.as_secs_f64()
+        );
     }
 }

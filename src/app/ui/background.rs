@@ -93,26 +93,38 @@ pub(super) fn process_background_events(
                         if path.starts_with(sandbox_root) {
                             // Created in sandbox
                             if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
-                                let real_path_str = ws.root_path.join(rel_path).to_string_lossy().to_string();
-                                let auto_show = shared.lock().expect("lock shared").settings.auto_show_ai_diff;
+                                let real_path_str =
+                                    ws.root_path.join(rel_path).to_string_lossy().to_string();
+                                let auto_show = shared
+                                    .lock()
+                                    .expect("lock shared")
+                                    .settings
+                                    .auto_show_ai_diff;
                                 if auto_show {
                                     let (tx, rx) = mpsc::channel();
                                     ws.background_io_rx = Some(rx);
                                     let p = path.clone();
                                     std::thread::spawn(move || {
                                         if let Ok(new_content) = std::fs::read_to_string(p) {
-                                            let _ = tx.send(FsChangeResult::AiDiff(real_path_str, String::new(), new_content));
+                                            let _ = tx.send(FsChangeResult::AiDiff(
+                                                real_path_str,
+                                                String::new(),
+                                                new_content,
+                                            ));
                                         }
                                     });
                                 }
                             }
-                        } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root) {
+                        } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root)
+                        {
                             // Created in REAL PROJECT -> Auto-sync TO SANDBOX
                             if let Ok(rel_path) = path.strip_prefix(&ws.root_path) {
                                 // Skip if the relative path is inside .polycredo itself
                                 if !rel_path.starts_with(".polycredo") {
                                     let target = sandbox_root.join(rel_path);
-                                    if let Some(parent) = target.parent() { let _ = std::fs::create_dir_all(parent); }
+                                    if let Some(parent) = target.parent() {
+                                        let _ = std::fs::create_dir_all(parent);
+                                    }
                                     let _ = std::fs::copy(path, target);
                                 }
                             }
@@ -122,7 +134,7 @@ pub(super) fn process_background_events(
                 FsChange::Removed(path) => {
                     need_reload = true;
                     ws.editor.close_tabs_for_path(path);
-                    
+
                     if path.starts_with(sandbox_root) {
                         // DELETED IN SANDBOX
                         if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
@@ -139,7 +151,11 @@ pub(super) fn process_background_events(
                     if path.starts_with(sandbox_root) {
                         // Modified in sandbox
                         if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
-                            let auto_show = shared.lock().expect("lock shared").settings.auto_show_ai_diff;
+                            let auto_show = shared
+                                .lock()
+                                .expect("lock shared")
+                                .settings
+                                .auto_show_ai_diff;
                             if auto_show {
                                 let project_path = ws.root_path.join(rel_path);
                                 let (tx, rx) = mpsc::channel();
@@ -148,21 +164,28 @@ pub(super) fn process_background_events(
                                 let p_project = project_path.clone();
                                 let path_str = project_path.to_string_lossy().to_string();
                                 std::thread::spawn(move || {
-                                    let original = std::fs::read_to_string(p_project).unwrap_or_default();
+                                    let original =
+                                        std::fs::read_to_string(p_project).unwrap_or_default();
                                     if let Ok(new_content) = std::fs::read_to_string(p_sandbox) {
-                                        let _ = tx.send(FsChangeResult::AiDiff(path_str, original, new_content));
+                                        let _ = tx.send(FsChangeResult::AiDiff(
+                                            path_str,
+                                            original,
+                                            new_content,
+                                        ));
                                     }
                                 });
                             }
                         }
-                        } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root) {
+                    } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root) {
                         // Modified in REAL PROJECT -> Auto-sync TO SANDBOX
                         if let Ok(rel_path) = path.strip_prefix(&ws.root_path) {
                             // Skip if the relative path is inside .polycredo itself
                             if !rel_path.starts_with(".polycredo") {
                                 let target = sandbox_root.join(rel_path);
                                 // Avoid infinite sync loop by checking if files differ
-                                let should_sync = if !target.exists() { true } else {
+                                let should_sync = if !target.exists() {
+                                    true
+                                } else {
                                     let m_proj = match path.metadata() {
                                         Ok(m) => m,
                                         Err(_) => return, // Skip this change if metadata fails
@@ -175,8 +198,12 @@ pub(super) fn process_background_events(
                                             return;
                                         }
                                     };
-                                    m_proj.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH) > 
-                                    m_sand.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                                    m_proj
+                                        .modified()
+                                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                                        > m_sand
+                                            .modified()
+                                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
                                 };
                                 if should_sync {
                                     let _ = std::fs::copy(path, target);
@@ -251,10 +278,9 @@ pub(super) fn process_background_events(
     }
 
     if ws.external_change_conflict.is_none()
-        && let Some(err) = ws.editor.try_autosave(
-            i18n,
-            &shared.lock().expect("lock").is_internal_save,
-        )
+        && let Some(err) = ws
+            .editor
+            .try_autosave(i18n, &shared.lock().expect("lock").is_internal_save)
     {
         ws.toasts.push(Toast::error(err));
     }
@@ -270,7 +296,8 @@ pub(super) fn process_background_events(
             Err(e) => {
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("error", e);
-                ws.toasts.push(Toast::error(i18n.get_args("lsp-install-error", &args)));
+                ws.toasts
+                    .push(Toast::error(i18n.get_args("lsp-install-error", &args)));
             }
         }
         ws.lsp_install_rx = None;
@@ -288,7 +315,9 @@ fn wait_for_child_stdout(
         }
         match child.try_wait() {
             Ok(Some(status)) => {
-                if !status.success() { return None; }
+                if !status.success() {
+                    return None;
+                }
                 return child.stdout.take().and_then(|mut s| {
                     let mut buf = Vec::new();
                     s.read_to_end(&mut buf).ok()?;
@@ -321,16 +350,23 @@ pub(crate) fn fetch_git_branch(
 
 fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, egui::Color32> {
     let mut colors = HashMap::new();
-    let entries: Vec<&[u8]> = raw.split(|b| *b == 0).filter(|chunk| !chunk.is_empty()).collect();
+    let entries: Vec<&[u8]> = raw
+        .split(|b| *b == 0)
+        .filter(|chunk| !chunk.is_empty())
+        .collect();
     let mut i = 0;
     while i < entries.len() {
         let entry = entries[i];
-        if entry.len() < 4 { i += 1; continue; }
+        if entry.len() < 4 {
+            i += 1;
+            continue;
+        }
         let x = entry[0] as char;
         let y = entry[1] as char;
         let mut path_bytes = &entry[3..];
         if matches!(x, 'R' | 'C') && i + 1 < entries.len() {
-            i += 1; path_bytes = entries[i];
+            i += 1;
+            path_bytes = entries[i];
         }
         let rel = String::from_utf8_lossy(path_bytes);
         let color = match (x, y) {
@@ -358,7 +394,9 @@ pub(crate) fn fetch_git_status(
             .stderr(std::process::Stdio::null())
             .spawn()
             .ok();
-        let raw = child.and_then(|c| wait_for_child_stdout(c, &cancel)).unwrap_or_default();
+        let raw = child
+            .and_then(|c| wait_for_child_stdout(c, &cancel))
+            .unwrap_or_default();
         parse_git_status(&root, &raw)
     })
 }

@@ -33,4 +33,5 @@ Tento soubor obsahuje instrukce a pravidla pro vývoj projektu PolyCredo Editor.
 - **Dokumentace a Verze:** 
     - Po dokončení úkolu z roadmapy vždy aktualizuj `ROADMAPA.md` (označ jako hotové) a přidej záznam do `CHANGELOG.md` (nové záznamy nahoru).
     - **Při navýšení verze v CHANGELOG.md musí Gemini CLI automaticky aktualizovat verzi i v souboru `Cargo.toml`.**
+- **Validace před commitem:** Po dokončení změn a aktualizaci dokumentace vždy spusť skript `./check.sh`. Teprve pokud proběhne bez chyb, navrhni uživateli text pro commit v angličtině.
 - **Bezpečnost:** Nikdy neukládej ani necommituj citlivá data.

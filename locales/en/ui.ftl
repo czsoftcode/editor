@@ -40,6 +40,7 @@ git-checkout-file = git checkout (file)
 git-checkout-branch = git checkout (branch)
 git-pull = git pull
 git-reset-hard = git reset --hard
+hover-git-disabled-sandbox = Git operations are disabled until all sandbox changes are resolved (use 'Review Changes' or 'Promote All' in the yellow bar).
 
 ## Status bar
 statusbar-line-col = Line { $line }, Column { $col }

@@ -109,18 +109,20 @@ impl ProjectWatcher {
         let watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
             if let Ok(event) = res {
                 for p in &event.paths {
-                    let path_str = p.to_string_lossy();
-                    // Ignore changes in sensitive or high-frequency directories/files.
-                    // Audit Task V-1: removed "sandbox" from skip list to support event-driven refresh.
-                    let skip = p.components().any(|c| {
-                        let s = c.as_os_str().to_string_lossy();
-                        matches!(
-                            s.as_ref(),
-                            ".git" | "target" | "node_modules" | "history"
-                        )
-                    }) || (path_str.contains(".polycredo") && !path_str.contains("sandbox"))
-                        || path_str.contains(".build_number")
-                        || path_str.contains(".gemini-notes.md");
+                    // Optimized skip check: avoid iterating components and excessive allocations.
+                    // We only want to watch the sandbox inside .polycredo, everything else in .polycredo is ignored.
+                    let is_in_polycredo = p.as_path().to_string_lossy().contains(".polycredo");
+                    let is_in_sandbox = is_in_polycredo && p.as_path().to_string_lossy().contains("sandbox");
+
+                    let skip = if is_in_polycredo && !is_in_sandbox {
+                        true
+                    } else {
+                        // Check for common high-frequency ignore directories via components (only for non-polycredo paths)
+                        p.components().any(|c| {
+                            let s = c.as_os_str().to_string_lossy();
+                            matches!(s.as_ref(), ".git" | "target" | "node_modules" | "history")
+                        })
+                    };
 
                     if skip {
                         continue;

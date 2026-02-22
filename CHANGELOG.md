@@ -1,3 +1,17 @@
+## [0.6.4] - 2026-02-22
+
+### Added
+- **Mandatory Deletion Modal**: Implemented a confirmation dialog for sandbox file deletions. Users must now explicitly choose between deleting the file in the project or restoring it from the project backup, ensuring 100% directory consistency and preventing accidental data loss.
+- **Project-to-Sandbox Sync**: Added real-time synchronization from the project to the sandbox via FS events, ensuring AI agents always have up-to-date data.
+
+### Fixed
+- **LSP Busy-Loop Prevention**: Implemented a 30s debounce for automatic LSP restarts to eliminate high CPU usage (originally ~26%) during persistent initialization failures.
+- **Sandbox Watcher Filter**: Corrected the file watcher filter that was erroneously ignoring the `.polycredo/sandbox` directory, enabling reliable event-driven UI updates for AI-generated changes.
+
+### Changed
+- **Synchronization Logic**: Removed automatic deletion logic that previously synced changes from sandbox to project without confirmation.
+- **Localizations**: Added English and Czech translation strings for synchronization, conflict resolution, and deletion dialogs.
+
 ## [0.6.3] - 2026-02-22
 
 ### Changed

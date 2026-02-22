@@ -106,12 +106,15 @@ pub(super) fn process_background_events(
                                     });
                                 }
                             }
-                        } else if path.starts_with(&ws.root_path) {
+                        } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root) {
                             // Created in REAL PROJECT -> Auto-sync TO SANDBOX
                             if let Ok(rel_path) = path.strip_prefix(&ws.root_path) {
-                                let target = sandbox_root.join(rel_path);
-                                if let Some(parent) = target.parent() { let _ = std::fs::create_dir_all(parent); }
-                                let _ = std::fs::copy(path, target);
+                                // Skip if the relative path is inside .polycredo itself
+                                if !rel_path.starts_with(".polycredo") {
+                                    let target = sandbox_root.join(rel_path);
+                                    if let Some(parent) = target.parent() { let _ = std::fs::create_dir_all(parent); }
+                                    let _ = std::fs::copy(path, target);
+                                }
                             }
                         }
                     }
@@ -152,29 +155,32 @@ pub(super) fn process_background_events(
                                 });
                             }
                         }
-                    } else if path.starts_with(&ws.root_path) {
+                        } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root) {
                         // Modified in REAL PROJECT -> Auto-sync TO SANDBOX
                         if let Ok(rel_path) = path.strip_prefix(&ws.root_path) {
-                            let target = sandbox_root.join(rel_path);
-                            // Avoid infinite sync loop by checking if files differ
-                            let should_sync = if !target.exists() { true } else {
-                                let m_proj = match path.metadata() {
-                                    Ok(m) => m,
-                                    Err(_) => return, // Skip this change if metadata fails
+                            // Skip if the relative path is inside .polycredo itself
+                            if !rel_path.starts_with(".polycredo") {
+                                let target = sandbox_root.join(rel_path);
+                                // Avoid infinite sync loop by checking if files differ
+                                let should_sync = if !target.exists() { true } else {
+                                    let m_proj = match path.metadata() {
+                                        Ok(m) => m,
+                                        Err(_) => return, // Skip this change if metadata fails
+                                    };
+                                    let m_sand = match target.metadata() {
+                                        Ok(m) => m,
+                                        Err(_) => {
+                                            // If sandbox file metadata fails, we sync just to be safe
+                                            let _ = std::fs::copy(path, target);
+                                            return;
+                                        }
+                                    };
+                                    m_proj.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH) > 
+                                    m_sand.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
                                 };
-                                let m_sand = match target.metadata() {
-                                    Ok(m) => m,
-                                    Err(_) => {
-                                        // If sandbox file metadata fails, we sync just to be safe
-                                        let _ = std::fs::copy(path, target);
-                                        return;
-                                    }
-                                };
-                                m_proj.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH) > 
-                                m_sand.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                            };
-                            if should_sync {
-                                let _ = std::fs::copy(path, target);
+                                if should_sync {
+                                    let _ = std::fs::copy(path, target);
+                                }
                             }
                         }
                     }

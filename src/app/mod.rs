@@ -8,6 +8,7 @@ mod fonts;
 pub mod local_history;
 pub mod lsp;
 mod project_config;
+pub mod registry;
 pub mod sandbox;
 mod startup;
 mod types;
@@ -143,12 +144,16 @@ impl EditorApp {
         let settings = std::sync::Arc::new(crate::settings::Settings::load());
         let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
 
+        let mut registry = crate::app::registry::Registry::new();
+        registry.init_defaults();
+
         let shared = Arc::new(Mutex::new(AppShared {
             recent_projects,
             actions: Vec::new(),
             settings,
             i18n,
             is_internal_save: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            registry,
         }));
 
         // Update local cache of recent projects

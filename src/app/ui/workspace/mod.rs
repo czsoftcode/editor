@@ -147,8 +147,12 @@ pub(crate) fn render_workspace(
     }
     if ctx.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::P)) {
         if ws.command_palette.is_none() {
+            let cmds = {
+                let shared = shared.lock().expect("lock");
+                shared.registry.commands.get_all().to_vec()
+            };
             ws.command_palette =
-                Some(crate::app::ui::widgets::command_palette::CommandPaletteState::new());
+                Some(crate::app::ui::widgets::command_palette::CommandPaletteState::new(cmds));
         } else {
             ws.command_palette = None;
         }

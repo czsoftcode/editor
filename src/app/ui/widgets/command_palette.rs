@@ -23,104 +23,16 @@ pub(crate) enum CommandId {
     Quit,
 }
 
-pub(crate) struct Command {
-    pub id: CommandId,
-    pub i18n_key: &'static str,
-    pub shortcut: Option<&'static str>,
-}
-
 pub(crate) struct CommandPaletteState {
     pub query: String,
     pub selected: usize,
     pub focus_requested: bool,
-    pub commands: Vec<Command>,
+    pub commands: Vec<crate::app::registry::Command>,
     pub filtered: Vec<usize>,
 }
 
 impl CommandPaletteState {
-    pub fn new() -> Self {
-        let commands = vec![
-            Command {
-                id: CommandId::OpenFile,
-                i18n_key: "command-name-open-file",
-                shortcut: Some("Ctrl+P"),
-            },
-            Command {
-                id: CommandId::ProjectSearch,
-                i18n_key: "command-name-project-search",
-                shortcut: Some("Ctrl+Shift+F"),
-            },
-            Command {
-                id: CommandId::Build,
-                i18n_key: "command-name-build",
-                shortcut: Some("Ctrl+B"),
-            },
-            Command {
-                id: CommandId::Run,
-                i18n_key: "command-name-run",
-                shortcut: Some("Ctrl+R"),
-            },
-            Command {
-                id: CommandId::Save,
-                i18n_key: "command-name-save",
-                shortcut: Some("Ctrl+S"),
-            },
-            Command {
-                id: CommandId::CloseTab,
-                i18n_key: "command-name-close-tab",
-                shortcut: Some("Ctrl+W"),
-            },
-            Command {
-                id: CommandId::NewProject,
-                i18n_key: "command-name-new-project",
-                shortcut: None,
-            },
-            Command {
-                id: CommandId::OpenProject,
-                i18n_key: "command-name-open-project",
-                shortcut: None,
-            },
-            Command {
-                id: CommandId::OpenFolder,
-                i18n_key: "command-name-open-folder",
-                shortcut: None,
-            },
-            Command {
-                id: CommandId::ToggleLeft,
-                i18n_key: "command-name-toggle-left",
-                shortcut: None,
-            },
-            Command {
-                id: CommandId::ToggleRight,
-                i18n_key: "command-name-toggle-right",
-                shortcut: None,
-            },
-            Command {
-                id: CommandId::ToggleBuild,
-                i18n_key: "command-name-toggle-build",
-                shortcut: None,
-            },
-            Command {
-                id: CommandId::ToggleFloat,
-                i18n_key: "command-name-toggle-float",
-                shortcut: None,
-            },
-            Command {
-                id: CommandId::Settings,
-                i18n_key: "command-name-show-settings",
-                shortcut: None,
-            },
-            Command {
-                id: CommandId::About,
-                i18n_key: "command-name-show-about",
-                shortcut: None,
-            },
-            Command {
-                id: CommandId::Quit,
-                i18n_key: "command-name-quit",
-                shortcut: None,
-            },
-        ];
+    pub fn new(commands: Vec<crate::app::registry::Command>) -> Self {
         let filtered = (0..commands.len()).collect();
         Self {
             query: String::new(),
@@ -152,7 +64,7 @@ pub(crate) fn render_command_palette(
     ws: &mut WorkspaceState,
     _shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
-) -> Option<CommandId> {
+) -> Option<crate::app::registry::CommandAction> {
     let palette = ws.command_palette.as_mut()?;
 
     let key_up = ctx.input(|i| i.key_pressed(egui::Key::ArrowUp));
@@ -168,11 +80,11 @@ pub(crate) fn render_command_palette(
         palette.selected += 1;
     }
 
-    let mut executed_command: Option<CommandId> = None;
+    let mut executed_action: Option<crate::app::registry::CommandAction> = None;
     let mut close = key_esc;
 
     if key_enter && !palette.filtered.is_empty() {
-        executed_command = Some(palette.commands[palette.filtered[palette.selected]].id);
+        executed_action = Some(palette.commands[palette.filtered[palette.selected]].action);
         close = true;
     }
 
@@ -220,7 +132,7 @@ pub(crate) fn render_command_palette(
                             }
 
                             if r.clicked() {
-                                executed_command = Some(cmd.id);
+                                executed_action = Some(cmd.action);
                                 close = true;
                             }
 
@@ -242,26 +154,31 @@ pub(crate) fn render_command_palette(
         ws.command_palette = None;
     }
 
-    executed_command
+    executed_action
 }
 
-pub(crate) fn execute_command(id: CommandId, actions: &mut MenuActions) {
-    match id {
-        CommandId::OpenFile => actions.open_file_picker = true,
-        CommandId::ProjectSearch => actions.project_search = true,
-        CommandId::Build => actions.build = true,
-        CommandId::Run => actions.run = true,
-        CommandId::Save => actions.save = true,
-        CommandId::CloseTab => actions.close_file = true,
-        CommandId::NewProject => actions.new_project = true,
-        CommandId::OpenProject => actions.open_project = true,
-        CommandId::OpenFolder => actions.open_folder = true,
-        CommandId::ToggleLeft => actions.toggle_left = true,
-        CommandId::ToggleRight => actions.toggle_right = true,
-        CommandId::ToggleBuild => actions.toggle_build = true,
-        CommandId::ToggleFloat => actions.toggle_float = true,
-        CommandId::About => actions.about = true,
-        CommandId::Settings => actions.settings = true,
-        CommandId::Quit => actions.quit = true,
+pub(crate) fn execute_command(
+    action: crate::app::registry::CommandAction,
+    actions: &mut MenuActions,
+) {
+    match action {
+        crate::app::registry::CommandAction::Internal(id) => match id {
+            CommandId::OpenFile => actions.open_file_picker = true,
+            CommandId::ProjectSearch => actions.project_search = true,
+            CommandId::Build => actions.build = true,
+            CommandId::Run => actions.run = true,
+            CommandId::Save => actions.save = true,
+            CommandId::CloseTab => actions.close_file = true,
+            CommandId::NewProject => actions.new_project = true,
+            CommandId::OpenProject => actions.open_project = true,
+            CommandId::OpenFolder => actions.open_folder = true,
+            CommandId::ToggleLeft => actions.toggle_left = true,
+            CommandId::ToggleRight => actions.toggle_right = true,
+            CommandId::ToggleBuild => actions.toggle_build = true,
+            CommandId::ToggleFloat => actions.toggle_float = true,
+            CommandId::About => actions.about = true,
+            CommandId::Settings => actions.settings = true,
+            CommandId::Quit => actions.quit = true,
+        },
     }
 }

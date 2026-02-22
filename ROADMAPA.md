@@ -24,7 +24,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 **Cíl:** Příprava na více platforem a rozšiřitelnost.
 
 - [ ] **LSP plná sada** — refaktoring, rename symbol, code actions přes LSP.
-- [ ] **Plugin foundation (interní)** — definice extension bodů (command registry, panel registry).
+- [x] **Plugin foundation (interní)** — definice extension bodů (command registry, panel registry).
 - [ ] **macOS build** — funkční binárka pro macOS (Apple Silicon + Intel).
 - [ ] **Distribuce Linuxu** — AppImage / .deb balíček; Flatpak.
 

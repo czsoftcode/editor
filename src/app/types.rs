@@ -165,6 +165,8 @@ pub(crate) struct AppShared {
     pub i18n: std::sync::Arc<crate::i18n::I18n>,
     /// Flag to distinguish between editor's own saves and external (AI) modifications.
     pub is_internal_save: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// Extension registry for commands and panels.
+    pub registry: crate::app::registry::Registry,
 }
 
 // ---------------------------------------------------------------------------

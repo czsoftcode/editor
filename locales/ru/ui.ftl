@@ -6,6 +6,7 @@ panel-files-sandbox = Файлы (Sandbox)
 btn-tree-project = Проект
 btn-tree-sandbox = Sandbox
 panel-build = Build
+panel-git = Git
 panel-build-errors =
     { $count ->
         [one] Ошибка (1)
@@ -26,8 +27,20 @@ btn-clean = ✖ Clean
 btn-create-deb = Создать .deb
 hover-create-deb-disabled = Невозможно создать пакет в режиме песочницы. Переключитесь на Sandbox ВЫКЛ.
 btn-run-profile = ▶ Запустить профиль...
+btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Изменить
 runner-none = Профили не определены.
+
+## Операции Git
+git-add-all = git add .
+git-commit = git commit -m "..."
+git-push = git push
+git-status = git status
+git-diff = git diff
+git-checkout-file = git checkout (файл)
+git-checkout-branch = git checkout (ветка)
+git-pull = git pull
+git-reset-hard = git reset --hard
 
 ## Строка состояния
 statusbar-line-col = Строка { $line }, Столбец { $col }

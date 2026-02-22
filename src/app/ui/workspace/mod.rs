@@ -380,15 +380,11 @@ fn render_sandbox_staged_bar(
                             )));
                         } else {
                             success_count += 1;
-                            // If file not in editor, open it
-                            if !ws.editor.tabs.iter().any(|t| t.path == full_path)
-                                && full_path.exists()
-                            {
-                                open_file_in_ws(ws, full_path);
-                            } else if let Some(tab) =
+                            // Update content if the file is already open in the editor
+                            if let Some(tab) =
                                 ws.editor.tabs.iter_mut().find(|t| t.path == full_path)
                             {
-                                // If it was in editor, reload its state (it's no longer modified in sandbox)
+                                // Reload state (it's no longer modified in sandbox)
                                 if let Ok(content) = std::fs::read_to_string(&full_path) {
                                     tab.content = content.clone();
                                     tab.last_saved_content = content;

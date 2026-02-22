@@ -7,6 +7,7 @@ btn-tree-project = Projekt
 btn-tree-sandbox = Sandbox
 panel-runners = Spúšťače
 panel-build = Build
+panel-git = Git
 panel-build-errors =
     { $count ->
         [one] Chyba (1)
@@ -26,8 +27,20 @@ btn-clean = ✖ Clean
 btn-create-deb = Vytvoriť .deb
 hover-create-deb-disabled = Nemožno vytvárať balíček v režime sandboxu. Prepnite na Sandbox OFF.
 btn-run-profile = ▶ Spustiť...
+btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Upraviť
 runner-none = Nie sú definované žiadne profily.
+
+## Git operácie
+git-add-all = git add .
+git-commit = git commit -m "..."
+git-push = git push
+git-status = git status
+git-diff = git diff
+git-checkout-file = git checkout (súbor)
+git-checkout-branch = git checkout (vetva)
+git-pull = git pull
+git-reset-hard = git reset --hard
 
 ## Stavový riadok
 statusbar-line-col = Riadok { $line }, Stĺpec { $col }

@@ -152,7 +152,7 @@ fn render_build_panel(
 
         ui.separator();
 
-        // Runner Profile Dropdown (The "rozklikávací" part)
+        // Runner Profile Dropdown
         let combo = egui::ComboBox::from_id_salt("runner_select")
             .selected_text(i18n.get("btn-run-profile"))
             .width(130.0);
@@ -221,6 +221,66 @@ fn render_build_panel(
             }
         });
     });
+
+    if !ws.build_in_sandbox {
+        ui.add_space(2.0);
+        ui.horizontal(|ui| {
+            ui.strong(i18n.get("panel-git"));
+            ui.separator();
+
+            let git_combo = egui::ComboBox::from_id_salt("git_select")
+                .selected_text(i18n.get("btn-git-profile"))
+                .width(130.0);
+
+            git_combo.show_ui(ui, |ui| {
+                let mut git_cmd = None;
+
+                if ui.button(i18n.get("git-status")).clicked() {
+                    git_cmd = Some("git status");
+                }
+                if ui.button(i18n.get("git-diff")).clicked() {
+                    git_cmd = Some("git diff");
+                }
+                ui.separator();
+                if ui.button(i18n.get("git-add-all")).clicked() {
+                    git_cmd = Some("git add .");
+                }
+                if ui.button(i18n.get("git-commit")).clicked() {
+                    git_cmd = Some("git commit -m \"");
+                }
+                if ui.button(i18n.get("git-push")).clicked() {
+                    git_cmd = Some("git push");
+                }
+                if ui.button(i18n.get("git-pull")).clicked() {
+                    git_cmd = Some("git pull");
+                }
+                ui.separator();
+                if ui.button(i18n.get("git-checkout-file")).clicked() {
+                    git_cmd = Some("git checkout -- ");
+                }
+                if ui.button(i18n.get("git-checkout-branch")).clicked() {
+                    git_cmd = Some("git checkout ");
+                }
+                if ui.button(i18n.get("git-reset-hard")).clicked() {
+                    git_cmd = Some("git reset --hard HEAD");
+                }
+
+                if let Some(cmd) = git_cmd {
+                    ws.next_terminal_id += 1;
+                    let terminal = super::terminal::Terminal::new(
+                        ws.next_terminal_id,
+                        ui.ctx(),
+                        &ws.root_path,
+                        Some(cmd),
+                    );
+                    ws.build_terminal = Some(terminal);
+                    ws.show_build_terminal = true;
+                    ws.focused_panel = FocusedPanel::Build;
+                    ui.close_menu();
+                }
+            });
+        });
+    }
     ui.separator();
 
     if !dialog_open && let Some(terminal) = &mut ws.build_terminal {

@@ -7,6 +7,7 @@ btn-tree-project = Projekt
 btn-tree-sandbox = Sandbox
 panel-runners = Runner
 panel-build = Build
+panel-git = Git
 panel-build-errors =
     { $count ->
         [one] Fehler (1)
@@ -25,8 +26,20 @@ btn-clean = ✖ Clean
 btn-create-deb = .deb erstellen
 hover-create-deb-disabled = Paket-Erstellung im Sandbox-Modus nicht möglich. Auf Sandbox AUS schalten.
 btn-run-profile = ▶ Profil ausführen...
+btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Bearbeiten
 runner-none = Keine Profile definiert.
+
+## Git-Operationen
+git-add-all = git add .
+git-commit = git commit -m "..."
+git-push = git push
+git-status = git status
+git-diff = git diff
+git-checkout-file = git checkout (Datei)
+git-checkout-branch = git checkout (Zweig)
+git-pull = git pull
+git-reset-hard = git reset --hard
 
 ## Statusleiste
 statusbar-line-col = Zeile { $line }, Spalte { $col }

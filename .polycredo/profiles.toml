@@ -30,3 +30,12 @@ error_parser = "Rust"
 name = "Clean"
 command = "cargo"
 args = ["clean"]
+
+[[runners]]
+name = "Format"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[[runners]]
+name = "Check"
+command = "./check.sh"

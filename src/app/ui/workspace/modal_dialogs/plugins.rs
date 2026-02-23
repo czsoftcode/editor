@@ -28,7 +28,6 @@ pub fn show(
     }
 
     let mut draft = ws.plugins_draft.take().unwrap();
-    // Výchozí stránka je nyní Welcome
     let mut selected_id = ws
         .selected_plugin_id
         .clone()
@@ -38,98 +37,147 @@ pub fn show(
 
     let mut action = None;
 
-    StandardModal::new(i18n.get("plugins-title"), "plugins_manager")
-        .with_hint(i18n.get("plugins-security-info"))
-        .show(
-            ctx,
-            &mut show_flag,
-            |ui| {
-                let plugin_info = {
-                    let shared_lock = shared.lock().expect("lock");
-                    let plugins = shared_lock.registry.plugins.plugins.lock().expect("lock");
-                    plugins.iter().map(|p| {
+    let modal = StandardModal::new(i18n.get("plugins-title"), "plugins_manager")
+        .with_hint(i18n.get("plugins-security-info"));
+
+    modal.show(ctx, &mut show_flag, |ui| {
+        // FOOTER
+        action = modal.ui_footer(ui, |ui| {
+            if ui.button(i18n.get("btn-cancel")).clicked() {
+                return Some(PluginModalAction::Cancel);
+            }
+            if ui.button(i18n.get("btn-save")).clicked() {
+                return Some(PluginModalAction::Save);
+            }
+            None
+        });
+
+        // BODY
+        modal.ui_body(ui, |ui| {
+            let plugin_info = {
+                let shared_lock = shared.lock().expect("lock");
+                let plugins = shared_lock.registry.plugins.plugins.lock().expect("lock");
+                plugins
+                    .iter()
+                    .map(|p| {
                         let mut version = None;
                         let mut desc = None;
-                        if let crate::app::registry::plugins::PluginStatus::PendingAuthorization { metadata, .. } = &p.status {
+                        if let crate::app::registry::plugins::PluginStatus::PendingAuthorization {
+                            metadata,
+                            ..
+                        } = &p.status
+                        {
                             version = Some(metadata.version.clone());
                             desc = metadata.description.clone();
                         }
                         (p.id.clone(), version, desc)
-                    }).collect::<Vec<_>>()
-                };
+                    })
+                    .collect::<Vec<_>>()
+            };
 
-                // 1. LEVÝ SLOUPCE (Strom)
-                egui::SidePanel::left("plugins_left_tree")
-                    .resizable(false)
-                    .default_width(220.0)
-                    .show_inside(ui, |ui| {
-                        ui.add_space(4.0);
-                        ui.strong(i18n.get("plugins-list-label"));
-                        ui.add_space(4.0);
-                        ui.separator();
-                        ui.add_space(4.0);
+            // 1. LEVÝ SLOUPCE (Strom)
+            egui::SidePanel::left("plugins_left_tree")
+                .resizable(false)
+                .default_width(220.0)
+                .show_inside(ui, |ui| {
+                    ui.add_space(4.0);
+                    ui.strong(i18n.get("plugins-list-label"));
+                    ui.add_space(4.0);
+                    ui.separator();
+                    ui.add_space(4.0);
 
-                        egui::ScrollArea::vertical().id_salt("tree_scroll").show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .id_salt("tree_scroll")
+                        .show(ui, |ui| {
                             ui.set_width(ui.available_width());
 
-                            // Info / Welcome link
                             let is_welcome = selected_id == "system:welcome";
-                            if ui.selectable_label(is_welcome, format!("ℹ {}", i18n.get("plugins-item-welcome"))).clicked() {
+                            if ui
+                                .selectable_label(
+                                    is_welcome,
+                                    format!("ℹ {}", i18n.get("plugins-item-welcome")),
+                                )
+                                .clicked()
+                            {
                                 selected_id = "system:welcome".to_string();
                             }
 
                             ui.add_space(4.0);
 
                             ui.collapsing(i18n.get("plugins-category-ai"), |ui| {
-                                if ui.selectable_label(selected_id == "system:ai_settings", format!("  ⚙ {}", i18n.get("plugins-item-settings"))).clicked() {
+                                if ui
+                                    .selectable_label(
+                                        selected_id == "system:ai_settings",
+                                        format!("  ⚙ {}", i18n.get("plugins-item-settings")),
+                                    )
+                                    .clicked()
+                                {
                                     selected_id = "system:ai_settings".to_string();
                                 }
                                 for (id, _, _) in &plugin_info {
-                                    let enabled = draft.plugins.get(id).map(|s| s.enabled).unwrap_or_default();
+                                    let enabled = draft
+                                        .plugins
+                                        .get(id)
+                                        .map(|s| s.enabled)
+                                        .unwrap_or_default();
                                     let icon = if enabled { "🟢" } else { "⚪" };
-                                    if ui.selectable_label(selected_id == *id, format!("  {} {}", icon, id)).clicked() {
+                                    if ui
+                                        .selectable_label(
+                                            selected_id == *id,
+                                            format!("  {} {}", icon, id),
+                                        )
+                                        .clicked()
+                                    {
                                         selected_id = id.clone();
                                     }
                                 }
                             });
                         });
-                    });
+                });
 
-                // 2. PRAVÝ SLOUPCE (Obsah)
-                egui::CentralPanel::default().show_inside(ui, |ui| {
-                    egui::ScrollArea::vertical().id_salt("details_scroll").show(ui, |ui| {
+            // 2. PRAVÝ SLOUPCE (Obsah)
+            egui::CentralPanel::default().show_inside(ui, |ui| {
+                egui::ScrollArea::vertical()
+                    .id_salt("details_scroll")
+                    .show(ui, |ui| {
                         let w = ui.available_width();
                         if selected_id == "system:welcome" {
                             render_welcome_page(ui, i18n);
                         } else if selected_id == "system:ai_settings" {
-                            ui.strong(egui::RichText::new(i18n.get("plugins-item-settings")).size(20.0));
+                            ui.strong(
+                                egui::RichText::new(i18n.get("plugins-item-settings")).size(20.0),
+                            );
                             ui.add_space(12.0);
                             ui.strong(i18n.get("settings-ai-font"));
                             ui.add_space(4.0);
                             ui.horizontal(|ui| {
                                 for &scale in &[100u32, 125, 150, 200] {
-                                    ui.radio_value(&mut ai_font_scale, scale, format!("{}%", scale));
+                                    ui.radio_value(
+                                        &mut ai_font_scale,
+                                        scale,
+                                        format!("{}%", scale),
+                                    );
                                 }
                             });
                             ui.add_space(16.0);
                             render_system_ai_settings(ui, &mut draft, i18n);
-                        } else if let Some((id, v, d)) = plugin_info.iter().find(|(id, _, _)| *id == selected_id) {
-                            render_plugin_details(ui, w, id, v.as_deref(), d.as_deref(), &mut draft, i18n);
+                        } else if let Some((id, v, d)) =
+                            plugin_info.iter().find(|(id, _, _)| *id == selected_id)
+                        {
+                            render_plugin_details(
+                                ui,
+                                w,
+                                id,
+                                v.as_deref(),
+                                d.as_deref(),
+                                &mut draft,
+                                i18n,
+                            );
                         }
                     });
-                });
-            },
-                        |ui| {
-                            if ui.button(i18n.get("btn-cancel")).clicked() {
-                                action = Some(PluginModalAction::Cancel);
-                            }
-                            if ui.button(i18n.get("btn-save")).clicked() {
-                                action = Some(PluginModalAction::Save);
-                            }
-                            None::<()>
-                        }
-            
-        );
+            });
+        });
+    });
 
     ws.selected_plugin_id = Some(selected_id);
     ws.ai_font_scale = ai_font_scale;

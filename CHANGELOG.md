@@ -1,6 +1,10 @@
 ## [0.7.5] - 2026-02-23
 
+### Added
+- **Draggable Modals**: All modal windows are now freely draggable across the editor workspace. Multiple modals can be opened simultaneously without losing state.
+
 ### Changed
+- **Unified Modal Framework**: Refactored all dialogs (About, Privacy, Startup, Conflict, Git, Search, LSP, SVG, Settings, Plugins) to use the `StandardModal` framework. This ensures a consistent UI with standardized headers, fixed button footers, and stable dimensions.
 - **Settings Refactoring**: Converted the Settings modal to use the `StandardModal` framework with a split-view layout (General, Editor).
 - **Menu Reorganization**: Moved "Settings" from the Help menu to the File menu for better discoverability.
 - **Shortcuts**: Added default keyboard shortcuts: `Ctrl+,` for Settings and `Ctrl+Shift+L` for Plugins.
@@ -8,6 +12,7 @@
 
 ### Fixed
 - **Command Palette Metadata**: Added missing shortcut hints to the Command Palette (`Ctrl+Shift+P`) for Settings and Plugins.
+- **Borrow Conflicts**: Resolved complex mutable borrow conflicts in `egui` by decoupling the rendering of the modal body and footer.
 
 ## [0.7.4] - 2026-02-23
 

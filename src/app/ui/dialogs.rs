@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use eframe::egui;
 
 use super::super::types::{AppShared, ProjectType, default_wizard_path, path_env};
+use crate::app::ui::widgets::modal::StandardModal;
 
 // ---------------------------------------------------------------------------
 // PrivacyState — state of the privacy policy dialog
@@ -27,8 +28,6 @@ pub(crate) fn show_privacy_dialog(
     state: &mut PrivacyState,
     i18n: &crate::i18n::I18n,
 ) -> PrivacyResult {
-    let mut result = PrivacyResult::None;
-
     if state.content.is_none() {
         let lang = i18n.lang();
         let mut path = PathBuf::from("privacy").join(format!("Privacy_{}.md", lang));
@@ -48,15 +47,33 @@ pub(crate) fn show_privacy_dialog(
         }
     }
 
-    egui::CentralPanel::default().show(ctx, |_ui| {});
+    let mut local_show = true;
+    let modal =
+        StandardModal::new(i18n.get("privacy-title"), "privacy_modal").with_size(700.0, 550.0);
 
-    let modal = egui::Modal::new(egui::Id::new("privacy_modal"));
-    modal.show(ctx, |ui: &mut egui::Ui| {
-        ui.set_width(600.0);
+    let res = modal.show(ctx, &mut local_show, |ui| {
+        let mut result = PrivacyResult::None;
 
-        ui.horizontal(|ui| {
-            ui.heading(i18n.get("privacy-title"));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        // FOOTER
+        if let Some(r) = modal.ui_footer(ui, |ui| {
+            if ui
+                .button(egui::RichText::new(i18n.get("btn-accept-privacy")).strong())
+                .clicked()
+            {
+                return Some(PrivacyResult::Accepted);
+            }
+            if ui.button(i18n.get("startup-quit")).clicked() {
+                std::process::exit(0);
+            }
+            None
+        }) {
+            result = r;
+        }
+
+        // BODY
+        modal.ui_body(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("🌐");
                 for &lang_code in crate::i18n::SUPPORTED_LANGS {
                     if ui
                         .selectable_label(i18n.lang() == lang_code, lang_code.to_uppercase())
@@ -65,35 +82,29 @@ pub(crate) fn show_privacy_dialog(
                         result = PrivacyResult::LanguageChanged(lang_code.to_string());
                     }
                 }
-                ui.label("🌐");
             });
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(8.0);
+
+            egui::ScrollArea::vertical()
+                .id_salt("privacy_scroll")
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    if let Some(content) = &state.content {
+                        egui_commonmark::CommonMarkViewer::new().show(
+                            ui,
+                            &mut state.cache,
+                            content,
+                        );
+                    }
+                });
         });
 
-        ui.add_space(12.0);
-
-        egui::ScrollArea::vertical()
-            .max_height(400.0)
-            .show(ui, |ui: &mut egui::Ui| {
-                if let Some(content) = &state.content {
-                    egui_commonmark::CommonMarkViewer::new().show(ui, &mut state.cache, content);
-                }
-            });
-
-        ui.add_space(12.0);
-        ui.horizontal(|ui: &mut egui::Ui| {
-            if ui
-                .button(egui::RichText::new(i18n.get("btn-accept-privacy")).strong())
-                .clicked()
-            {
-                result = PrivacyResult::Accepted;
-            }
-            if ui.button(i18n.get("startup-quit")).clicked() {
-                std::process::exit(0);
-            }
-        });
+        result
     });
 
-    result
+    res.unwrap_or(PrivacyResult::None)
 }
 
 // ---------------------------------------------------------------------------
@@ -146,9 +157,6 @@ use crate::app::validation::is_valid_project_name;
 // show_project_wizard — unified new project wizard
 // ---------------------------------------------------------------------------
 
-/// Displays the modal dialog for the new project wizard.
-/// `show` is set to `false` when closed.
-/// `on_success` is called with the resulting path after successful project creation.
 pub(crate) fn show_project_wizard(
     ctx: &egui::Context,
     state: &mut WizardState,
@@ -189,72 +197,16 @@ pub(crate) fn show_project_wizard(
         }
     }
 
-    let modal = egui::Modal::new(egui::Id::new(modal_id));
-    let mut close_dialog = false;
-    let mut create_project: Option<(ProjectType, String, String)> = None;
     let mut request_browse = false;
+    let mut create_project: Option<(ProjectType, String, String)> = None;
 
-    modal.show(ctx, |ui| {
-        ui.heading(i18n.get("wizard-title"));
-        ui.add_space(12.0);
+    let modal = StandardModal::new(i18n.get("wizard-title"), modal_id).with_size(550.0, 450.0);
 
-        ui.label(i18n.get("wizard-project-type"));
-        ui.horizontal(|ui| {
-            ui.radio_value(
-                &mut state.project_type,
-                ProjectType::Rust,
-                i18n.get("wizard-type-rust"),
-            );
-            ui.radio_value(
-                &mut state.project_type,
-                ProjectType::Symfony,
-                i18n.get("wizard-type-symfony"),
-            );
-        });
-        ui.add_space(8.0);
-
-        ui.horizontal(|ui| {
-            ui.label(i18n.get("btn-name-label"));
-            ui.add(egui::TextEdit::singleline(&mut state.name).desired_width(250.0));
-        });
-        ui.add_space(4.0);
-
-        ui.horizontal(|ui| {
-            ui.label(i18n.get("wizard-project-path"));
-            ui.add(egui::TextEdit::singleline(&mut state.path).desired_width(200.0));
-            if ui.button(i18n.get("btn-browse")).clicked() {
-                request_browse = true;
-            }
-        });
-
-        let raw_name = state.name.trim();
-        let display_name = if state.project_type == ProjectType::Rust {
-            raw_name.to_lowercase()
-        } else {
-            raw_name.to_string()
-        };
-        let name_valid = is_valid_project_name(raw_name);
-        if !display_name.is_empty() {
-            if !name_valid {
-                ui.add_space(4.0);
-                ui.colored_label(
-                    egui::Color32::from_rgb(0xe0, 0x70, 0x10),
-                    i18n.get("wizard-name-hint"),
-                );
-            } else {
-                let preview = PathBuf::from(state.path.trim())
-                    .join(state.project_type.subdir())
-                    .join(&display_name);
-                ui.add_space(4.0);
-                ui.horizontal(|ui| {
-                    ui.label(i18n.get("settings-creates-in"));
-                    ui.monospace(preview.to_string_lossy().to_string());
-                });
-            }
-        }
-
-        ui.add_space(12.0);
-        ui.horizontal(|ui| {
+    if let Some(true) = modal.show(ctx, show, |ui| {
+        // FOOTER
+        if let Some(close) = modal.ui_footer(ui, |ui| {
+            let raw_name = state.name.trim();
+            let name_valid = is_valid_project_name(raw_name);
             let can_create = name_valid && !state.path.trim().is_empty() && !state.creating;
             if ui
                 .add_enabled(can_create, egui::Button::new(i18n.get("btn-create")))
@@ -267,26 +219,98 @@ pub(crate) fn show_project_wizard(
                 ));
             }
             if ui.button(i18n.get("btn-cancel")).clicked() {
-                close_dialog = true;
+                return Some(true);
+            }
+            None
+        }) && close
+        {
+            return true;
+        }
+
+        // BODY
+        modal.ui_body(ui, |ui| {
+            ui.add_space(8.0);
+            ui.label(egui::RichText::new(i18n.get("wizard-project-type")).strong());
+            ui.horizontal(|ui| {
+                ui.radio_value(
+                    &mut state.project_type,
+                    ProjectType::Rust,
+                    i18n.get("wizard-type-rust"),
+                );
+                ui.radio_value(
+                    &mut state.project_type,
+                    ProjectType::Symfony,
+                    i18n.get("wizard-type-symfony"),
+                );
+            });
+            ui.add_space(12.0);
+
+            egui::Grid::new("wizard_grid")
+                .num_columns(2)
+                .spacing([12.0, 10.0])
+                .show(ui, |ui| {
+                    ui.label(i18n.get("btn-name-label"));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut state.name)
+                            .desired_width(ui.available_width() - 20.0),
+                    );
+                    ui.end_row();
+
+                    ui.label(i18n.get("wizard-project-path"));
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut state.path)
+                                .desired_width(ui.available_width() - 40.0),
+                        );
+                        if ui.button("…").clicked() {
+                            request_browse = true;
+                        }
+                    });
+                    ui.end_row();
+                });
+
+            let raw_name = state.name.trim();
+            let display_name = if state.project_type == ProjectType::Rust {
+                raw_name.to_lowercase()
+            } else {
+                raw_name.to_string()
+            };
+            let name_valid = is_valid_project_name(raw_name);
+            if !display_name.is_empty() {
+                if !name_valid {
+                    ui.add_space(4.0);
+                    ui.colored_label(
+                        egui::Color32::from_rgb(0xe0, 0x70, 0x10),
+                        i18n.get("wizard-name-hint"),
+                    );
+                } else {
+                    let preview = PathBuf::from(state.path.trim())
+                        .join(state.project_type.subdir())
+                        .join(&display_name);
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.label(i18n.get("settings-creates-in"));
+                        ui.monospace(preview.to_string_lossy().to_string());
+                    });
+                }
+            }
+
+            if state.creating {
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(egui::RichText::new(i18n.get("wizard-creating")).weak());
+                });
+            }
+
+            if !state.error.is_empty() {
+                ui.add_space(8.0);
+                ui.colored_label(egui::Color32::RED, &state.error);
             }
         });
-        if state.creating {
-            ui.add_space(6.0);
-            ui.label(egui::RichText::new(i18n.get("wizard-creating")).weak());
-        }
-
-        if !state.error.is_empty() {
-            ui.add_space(4.0);
-            ui.colored_label(egui::Color32::RED, &state.error);
-        }
-    });
-
-    if close_dialog {
-        state.browse_rx = None;
-        state.create_rx = None;
-        state.creating = false;
+        false
+    }) {
         *show = false;
-        return;
     }
 
     if request_browse && state.browse_rx.is_none() {
@@ -369,8 +393,6 @@ pub(crate) fn show_project_wizard(
 // Shared UI helpers
 // ---------------------------------------------------------------------------
 
-/// Renders a list of recent projects as clickable items.
-/// Returns the path of the project that the user clicked on.
 pub(crate) fn render_recent_project_list(
     ui: &mut egui::Ui,
     recent_projects: &[PathBuf],
@@ -399,70 +421,79 @@ pub(crate) fn render_recent_project_list(
 // show_quit_confirm_dialog
 // ---------------------------------------------------------------------------
 
-/// Displays a dialog to confirm quitting the application.
-/// Returns `true` if the user confirmed quitting.
 pub(crate) fn show_quit_confirm_dialog(
     ctx: &egui::Context,
     i18n: &crate::i18n::I18n,
 ) -> QuitDialogResult {
-    let modal = egui::Modal::new(egui::Id::new("quit_confirm_modal"));
+    let mut show_flag = true;
     let mut confirmed = false;
     let mut cancelled = false;
 
-    modal.show(ctx, |ui| {
-        ui.heading(i18n.get("quit-title"));
-        ui.add_space(8.0);
-        ui.label(i18n.get("quit-message"));
-        ui.add_space(12.0);
-        ui.horizontal(|ui| {
+    let modal =
+        StandardModal::new(i18n.get("quit-title"), "quit_confirm_modal").with_size(400.0, 250.0);
+
+    modal.show(ctx, &mut show_flag, |ui| {
+        modal.ui_footer(ui, |ui| {
             if ui.button(i18n.get("quit-confirm")).clicked() {
                 confirmed = true;
             }
             if ui.button(i18n.get("quit-cancel")).clicked() {
                 cancelled = true;
             }
+            None::<()>
+        });
+
+        modal.ui_body(ui, |ui| {
+            ui.add_space(8.0);
+            ui.label(egui::RichText::new(i18n.get("quit-message")).size(14.0));
+            ui.add_space(12.0);
         });
     });
 
     if confirmed {
         QuitDialogResult::Confirmed
-    } else if cancelled {
+    } else if cancelled || !show_flag {
         QuitDialogResult::Cancelled
     } else {
         QuitDialogResult::Open
     }
 }
 
-/// Displays a dialog to confirm closing an open project.
 pub(crate) fn show_close_project_confirm_dialog(
     ctx: &egui::Context,
     modal_id: &str,
     project_path: &str,
     i18n: &crate::i18n::I18n,
 ) -> QuitDialogResult {
-    let modal = egui::Modal::new(egui::Id::new(modal_id));
+    let mut show_flag = true;
     let mut confirmed = false;
     let mut cancelled = false;
 
-    modal.show(ctx, |ui| {
-        ui.heading(i18n.get("close-project-title"));
-        ui.add_space(8.0);
-        ui.label(i18n.get("close-project-message"));
-        ui.monospace(project_path);
-        ui.add_space(12.0);
-        ui.horizontal(|ui| {
+    let modal =
+        StandardModal::new(i18n.get("close-project-title"), modal_id).with_size(450.0, 280.0);
+
+    modal.show(ctx, &mut show_flag, |ui| {
+        modal.ui_footer(ui, |ui| {
             if ui.button(i18n.get("close-project-confirm")).clicked() {
                 confirmed = true;
             }
             if ui.button(i18n.get("close-project-cancel")).clicked() {
                 cancelled = true;
             }
+            None::<()>
+        });
+
+        modal.ui_body(ui, |ui| {
+            ui.add_space(8.0);
+            ui.label(egui::RichText::new(i18n.get("close-project-message")).size(14.0));
+            ui.monospace(project_path);
+            ui.add_space(12.0);
         });
     });
 
     if confirmed {
         QuitDialogResult::Confirmed
-    } else if cancelled {
+    } else if cancelled || !show_flag {
         QuitDialogResult::Cancelled
     } else {
         QuitDialogResult::Open
@@ -479,7 +510,6 @@ pub(crate) enum QuitDialogResult {
 // show_startup_dialog
 // ---------------------------------------------------------------------------
 
-/// Result of an action from the startup dialog
 pub(crate) enum StartupAction {
     None,
     OpenPath(PathBuf),
@@ -500,95 +530,87 @@ pub(crate) fn show_startup_dialog(
     let mut should_quit = false;
     let mut request_browse = false;
     let mut open_recent: Option<PathBuf> = None;
-
-    egui::CentralPanel::default().show(ctx, |_ui| {});
-
     let mut open_wizard = false;
+    let mut show_flag = true;
 
-    let modal = egui::Modal::new(egui::Id::new("startup_modal"));
-    modal.show(ctx, |ui| {
-        let dlg_size = 15.0;
-        ui.heading(i18n.get("open-project-title"));
-        ui.add_space(12.0);
+    let modal =
+        StandardModal::new(i18n.get("open-project-title"), "startup_modal").with_size(600.0, 500.0);
 
-        ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(i18n.get("startup-path-label")).size(dlg_size));
-            let response = ui.add(
-                egui::TextEdit::singleline(path_buffer)
-                    .font(egui::TextStyle::Body)
-                    .desired_width(350.0),
-            );
-            if response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+    modal.show(ctx, &mut show_flag, |ui| {
+        modal.ui_footer(ui, |ui| {
+            if ui.button(i18n.get("btn-open")).clicked() {
                 should_open = true;
             }
-            if !response.has_focus() && !show_wizard {
-                response.request_focus();
+            if ui.button(i18n.get("startup-new-project")).clicked() {
+                open_wizard = true;
             }
-        });
-        ui.add_space(8.0);
-        ui.horizontal(|ui| {
-            if ui
-                .button(egui::RichText::new(i18n.get("btn-open")).size(dlg_size))
-                .clicked()
-            {
-                should_open = true;
-            }
-            if ui
-                .button(egui::RichText::new(i18n.get("btn-browse")).size(dlg_size))
-                .clicked()
-            {
-                request_browse = true;
-            }
-            if ui
-                .button(egui::RichText::new(i18n.get("startup-quit")).size(dlg_size))
-                .clicked()
-            {
+            if ui.button(i18n.get("startup-quit")).clicked() {
                 should_quit = true;
             }
+            None::<()>
         });
-        ui.add_space(4.0);
-        ui.separator();
-        ui.add_space(4.0);
-        if ui
-            .button(egui::RichText::new(i18n.get("startup-new-project")).size(dlg_size))
-            .clicked()
-        {
-            open_wizard = true;
-        }
 
-        if !missing_session.is_empty() {
+        modal.ui_body(ui, |ui| {
+            let dlg_size = 14.0;
             ui.add_space(8.0);
+
+            egui::Grid::new("startup_path_grid")
+                .num_columns(2)
+                .spacing([12.0, 10.0])
+                .show(ui, |ui| {
+                    ui.label(egui::RichText::new(i18n.get("startup-path-label")).size(dlg_size));
+                    ui.horizontal(|ui| {
+                        let response = ui.add(
+                            egui::TextEdit::singleline(path_buffer)
+                                .font(egui::FontId::proportional(dlg_size))
+                                .desired_width(ui.available_width() - 40.0),
+                        );
+                        if response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            should_open = true;
+                        }
+                        if !response.has_focus() && !show_wizard {
+                            response.request_focus();
+                        }
+                        if ui.button("…").clicked() {
+                            request_browse = true;
+                        }
+                    });
+                    ui.end_row();
+                });
+
+            ui.add_space(12.0);
             ui.separator();
-            ui.add_space(4.0);
-            ui.colored_label(
-                egui::Color32::from_rgb(220, 170, 60),
-                egui::RichText::new(i18n.get("startup-missing-session-label")).size(dlg_size - 1.0),
-            );
-            ui.add_space(2.0);
-            for path in missing_session {
-                let label = path.to_string_lossy();
-                ui.label(
-                    egui::RichText::new(format!("  {label}"))
-                        .size(dlg_size - 2.0)
-                        .color(egui::Color32::from_gray(160)),
+            ui.add_space(12.0);
+
+            if !missing_session.is_empty() {
+                ui.colored_label(
+                    egui::Color32::from_rgb(220, 170, 60),
+                    egui::RichText::new(i18n.get("startup-missing-session-label")).strong(),
                 );
+                for path in missing_session {
+                    ui.label(egui::RichText::new(format!("  • {}", path.to_string_lossy())).weak());
+                }
+                ui.add_space(8.0);
             }
-        }
 
-        if !recent_projects.is_empty() {
-            ui.add_space(8.0);
-            ui.separator();
-            ui.add_space(4.0);
-            ui.label(egui::RichText::new(i18n.get("startup-recent-projects")).size(dlg_size));
-            ui.add_space(4.0);
-            open_recent = render_recent_project_list(ui, recent_projects, dlg_size);
-        }
+            if !recent_projects.is_empty() {
+                ui.label(egui::RichText::new(i18n.get("startup-recent-projects")).strong());
+                ui.add_space(4.0);
+                egui::ScrollArea::vertical()
+                    .id_salt("startup_recent_scroll")
+                    .max_height(200.0)
+                    .show(ui, |ui| {
+                        open_recent = render_recent_project_list(ui, recent_projects, dlg_size);
+                    });
+                ui.add_space(8.0);
+            }
+        });
     });
 
     if open_wizard {
         return StartupAction::OpenWizard;
     }
-    if should_quit {
+    if should_quit || !show_flag {
         return StartupAction::QuitApp;
     }
 

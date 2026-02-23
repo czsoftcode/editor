@@ -10,15 +10,11 @@ pub(crate) enum ModalResult<T> {
 
 /// Základní šablona pro velká okna (Nastavení, Pluginy, atd.)
 pub(crate) struct StandardModal {
-    title: String,
-    id: egui::Id,
-    default_size: egui::Vec2,
-    min_size: egui::Vec2,
-    /// Pokud je true, modal se při kliknutí mimo nebo křížkem zavře sám (přes show_flag).
-    #[allow(dead_code)]
-    close_on_exit: bool,
-    /// Text v levé části patičky (např. nápověda nebo stav).
-    footer_hint: Option<String>,
+    pub title: String,
+    pub id: egui::Id,
+    pub default_size: egui::Vec2,
+    pub min_size: egui::Vec2,
+    pub footer_hint: Option<String>,
 }
 
 impl StandardModal {
@@ -28,14 +24,13 @@ impl StandardModal {
             id: egui::Id::new(id_salt),
             default_size: egui::vec2(850.0, 600.0),
             min_size: egui::vec2(700.0, 500.0),
-            close_on_exit: true,
             footer_hint: None,
         }
     }
 
-    #[allow(dead_code)]
     pub fn with_size(mut self, width: f32, height: f32) -> Self {
         self.default_size = egui::vec2(width, height);
+        self.min_size = egui::vec2(width.min(700.0), height.min(500.0));
         self
     }
 
@@ -44,15 +39,13 @@ impl StandardModal {
         self
     }
 
-    /// Vykreslí modal.
-    /// `body` je hlavní obsah.
-    /// `buttons` jsou tlačítka vpravo dole (vrací akci, kterou chceme provést).
+    /// Vykreslí modal s jednotným stylem.
+    /// Nyní je posouvatelný a má zavírací tlačítko v záhlaví.
     pub fn show<R>(
-        self,
+        &self,
         ctx: &egui::Context,
         show_flag: &mut bool,
-        body: impl FnOnce(&mut egui::Ui) -> R,
-        buttons: impl FnOnce(&mut egui::Ui) -> Option<R>,
+        content: impl FnOnce(&mut egui::Ui) -> R,
     ) -> Option<R> {
         if !*show_flag {
             return None;
@@ -62,54 +55,53 @@ impl StandardModal {
 
         egui::Window::new(&self.title)
             .id(self.id)
+            .open(show_flag) // Umožní zavření křížkem v záhlaví
             .collapsible(false)
             .resizable(true)
             .default_size(self.default_size)
             .min_width(self.min_size.x)
             .min_height(self.min_size.y)
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .default_pos(ctx.screen_rect().center() - self.default_size / 2.0) // Centrované jen při prvním zobrazení
             .show(ctx, |ui| {
-                // Fixace minimální vnitřní plochy
                 ui.set_min_height(self.min_size.y - 20.0);
-
-                // 1. FOOTER (BottomPanel)
-                egui::TopBottomPanel::bottom(self.id.with("footer"))
-                    .resizable(false)
-                    .show_inside(ui, |ui| {
-                        ui.add_space(10.0);
-                        ui.horizontal(|ui| {
-                            // Levá část patičky (hint)
-                            if let Some(hint) = &self.footer_hint {
-                                ui.label(egui::RichText::new(hint).weak().size(11.0));
-                            }
-
-                            // Pravá část patičky (tlačítka)
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    if let Some(action) = buttons(ui) {
-                                        result = Some(action);
-                                    }
-                                },
-                            );
-                        });
-                        ui.add_space(10.0);
-                    });
-
-                // 2. BODY (CentralPanel) - automaticky vyplní zbytek
-                egui::CentralPanel::default().show_inside(ui, |ui| {
-                    body(ui);
-                });
+                result = Some(content(ui));
             });
-
-        // Pokud okno v egui uživatelsky zavřeme (např. křížkem, pokud ho zapneme)
-        // nebo pokud některá akce vyžaduje zavření, ošetříme to vně.
 
         result
     }
+
+    /// Pomocná metoda pro vykreslení patičky s tlačítky.
+    pub fn ui_footer<R>(
+        &self,
+        ui: &mut egui::Ui,
+        buttons: impl FnOnce(&mut egui::Ui) -> Option<R>,
+    ) -> Option<R> {
+        let mut result = None;
+        egui::TopBottomPanel::bottom(self.id.with("footer"))
+            .resizable(false)
+            .show_inside(ui, |ui| {
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    if let Some(hint) = &self.footer_hint {
+                        ui.label(egui::RichText::new(hint).weak().size(11.0));
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        result = buttons(ui);
+                    });
+                });
+                ui.add_space(10.0);
+            });
+        result
+    }
+
+    /// Pomocná metoda pro vykreslení těla (CentralPanel).
+    pub fn ui_body(&self, ui: &mut egui::Ui, body: impl FnOnce(&mut egui::Ui)) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            body(ui);
+        });
+    }
 }
 
-// Původní show_modal pro jednoduché dialogy ponecháme
 pub(crate) fn show_modal<T>(
     ctx: &egui::Context,
     id: impl Into<egui::Id>,

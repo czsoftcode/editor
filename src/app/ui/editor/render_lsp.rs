@@ -12,7 +12,7 @@ impl Editor {
     pub(super) fn process_lsp_interactions(
         &mut self,
         ui: &egui::Ui,
-        idx: usize,
+        _idx: usize,
         tab_path: &std::path::Path,
         lsp_client: Option<&crate::app::lsp::LspClient>,
         saved_response: &Option<egui::text_edit::TextEditOutput>,
@@ -22,8 +22,9 @@ impl Editor {
         use super::LspCompletionState;
         use super::LspHoverPopup;
 
-        let tab_lsp_version = self.tabs[idx].lsp_version;
-        let tab_is_binary = self.tabs[idx].is_binary;
+        let tab_idx = _idx;
+        let tab_lsp_version = self.tabs[tab_idx].lsp_version;
+        let tab_is_binary = self.tabs[tab_idx].is_binary;
 
         // --- Process pending async results ---
 
@@ -276,7 +277,7 @@ impl Editor {
                     .and_then(|r| r.cursor_range)
                     .map(|cr| cr.primary.ccursor.index)
                     .unwrap_or(0);
-                let content = &self.tabs[idx].content;
+                let content = &self.tabs[tab_idx].content;
                 // Find word start: walk back while alphanumeric or '_'
                 let word_start = content
                     .char_indices()
@@ -299,7 +300,7 @@ impl Editor {
                     .map(|(i, _)| i)
                     .unwrap_or(content.len());
                 {
-                    let tab = &mut self.tabs[idx];
+                    let tab = &mut self.tabs[tab_idx];
                     tab.content
                         .replace_range(byte_start..byte_end, &insert_text);
                     tab.modified = true;
@@ -374,12 +375,18 @@ impl Editor {
 
         // --- Render searching indicator ---
         if self.lsp_references_rx.is_some() {
-            let modal = egui::Modal::new(egui::Id::new("lsp_searching_modal"));
-            modal.show(ui.ctx(), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spinner();
-                    ui.add_space(8.0);
-                    ui.label(i18n.get("lsp-references-searching"));
+            let mut show_flag = true;
+            use crate::app::ui::widgets::modal::StandardModal;
+            let modal =
+                StandardModal::new(i18n.get("lsp-references-searching"), "lsp_searching_modal")
+                    .with_size(350.0, 150.0);
+            modal.show(ui.ctx(), &mut show_flag, |ui| {
+                ui.centered_and_justified(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.add_space(8.0);
+                        ui.label(i18n.get("lsp-references-searching"));
+                    });
                 });
             });
         }
@@ -420,77 +427,97 @@ impl Editor {
         }
 
         let mut result = None;
-        let mut close = key_esc;
+        let mut show_flag = true;
+        let mut close_requested = false;
 
         if key_enter && !picker.items.is_empty() {
             let item = &picker.items[picker.selected];
             result = Some((item.path.clone(), item.line, item.character));
-            close = true;
+            close_requested = true;
         }
 
-        let modal = egui::Modal::new(egui::Id::new("lsp_references_modal"));
-        modal.show(ctx, |ui| {
-            if picker.focus_requested {
-                ui.memory_mut(|m| m.request_focus(ui.id()));
-                picker.focus_requested = false;
+        use crate::app::ui::widgets::modal::StandardModal;
+        let modal = StandardModal::new(i18n.get("lsp-references-heading"), "lsp_references_modal")
+            .with_size(700.0, 500.0);
+
+        modal.show(ctx, &mut show_flag, |ui| {
+            // FOOTER
+            if let Some(close) = modal.ui_footer(ui, |ui| {
+                if ui.button(i18n.get("btn-close")).clicked() {
+                    return Some(true);
+                }
+                None
+            }) && close
+            {
+                close_requested = true;
             }
-            ui.set_min_width(520.0);
-            ui.heading(i18n.get("lsp-references-heading"));
-            ui.add_space(8.0);
 
-            egui::ScrollArea::vertical()
-                .max_height(320.0)
-                .id_salt("lsp_ref_scroll")
-                .show(ui, |ui| {
-                    for (i, item) in picker.items.iter().enumerate() {
-                        let is_sel = i == picker.selected;
-                        let filename = item
-                            .path
-                            .file_name()
-                            .map(|n| n.to_string_lossy().to_string())
-                            .unwrap_or_else(|| "???".to_string());
+            // BODY
+            modal.ui_body(ui, |ui| {
+                if picker.focus_requested {
+                    ui.memory_mut(|m| m.request_focus(ui.id()));
+                    picker.focus_requested = false;
+                }
+                ui.add_space(4.0);
 
-                        let display_text = if item.text.is_empty() {
-                            format!("{}:{}:{}", filename, item.line, item.character)
-                        } else {
-                            let mut truncated = item.text.clone();
-                            if truncated.len() > 100 {
-                                truncated.truncate(97);
-                                truncated.push_str("...");
+                egui::ScrollArea::vertical()
+                    .id_salt("lsp_ref_scroll")
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        for (i, item) in picker.items.iter().enumerate() {
+                            let is_sel = i == picker.selected;
+                            let filename = item
+                                .path
+                                .file_name()
+                                .map(|n| n.to_string_lossy().to_string())
+                                .unwrap_or_else(|| "???".to_string());
+
+                            let display_text = if item.text.is_empty() {
+                                format!("{}:{}:{}", filename, item.line, item.character)
+                            } else {
+                                let mut truncated = item.text.clone();
+                                if truncated.len() > 100 {
+                                    truncated.truncate(97);
+                                    truncated.push_str("...");
+                                }
+                                format!(
+                                    "{}:{}:{}  {}",
+                                    filename, item.line, item.character, truncated
+                                )
+                            };
+
+                            let text = egui::RichText::new(display_text).monospace().size(12.0);
+
+                            let r = ui.selectable_label(is_sel, text);
+                            if is_sel && picker.scroll_to_selected {
+                                r.scroll_to_me(None);
                             }
-                            format!(
-                                "{}:{}:{}  {}",
-                                filename, item.line, item.character, truncated
-                            )
-                        };
-
-                        let text = egui::RichText::new(display_text).monospace().size(12.0);
-
-                        let r = ui.selectable_label(is_sel, text);
-                        if is_sel && picker.scroll_to_selected {
-                            r.scroll_to_me(None);
+                            if r.clicked() {
+                                result = Some((item.path.clone(), item.line, item.character));
+                                close_requested = true;
+                            }
+                            if ui.is_rect_visible(r.rect) {
+                                ui.label(
+                                    egui::RichText::new(item.path.to_string_lossy())
+                                        .weak()
+                                        .size(10.0),
+                                );
+                            }
+                            ui.separator();
                         }
-                        if r.clicked() {
-                            result = Some((item.path.clone(), item.line, item.character));
-                            close = true;
-                        }
-                        if ui.is_rect_visible(r.rect) {
-                            ui.label(
-                                egui::RichText::new(item.path.to_string_lossy())
-                                    .weak()
-                                    .size(10.0),
-                            );
-                        }
-                        ui.separator();
-                    }
-                });
-            // Reset scroll flag after rendering the selected item
-            if picker.scroll_to_selected {
-                picker.scroll_to_selected = false;
-            }
+                    });
+            });
         });
 
-        if close {
+        // Reset scroll flag after rendering the selected item
+        if let Some(p) = self.lsp_references.as_mut()
+            && p.scroll_to_selected
+        {
+            p.scroll_to_selected = false;
+        }
+
+        if close_requested || key_esc || !show_flag {
             self.lsp_references = None;
         }
         result

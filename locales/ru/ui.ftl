@@ -229,6 +229,8 @@ plugin-auth-bar-deny = Запретить
 
 ## Настройки
 settings-title = Настройки
+settings-category-general = Общие
+settings-category-editor = Редактор
 settings-language = Язык
 settings-language-restart = Язык изменится немедленно.
 settings-theme = Тема

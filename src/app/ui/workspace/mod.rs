@@ -147,7 +147,8 @@ pub(crate) fn render_workspace(
     }
     // Keyboard shortcuts using the most robust 'consume_shortcut' method
     let settings_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Comma);
-    let plugins_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL | egui::Modifiers::SHIFT, egui::Key::L);
+    let plugins_shortcut =
+        egui::KeyboardShortcut::new(egui::Modifiers::CTRL | egui::Modifiers::SHIFT, egui::Key::L);
 
     if ctx.input_mut(|i| i.consume_shortcut(&settings_shortcut)) {
         ws.show_settings = true;

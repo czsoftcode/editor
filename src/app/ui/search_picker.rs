@@ -7,6 +7,7 @@ use std::sync::mpsc;
 use eframe::egui;
 
 use super::workspace::{SearchResult, WorkspaceState};
+use crate::app::ui::widgets::modal::StandardModal;
 
 const EXCLUDED_DIRS: &[&str] = &[
     "target",
@@ -108,6 +109,7 @@ pub(super) fn render_file_picker(
     }
 
     let mut selected_file: Option<PathBuf> = None;
+    let mut show_flag = true;
     let mut close = key_esc;
 
     if key_enter && !picker.filtered.is_empty() {
@@ -120,67 +122,84 @@ pub(super) fn render_file_picker(
     if let Some(picker) = ws.file_picker.as_mut() {
         let focus_req = picker.focus_requested;
         let total = picker.files.len();
-        let _max_show = 14_usize;
 
-        let modal = egui::Modal::new(egui::Id::new("file_picker_modal"));
-        modal.show(ctx, |ui| {
-            ui.set_min_width(520.0);
-            ui.heading(i18n.get("file-picker-heading"));
-            ui.add_space(6.0);
+        let modal = StandardModal::new(i18n.get("file-picker-heading"), "file_picker_modal")
+            .with_size(600.0, 450.0);
 
-            let resp = ui.add(
-                egui::TextEdit::singleline(&mut picker.query)
-                    .hint_text(i18n.get("file-picker-placeholder"))
-                    .desired_width(500.0)
-                    .id(egui::Id::new("file_picker_input")),
-            );
-            if focus_req {
-                resp.request_focus();
-            }
-            if resp.changed() {
-                picker.update_filter();
+        modal.show(ctx, &mut show_flag, |ui| {
+            // FOOTER
+            if let Some(r) = modal.ui_footer(ui, |ui| {
+                if ui.button(i18n.get("btn-close")).clicked() {
+                    return Some(None);
+                }
+                None
+            }) {
+                selected_file = r;
+                close = true;
             }
 
-            let count_label = if picker.query.is_empty() {
-                let mut args = fluent_bundle::FluentArgs::new();
-                args.set("count", total as i64);
-                i18n.get_args("file-picker-count", &args)
-            } else {
-                let mut args = fluent_bundle::FluentArgs::new();
-                args.set("filtered", picker.filtered.len() as i64);
-                args.set("total", total as i64);
-                i18n.get_args("file-picker-count-filtered", &args)
-            };
-            ui.add_space(2.0);
-            ui.label(egui::RichText::new(count_label).weak().size(11.0));
-            ui.add_space(4.0);
+            // BODY
+            modal.ui_body(ui, |ui| {
+                ui.add_space(4.0);
+                let resp = ui.add(
+                    egui::TextEdit::singleline(&mut picker.query)
+                        .hint_text(i18n.get("file-picker-placeholder"))
+                        .desired_width(ui.available_width())
+                        .id(egui::Id::new("file_picker_input")),
+                );
+                if focus_req {
+                    resp.request_focus();
+                }
+                if resp.changed() {
+                    picker.update_filter();
+                }
 
-            egui::ScrollArea::vertical()
-                .max_height(320.0)
-                .id_salt("fp_scroll")
-                .show(ui, |ui| {
-                    for (disp_idx, &file_idx) in picker.filtered.iter().enumerate() {
-                        let path = &picker.files[file_idx];
-                        let is_sel = disp_idx == picker.selected;
-                        let text = egui::RichText::new(path.to_string_lossy())
-                            .monospace()
-                            .size(12.0);
-                        let r = ui.selectable_label(is_sel, text);
-                        if is_sel {
-                            r.scroll_to_me(None);
+                let count_label = if picker.query.is_empty() {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("count", total as i64);
+                    i18n.get_args("file-picker-count", &args)
+                } else {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("filtered", picker.filtered.len() as i64);
+                    args.set("total", total as i64);
+                    i18n.get_args("file-picker-count-filtered", &args)
+                };
+                ui.add_space(2.0);
+                ui.label(egui::RichText::new(count_label).weak().size(11.0));
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(8.0);
+
+                egui::ScrollArea::vertical()
+                    .id_salt("fp_scroll")
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        for (disp_idx, &file_idx) in picker.filtered.iter().enumerate() {
+                            let path = &picker.files[file_idx];
+                            let is_sel = disp_idx == picker.selected;
+                            let text = egui::RichText::new(path.to_string_lossy())
+                                .monospace()
+                                .size(12.0);
+                            let r = ui.selectable_label(is_sel, text);
+                            if is_sel {
+                                r.scroll_to_me(None);
+                            }
+                            if r.clicked() {
+                                selected_file = Some(ws.root_path.join(path));
+                                close = true;
+                            }
                         }
-                        if r.clicked() {
-                            selected_file = Some(ws.root_path.join(path));
-                            close = true;
-                        }
-                    }
-                });
+                    });
+            });
         });
 
-        picker.focus_requested = false;
+        if let Some(picker_still) = ws.file_picker.as_mut() {
+            picker_still.focus_requested = false;
+        }
     }
 
-    if close {
+    if close || !show_flag {
         ws.file_picker = None;
     }
     selected_file
@@ -242,31 +261,42 @@ pub(super) fn render_project_search_dialog(
     let focus_req = ws.project_search.focus_requested;
     let mut start_search = false;
     let mut close = false;
+    let mut show_flag = true;
 
-    let modal = egui::Modal::new(egui::Id::new("project_search_modal"));
-    modal.show(ctx, |ui| {
-        ui.heading(i18n.get("project-search-heading"));
-        ui.add_space(8.0);
-        let resp = ui.add(
-            egui::TextEdit::singleline(&mut ws.project_search.query)
-                .hint_text(i18n.get("project-search-hint"))
-                .desired_width(380.0)
-                .id(egui::Id::new("project_search_input")),
-        );
-        if focus_req {
-            resp.request_focus();
-        }
-        if resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-            start_search = true;
-        }
-        ui.add_space(8.0);
-        ui.horizontal(|ui| {
+    let modal = StandardModal::new(i18n.get("project-search-heading"), "project_search_modal")
+        .with_size(500.0, 250.0);
+
+    modal.show(ctx, &mut show_flag, |ui| {
+        // FOOTER
+        if let Some((start, cl)) = modal.ui_footer(ui, |ui| {
             if ui.button(i18n.get("project-search-btn")).clicked() {
-                start_search = true;
+                return Some((true, false));
             }
             if ui.button(i18n.get("btn-cancel")).clicked() {
-                close = true;
+                return Some((false, true));
             }
+            None
+        }) {
+            start_search = start;
+            close = cl;
+        }
+
+        // BODY
+        modal.ui_body(ui, |ui| {
+            ui.add_space(8.0);
+            let resp = ui.add(
+                egui::TextEdit::singleline(&mut ws.project_search.query)
+                    .hint_text(i18n.get("project-search-hint"))
+                    .desired_width(ui.available_width())
+                    .id(egui::Id::new("project_search_input")),
+            );
+            if focus_req {
+                resp.request_focus();
+            }
+            if resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                start_search = true;
+            }
+            ui.add_space(16.0);
         });
     });
 
@@ -290,7 +320,7 @@ pub(super) fn render_project_search_dialog(
         ));
         ws.project_search.show_input = false;
     }
-    if close {
+    if close || !show_flag {
         ws.project_search
             .cancel_epoch
             .fetch_add(1, Ordering::Relaxed);

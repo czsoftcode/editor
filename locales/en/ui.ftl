@@ -220,6 +220,8 @@ plugin-auth-bar-deny = Deny
 
 ## Settings
 settings-title = Settings
+settings-category-general = General
+settings-category-editor = Editor
 settings-language = Language
 settings-language-restart = Language changes take effect immediately.
 settings-theme = Theme

@@ -1,4 +1,5 @@
 use crate::app::types::AppShared;
+use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::{MenuActions, WorkspaceState};
 use eframe::egui;
 use std::sync::{Arc, Mutex};
@@ -68,6 +69,7 @@ pub(crate) fn render_command_palette(
 ) -> Option<crate::app::registry::CommandAction> {
     let palette = ws.command_palette.as_mut()?;
 
+    // Global navigation keys
     let key_up = ctx.input(|i| i.key_pressed(egui::Key::ArrowUp));
     let key_down = ctx.input(|i| i.key_pressed(egui::Key::ArrowDown));
     let key_enter = ctx.input(|i| i.key_pressed(egui::Key::Enter));
@@ -87,6 +89,7 @@ pub(crate) fn render_command_palette(
 
     let mut executed_action: Option<crate::app::registry::CommandAction> = None;
     let mut close = key_esc;
+    let mut show_flag = true;
 
     if key_enter && !palette.filtered.is_empty() {
         executed_action = Some(
@@ -97,29 +100,27 @@ pub(crate) fn render_command_palette(
         close = true;
     }
 
-    // Modal background dimming (visual only, doesn't block events here)
-    let painter = ctx.layer_painter(egui::LayerId::new(
-        egui::Order::Foreground,
-        egui::Id::new("command_palette_dim"),
-    ));
-    painter.rect_filled(ctx.screen_rect(), 0.0, egui::Color32::from_black_alpha(120));
+    let modal = StandardModal::new(i18n.get("command-palette-heading"), "command_palette_modal")
+        .with_size(600.0, 450.0);
 
-    egui::Window::new(i18n.get("command-palette-heading"))
-        .id(egui::Id::new("command_palette_window"))
-        .collapsible(false)
-        .resizable(false)
-        .title_bar(false)
-        .anchor(egui::Align2::CENTER_TOP, [0.0, 100.0])
-        .default_width(500.0)
-        .show(ctx, |ui: &mut egui::Ui| {
-            ui.set_min_width(500.0);
-            ui.heading(i18n.get("command-palette-heading"));
-            ui.add_space(6.0);
+    modal.show(ctx, &mut show_flag, |ui| {
+        // FOOTER
+        if let Some(c) = modal.ui_footer(ui, |ui| {
+            if ui.button(i18n.get("btn-close")).clicked() {
+                return Some(true);
+            }
+            None
+        }) {
+            close = c || close;
+        }
 
+        // BODY
+        modal.ui_body(ui, |ui| {
+            ui.add_space(4.0);
             let resp = ui.add(
                 egui::TextEdit::singleline(&mut palette.query)
                     .hint_text(i18n.get("command-palette-placeholder"))
-                    .desired_width(480.0)
+                    .desired_width(ui.available_width())
                     .id(egui::Id::new("command_palette_input")),
             );
 
@@ -132,12 +133,16 @@ pub(crate) fn render_command_palette(
                 palette.update_filter(i18n);
             }
 
-            ui.add_space(4.0);
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(8.0);
 
             egui::ScrollArea::vertical()
                 .max_height(300.0)
                 .id_salt("cp_scroll")
+                .auto_shrink([false, false])
                 .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
                     if palette.filtered.is_empty() {
                         ui.label(
                             egui::RichText::new(i18n.get("command-palette-no-results")).weak(),
@@ -174,8 +179,9 @@ pub(crate) fn render_command_palette(
                     }
                 });
         });
+    });
 
-    if close {
+    if close || !show_flag {
         ws.command_palette = None;
     }
 

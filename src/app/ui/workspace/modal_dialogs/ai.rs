@@ -1,4 +1,5 @@
 use crate::app::types::AppShared;
+use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::i18n::I18n;
 use eframe::egui;
@@ -12,31 +13,43 @@ pub fn show(
 ) {
     // Plugin error dialog
     if let Some(err) = ws.plugin_error.clone() {
-        egui::Window::new(i18n.get("plugin-error-title"))
-            .id(egui::Id::new("plugin_error_win"))
-            .collapsible(false)
-            .resizable(true)
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .default_size([500.0, 300.0])
-            .show(ctx, |ui: &mut egui::Ui| {
+        let mut local_show = true;
+        let mut close_req = false;
+        let modal = StandardModal::new(i18n.get("plugin-error-title"), "plugin_error_modal")
+            .with_size(600.0, 400.0);
+
+        modal.show(ctx, &mut local_show, |ui| {
+            if let Some(c) = modal.ui_footer(ui, |ui| {
+                if ui.button(i18n.get("btn-close")).clicked() {
+                    return Some(true);
+                }
+                None
+            }) {
+                close_req = c;
+            }
+
+            modal.ui_body(ui, |ui| {
                 ui.label(
                     egui::RichText::new(i18n.get("plugin-error-heading"))
                         .color(egui::Color32::RED)
                         .strong(),
                 );
                 ui.add_space(8.0);
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add(
-                        egui::TextEdit::multiline(&mut err.clone())
-                            .code_editor()
-                            .desired_width(f32::INFINITY),
-                    );
-                });
-                ui.add_space(12.0);
-                if ui.button(i18n.get("btn-close")).clicked() {
-                    ws.plugin_error = None;
-                }
+                egui::ScrollArea::vertical()
+                    .id_salt("plugin_err_scroll")
+                    .show(ui, |ui| {
+                        let mut err_mut = err.clone();
+                        ui.add(
+                            egui::TextEdit::multiline(&mut err_mut)
+                                .code_editor()
+                                .desired_width(f32::INFINITY),
+                        );
+                    });
             });
+        });
+        if !local_show || close_req {
+            ws.plugin_error = None;
+        }
     }
 
     // Promotion success dialog
@@ -46,47 +59,77 @@ pub fn show(
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| path.to_string_lossy().into_owned());
 
-        egui::Window::new(i18n.get("ai-promotion-success-title"))
-            .id(egui::Id::new("ai_promotion_success_win"))
-            .collapsible(false)
-            .resizable(false)
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .pivot(egui::Align2::CENTER_CENTER)
-            .fixed_size([300.0, 200.0])
-            .show(ctx, |ui: &mut egui::Ui| {
+        let mut local_show = true;
+        let mut close_req = false;
+        let modal = StandardModal::new(
+            i18n.get("ai-promotion-success-title"),
+            "promotion_success_modal",
+        )
+        .with_size(400.0, 250.0);
+
+        modal.show(ctx, &mut local_show, |ui| {
+            if let Some(c) = modal.ui_footer(ui, |ui| {
+                if ui.button(i18n.get("btn-ok")).clicked() {
+                    return Some(true);
+                }
+                None
+            }) {
+                close_req = c;
+            }
+
+            modal.ui_body(ui, |ui| {
                 ui.vertical_centered(|ui: &mut egui::Ui| {
                     ui.add_space(8.0);
                     ui.label(
                         egui::RichText::new("\u{2714}")
-                            .size(32.0)
+                            .size(48.0)
                             .color(egui::Color32::from_rgb(100, 200, 100)),
                     );
                     ui.add_space(12.0);
-                    ui.label(i18n.get("ai-promotion-success-body"));
+                    ui.label(egui::RichText::new(i18n.get("ai-promotion-success-body")).size(14.0));
                     ui.add_space(4.0);
-                    ui.label(egui::RichText::new(filename).strong());
-                    ui.add_space(20.0);
-                    if ui.button(format!("  {}  ", i18n.get("btn-ok"))).clicked() {
-                        ws.promotion_success = None;
-                    }
-                    ui.add_space(8.0);
+                    ui.label(egui::RichText::new(filename).strong().size(14.0));
                 });
             });
+        });
+        if !local_show || close_req {
+            ws.promotion_success = None;
+        }
     }
 
     // Sync confirmation dialog before starting AI
     if let Some(plan) = ws.sync_confirmation.clone() {
-        let mut close_requested = false;
         let mut do_sync = false;
         let mut do_skip = false;
+        let mut local_show = true;
+        let mut close_req = false;
 
-        egui::Window::new(i18n.get("ai-sync-title"))
-            .id(egui::Id::new("ai_sync_confirm_win"))
-            .collapsible(false)
-            .resizable(false)
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .show(ctx, |ui: &mut egui::Ui| {
-                ui.label(i18n.get("ai-sync-msg"));
+        let modal = StandardModal::new(i18n.get("ai-sync-title"), "ai_sync_confirm_modal")
+            .with_size(500.0, 300.0);
+
+        modal.show(ctx, &mut local_show, |ui| {
+            if let Some((sync, skip, close)) = modal.ui_footer(ui, |ui| {
+                if ui
+                    .button(egui::RichText::new(i18n.get("ai-sync-btn-sync")).strong())
+                    .clicked()
+                {
+                    return Some((true, false, true));
+                }
+                if ui.button(i18n.get("ai-sync-btn-skip")).clicked() {
+                    return Some((false, true, true));
+                }
+                if ui.button(i18n.get("btn-cancel")).clicked() {
+                    return Some((false, false, true));
+                }
+                None
+            }) {
+                do_sync = sync;
+                do_skip = skip;
+                close_req = close;
+            }
+
+            modal.ui_body(ui, |ui| {
+                ui.label(egui::RichText::new(i18n.get("ai-sync-msg")).size(14.0));
                 ui.add_space(8.0);
 
                 if !plan.to_sandbox.is_empty() {
@@ -112,25 +155,9 @@ pub fn show(
                         .color(egui::Color32::from_rgb(255, 200, 100)),
                     );
                 }
-
                 ui.add_space(12.0);
-                ui.horizontal(|ui| {
-                    if ui
-                        .button(egui::RichText::new(i18n.get("ai-sync-btn-sync")).strong())
-                        .clicked()
-                    {
-                        do_sync = true;
-                        close_requested = true;
-                    }
-                    if ui.button(i18n.get("ai-sync-btn-skip")).clicked() {
-                        do_skip = true;
-                        close_requested = true;
-                    }
-                    if ui.button(i18n.get("btn-cancel")).clicked() {
-                        close_requested = true;
-                    }
-                });
             });
+        });
 
         if do_sync {
             // Perform bidirectional sync
@@ -167,7 +194,7 @@ pub fn show(
             }
         }
 
-        if close_requested {
+        if !local_show || close_req {
             ws.sync_confirmation = None;
             ws.pending_agent_id = None;
         }
@@ -179,21 +206,30 @@ pub fn show(
         if staged_files.is_empty() {
             ws.show_sandbox_staged = false;
         } else {
-            let mut close_requested = false;
-            egui::Window::new(i18n.get("ai-staged-files"))
-                .id(egui::Id::new("ai_sandbox_staged_list_win"))
-                .collapsible(false)
-                .resizable(true)
-                .default_size([400.0, 300.0])
-                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                .show(ctx, |ui: &mut egui::Ui| {
+            let mut local_show = ws.show_sandbox_staged;
+            let mut close_req = false;
+            let modal = StandardModal::new(i18n.get("ai-staged-files"), "ai_sandbox_staged_modal")
+                .with_size(600.0, 450.0);
+
+            modal.show(ctx, &mut local_show, |ui| {
+                if let Some(c) = modal.ui_footer(ui, |ui| {
+                    if ui.button(i18n.get("btn-close")).clicked() {
+                        return Some(true);
+                    }
+                    None
+                }) {
+                    close_req = c;
+                }
+
+                modal.ui_body(ui, |ui| {
                     ui.label(i18n.get("ai-staged-modal-hint"));
                     ui.add_space(8.0);
 
                     egui::ScrollArea::vertical()
                         .id_salt("staged_files_scroll")
-                        .max_height(400.0)
+                        .auto_shrink([false, false])
                         .show(ui, |ui| {
+                            ui.set_width(ui.available_width());
                             for rel_path in staged_files {
                                 let path_str = rel_path.to_string_lossy().to_string();
                                 let project_exists = ws.root_path.join(&rel_path).exists();
@@ -241,20 +277,9 @@ pub fn show(
                                 });
                             }
                         });
-
-                    ui.add_space(12.0);
-                    ui.separator();
-                    ui.add_space(8.0);
-                    ui.horizontal(|ui| {
-                        if ui.button(i18n.get("btn-close")).clicked() {
-                            close_requested = true;
-                        }
-                    });
                 });
-
-            if close_requested {
-                ws.show_sandbox_staged = false;
-            }
+            });
+            ws.show_sandbox_staged = local_show && !close_req;
         }
     }
 }

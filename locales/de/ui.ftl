@@ -206,6 +206,8 @@ plugin-auth-bar-deny = Ablehnen
 
 ## Einstellungen
 settings-title = Einstellungen
+settings-category-general = Allgemein
+settings-category-editor = Editor
 settings-language = Sprache
 settings-language-restart = Sprachänderungen werden sofort wirksam.
 settings-theme = Design

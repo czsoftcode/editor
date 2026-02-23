@@ -1,30 +1,43 @@
+use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::i18n::I18n;
 use eframe::egui;
 
-pub fn show(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n, id_salt: &std::ffi::OsStr) {
+pub fn show(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n, _id_salt: &std::ffi::OsStr) {
     if let Some(idx) = ws.terminal_close_requested {
         let mut close_confirmed = false;
         let mut cancel_requested = false;
+        let mut show_flag = true;
 
-        egui::Modal::new(egui::Id::new(("terminal_close_confirm_modal", id_salt))).show(
-            ctx,
-            |ui| {
-                ui.set_min_width(320.0);
-                ui.heading(i18n.get("terminal-close-confirm-title"));
+        let modal = StandardModal::new(
+            i18n.get("terminal-close-confirm-title"),
+            "terminal_close_modal",
+        )
+        .with_size(400.0, 250.0);
+
+        modal.show(ctx, &mut show_flag, |ui| {
+            // FOOTER
+            modal.ui_footer(ui, |ui| {
+                if ui.button(i18n.get("btn-confirm")).clicked() {
+                    close_confirmed = true;
+                }
+                if ui.button(i18n.get("btn-cancel")).clicked() {
+                    cancel_requested = true;
+                }
+                None::<()>
+            });
+
+            // BODY
+            modal.ui_body(ui, |ui| {
                 ui.add_space(8.0);
-                ui.label(i18n.get("terminal-close-confirm-msg"));
-                ui.add_space(12.0);
-                ui.horizontal(|ui| {
-                    if ui.button(i18n.get("btn-confirm")).clicked() {
-                        close_confirmed = true;
-                    }
-                    if ui.button(i18n.get("btn-cancel")).clicked() {
-                        cancel_requested = true;
-                    }
-                });
-            },
-        );
+                ui.label(egui::RichText::new(i18n.get("terminal-close-confirm-msg")).size(14.0));
+                ui.add_space(16.0);
+            });
+        });
+
+        if !show_flag {
+            cancel_requested = true;
+        }
 
         if close_confirmed {
             if idx < ws.claude_tabs.len() {

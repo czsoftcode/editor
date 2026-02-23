@@ -76,7 +76,10 @@ pub(super) fn render_menu_bar(
                     ui.close_menu();
                 }
                 if ui
-                    .add(egui::Button::new(i18n.get("menu-file-plugins")).shortcut_text("Ctrl+Shift+L"))
+                    .add(
+                        egui::Button::new(i18n.get("menu-file-plugins"))
+                            .shortcut_text("Ctrl+Shift+L"),
+                    )
                     .clicked()
                 {
                     actions.plugins = true;

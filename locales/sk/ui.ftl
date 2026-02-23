@@ -209,6 +209,8 @@ plugin-auth-bar-deny = Zakázať
 
 ## Nastavenia
 settings-title = Nastavenia
+settings-category-general = Všeobecné
+settings-category-editor = Editor
 settings-language = Jazyk
 settings-language-restart = Zmena jazyka sa prejaví okamžite.
 settings-theme = Téma

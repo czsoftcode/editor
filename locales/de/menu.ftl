@@ -12,6 +12,7 @@ menu-file-open-folder = Ordner öffnen
 menu-file-save = Speichern
 menu-file-close-tab = Datei schließen
 menu-file-plugins = Plugins...
+menu-file-settings = Einstellungen...
 menu-file-quit = Beenden
 
 ## Menü Projekt

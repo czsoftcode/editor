@@ -75,8 +75,18 @@ pub(super) fn render_menu_bar(
                     actions.close_file = true;
                     ui.close_menu();
                 }
-                if ui.button(i18n.get("menu-file-plugins")).clicked() {
+                if ui
+                    .add(egui::Button::new(i18n.get("menu-file-plugins")).shortcut_text("Ctrl+Shift+L"))
+                    .clicked()
+                {
                     actions.plugins = true;
+                    ui.close_menu();
+                }
+                if ui
+                    .add(egui::Button::new(i18n.get("menu-file-settings")).shortcut_text("Ctrl+,"))
+                    .clicked()
+                {
+                    actions.settings = true;
                     ui.close_menu();
                 }
                 ui.separator();
@@ -222,11 +232,6 @@ pub(super) fn render_menu_bar(
             });
 
             ui.menu_button(i18n.get("menu-help"), |ui| {
-                if ui.button(i18n.get("menu-help-settings")).clicked() {
-                    actions.settings = true;
-                    ui.close_menu();
-                }
-                ui.separator();
                 if ui.button(i18n.get("menu-help-about")).clicked() {
                     actions.about = true;
                     ui.close_menu();

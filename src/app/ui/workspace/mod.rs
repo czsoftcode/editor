@@ -145,6 +145,19 @@ pub(crate) fn render_workspace(
         ws.project_search.show_input = true;
         ws.project_search.focus_requested = true;
     }
+    // Keyboard shortcuts using the most robust 'consume_shortcut' method
+    let settings_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL, egui::Key::Comma);
+    let plugins_shortcut = egui::KeyboardShortcut::new(egui::Modifiers::CTRL | egui::Modifiers::SHIFT, egui::Key::L);
+
+    if ctx.input_mut(|i| i.consume_shortcut(&settings_shortcut)) {
+        ws.show_settings = true;
+    }
+    if ctx.input_mut(|i| i.consume_shortcut(&plugins_shortcut)) {
+        ws.show_plugins = true;
+        let shared_lock = shared.lock().expect("lock");
+        ws.plugins_draft = Some((*shared_lock.settings).clone());
+    }
+
     if ctx.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::P)) {
         if ws.command_palette.is_none() {
             let cmds = {

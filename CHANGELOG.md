@@ -1,3 +1,14 @@
+## [0.7.5] - 2026-02-23
+
+### Changed
+- **Settings Refactoring**: Converted the Settings modal to use the `StandardModal` framework with a split-view layout (General, Editor).
+- **Menu Reorganization**: Moved "Settings" from the Help menu to the File menu for better discoverability.
+- **Shortcuts**: Added default keyboard shortcuts: `Ctrl+,` for Settings and `Ctrl+Shift+L` for Plugins.
+- **Linux Compatibility**: Changed Plugin shortcut from `Ctrl+Shift+X` to `Ctrl+Shift+L` to avoid conflicts with system "Cut" commands.
+
+### Fixed
+- **Command Palette Metadata**: Added missing shortcut hints to the Command Palette (`Ctrl+Shift+P`) for Settings and Plugins.
+
 ## [0.7.4] - 2026-02-23
 
 ### Added

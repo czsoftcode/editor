@@ -223,6 +223,8 @@ plugin-auth-bar-deny = Zakázat
 
 ## Nastavení
 settings-title = Nastavení
+settings-category-general = Obecné
+settings-category-editor = Editor
 settings-language = Jazyk
 settings-language-restart = Jazyk se změní okamžitě.
 settings-theme = Téma

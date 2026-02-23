@@ -231,13 +231,13 @@ impl Registry {
             (
                 "ui.show_settings",
                 "command-name-show-settings",
-                None,
+                Some("Ctrl+,"),
                 Settings,
             ),
             (
                 "ui.show_plugins",
                 "command-name-show-plugins",
-                None,
+                Some("Ctrl+Shift+L"),
                 Plugins,
             ),
             ("ui.show_about", "command-name-show-about", None, About),

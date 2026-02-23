@@ -12,6 +12,7 @@ menu-file-open-folder = Открыть папку
 menu-file-save = Сохранить
 menu-file-close-tab = Закрыть файл
 menu-file-plugins = Плагины...
+menu-file-settings = Настройки...
 menu-file-quit = Выйти
 
 ## Меню Проект

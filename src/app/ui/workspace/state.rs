@@ -127,6 +127,8 @@ pub(crate) struct WorkspaceState {
     pub show_gemini: bool,
     /// Currently selected plugin in the Plugins modal.
     pub selected_plugin_id: Option<String>,
+    /// Currently selected category in the Settings modal.
+    pub selected_settings_category: Option<String>,
     pub ai_font_scale: u32,
     pub profiles: ProjectProfiles,
     pub build_errors: Vec<BuildError>,
@@ -299,6 +301,7 @@ pub(crate) fn init_workspace(
         show_plugins: false,
         show_gemini: false,
         selected_plugin_id: None,
+        selected_settings_category: None,
         ai_font_scale: panel_state.ai_font_scale,
         profiles,
         build_errors: Vec::new(),

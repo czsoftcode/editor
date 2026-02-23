@@ -105,23 +105,19 @@ pub(super) fn render_menu_bar(
                         }
                         // Other AI-related plugins
                         for id in &plugins {
-                            if id.contains("gemini") && id != "gemini" {
-                                if ui.button(id).clicked() {
-                                    actions.run_plugin = Some((id.clone(), id.clone()));
-                                    ui.close_menu();
-                                }
+                            if id.contains("gemini") && id != "gemini" && ui.button(id).clicked() {
+                                actions.run_plugin = Some((id.clone(), id.clone()));
+                                ui.close_menu();
                             }
                         }
                     });
 
                     ui.menu_button(i18n.get("plugins-category-general"), |ui| {
                         for id in &plugins {
-                            if !id.contains("gemini") {
-                                if ui.button(id).clicked() {
-                                    // For general plugins, we call the function named same as ID by default
-                                    actions.run_plugin = Some((id.clone(), id.clone()));
-                                    ui.close_menu();
-                                }
+                            if !id.contains("gemini") && ui.button(id).clicked() {
+                                // For general plugins, we call the function named same as ID by default
+                                actions.run_plugin = Some((id.clone(), id.clone()));
+                                ui.close_menu();
                             }
                         }
                     });

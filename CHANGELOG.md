@@ -13,6 +13,7 @@
 - **Linux Compatibility**: Changed Plugin shortcut from `Ctrl+Shift+X` to `Ctrl+Shift+L` to avoid conflicts with system "Cut" commands.
 
 ### Fixed
+- **Missing Editor Tabs**: Resolved a regression in version 0.7.4 b74 where file tabs were not being rendered in the editor UI. Re-integrated the `tab_bar` and `goto_line_bar` components into the main editor render loop.
 - **Command Palette Metadata**: Added missing shortcut hints to the Command Palette (`Ctrl+Shift+P`) for Settings and Plugins.
 - **Borrow Conflicts**: Resolved complex mutable borrow conflicts in `egui` by decoupling the rendering of the modal body and footer.
 

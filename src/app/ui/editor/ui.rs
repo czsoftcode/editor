@@ -52,6 +52,29 @@ impl Editor {
             };
         }
 
+        // --- Tabs and bars ---
+        use crate::app::ui::widgets::tab_bar::TabBarAction;
+        let mut tab_action = None;
+        self.tab_bar(ui, &mut tab_action);
+
+        if let Some(action) = tab_action {
+            match action {
+                TabBarAction::Switch(idx) => {
+                    self.active_tab = Some(idx);
+                    self.focus_editor_requested = true;
+                    self.update_search();
+                }
+                TabBarAction::Close(idx) => {
+                    self.close_tab(idx);
+                }
+                TabBarAction::New => {}
+            }
+        }
+
+        if self.show_goto_line {
+            self.goto_line_bar(ui, i18n);
+        }
+
         let current_diagnostics = lsp_client.and_then(|lsp| {
             if let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(self.active_path()?) {
                 let diag_map = lsp.diagnostics().lock().ok()?;

@@ -2,6 +2,8 @@
 
 ### Added
 - **Draggable Modals**: All modal windows are now freely draggable across the editor workspace. Multiple modals can be opened simultaneously without losing state.
+- **Dynamic Plugins Submenu**: The File > Plugins menu is now hierarchical and dynamically generated. It mirrors the Plugin Manager's categories (AI Agents, General) and automatically updates when new plugins are loaded.
+- **Menu-based Plugin Execution**: Added the ability to trigger WASM plugin functions directly from the menu, with results displayed as interactive toasts.
 
 ### Changed
 - **Unified Modal Framework**: Refactored all dialogs (About, Privacy, Startup, Conflict, Git, Search, LSP, SVG, Settings, Plugins) to use the `StandardModal` framework. This ensures a consistent UI with standardized headers, fixed button footers, and stable dimensions.

@@ -11,7 +11,8 @@ menu-help = Справка
 menu-file-open-folder = Открыть папку
 menu-file-save = Сохранить
 menu-file-close-tab = Закрыть файл
-menu-file-plugins = Плагины...
+menu-file-plugins = Плагины
+menu-file-plugins-manager = Менеджер плагинов...
 menu-file-settings = Настройки...
 menu-file-quit = Выйти
 

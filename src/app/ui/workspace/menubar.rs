@@ -30,6 +30,9 @@ pub(crate) struct MenuActions {
     pub about: bool,
     pub settings: bool,
     pub plugins: bool,
+    pub plugins_target: Option<String>,
+    pub run_agent: Option<String>,
+    pub run_plugin: Option<(String, String)>,
     pub build: bool,
     pub run: bool,
     pub open_file_picker: bool,
@@ -75,16 +78,54 @@ pub(super) fn render_menu_bar(
                     actions.close_file = true;
                     ui.close_menu();
                 }
-                if ui
-                    .add(
-                        egui::Button::new(i18n.get("menu-file-plugins"))
-                            .shortcut_text("Ctrl+Shift+L"),
-                    )
-                    .clicked()
-                {
-                    actions.plugins = true;
-                    ui.close_menu();
-                }
+                ui.menu_button(i18n.get("menu-file-plugins"), |ui| {
+                    if ui
+                        .add(
+                            egui::Button::new(i18n.get("menu-file-plugins-manager"))
+                                .shortcut_text("Ctrl+Shift+L"),
+                        )
+                        .clicked()
+                    {
+                        actions.plugins = true;
+                        ui.close_menu();
+                    }
+                    ui.separator();
+
+                    let plugins = {
+                        let shared_lock = shared.lock().expect("lock");
+                        let p_list = shared_lock.registry.plugins.plugins.lock().expect("lock");
+                        p_list.iter().map(|p| p.id.clone()).collect::<Vec<_>>()
+                    };
+
+                    ui.menu_button(i18n.get("plugins-category-ai"), |ui| {
+                        // Gemini is our special interactive agent
+                        if ui.button("Gemini").clicked() {
+                            actions.run_agent = Some("gemini".to_string());
+                            ui.close_menu();
+                        }
+                        // Other AI-related plugins
+                        for id in &plugins {
+                            if id.contains("gemini") && id != "gemini" {
+                                if ui.button(id).clicked() {
+                                    actions.run_plugin = Some((id.clone(), id.clone()));
+                                    ui.close_menu();
+                                }
+                            }
+                        }
+                    });
+
+                    ui.menu_button(i18n.get("plugins-category-general"), |ui| {
+                        for id in &plugins {
+                            if !id.contains("gemini") {
+                                if ui.button(id).clicked() {
+                                    // For general plugins, we call the function named same as ID by default
+                                    actions.run_plugin = Some((id.clone(), id.clone()));
+                                    ui.close_menu();
+                                }
+                            }
+                        }
+                    });
+                });
                 if ui
                     .add(egui::Button::new(i18n.get("menu-file-settings")).shortcut_text("Ctrl+,"))
                     .clicked()
@@ -295,6 +336,51 @@ pub(super) fn process_menu_actions(
     }
     if actions.settings {
         ws.show_settings = true;
+    }
+    if let Some(agent_id) = actions.run_agent {
+        if agent_id == "gemini" {
+            ws.show_gemini = true;
+        } else {
+            // Logic to start other agents in the terminal
+            let agents = {
+                let sh = shared.lock().expect("lock");
+                sh.registry.agents.get_all().to_vec()
+            };
+            if let Some(agent) = agents.iter().find(|a| a.id == agent_id) {
+                let cmd = agent.command.clone();
+                let active = ws.claude_active_tab;
+                let context = crate::app::ui::ai_panel::generate_ai_context(ws);
+                if let Some(terminal) = ws.claude_tabs.get_mut(active) {
+                    terminal.send_command(&cmd);
+                    if agent.context_aware {
+                        terminal.send_command(&context);
+                    }
+                }
+            }
+        }
+    }
+    if let Some((plugin_id, func)) = actions.run_plugin {
+        let (plugin_manager, config) = {
+            let sh = shared.lock().expect("lock");
+            let cfg = sh
+                .settings
+                .plugins
+                .get(&plugin_id)
+                .map(|s| s.config.clone())
+                .unwrap_or_default();
+            (Arc::clone(&sh.registry.plugins), cfg)
+        };
+        match plugin_manager.call(&plugin_id, &func, "menu", &config) {
+            Ok(res) => {
+                ws.toasts.push(crate::app::types::Toast::info(res));
+            }
+            Err(e) => {
+                ws.toasts.push(crate::app::types::Toast::error(format!(
+                    "Plugin failed: {}",
+                    e
+                )));
+            }
+        }
     }
     if actions.plugins {
         ws.show_plugins = true;

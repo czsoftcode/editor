@@ -11,7 +11,8 @@ menu-help = Help
 menu-file-open-folder = Open Folder
 menu-file-save = Save
 menu-file-close-tab = Close File
-menu-file-plugins = Plugins...
+menu-file-plugins = Plugins
+menu-file-plugins-manager = Plugin Manager...
 menu-file-settings = Settings...
 menu-file-quit = Quit
 

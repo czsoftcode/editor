@@ -115,20 +115,44 @@ pub fn show(
                                     selected_id = "system:ai_settings".to_string();
                                 }
                                 for (id, _, _) in &plugin_info {
-                                    let enabled = draft
-                                        .plugins
-                                        .get(id)
-                                        .map(|s| s.enabled)
-                                        .unwrap_or_default();
-                                    let icon = if enabled { "🟢" } else { "⚪" };
-                                    if ui
-                                        .selectable_label(
-                                            selected_id == *id,
-                                            format!("  {} {}", icon, id),
-                                        )
-                                        .clicked()
-                                    {
-                                        selected_id = id.clone();
+                                    if id.contains("gemini") {
+                                        let enabled = draft
+                                            .plugins
+                                            .get(id)
+                                            .map(|s| s.enabled)
+                                            .unwrap_or_default();
+                                        let icon = if enabled { "🟢" } else { "⚪" };
+                                        if ui
+                                            .selectable_label(
+                                                selected_id == *id,
+                                                format!("  {} {}", icon, id),
+                                            )
+                                            .clicked()
+                                        {
+                                            selected_id = id.clone();
+                                        }
+                                    }
+                                }
+                            });
+
+                            ui.collapsing(i18n.get("plugins-category-general"), |ui| {
+                                for (id, _, _) in &plugin_info {
+                                    if !id.contains("gemini") {
+                                        let enabled = draft
+                                            .plugins
+                                            .get(id)
+                                            .map(|s| s.enabled)
+                                            .unwrap_or_default();
+                                        let icon = if enabled { "🟢" } else { "⚪" };
+                                        if ui
+                                            .selectable_label(
+                                                selected_id == *id,
+                                                format!("  {} {}", icon, id),
+                                            )
+                                            .clicked()
+                                        {
+                                            selected_id = id.clone();
+                                        }
                                     }
                                 }
                             });

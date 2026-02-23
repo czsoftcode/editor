@@ -17,7 +17,7 @@ pub struct PluginMetadata {
 pub enum PluginStatus {
     /// Plugin is fully loaded and ready to use.
     Active {
-        inner: Box<Plugin>,
+        inner: Arc<Mutex<Plugin>>,
         config_hash: u64,
     },
     /// Plugin is waiting for user to approve permissions.
@@ -40,10 +40,33 @@ pub struct HostContext {
     pub active_file_content: Option<String>,
 }
 
+#[derive(Default)]
+pub(crate) struct Blacklist {
+    pub(crate) patterns: Vec<String>,
+    pub(crate) regexes: Vec<regex::Regex>,
+}
+
+impl Blacklist {
+    fn is_blacklisted(&self, path: &str) -> bool {
+        for re in &self.regexes {
+            if re.is_match(path) {
+                return true;
+            }
+        }
+        // Fallback for cases where regex compilation might have failed or simple patterns
+        for pattern in &self.patterns {
+            if path.contains(pattern) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 #[derive(Clone)]
 struct HostState {
     sandbox_root: PathBuf,
-    blacklist: Arc<Mutex<Vec<String>>>,
+    blacklist: Arc<Mutex<Blacklist>>,
     context: Arc<Mutex<HostContext>>,
 }
 
@@ -56,26 +79,20 @@ impl HostState {
         }
 
         let blacklist = self.blacklist.lock().expect("lock");
-        for pattern in blacklist.iter() {
-            if glob_match(pattern, &path_str) {
-                return false;
-            }
+        if blacklist.is_blacklisted(&path_str) {
+            return false;
         }
 
         true
     }
 }
 
-fn glob_match(pattern: &str, path: &str) -> bool {
+fn compile_glob(pattern: &str) -> Option<regex::Regex> {
     let regex_pattern = pattern
         .replace('.', "\\.")
         .replace('*', ".*")
         .replace('?', ".");
-    if let Ok(re) = regex::Regex::new(&format!("^{}$", regex_pattern)) {
-        re.is_match(path)
-    } else {
-        path.contains(pattern)
-    }
+    regex::Regex::new(&format!("^{}$", regex_pattern)).ok()
 }
 
 /// Information about a loaded WASM plugin.
@@ -91,7 +108,7 @@ pub struct LoadedPlugin {
 pub struct PluginManager {
     pub plugins: Arc<Mutex<Vec<LoadedPlugin>>>,
     pub sandbox_root: PathBuf,
-    pub blacklist: Arc<Mutex<Vec<String>>>,
+    pub blacklist: Arc<Mutex<Blacklist>>,
     pub current_context: Arc<Mutex<HostContext>>,
 }
 
@@ -100,7 +117,7 @@ impl PluginManager {
         Self {
             plugins: Arc::new(Mutex::new(Vec::new())),
             sandbox_root,
-            blacklist: Arc::new(Mutex::new(Vec::new())),
+            blacklist: Arc::new(Mutex::new(Blacklist::default())),
             current_context: Arc::new(Mutex::new(HostContext::default())),
         }
     }
@@ -110,7 +127,7 @@ impl PluginManager {
         *ctx = context;
     }
 
-    pub fn set_blacklist(&self, mut blacklist: Vec<String>) {
+    pub fn set_blacklist(&self, mut blacklist_strings: Vec<String>) {
         let gitignore_path = self
             .sandbox_root
             .parent()
@@ -121,12 +138,13 @@ impl PluginManager {
             for line in content.lines() {
                 let line = line.trim();
                 if !line.is_empty() && !line.starts_with('#') {
-                    blacklist.push(line.to_string());
+                    blacklist_strings.push(line.to_string());
                 }
             }
         }
         let mut b = self.blacklist.lock().expect("lock");
-        *b = blacklist;
+        b.patterns = blacklist_strings;
+        b.regexes = b.patterns.iter().filter_map(|p| compile_glob(p)).collect();
     }
 
     pub fn load_from_dir<P: AsRef<Path>>(&self, dir_path: P) -> anyhow::Result<()> {
@@ -191,7 +209,7 @@ impl PluginManager {
                 id,
                 path,
                 status: PluginStatus::Active {
-                    inner: Box::new(plugin),
+                    inner: Arc::new(Mutex::new(plugin)),
                     config_hash: 0,
                 },
                 wasm_bytes,
@@ -227,7 +245,7 @@ impl PluginManager {
         let mut plugins = self.plugins.lock().expect("lock");
         if let Some(p) = plugins.iter_mut().find(|p| p.id == plugin_id) {
             p.status = PluginStatus::Active {
-                inner: Box::new(plugin),
+                inner: Arc::new(Mutex::new(plugin)),
                 config_hash,
             };
         }
@@ -338,23 +356,30 @@ impl PluginManager {
             let mut plugins = self.plugins.lock().expect("lock");
             if let Some(p) = plugins.iter_mut().find(|p| p.id == plugin_id) {
                 p.status = PluginStatus::Active {
-                    inner: Box::new(plugin),
+                    inner: Arc::new(Mutex::new(plugin)),
                     config_hash,
                 };
             }
         }
 
-        let mut plugins = self.plugins.lock().expect("lock");
-        if let Some(p) = plugins.iter_mut().find(|p| p.id == plugin_id) {
-            if let PluginStatus::Active { inner, .. } = &mut p.status {
-                let output = inner.call::<&str, &str>(func_name, input)?;
-                Ok(output.to_string())
+        let inner = {
+            let mut plugins = self.plugins.lock().expect("lock");
+            let p = plugins
+                .iter_mut()
+                .find(|p| p.id == plugin_id)
+                .ok_or_else(|| anyhow::anyhow!("Plugin not found during call execution"))?;
+            if let PluginStatus::Active { inner, .. } = &p.status {
+                Arc::clone(inner)
             } else {
-                unreachable!()
+                anyhow::bail!("Plugin {} is not active", plugin_id)
             }
-        } else {
-            anyhow::bail!("Plugin not found during call execution")
-        }
+        };
+
+        let mut plugin_lock = inner
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Plugin mutex poisoned"))?;
+        let output = plugin_lock.call::<&str, &str>(func_name, input)?;
+        Ok(output.to_string())
     }
 
     pub fn get_pending_authorizations(&self) -> Vec<(String, PluginMetadata)> {
@@ -388,8 +413,8 @@ fn host_read_file(
     outputs: &mut [Val],
     user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
-    let state = user_data.get()?;
-    let state_lock = state
+    let state_lock = user_data.get()?;
+    let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
 
@@ -397,7 +422,7 @@ fn host_read_file(
     let path_str: String = plugin.memory_get_val(&inputs[0])?;
     let rel_path = Path::new(&path_str);
 
-    if !state_lock.is_allowed(rel_path) {
+    if !state.is_allowed(rel_path) {
         let msg = format!("Security violation: Access to '{}' is blocked", path_str);
         let h = plugin.memory_alloc(msg.len() as u64)?;
         plugin.memory_bytes_mut(h)?.copy_from_slice(msg.as_bytes());
@@ -405,7 +430,7 @@ fn host_read_file(
         return Ok(());
     }
 
-    let full_path = state_lock.sandbox_root.join(rel_path);
+    let full_path = state.sandbox_root.join(rel_path);
     let content = fs::read_to_string(full_path)
         .unwrap_or_else(|_| "File not found or unreadable".to_string());
 
@@ -423,19 +448,29 @@ fn host_list_files(
     outputs: &mut [Val],
     user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
-    let state = user_data.get()?;
-    let state_lock = state
+    let state_lock = user_data.get()?;
+    let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+    let root = &state.sandbox_root;
 
     let mut files = Vec::new();
-    for entry in walkdir::WalkDir::new(&state_lock.sandbox_root)
+    for entry in walkdir::WalkDir::new(root)
         .into_iter()
+        .filter_entry(|e| {
+            if let Ok(rel) = e.path().strip_prefix(root) {
+                if rel.as_os_str().is_empty() {
+                    return true;
+                }
+                state.is_allowed(rel)
+            } else {
+                false
+            }
+        })
         .filter_map(|e| e.ok())
     {
         if entry.file_type().is_file()
-            && let Ok(rel) = entry.path().strip_prefix(&state_lock.sandbox_root)
-            && state_lock.is_allowed(rel)
+            && let Ok(rel) = entry.path().strip_prefix(root)
         {
             files.push(rel.to_string_lossy().into_owned());
         }
@@ -456,11 +491,11 @@ fn host_get_active_path(
     outputs: &mut [Val],
     user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
-    let state = user_data.get()?;
-    let state_lock = state
+    let state_lock = user_data.get()?;
+    let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
-    let ctx = state_lock.context.lock().expect("lock");
+    let ctx = state.context.lock().expect("lock");
 
     let path = ctx.active_file_path.as_deref().unwrap_or("");
     let h = plugin.memory_alloc(path.len() as u64)?;
@@ -475,11 +510,11 @@ fn host_get_active_content(
     outputs: &mut [Val],
     user_data: UserData<HostState>,
 ) -> Result<(), extism::Error> {
-    let state = user_data.get()?;
-    let state_lock = state
+    let state_lock = user_data.get()?;
+    let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
-    let ctx = state_lock.context.lock().expect("lock");
+    let ctx = state.context.lock().expect("lock");
 
     let content = ctx.active_file_content.as_deref().unwrap_or("");
     let h = plugin.memory_alloc(content.len() as u64)?;

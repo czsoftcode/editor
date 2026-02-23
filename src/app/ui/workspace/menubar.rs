@@ -75,6 +75,10 @@ pub(super) fn render_menu_bar(
                     actions.close_file = true;
                     ui.close_menu();
                 }
+                if ui.button(i18n.get("menu-file-plugins")).clicked() {
+                    actions.plugins = true;
+                    ui.close_menu();
+                }
                 ui.separator();
                 if ui.button(i18n.get("menu-file-quit")).clicked() {
                     actions.quit = true;
@@ -287,7 +291,7 @@ pub(super) fn process_menu_actions(
     if actions.plugins {
         ws.show_plugins = true;
         let shared_lock = shared.lock().expect("lock");
-        ws.settings_draft = Some((*shared_lock.settings).clone());
+        ws.plugins_draft = Some((*shared_lock.settings).clone());
     }
     if actions.new_project {
         ws.show_new_project = true;

@@ -70,6 +70,9 @@ pub struct EditorApp {
     /// Projects from session that could not be restored (directory does not exist).
     /// Displayed as a toast or warning in the startup dialog.
     missing_session_paths: Vec<PathBuf>,
+
+    /// Last settings version applied to the root viewport context (Audit S-4).
+    applied_settings_version: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +224,7 @@ impl EditorApp {
             i18n,
             is_internal_save: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             registry,
+            settings_version: std::sync::atomic::AtomicU64::new(1),
         }));
 
         // Update local cache of recent projects
@@ -266,6 +270,7 @@ impl EditorApp {
             focus_rx,
             open_request_rx,
             missing_session_paths,
+            applied_settings_version: 0,
         }
     }
 
@@ -407,6 +412,21 @@ impl EditorApp {
                     let mut ws = ws_arc
                         .lock()
                         .expect("Failed to lock WorkspaceState in deferred viewport");
+
+                    // Apply settings only when changed
+                    {
+                        let shared = shared_arc
+                            .lock()
+                            .expect("Failed to lock AppShared in deferred viewport settings apply");
+                        let v = shared
+                            .settings_version
+                            .load(std::sync::atomic::Ordering::SeqCst);
+                        if ws.applied_settings_version != v {
+                            shared.settings.apply(ctx);
+                            ws.applied_settings_version = v;
+                        }
+                    }
+
                     if let Some(new_path) = render_workspace(ctx, &mut ws, &shared_arc) {
                         let panel = ws_to_panel_state(&ws);
                         let new_path_clone = new_path.clone();
@@ -543,13 +563,23 @@ impl eframe::App for EditorApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Apply settings (theme, font) on every frame
+        // Apply settings (theme, font) only when they change
         {
             let shared = self
                 .shared
                 .lock()
                 .expect("Failed to lock AppShared for settings apply");
-            shared.settings.apply(ctx);
+            let v = shared
+                .settings_version
+                .load(std::sync::atomic::Ordering::SeqCst);
+            if self.applied_settings_version != v {
+                shared.settings.apply(ctx);
+                self.applied_settings_version = v;
+                // If there's a workspace, sync its version too to prevent double-apply
+                if let Some(ws) = &mut self.root_ws {
+                    ws.applied_settings_version = v;
+                }
+            }
         }
 
         let (privacy_accepted, i18n_arc) = {

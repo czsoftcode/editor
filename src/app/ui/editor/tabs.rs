@@ -12,6 +12,8 @@ impl Editor {
             return;
         }
 
+        let canonical_path = path.canonicalize().unwrap_or_else(|_| path.clone());
+
         let ext = path
             .extension()
             .and_then(|e| e.to_str())
@@ -50,6 +52,8 @@ impl Editor {
                         lsp_version: 0,
                         lsp_synced_version: 0,
                         read_error: false,
+                        canonical_path: canonical_path.clone(),
+                        md_cache: egui_commonmark::CommonMarkCache::default(),
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -74,6 +78,8 @@ impl Editor {
                         lsp_version: 0,
                         lsp_synced_version: 0,
                         read_error: true,
+                        canonical_path: canonical_path.clone(),
+                        md_cache: egui_commonmark::CommonMarkCache::default(),
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -101,6 +107,8 @@ impl Editor {
                         lsp_version: 0,
                         lsp_synced_version: 0,
                         read_error: false,
+                        canonical_path: canonical_path.clone(),
+                        md_cache: egui_commonmark::CommonMarkCache::default(),
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);
@@ -125,6 +133,8 @@ impl Editor {
                         lsp_version: 0,
                         lsp_synced_version: 0,
                         read_error: true,
+                        canonical_path: canonical_path.clone(),
+                        md_cache: egui_commonmark::CommonMarkCache::default(),
                     };
                     self.tabs.push(tab);
                     self.active_tab = Some(self.tabs.len() - 1);

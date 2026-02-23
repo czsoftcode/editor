@@ -12,13 +12,10 @@ impl Editor {
     /// Finds the tab path whose canonicalized path matches `canonical`.
     /// Returns the original (non-canonicalized) tab path if it exists.
     pub fn tab_path_for_canonical(&self, canonical: &PathBuf) -> Option<PathBuf> {
-        self.tabs.iter().find_map(|t| {
-            t.path
-                .canonicalize()
-                .ok()
-                .filter(|c| c == canonical)
-                .map(|_| t.path.clone())
-        })
+        self.tabs
+            .iter()
+            .find(|t| t.canonical_path == *canonical)
+            .map(|t| t.path.clone())
     }
 
     /// Reloads a specific tab (by path) from disk — regardless of the active tab.

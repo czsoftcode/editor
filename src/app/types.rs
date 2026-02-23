@@ -126,6 +126,8 @@ pub(crate) struct AppShared {
     pub is_internal_save: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// Extension registry for commands and panels.
     pub registry: crate::app::registry::Registry,
+    /// Version of settings, incremented on change to ensure all viewports re-apply them (Audit S-4).
+    pub settings_version: std::sync::atomic::AtomicU64,
 }
 
 // ---------------------------------------------------------------------------

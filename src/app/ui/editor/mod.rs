@@ -105,6 +105,10 @@ pub(super) struct Tab {
     /// Flag indicating that there was an error reading the file (Audit Task 1.2).
     /// If true, saving should be disabled or redirected.
     pub(super) read_error: bool,
+    /// Pre-calculated canonical path to avoid repeated filesystem calls (Audit S-5).
+    pub(super) canonical_path: PathBuf,
+    /// Per-tab markdown cache to avoid re-parsing on every frame/tab switch (Audit S-1).
+    pub(super) md_cache: egui_commonmark::CommonMarkCache,
 }
 
 // ---------------------------------------------------------------------------
@@ -131,7 +135,6 @@ pub struct Editor {
     pub(super) goto_line_input: String,
     pub(super) goto_line_focus_requested: bool,
     pub(super) focus_editor_requested: bool,
-    pub(super) markdown_cache: egui_commonmark::CommonMarkCache,
     // --- LSP interaction state ---
     /// Pending hover request channel.
     pub(super) lsp_hover_rx: Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::Hover>>>,
@@ -187,7 +190,6 @@ impl Editor {
             goto_line_input: String::new(),
             goto_line_focus_requested: false,
             focus_editor_requested: false,
-            markdown_cache: egui_commonmark::CommonMarkCache::default(),
             lsp_hover_rx: None,
             lsp_hover_popup: None,
             lsp_hover_screen_pos: None,

@@ -228,10 +228,25 @@ settings-suggested-patterns = Empfohlene Muster:
 plugins-title = Plugin-Manager
 plugins-config-label = Plugin-Konfiguration:
 plugins-unknown-agent = Unbekannter Agent
+## Plugins
+plugins-title = Plugin-Manager
+plugins-list-label = Plugin-Liste
+plugins-no-selection = Wählen Sie ein Plugin aus der Liste links
+plugins-enabled-label = Dieses Plugin aktivieren
+plugins-config-label = Plugin-Konfiguration:
+plugins-unknown-agent = Unbekannter Agent
+plugins-category-ai = 🤖 KI-Agenten
+plugins-category-general = ⚙ Allgemein
+plugins-item-settings = Einstellungen
+plugins-item-welcome = Übersicht
+plugins-welcome-title = Willkommen im Plugin-Manager
+plugins-welcome-text = Der PolyCredo Editor verwendet ein modernes Plugin-System basierend auf der WebAssembly (WASM) Technologie. Dies gewährleistet hohe Leistung und maximale Sicherheit — Plugins laufen in einer isolierten Umgebung (Sandbox) und haben nur Zugriff auf das, was Sie explizit erlauben.
+plugins-welcome-hint = Wählen Sie eine Kategorie oder ein bestimmtes Plugin aus der Liste links, um es zu konfigurieren.
 plugins-security-info = 🛡 Sicherheit: Sie können die Datei/Ordner-Blacklist in den Haupteinstellungen verwalten.
 plugins-settings-saved = Plugin-Einstellungen gespeichert. Neustart bei einigen Änderungen empfohlen.
 plugins-placeholder-api-key = API-Schlüssel (z. B. Gemini, Anthropic)
 plugins-placeholder-model = Modell-ID (z. B. gemini-1.5-flash)
+command-name-show-plugins = Plugins
 
 ## Gemini AI
 gemini-title = Gemini KI-Assistent

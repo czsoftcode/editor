@@ -11,6 +11,7 @@ menu-help = Nápověda
 menu-file-open-folder = Otevřít složku
 menu-file-save = Uložit
 menu-file-close-tab = Zavřít soubor
+menu-file-plugins = Pluginy...
 menu-file-quit = Ukončit
 
 ## Menu Projekt

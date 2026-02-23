@@ -1,3 +1,43 @@
+## [0.7.4] - 2026-02-23
+
+### Added
+- **Standardized Modal Framework**: Introduced the `StandardModal` component to ensure a consistent look and feel across all major dialogs (Settings, Plugins, Gemini). Features built-in panel-based layout, fixed footers, and dimension stability.
+- **Enhanced Plugin Manager**:
+    - **Hierarchical Navigation**: Replaced the flat list with a category-based tree view (Left Panel).
+    - **Unified AI Hub**: Moved all AI-related configuration (Diff modes, AI fonts, security blacklists) into the Plugin Manager under the "AI Agents" category.
+    - **Overview Page**: Added an educational landing page explaining PolyCredo's WASM-based plugin security and sandboxing.
+    - **Independent State Management**: Settings and Plugin modals now use separate draft buffers, allowing both to be open simultaneously without state interference.
+- **Modernized Gemini UI**:
+    - Refactored the Gemini modal using the new standard framework.
+    - **Improved Chat Layout**: Repositioned the prompt input to the bottom of the window, providing a more intuitive "chat-like" experience.
+    - **Dynamic Expansion**: The response area now automatically fills the available space above the input field.
+    - **Direct Modal Control**: Replaced command-level hacks with an explicit `show_gemini` flag in the workspace state.
+- **Full Multi-Language Support**: Completed missing translations for all new Plugin Manager components and menu items in CS, EN, SK, DE, and RU.
+
+### Fixed
+- **UI Stability**: Resolved issues where modal windows would "jump" or resize during mouse movement by enforcing strict panel-based sizing.
+- **Fixed Egui Panic**: Corrected a layout assertion failure caused by negative height calculations in high-density UI scenarios.
+
+## [0.7.3] - 2026-02-23
+
+### Fixed
+- **Performance Optimizations (Audit S-1, S-4, S-5)**:
+  - **Per-Tab Markdown Cache**: Moved the markdown preview cache into individual tabs. This prevents full reparsing of markdown documents when switching between tabs and ensures each document maintains its own scroll and render state.
+  - **Versioned Settings Application**: Settings (theme, fonts) are now only applied to the UI context when they actually change. This eliminates redundant style calculations in every frame across all viewports.
+  - **Pre-Calculated Canonical Paths**: Added pre-calculated canonical paths to editor tabs. File system watcher events now resolve to tabs instantly without triggering expensive `canonicalize()` calls in the UI loop.
+
+## [0.7.2] - 2026-02-23
+
+### Fixed
+- **UI Freeze Resolution (Deadlock Prevention)**: Refactored `PluginManager` to use a granular locking strategy. The main plugin list is no longer held locked during WASM execution or network calls, ensuring the UI remains responsive even during long AI operations.
+- **Optimized Blacklist Performance**: Introduced pre-compiled regex caching for the file blacklist. Security checks are now significantly faster, especially in projects with thousands of files.
+- **Efficient File Scanning**: Optimized `host_list_files` by implementing directory pruning (filter_entry). The plugin host now skips blacklisted directories (like `target` or `.git`) entirely, drastically reducing disk I/O.
+- **Gemini API Compatibility**: Resolved "thought_signature" errors in the Gemini plugin by ensuring all API-provided metadata is preserved in chat history.
+
+### Added
+- **AI Function Calling**: The internal Gemini plugin can now dynamically request to read files using the `read_project_file` tool, allowing it to analyze code outside the active editor tab.
+- **Robust API Error Handling**: Enhanced plugin error reporting to display full API responses in case of failures (e.g., safety blocks or invalid arguments).
+
 ## [0.7.1] - 2026-02-23
 
 ### Added

@@ -1,23 +1,115 @@
 use eframe::egui;
 
-/// Result of a modal dialog.
+/// Univerzální výsledek modalu.
 #[derive(Debug)]
 pub(crate) enum ModalResult<T> {
-    /// User confirmed the dialog (clicked OK or pressed Enter).
     Confirmed(T),
-    /// User cancelled the dialog (clicked Cancel, pressed Escape or closed the window).
     Cancelled,
-    /// Dialog is still open, no action has occurred yet.
     Pending,
 }
 
-/// Displays a modal window with a title, custom content, and OK/Cancel buttons.
-///
-/// - `content` receives `&mut egui::Ui` and returns `Option<T>`.
-///   If it returns `None`, the OK button is disabled.
-///   If it returns `Some(v)`, OK is active — clicking it returns `Confirmed(v)`.
-/// - Enter confirms (if `content` returns `Some`).
-/// - Escape or closing returns `Cancelled`.
+/// Základní šablona pro velká okna (Nastavení, Pluginy, atd.)
+pub(crate) struct StandardModal {
+    title: String,
+    id: egui::Id,
+    default_size: egui::Vec2,
+    min_size: egui::Vec2,
+    /// Pokud je true, modal se při kliknutí mimo nebo křížkem zavře sám (přes show_flag).
+    #[allow(dead_code)]
+    close_on_exit: bool,
+    /// Text v levé části patičky (např. nápověda nebo stav).
+    footer_hint: Option<String>,
+}
+
+impl StandardModal {
+    pub fn new(title: impl Into<String>, id_salt: impl std::hash::Hash) -> Self {
+        Self {
+            title: title.into(),
+            id: egui::Id::new(id_salt),
+            default_size: egui::vec2(850.0, 600.0),
+            min_size: egui::vec2(700.0, 500.0),
+            close_on_exit: true,
+            footer_hint: None,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn with_size(mut self, width: f32, height: f32) -> Self {
+        self.default_size = egui::vec2(width, height);
+        self
+    }
+
+    pub fn with_hint(mut self, hint: impl Into<String>) -> Self {
+        self.footer_hint = Some(hint.into());
+        self
+    }
+
+    /// Vykreslí modal.
+    /// `body` je hlavní obsah.
+    /// `buttons` jsou tlačítka vpravo dole (vrací akci, kterou chceme provést).
+    pub fn show<R>(
+        self,
+        ctx: &egui::Context,
+        show_flag: &mut bool,
+        body: impl FnOnce(&mut egui::Ui) -> R,
+        buttons: impl FnOnce(&mut egui::Ui) -> Option<R>,
+    ) -> Option<R> {
+        if !*show_flag {
+            return None;
+        }
+
+        let mut result = None;
+
+        egui::Window::new(&self.title)
+            .id(self.id)
+            .collapsible(false)
+            .resizable(true)
+            .default_size(self.default_size)
+            .min_width(self.min_size.x)
+            .min_height(self.min_size.y)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                // Fixace minimální vnitřní plochy
+                ui.set_min_height(self.min_size.y - 20.0);
+
+                // 1. FOOTER (BottomPanel)
+                egui::TopBottomPanel::bottom(self.id.with("footer"))
+                    .resizable(false)
+                    .show_inside(ui, |ui| {
+                        ui.add_space(10.0);
+                        ui.horizontal(|ui| {
+                            // Levá část patičky (hint)
+                            if let Some(hint) = &self.footer_hint {
+                                ui.label(egui::RichText::new(hint).weak().size(11.0));
+                            }
+
+                            // Pravá část patičky (tlačítka)
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if let Some(action) = buttons(ui) {
+                                        result = Some(action);
+                                    }
+                                },
+                            );
+                        });
+                        ui.add_space(10.0);
+                    });
+
+                // 2. BODY (CentralPanel) - automaticky vyplní zbytek
+                egui::CentralPanel::default().show_inside(ui, |ui| {
+                    body(ui);
+                });
+            });
+
+        // Pokud okno v egui uživatelsky zavřeme (např. křížkem, pokud ho zapneme)
+        // nebo pokud některá akce vyžaduje zavření, ošetříme to vně.
+
+        result
+    }
+}
+
+// Původní show_modal pro jednoduché dialogy ponecháme
 pub(crate) fn show_modal<T>(
     ctx: &egui::Context,
     id: impl Into<egui::Id>,

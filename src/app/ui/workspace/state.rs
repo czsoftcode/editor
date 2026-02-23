@@ -124,6 +124,9 @@ pub(crate) struct WorkspaceState {
     pub show_about: bool,
     pub show_settings: bool,
     pub show_plugins: bool,
+    pub show_gemini: bool,
+    /// Currently selected plugin in the Plugins modal.
+    pub selected_plugin_id: Option<String>,
     pub ai_font_scale: u32,
     pub profiles: ProjectProfiles,
     pub build_errors: Vec<BuildError>,
@@ -147,6 +150,7 @@ pub(crate) struct WorkspaceState {
     pub git_last_refresh: std::time::Instant,
     pub lsp_last_retry: std::time::Instant,
     pub settings_draft: Option<crate::settings::Settings>,
+    pub plugins_draft: Option<crate::settings::Settings>,
     pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
     pub ai_tool_available: HashMap<String, bool>,
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<String, bool>>>,
@@ -177,6 +181,8 @@ pub(crate) struct WorkspaceState {
     pub sandbox_staged_last_dirty: std::time::Instant,
     pub sandbox_staged_last_refresh: std::time::Instant,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
+    /// Last settings version applied to this viewport's context (Audit S-4).
+    pub applied_settings_version: u64,
 }
 
 impl Drop for WorkspaceState {
@@ -291,6 +297,8 @@ pub(crate) fn init_workspace(
         show_about: false,
         show_settings: false,
         show_plugins: false,
+        show_gemini: false,
+        selected_plugin_id: None,
         ai_font_scale: panel_state.ai_font_scale,
         profiles,
         build_errors: Vec::new(),
@@ -314,6 +322,7 @@ pub(crate) fn init_workspace(
         git_last_refresh: std::time::Instant::now(),
         lsp_last_retry: std::time::Instant::now(),
         settings_draft: None,
+        plugins_draft: None,
         settings_folder_pick_rx: None,
         ai_tool_available: HashMap::new(),
         ai_tool_check_rx: None,
@@ -342,6 +351,7 @@ pub(crate) fn init_workspace(
         sandbox_staged_last_dirty: std::time::Instant::now(),
         sandbox_staged_last_refresh: std::time::Instant::now(),
         background_io_rx: None,
+        applied_settings_version: 0,
     }
 }
 

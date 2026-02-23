@@ -9,7 +9,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - [x] **Plugin foundation (interní)** — definice extension bodů (command registry, panel registry).
 - [x] **WASM Plugin Manager (POC)** — bezpečné načítání externích `.wasm` modulů přes Wasmtime/Extism.
 - [ ] **Plugin SDK for Rust** — knihovna pro snadný vývoj pluginů v Rustu.
-- [ ] **Capability-based Security** — definice oprávnění pro pluginy (např. přístup k souborům, síti).
+- [x] **Capability-based Security** — definice oprávnění pro pluginy (např. přístup k souborům, síti).
 - [x] **Sdílený file index** — jeden inkrementální index pro Ctrl+P, project search a file tree.
 - [x] **Settings.toml** — uložení konfigurace do souboru, import/export nastavení.
 

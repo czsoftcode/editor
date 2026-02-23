@@ -221,7 +221,7 @@ pub(crate) fn render_workspace(
         let mut actions = MenuActions::default();
         if let Some(plugin_res) = execute_command(cmd_id, &mut actions, shared) {
             if plugin_res == "OPEN_GEMINI_MODAL" {
-                ws.gemini_prompt = " ".to_string(); // Trigger the modal show
+                ws.show_gemini = true;
                 ws.gemini_response = None;
             } else if plugin_res.starts_with("Plugin error:") {
                 ws.plugin_error = Some(plugin_res);
@@ -245,7 +245,7 @@ pub(crate) fn render_workspace(
         || ws.command_palette.is_some()
         || ws.show_plugins
         || ws.show_settings
-        || (!ws.gemini_prompt.is_empty() || ws.gemini_loading || ws.gemini_response.is_some());
+        || ws.show_gemini;
     let ai_clicked = render_ai_panel(ctx, ws, shared, dialog_open, i18n);
     let left_clicked = render_left_panel(ctx, ws, dialog_open, i18n);
     let prev_active_path = ws.editor.active_path().cloned();

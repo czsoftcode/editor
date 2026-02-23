@@ -228,13 +228,25 @@ settings-blacklist-add = Pridať vzor
 settings-suggested-patterns = Odporúčané vzory:
 
 ## Pluginy
+## Pluginy
 plugins-title = Správca pluginov
+plugins-list-label = Zoznam pluginov
+plugins-no-selection = Vyberte plugin zo zoznamu vľavo
+plugins-enabled-label = Povoliť tento plugin
 plugins-config-label = Konfigurácia pluginu:
-plugins-unknown-agent = Neznámy agent
+plugins-unknown-agent = Neznámý agent
+plugins-category-ai = 🤖 AI agenti
+plugins-category-general = ⚙ Všeobecné
+plugins-item-settings = Nastavenia
+plugins-item-welcome = Prehľad
+plugins-welcome-title = Vitajte v Správcovi pluginov
+plugins-welcome-text = PolyCredo Editor používa moderný systém pluginov založený na technológii WebAssembly (WASM). To zaisťuje vysoký výkon a maximálnu bezpečnosť — pluginy bežia v izolovanom prostredí (sandboxe) a majú prístup iba k tomu, čo im explicitne povolíte.
+plugins-welcome-hint = Vyberte kategóriu alebo konkrétny plugin v zozname vľavo pre jeho konfiguráciu.
 plugins-security-info = 🛡 Zabezpečenie: Blacklist súborov a adresárov môžete spravovať v hlavnom Nastavení.
 plugins-settings-saved = Nastavenia pluginov uložené. Pri niektorých zmenách je odporúčaný reštart.
 plugins-placeholder-api-key = API kľúč (napr. Gemini, Anthropic)
 plugins-placeholder-model = ID modelu (napr. gemini-1.5-flash)
+command-name-show-plugins = Pluginy
 
 ## Gemini AI
 gemini-title = Gemini AI asistent

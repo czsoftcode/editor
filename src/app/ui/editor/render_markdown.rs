@@ -218,8 +218,9 @@ impl Editor {
                         .auto_shrink([false, false])
                         .vertical_scroll_offset(md_scroll_offset)
                         .show(ui, |ui| {
-                            let content = &self.tabs[idx].content;
-                            Self::render_markdown_preview(ui, &mut self.markdown_cache, content);
+                            let tab = &mut self.tabs[idx];
+                            let content = &tab.content;
+                            Self::render_markdown_preview(ui, &mut tab.md_cache, content);
                         });
 
                     let tab = &mut self.tabs[idx];

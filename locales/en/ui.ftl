@@ -236,8 +236,18 @@ settings-creates-in = Will be created at:
 
 ## Plugins
 plugins-title = Plugin Manager
+plugins-list-label = Plugins List
+plugins-no-selection = Select a plugin from the list on the left
+plugins-enabled-label = Enable this plugin
 plugins-config-label = Plugin Configuration:
 plugins-unknown-agent = Unknown Agent
+plugins-category-ai = 🤖 AI Agents
+plugins-category-general = ⚙ General
+plugins-item-settings = Settings
+plugins-item-welcome = Overview
+plugins-welcome-title = Welcome to Plugin Manager
+plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (sandbox) and only have access to what you explicitly authorize.
+plugins-welcome-hint = Select a category or a specific plugin from the list on the left to configure it.
 plugins-security-info = 🛡 Security: You can manage the file/directory blacklist in the main Settings.
 plugins-settings-saved = Plugin settings saved. Restart recommended for some changes.
 plugins-placeholder-api-key = API Key (e.g. Gemini, Anthropic)

@@ -13,6 +13,7 @@ impl Editor {
         i18n: &crate::i18n::I18n,
         diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>,
         lsp_client: Option<&crate::app::lsp::LspClient>,
+        is_readonly: bool,
     ) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
@@ -78,7 +79,9 @@ impl Editor {
                     .inner_margin(egui::Margin::same(8));
 
                 frame.show(ui, |ui| {
-                    self.handle_smart_typing(ui, edit_id, idx);
+                    if !is_readonly {
+                        self.handle_smart_typing(ui, edit_id, idx);
+                    }
                     let scroll_y = self.tabs[idx].scroll_offset;
 
                     let scroll_output = egui::ScrollArea::both()
@@ -89,6 +92,17 @@ impl Editor {
                             let highlighter = &self.highlighter;
                             let search_matches = &self.search_matches;
                             let tab = &mut self.tabs[idx];
+
+                            // TRICK: If readonly, we pass a temporary copy of the string to TextEdit.
+                            // This way it remains interactive (cursor, selection, shortcuts for movement),
+                            // but changes are never saved back to the tab.
+                            let mut temp_content;
+                            let content_to_edit = if is_readonly {
+                                temp_content = tab.content.clone();
+                                &mut temp_content
+                            } else {
+                                &mut tab.content
+                            };
 
                             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
                                 let job_arc = highlighter.highlight(
@@ -104,8 +118,12 @@ impl Editor {
                                 ui.fonts(|f| f.layout_job(job))
                             };
 
-                            let line_count = tab.content.lines().count().max(1)
-                                + if tab.content.ends_with('\n') { 1 } else { 0 };
+                            let line_count = content_to_edit.lines().count().max(1)
+                                + if content_to_edit.ends_with('\n') {
+                                    1
+                                } else {
+                                    0
+                                };
                             let gutter_width = Self::gutter_width(ui, line_count);
 
                             ui.horizontal_top(|ui| {
@@ -114,7 +132,7 @@ impl Editor {
                                     egui::Sense::hover(),
                                 );
 
-                                let response = egui::TextEdit::multiline(&mut tab.content)
+                                let response = egui::TextEdit::multiline(content_to_edit)
                                     .id(edit_id)
                                     .font(egui::TextStyle::Monospace)
                                     .code_editor()
@@ -134,7 +152,7 @@ impl Editor {
                                 if response.response.clicked() || response.response.has_focus() {
                                     clicked = true;
                                 }
-                                if response.response.changed() {
+                                if response.response.changed() && !is_readonly {
                                     tab.modified = true;
                                     tab.last_edit = Some(Instant::now());
                                     tab.save_status = SaveStatus::Modified;

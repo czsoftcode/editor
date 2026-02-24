@@ -85,6 +85,9 @@ pub(super) struct Tab {
     pub(crate) modified: bool,
     pub(super) deleted: bool,
     pub(super) last_edit: Option<Instant>,
+    /// Timestamp of the last *autosave* attempt (successful or failed).
+    /// Used to prevent infinite retry loops on save errors.
+    pub(super) last_autosave_attempt: Option<Instant>,
     pub(crate) save_status: SaveStatus,
     pub(super) last_saved_content: String,
     scroll_offset: f32,
@@ -290,17 +293,8 @@ pub(super) fn ext_to_file_type(ext: &str) -> &'static str {
         "sh" | "bash" => "Shell",
         "py" => "Python",
         "c" => "C",
-        "cpp" | "cc" | "cxx" => "C++",
-        "h" | "hpp" => "C/C++ Header",
-        "go" => "Go",
-        "java" => "Java",
-        "xml" => "XML",
-        "sql" => "SQL",
+        "cpp" | "h" | "hpp" => "C++",
         "txt" => "Text",
-        "pdf" => "PDF Document",
-        "odt" => "ODT Document",
-        "docx" => "DOCX Document",
-        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "svg" => "Image",
-        _ => "Plain text",
+        _ => "File",
     }
 }

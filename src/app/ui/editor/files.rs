@@ -52,8 +52,32 @@ impl Editor {
                 && t.modified
                 && t.last_edit
                     .is_some_and(|e| e.elapsed().as_millis() >= AUTOSAVE_DELAY_MS)
+                // Prevent infinite retry loops on save error:
+                // Only try to autosave if there was a NEW edit since the last attempt.
+                && (t.last_autosave_attempt.is_none()
+                    || t.last_edit.unwrap() > t.last_autosave_attempt.unwrap())
         });
         if should_save {
+            // Prevent infinite error loops in Safe Mode:
+            // If strictly read-only and outside sandbox, do not attempt autosave.
+            // Explicit save (Ctrl+S) will still trigger the error via save().
+            if read_only
+                && let Some(tab) = self.active()
+                && !tab.path.to_string_lossy().contains(".polycredo/sandbox")
+            {
+                // Mark as "attempted" so we don't check again until next edit,
+                // effectively silencing the check.
+                if let Some(tab_mut) = self.active_mut() {
+                    tab_mut.last_autosave_attempt = Some(std::time::Instant::now());
+                }
+                return None;
+            }
+
+            // Mark attempt time *before* saving (or right now)
+            if let Some(tab) = self.active_mut() {
+                tab.last_autosave_attempt = Some(std::time::Instant::now());
+            }
+
             self.save(i18n, is_internal_save, read_only)
         } else {
             None

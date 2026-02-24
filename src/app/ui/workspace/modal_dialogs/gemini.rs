@@ -247,12 +247,17 @@ pub fn show(
                         .and_then(|idx| ws.editor.tabs.get(idx))
                         .map(|tab| tab.content.clone());
 
+                    ws.gemini_cancellation_token =
+                        Arc::new(std::sync::atomic::AtomicBool::new(false));
+
                     plugin_manager.set_context(crate::app::registry::plugins::HostContext {
                         active_file_path: active_path,
                         active_file_content: active_content,
                         project_index: Some(Arc::clone(&ws.project_index)),
                         semantic_index: Some(Arc::clone(&ws.semantic_index)),
                         root_path: Some(ws.root_path.clone()),
+                        auto_approved_actions: std::collections::HashSet::new(),
+                        is_cancelled: Arc::clone(&ws.gemini_cancellation_token),
                     });
 
                     std::thread::spawn(move || {
@@ -401,20 +406,69 @@ fn render_gemini_main_ui(
     }
 
     ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-        // 1. VSTUPNÍ POLE (Dole)
+        // Handle cancellation via Esc
+        if loading && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            ws.gemini_cancellation_token
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+
+        // 1. VSTUPNÍ POLE NEBO SCHVALOVÁNÍ (Dole)
         ui.add_space(8.0);
 
-        let (send_via_kb, edit_resp) = StandardAI::ui_input(
-            ui,
-            prompt,
-            font_size,
-            &i18n.get("gemini-placeholder-prompt"),
-            &ws.gemini_history,
-            &mut ws.gemini_history_index,
-        );
+        let mut edit_resp = None;
 
-        if send_via_kb && action.is_none() {
-            *action = Some(GeminiModalAction::Send);
+        if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
+            egui::Frame::new()
+                .fill(egui::Color32::from_rgb(60, 40, 20))
+                .inner_margin(8.0)
+                .corner_radius(4.0)
+                .show(ui, |ui| {
+                    ui.label(
+                        egui::RichText::new(format!("⚠️ Agent {} požaduje spuštění akce:", id))
+                            .strong()
+                            .color(egui::Color32::YELLOW),
+                    );
+                    ui.add_space(4.0);
+                    ui.label(egui::RichText::new(&details).monospace());
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button("1 - Udělej to").clicked()
+                            || ui.input(|i| i.key_pressed(egui::Key::Num1))
+                        {
+                            let _ = sender.send(crate::app::types::PluginApprovalResponse::Approve);
+                        } else if ui.button("2 - Dělej to pokaždé").clicked()
+                            || ui.input(|i| i.key_pressed(egui::Key::Num2))
+                        {
+                            let _ = sender
+                                .send(crate::app::types::PluginApprovalResponse::ApproveAlways);
+                        } else if ui.button("3/Esc - Zrušit").clicked()
+                            || ui.input(|i| {
+                                i.key_pressed(egui::Key::Num3) || i.key_pressed(egui::Key::Escape)
+                            })
+                        {
+                            let _ = sender.send(crate::app::types::PluginApprovalResponse::Deny);
+                            ws.gemini_cancellation_token
+                                .store(true, std::sync::atomic::Ordering::Relaxed);
+                        } else {
+                            // Re-insert if no action taken
+                            ws.pending_plugin_approval = Some((id, action_name, details, sender));
+                        }
+                    });
+                });
+        } else {
+            let (send_via_kb, resp) = StandardAI::ui_input(
+                ui,
+                prompt,
+                font_size,
+                &i18n.get("gemini-placeholder-prompt"),
+                &ws.gemini_history,
+                &mut ws.gemini_history_index,
+            );
+            edit_resp = Some(resp);
+
+            if send_via_kb && action.is_none() {
+                *action = Some(GeminiModalAction::Send);
+            }
         }
 
         ui.label(egui::RichText::new(i18n.get("gemini-label-prompt")).strong());
@@ -506,7 +560,9 @@ fn render_gemini_main_ui(
         // Auto-focus logic: we only want to grab focus once when the user might expect it
         // but not in every frame which breaks other background elements.
         if ws.gemini_focus_requested && !ws.gemini_show_settings {
-            edit_resp.request_focus();
+            if let Some(resp) = edit_resp {
+                resp.request_focus();
+            }
             ws.gemini_focus_requested = false;
         }
     });

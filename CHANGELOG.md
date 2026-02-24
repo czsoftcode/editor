@@ -1,3 +1,17 @@
+## [0.7.9] - 2026-02-24
+
+### Added
+- **True Safe Mode (Read-Only Editor)**:
+    - **Physical Write Protection**: The editor now physically prevents typing in files outside the sandbox when Safe Mode is enabled. Text can still be selected and navigated, but any changes are discarded before reaching the internal buffer.
+    - **Visual Clarity**: Smart typing features (auto-indent, brace completion) are automatically disabled in read-only mode to prevent confusing UI behavior.
+- **AI Agent Governance (Human-in-the-loop)**:
+    - **Manual Action Approval**: Introduced a mandatory approval flow for "dangerous" AI actions. When an agent requests to write a file or execute a command, the UI displays a yellow warning bar with action details.
+    - **Interactive Controls**: Added keyboard shortcuts for approval: `1` (Approve), `2` (Approve Always for this thread), `3`/`Esc` (Deny).
+    - **Instant Cancellation**: Pressing `Esc` during the AI "thinking" phase now immediately terminates the agent process using a cancellation token, preventing infinite loops or unwanted exploration.
+
+### Fixed
+- **Notification Spam**: Resolved the "waterfall" effect where failed autosave attempts in Safe Mode would generate hundreds of error toasts. Autosave now silently ignores protected files, while manual save (Ctrl+S) still provides feedback.
+
 ## [0.7.8] - 2026-02-24
 
 ### Added

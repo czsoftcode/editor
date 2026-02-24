@@ -10,3 +10,4 @@ parse_diff_test.rs
 check.sh
 .build_number
 test-docs/
+*.log

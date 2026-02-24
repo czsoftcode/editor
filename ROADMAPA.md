@@ -29,10 +29,10 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 **Cíl:** Transformace editoru na platformu pro plně autonomní AI agenty.
 
 - [ ] **Pokročilý Tool Use (MCP)** — agent může aplikovat patche, spouštět testy v sandboxu a dotazovat se LSP na definice.
-- [ ] **Sémantický kontext (StandardAI RAG)** — centrální implementace lokální vektorové indexace projektu. Sdílené vyhledávání v codebase dostupné pro všechny agenty (Gemini, Claude CLI atd.).
-- [ ] **Human-in-the-loop 2.0** — side-by-side diff preview pro všechny AI změny a potvrzování "nebezpečných" operací.
-- [ ] **Automatické zálohování (Safety Net)** — propojení `LocalHistory` s procesem schvalování změn (automatický snapshot původního souboru před přepsáním ze sandboxu).
-- [ ] **Reasoning Loop** — podpora pro cyklus Plán -> Akce -> Observace -> Korekce přímo v UI (interní monolog).
+- [x] **Sémantický kontext (StandardAI RAG)** — centrální implementace lokální vektorové indexace projektu. Sdílené vyhledávání v codebase dostupné pro všechny agenty (Gemini, Claude CLI atd.).
+- [x] **Human-in-the-loop 2.0** — side-by-side diff preview pro všechny AI změny a potvrzování "nebezpečných" operací.
+- [x] **Automatické zálohování (Safety Net)** — propojení `LocalHistory` s procesem schvalování změn (automatický snapshot původního souboru před přepsáním ze sandboxu).
+- [x] **Reasoning Loop** — podpora pro cyklus Plán -> Akce -> Observace -> Korekce přímo v UI (interní monolog).
 - [ ] **Git & Historie** — integrace s Gitem pro automatické commity a analýzu historie kódu agentem.
 
 ## Q3 2026 — Rozšíření platformy

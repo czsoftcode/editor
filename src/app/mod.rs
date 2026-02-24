@@ -431,6 +431,14 @@ impl EditorApp {
                         ws.gemini_last_payload = payload;
                     }
                 }
+                AppAction::PluginApprovalRequest(id, action, details, sender) => {
+                    if let Some(ws) = &mut self.root_ws
+                        && id == "gemini"
+                    {
+                        ws.pending_plugin_approval = Some((id, action, details, sender));
+                        ws.gemini_focus_requested = true;
+                    }
+                }
             }
         }
     }

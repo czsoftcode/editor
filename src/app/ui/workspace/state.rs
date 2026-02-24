@@ -186,6 +186,13 @@ pub(crate) struct WorkspaceState {
     pub sandbox_staged_last_refresh: std::time::Instant,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
     pub applied_settings_version: u64,
+    pub pending_plugin_approval: Option<(
+        String,
+        String,
+        String,
+        std::sync::mpsc::Sender<crate::app::types::PluginApprovalResponse>,
+    )>,
+    pub gemini_cancellation_token: Arc<AtomicBool>,
 }
 
 impl Drop for WorkspaceState {
@@ -588,5 +595,7 @@ pub(crate) fn init_workspace(
         sandbox_staged_last_refresh: std::time::Instant::now(),
         background_io_rx: None,
         applied_settings_version: 0,
+        pending_plugin_approval: None,
+        gemini_cancellation_token: Arc::new(AtomicBool::new(false)),
     }
 }

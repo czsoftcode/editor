@@ -84,6 +84,16 @@ impl Editor {
             }
         });
 
+        let is_readonly = if settings.project_read_only {
+            if let Some(path) = self.active_path() {
+                !path.to_string_lossy().contains(".polycredo/sandbox")
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
         let clicked = if self.is_markdown() {
             self.ui_markdown_split(
                 ui,
@@ -91,6 +101,7 @@ impl Editor {
                 i18n,
                 current_diagnostics.as_ref(),
                 lsp_client,
+                is_readonly,
             )
         } else {
             if self.is_svg() {
@@ -173,6 +184,7 @@ impl Editor {
                 i18n,
                 current_diagnostics.as_ref(),
                 lsp_client,
+                is_readonly,
             )
         };
 

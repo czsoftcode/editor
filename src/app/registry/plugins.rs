@@ -34,7 +34,7 @@ pub enum PluginStatus {
 }
 
 /// State passed to host functions
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct HostContext {
     pub active_file_path: Option<String>,
     pub active_file_content: Option<String>,
@@ -42,6 +42,22 @@ pub struct HostContext {
     pub semantic_index:
         Option<Arc<Mutex<crate::app::ui::workspace::semantic_index::SemanticIndex>>>,
     pub root_path: Option<PathBuf>,
+    pub auto_approved_actions: std::collections::HashSet<String>,
+    pub is_cancelled: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl Default for HostContext {
+    fn default() -> Self {
+        Self {
+            active_file_path: None,
+            active_file_content: None,
+            project_index: None,
+            semantic_index: None,
+            root_path: None,
+            auto_approved_actions: std::collections::HashSet::new(),
+            is_cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -739,6 +755,78 @@ fn host_get_active_content(
     Ok(())
 }
 
+fn request_plugin_approval(
+    state: &HostState,
+    action_id: &str,
+    action_name: &str,
+    action_details: &str,
+) -> Result<bool, extism::Error> {
+    let ctx = state
+        .context
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    // Check if cancelled
+    if ctx.is_cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(extism::Error::msg("Cancelled by user"));
+    }
+
+    if ctx.auto_approved_actions.contains(action_id) {
+        return Ok(true);
+    }
+
+    // Release lock before blocking wait
+    drop(ctx);
+
+    if let Some(sender) = &state.action_sender {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let _ = sender.send(crate::app::types::AppAction::PluginApprovalRequest(
+            state.plugin_id.clone(),
+            action_name.to_string(),
+            action_details.to_string(),
+            tx,
+        ));
+
+        if let Some(egui_ctx) = &state.egui_ctx {
+            egui_ctx.request_repaint();
+        }
+
+        // Wait for UI response. Periodically check cancellation flag.
+        loop {
+            // Check cancellation flag first
+            let is_cancelled = {
+                let ctx = state
+                    .context
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+                ctx.is_cancelled.load(std::sync::atomic::Ordering::Relaxed)
+            };
+            if is_cancelled {
+                return Err(extism::Error::msg("Cancelled by user"));
+            }
+
+            match rx.recv_timeout(std::time::Duration::from_millis(100)) {
+                Ok(response) => match response {
+                    crate::app::types::PluginApprovalResponse::Approve => return Ok(true),
+                    crate::app::types::PluginApprovalResponse::ApproveAlways => {
+                        let mut ctx = state
+                            .context
+                            .lock()
+                            .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+                        ctx.auto_approved_actions.insert(action_id.to_string());
+                        return Ok(true);
+                    }
+                    crate::app::types::PluginApprovalResponse::Deny => return Ok(false),
+                },
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(_) => return Ok(false), // Channel closed
+            }
+        }
+    }
+
+    Ok(true) // If no action_sender, assume approved (CLI fallback)
+}
+
 fn host_exec_in_sandbox(
     plugin: &mut CurrentPlugin,
     inputs: &[Val],
@@ -761,6 +849,26 @@ fn host_exec_in_sandbox(
             .copy_from_slice(err_msg.as_bytes());
         outputs[0] = Val::I64(h.offset() as i64);
         return Ok(());
+    }
+
+    // Ask user for approval
+    match request_plugin_approval(
+        &state,
+        "exec_in_sandbox",
+        "Spustit příkaz v Sandboxu",
+        &command_str,
+    ) {
+        Ok(true) => {}
+        Ok(false) => {
+            let err_msg = "USER CANCELLED ACTION";
+            let h = plugin.memory_alloc(err_msg.len() as u64)?;
+            plugin
+                .memory_bytes_mut(h)?
+                .copy_from_slice(err_msg.as_bytes());
+            outputs[0] = Val::I64(h.offset() as i64);
+            return Ok(());
+        }
+        Err(e) => return Err(e), // Cancelled via Esc (causes plugin error)
     }
 
     // Security: Only allow running within the sandbox
@@ -825,6 +933,17 @@ fn host_write_file(
         ));
     }
 
+    match request_plugin_approval(
+        &state,
+        "write_file",
+        &format!("Zapsat do souboru: {}", path_str),
+        content,
+    ) {
+        Ok(true) => {}
+        Ok(false) => return Err(anyhow::anyhow!("USER CANCELLED ACTION")),
+        Err(e) => return Err(e),
+    }
+
     let full_path = state.sandbox_root.join(rel_path);
 
     if let Some(parent) = full_path.parent() {
@@ -850,6 +969,16 @@ fn host_log_monologue(
     let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    {
+        let ctx = state
+            .context
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+        if ctx.is_cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(extism::Error::msg("Cancelled by user"));
+        }
+    }
 
     let message: String = plugin.memory_get_val(&inputs[0])?;
 
@@ -904,6 +1033,16 @@ fn host_log_payload(
     let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    {
+        let ctx = state
+            .context
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+        if ctx.is_cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(extism::Error::msg("Cancelled by user"));
+        }
+    }
 
     let payload: String = plugin.memory_get_val(&inputs[0])?;
 

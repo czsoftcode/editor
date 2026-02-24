@@ -124,6 +124,19 @@ pub(crate) enum AppAction {
     PluginUsage(String, u32),
     /// RAW JSON payload from a plugin for inspection
     PluginPayload(String, String),
+    /// Request for user approval for a dangerous AI action (plugin_id, action_name, action_details, sender)
+    PluginApprovalRequest(
+        String,
+        String,
+        String,
+        std::sync::mpsc::Sender<PluginApprovalResponse>,
+    ),
+}
+
+pub(crate) enum PluginApprovalResponse {
+    Approve,
+    ApproveAlways,
+    Deny,
 }
 
 pub(crate) struct AppShared {

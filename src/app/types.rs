@@ -120,6 +120,8 @@ pub(crate) enum AppAction {
     PluginResponse(String, Result<String, String>),
     /// Incremental "thought" or log from a plugin
     PluginMonologue(String, String),
+    /// Token usage info from a plugin
+    PluginUsage(String, u32),
 }
 
 pub(crate) struct AppShared {

@@ -110,6 +110,9 @@ impl EditorApp {
                 ipc::load_session_checked()
             };
 
+        let settings = std::sync::Arc::new(crate::settings::Settings::load());
+        let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
+
         // Register all projects
         for p in &paths_to_open {
             Ipc::register(p);
@@ -123,7 +126,7 @@ impl EditorApp {
         // Initialize root workspace
         let root_ws = paths_to_open
             .first()
-            .map(|p| init_workspace(p.clone(), &panel_state, cc.egui_ctx.clone()));
+            .map(|p| init_workspace(p.clone(), &panel_state, cc.egui_ctx.clone(), &settings));
 
         // Initialize secondary workspaces from session
         let mut counter = 0u64;
@@ -140,14 +143,12 @@ impl EditorApp {
                         p.clone(),
                         &panel_state,
                         cc.egui_ctx.clone(),
+                        &settings,
                     ))),
                     close_requested: Arc::new(AtomicBool::new(false)),
                 }
             })
             .collect();
-
-        let settings = std::sync::Arc::new(crate::settings::Settings::load());
-        let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
 
         let sandbox_root = paths_to_open
             .first()
@@ -156,6 +157,7 @@ impl EditorApp {
 
         let mut registry = crate::app::registry::Registry::new(sandbox_root);
         *registry.plugins.action_sender.lock().expect("lock") = Some(action_tx);
+        *registry.plugins.egui_ctx.lock().expect("lock") = Some(cc.egui_ctx.clone());
         registry.init_defaults();
 
         // Register default agents
@@ -336,7 +338,8 @@ impl EditorApp {
             egui::ViewportId::from_hash_of(format!("workspace_{}", self.next_viewport_counter));
         self.next_viewport_counter += 1;
         let panel_state = self.current_panel_state();
-        let ws = init_workspace(path.clone(), &panel_state, ctx.clone());
+        let settings = self.shared.lock().expect("lock").settings.clone();
+        let ws = init_workspace(path.clone(), &panel_state, ctx.clone(), &settings);
         self.secondary.push(SecondaryWorkspace {
             viewport_id: vid,
             state: Arc::new(Mutex::new(ws)),
@@ -386,9 +389,12 @@ impl EditorApp {
                         match result {
                             Ok(text) => {
                                 ws.gemini_response = Some(text.clone());
-                                // Update conversation history
+                                // Update conversation history - append AFTER monologue
                                 if let Some(last) = ws.gemini_conversation.last_mut() {
-                                    last.1 = text;
+                                    if !last.1.is_empty() {
+                                        last.1.push_str("\n\n");
+                                    }
+                                    last.1.push_str(&text);
                                 }
                             }
                             Err(err) => ws.plugin_error = Some(err),
@@ -399,7 +405,21 @@ impl EditorApp {
                     if let Some(ws) = &mut self.root_ws
                         && id == "gemini"
                     {
-                        ws.gemini_monologue.push(message);
+                        ws.gemini_monologue.push(message.clone());
+                        // Also append to the active conversation entry for permanence
+                        if let Some(last) = ws.gemini_conversation.last_mut() {
+                            if !last.1.is_empty() {
+                                last.1.push('\n');
+                            }
+                            last.1.push_str(&format!("> {}", message));
+                        }
+                    }
+                }
+                AppAction::PluginUsage(id, tokens) => {
+                    if let Some(ws) = &mut self.root_ws
+                        && id == "gemini"
+                    {
+                        ws.gemini_total_tokens += tokens;
                     }
                 }
             }
@@ -452,7 +472,8 @@ impl EditorApp {
                     if let Some(new_path) = render_workspace(ctx, &mut ws, &shared_arc) {
                         let panel = ws_to_panel_state(&ws);
                         let new_path_clone = new_path.clone();
-                        *ws = init_workspace(new_path, &panel, ctx.clone());
+                        let settings = shared_arc.lock().expect("lock").settings.clone();
+                        *ws = init_workspace(new_path, &panel, ctx.clone(), &settings);
                         ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
                             "PolyCredo Editor — {}",
                             ws.root_path.display()
@@ -716,7 +737,8 @@ impl eframe::App for EditorApp {
             if let Some(new_path) = reinit {
                 let panel = ws_to_panel_state(&ws);
                 let new_path_clone = new_path.clone();
-                ws = init_workspace(new_path, &panel, ctx.clone());
+                let settings = self.shared.lock().expect("lock").settings.clone();
+                ws = init_workspace(new_path, &panel, ctx.clone(), &settings);
                 ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
                     "PolyCredo Editor — {}",
                     ws.root_path.display()

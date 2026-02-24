@@ -108,27 +108,28 @@ impl StandardAI {
                     .stick_to_bottom(true)
                     .show(ui, |ui| {
                         for (q, a) in conversation {
-                            // Question
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    egui::RichText::new(">>>")
-                                        .color(question_text)
-                                        .monospace()
-                                        .size(font_size),
-                                );
-                                let mut q_mut = q.clone();
-                                ui.add(
-                                    egui::TextEdit::multiline(&mut q_mut)
-                                        .font(egui::FontId::monospace(font_size))
-                                        .text_color(question_text)
-                                        .code_editor()
-                                        .lock_focus(false)
-                                        .interactive(true)
-                                        .desired_width(f32::INFINITY),
-                                );
-                            });
-
-                            ui.add_space(4.0);
+                            // Question (only if not empty)
+                            if !q.is_empty() {
+                                ui.horizontal(|ui| {
+                                    ui.label(
+                                        egui::RichText::new(">>>")
+                                            .color(question_text)
+                                            .monospace()
+                                            .size(font_size),
+                                    );
+                                    let mut q_mut = q.clone();
+                                    ui.add(
+                                        egui::TextEdit::multiline(&mut q_mut)
+                                            .font(egui::FontId::monospace(font_size))
+                                            .text_color(question_text)
+                                            .code_editor()
+                                            .lock_focus(false)
+                                            .interactive(true)
+                                            .desired_width(f32::INFINITY),
+                                    );
+                                });
+                                ui.add_space(4.0);
+                            }
 
                             // Answer
                             if !a.is_empty() {

@@ -174,6 +174,7 @@ pub(crate) struct WorkspaceState {
     pub gemini_conversation: Vec<(String, String)>,
     pub gemini_system_prompt: String,
     pub gemini_language: String,
+    pub gemini_total_tokens: u32,
     pub gemini_response: Option<String>,
     pub gemini_loading: bool,
     pub markdown_cache: egui_commonmark::CommonMarkCache,
@@ -254,6 +255,7 @@ pub(crate) fn init_workspace(
     root_path: PathBuf,
     panel_state: &PersistentState,
     egui_ctx: egui::Context,
+    settings: &crate::settings::Settings,
 ) -> WorkspaceState {
     let mut file_tree = FileTree::new();
     file_tree.load(&root_path);
@@ -291,6 +293,12 @@ pub(crate) fn init_workspace(
     local_history.cleanup(50);
 
     let i18n = crate::i18n::I18n::from_system();
+
+    let gemini_model = settings
+        .plugins
+        .get("gemini")
+        .and_then(|s| s.config.get("MODEL").cloned())
+        .unwrap_or_else(|| "gemini-1.5-flash".to_string());
 
     WorkspaceState {
         file_tree,
@@ -353,7 +361,24 @@ pub(crate) fn init_workspace(
         gemini_history: Vec::new(),
         gemini_history_index: None,
         gemini_monologue: Vec::new(),
-        gemini_conversation: Vec::new(),
+        gemini_conversation: vec![(
+            String::new(),
+            format!(
+                r#"    ____        __      ______              __
+   / __ \____  / /_  __/ ____/_______  ____/ /___
+  / /_/ / __ \/ / / / / /   / ___/ _ \/ __  / __ \
+ / ____/ /_/ / / /_/ / /___/ /  /  __/ /_/ / /_/ /
+/_/    \____/_/\__, /\____/_/   \___/\__,_/\____/
+              /____/                              CLI
+
+ Version: {}
+ Model:   {}
+ Plan:    {}"#,
+                crate::config::CLI_VERSION,
+                gemini_model,
+                crate::config::CLI_TIER
+            ),
+        )],
         gemini_system_prompt: panel_state
             .gemini_system_prompt
             .clone()
@@ -362,6 +387,7 @@ pub(crate) fn init_workspace(
             .gemini_language
             .clone()
             .unwrap_or_else(|| i18n.lang().to_string()),
+        gemini_total_tokens: 0,
         gemini_response: None,
         gemini_loading: false,
         markdown_cache: egui_commonmark::CommonMarkCache::default(),

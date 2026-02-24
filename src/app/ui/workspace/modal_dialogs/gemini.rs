@@ -89,48 +89,59 @@ pub fn show(
             };
 
             if let Some((id, meta)) = pending_auth {
-                ui.centered_and_justified(|ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.add_space(20.0);
-                        ui.label(egui::RichText::new("🛡").size(48.0));
-                        ui.add_space(12.0);
+                ui.vertical_centered(|ui| {
+                    ui.add_space(40.0);
+                    ui.label(egui::RichText::new("🛡").size(64.0));
+                    ui.add_space(16.0);
 
-                        let mut args = fluent_bundle::FluentArgs::new();
-                        args.set("name", meta.name.clone());
-                        args.set("hosts", meta.allowed_hosts.join(", "));
-                        ui.label(
-                            egui::RichText::new(i18n.get_args("plugin-auth-bar-msg", &args))
-                                .strong()
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("name", meta.name.clone());
+                    args.set("hosts", meta.allowed_hosts.join(", "));
+                    ui.label(
+                        egui::RichText::new(i18n.get_args("plugin-auth-bar-msg", &args))
+                            .strong()
+                            .size(18.0),
+                    );
+
+                    ui.add_space(30.0);
+                    if ui
+                        .add(
+                            egui::Button::new(
+                                egui::RichText::new(format!(
+                                    "✔ {}",
+                                    i18n.get("gemini-btn-allow-start")
+                                ))
                                 .size(16.0),
-                        );
+                            )
+                            .fill(egui::Color32::from_rgb(40, 120, 40)),
+                        )
+                        .clicked()
+                    {
+                        let plugin_manager = {
+                            let sh = shared.lock().expect("lock");
+                            Arc::clone(&sh.registry.plugins)
+                        };
+                        let config = {
+                            let sh = shared.lock().expect("lock");
+                            sh.settings
+                                .plugins
+                                .get(&id)
+                                .map(|s| s.config.clone())
+                                .unwrap_or_default()
+                        };
 
-                        ui.add_space(20.0);
-                        ui.horizontal(|ui| {
-                            ui.allocate_ui(egui::vec2(ui.available_width(), 40.0), |ui| {
-                                ui.centered_and_justified(|ui| {
-                                    if ui
-                                        .button(
-                                            egui::RichText::new(format!(
-                                                "✔ {}",
-                                                i18n.get("gemini-btn-allow-start")
-                                            ))
-                                            .size(14.0),
-                                        )
-                                        .clicked()
-                                    {
-                                        let sh = shared.lock().expect("lock");
-                                        let config = sh
-                                            .settings
-                                            .plugins
-                                            .get(&id)
-                                            .map(|s| s.config.clone())
-                                            .unwrap_or_default();
-                                        let _ = sh.registry.plugins.authorize(&id, &config);
-                                    }
-                                });
-                            });
-                        });
-                    });
+                        if let Err(e) = plugin_manager.authorize(&id, &config) {
+                            ws.plugin_error = Some(format!("Authorization failed: {}", e));
+                        }
+                        ui.ctx().request_repaint();
+                    }
+
+                    ui.add_space(12.0);
+                    ui.label(
+                        egui::RichText::new(i18n.get("plugin-auth-bar-hint"))
+                            .small()
+                            .weak(),
+                    );
                 });
                 return;
             }
@@ -200,6 +211,47 @@ pub fn show(
                 ui.separator();
                 ui.add_space(8.0);
 
+                // FOOTER / INFO
+                ui.horizontal(|ui| {
+                    let path_str = ws.sandbox.root.to_string_lossy();
+                    let display_path = if let Some(home) = dirs::home_dir() {
+                        let home_str = home.to_string_lossy();
+                        if path_str.starts_with(&*home_str) {
+                            path_str.replacen(&*home_str, "~", 1)
+                        } else {
+                            path_str.into_owned()
+                        }
+                    } else {
+                        path_str.into_owned()
+                    };
+
+                    if loading {
+                        // Animated color spinner
+                        let time = ui.input(|i| i.time);
+                        let hue = (time * 0.5).fract() as f32;
+                        let color: egui::Color32 =
+                            egui::ecolor::Hsva::new(hue, 0.8, 1.0, 1.0).into();
+                        ui.add(egui::Spinner::new().color(color));
+                    } else {
+                        ui.label(egui::RichText::new("📁").weak());
+                    }
+
+                    ui.label(egui::RichText::new(display_path).weak());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let tokens = ws.gemini_total_tokens;
+                        let token_text = if tokens >= 1_000_000 {
+                            format!("{:.2}M", tokens as f32 / 1_000_000.0)
+                        } else if tokens >= 1_000 {
+                            format!("{:.2}k", tokens as f32 / 1_000.0)
+                        } else {
+                            format!("{}", tokens)
+                        };
+                        ui.label(
+                            egui::RichText::new(format!("Session tokens: {}", token_text)).weak(),
+                        );
+                    });
+                });
+
                 // 2. ODPOVĚĎ AI (Vyplní zbytek nahoře)
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
                     if !ws.gemini_conversation.is_empty() {
@@ -255,22 +307,23 @@ pub fn show(
         match act {
             GeminiModalAction::Send => {
                 if !ws.gemini_prompt.trim().is_empty() {
+                    let captured_prompt = ws.gemini_prompt.clone();
+
                     // Add to history
-                    let p = ws.gemini_prompt.clone();
-                    if ws.gemini_history.last() != Some(&p) {
-                        ws.gemini_history.push(p.clone());
+                    if ws.gemini_history.last() != Some(&captured_prompt) {
+                        ws.gemini_history.push(captured_prompt.clone());
                     }
                     ws.gemini_history_index = None;
                     ws.gemini_monologue.clear();
 
                     // Add to conversation view and CLEAR prompt
-                    ws.gemini_conversation.push((p.clone(), String::new()));
+                    ws.gemini_conversation
+                        .push((captured_prompt.clone(), String::new()));
                     ws.gemini_prompt.clear();
 
                     ws.gemini_loading = true;
                     ws.gemini_response = None;
 
-                    let p = ws.gemini_prompt.clone();
                     let sys_prompt = ws.gemini_system_prompt.clone();
                     let lang = ws.gemini_language.clone();
 
@@ -312,7 +365,8 @@ pub fn show(
                         config.insert("SYSTEM_PROMPT".to_string(), sys_prompt);
                         config.insert("LANGUAGE".to_string(), lang);
 
-                        let result = plugin_manager.call("gemini", "ask_gemini", &p, &config);
+                        let result =
+                            plugin_manager.call("gemini", "ask_gemini", &captured_prompt, &config);
                         let mut shared_lock = shared_arc.lock().expect("lock");
                         shared_lock
                             .actions

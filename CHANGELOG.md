@@ -8,6 +8,10 @@
 - **Unified AI CLI (StandardAI)**:
     - **Interactive Terminal UI**: Replaced standard Markdown rendering with a dedicated terminal-style output (monospace, dark theme, auto-scroll).
     - **Conversation History**: Full support for persistent chat history (Question/Answer pairs) within the current session.
+    - **Precise Token Tracking**:
+        - Introduced `log_usage` to report exact `totalTokenCount` from Gemini API.
+        - Implemented cumulative **Session tokens** counter in the footer.
+        - Detailed token breakdown (Input/Output) displayed in the real-time monologue.
     - **CLI-native Keyboard Handling**:
         - `Enter` to send queries (auto-clears prompt).
         - `Shift+Enter` / `Ctrl+J` for new lines.
@@ -16,10 +20,12 @@
     - **Hardcoded Security Mandates**: Implemented immutable safety rules in both Rust (Host) and WASM (Guest) to strictly prevent agents from accessing paths outside the sandbox.
     - **Path Traversal Protection**: Added technical validation to block `..` and absolute paths in agent-executed commands.
     - **Contextual Authorization**: Moved plugin permission requests (e.g., internet access) directly into the agent's dialog for a less intrusive workflow.
-- **Agent Personalization**:
+- **Agent Personalization & Polish**:
     - **Dynamic Role Configuration**: Added "Agent Settings" to the Gemini modal, allowing users to customize the system prompt and communication language.
+    - **Visual Feedback**: Added an animated, color-changing activity spinner in the footer.
     - **Localized AI Instructions**: Created `ai.ftl` files for all supported languages (CS, EN, SK, DE, RU) with factory-default agent instructions.
-    - **Persistence**: Agent settings (role, language) and window position are now saved per-project in `PersistentState`.
+    - **Persistence**: Agent settings (role, language), token counts, and window position are now saved per-project in `PersistentState`.
+    - **UI Refinements**: Shortened sandbox root path in the footer with '~' and enlarged directory label for better readability.
 
 ### Fixed
 - **UI Focus Stability**: Resolved an issue where the main AI prompt would steal focus from settings input fields.

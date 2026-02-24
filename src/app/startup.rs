@@ -129,9 +129,10 @@ fn open_workspace(
         .map(ws_to_panel_state)
         .unwrap_or_else(|| saved_panel_state.clone());
 
+    let settings = shared.lock().expect("lock").settings.clone();
     // User opened a new project — missing session projects are no longer relevant
     missing_session_paths.clear();
-    *root_ws = Some(init_workspace(path, &ps, ctx.clone()));
+    *root_ws = Some(init_workspace(path, &ps, ctx.clone(), &settings));
 
     // Save session
     let mut paths = Vec::new();

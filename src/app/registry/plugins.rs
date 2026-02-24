@@ -70,6 +70,7 @@ struct HostState {
     blacklist: Arc<Mutex<Blacklist>>,
     context: Arc<Mutex<HostContext>>,
     action_sender: Option<std::sync::mpsc::Sender<crate::app::types::AppAction>>,
+    egui_ctx: Option<eframe::egui::Context>,
 }
 
 impl HostState {
@@ -113,6 +114,7 @@ pub struct PluginManager {
     pub blacklist: Arc<Mutex<Blacklist>>,
     pub current_context: Arc<Mutex<HostContext>>,
     pub action_sender: Arc<Mutex<Option<std::sync::mpsc::Sender<crate::app::types::AppAction>>>>,
+    pub egui_ctx: Arc<Mutex<Option<eframe::egui::Context>>>,
 }
 
 impl PluginManager {
@@ -123,6 +125,7 @@ impl PluginManager {
             blacklist: Arc::new(Mutex::new(Blacklist::default())),
             current_context: Arc::new(Mutex::new(HostContext::default())),
             action_sender: Arc::new(Mutex::new(None)),
+            egui_ctx: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -292,6 +295,7 @@ impl PluginManager {
             blacklist: Arc::clone(&self.blacklist),
             context: Arc::clone(&self.current_context),
             action_sender: self.action_sender.lock().expect("lock").clone(),
+            egui_ctx: self.egui_ctx.lock().expect("lock").clone(),
         };
 
         let functions = vec![
@@ -334,8 +338,15 @@ impl PluginManager {
                 "log_monologue",
                 [ValType::I64],
                 [],
-                UserData::new(host_state),
+                UserData::new(host_state.clone()),
                 host_log_monologue,
+            ),
+            Function::new(
+                "log_usage",
+                [ValType::I64],
+                [],
+                UserData::new(host_state),
+                host_log_usage,
             ),
         ];
 
@@ -616,6 +627,37 @@ fn host_log_monologue(
             state.plugin_id.clone(),
             message,
         ));
+    }
+
+    if let Some(ctx) = &state.egui_ctx {
+        ctx.request_repaint();
+    }
+
+    Ok(())
+}
+
+fn host_log_usage(
+    _plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    _outputs: &mut [Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let tokens = inputs[0].i64().unwrap_or(0) as u32;
+
+    if let Some(sender) = &state.action_sender {
+        let _ = sender.send(crate::app::types::AppAction::PluginUsage(
+            state.plugin_id.clone(),
+            tokens,
+        ));
+    }
+
+    if let Some(ctx) = &state.egui_ctx {
+        ctx.request_repaint();
     }
 
     Ok(())

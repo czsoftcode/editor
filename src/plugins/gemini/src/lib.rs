@@ -75,8 +75,20 @@ struct FunctionResponse {
 #[derive(Deserialize)]
 struct GeminiResponse {
     candidates: Option<Vec<Candidate>>,
+    #[serde(rename = "usageMetadata")]
+    usage_metadata: Option<UsageMetadata>,
     #[serde(rename = "promptFeedback")]
     prompt_feedback: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize)]
+struct UsageMetadata {
+    #[serde(rename = "promptTokenCount")]
+    prompt_token_count: u32,
+    #[serde(rename = "candidatesTokenCount")]
+    candidates_token_count: u32,
+    #[serde(rename = "totalTokenCount")]
+    total_token_count: u32,
 }
 
 #[derive(Deserialize, Clone)]
@@ -93,6 +105,7 @@ extern "ExtismHost" {
     fn get_active_file_content() -> String;
     fn exec_in_sandbox(command: String) -> String;
     fn log_monologue(message: String);
+    fn log_usage(tokens: u64);
 }
 
 #[plugin_fn]
@@ -181,11 +194,13 @@ pub fn ask_gemini(input: String) -> FnResult<String> {
 
     // 4. API Request Loop (to handle function calls)
     let mut current_iteration = 0;
+    let mut last_total_tokens = 0u64;
     const MAX_ITERATIONS: i32 = 10;
 
     loop {
         current_iteration += 1;
         if current_iteration > MAX_ITERATIONS {
+            let _ = unsafe { log_usage(last_total_tokens) };
             return Ok("Error: AI exceeded maximum tool call depth.".to_string());
         }
 
@@ -200,7 +215,11 @@ pub fn ask_gemini(input: String) -> FnResult<String> {
                 }],
             }),
             contents: messages.clone(),
-            tools: if current_iteration == 1 { tools.clone() } else { vec![] }, 
+            tools: if current_iteration == 1 {
+                tools.clone()
+            } else {
+                vec![]
+            },
         };
 
         let body = serde_json::to_string(&req)?;
@@ -211,22 +230,40 @@ pub fn ask_gemini(input: String) -> FnResult<String> {
 
         let resp = http::request(&http_req, Some(body))?;
         if resp.status() != 200 && resp.status() != 0 {
-            return Err(anyhow::anyhow!("Gemini API error ({}): {}", resp.status(), String::from_utf8_lossy(&resp.body())).into());
+            let _ = unsafe { log_usage(last_total_tokens) };
+            return Err(anyhow::anyhow!(
+                "Gemini API error ({}): {}",
+                resp.status(),
+                String::from_utf8_lossy(&resp.body())
+            )
+            .into());
         }
 
         let body_bytes = resp.body();
-        let gemini_resp: GeminiResponse = serde_json::from_slice(&body_bytes)
-            .map_err(|e| {
-                let raw_body = String::from_utf8_lossy(&body_bytes);
-                anyhow::anyhow!("Failed to parse Gemini response: {}. Body: {}", e, raw_body)
-            })?;
+        let gemini_resp: GeminiResponse = serde_json::from_slice(&body_bytes).map_err(|e| {
+            let raw_body = String::from_utf8_lossy(&body_bytes);
+            anyhow::anyhow!("Failed to parse Gemini response: {}. Body: {}", e, raw_body)
+        })?;
+
+        if let Some(usage) = &gemini_resp.usage_metadata {
+            last_total_tokens = usage.total_token_count as u64;
+            let usage_msg = format!(
+                "Token usage: {} (In: {}, Out: {})",
+                usage.total_token_count, usage.prompt_token_count, usage.candidates_token_count
+            );
+            let _ = unsafe { log_monologue(usage_msg) };
+        }
 
         let candidate = if let Some(candidates) = gemini_resp.candidates {
-            candidates.into_iter().next().ok_or(anyhow::anyhow!("Gemini returned empty candidates."))?
+            candidates
+                .into_iter()
+                .next()
+                .ok_or(anyhow::anyhow!("Gemini returned empty candidates."))?
         } else {
+            let _ = unsafe { log_usage(last_total_tokens) };
             return Err(anyhow::anyhow!("Gemini returned no candidates.").into());
         };
-        
+
         let mut has_function_call = false;
         let mut response_parts = Vec::new();
 
@@ -234,21 +271,24 @@ pub fn ask_gemini(input: String) -> FnResult<String> {
         for part in &candidate.content.parts {
             if let Some(function_call) = &part.function_call {
                 has_function_call = true;
-                
-                let func_name = function_call.name.strip_prefix("default_api:").unwrap_or(&function_call.name);
-                
+
+                let func_name = function_call
+                    .name
+                    .strip_prefix("default_api:")
+                    .unwrap_or(&function_call.name);
+
                 let result = if func_name == "read_project_file" {
                     let path = function_call.args["path"].as_str().unwrap_or("");
                     let log_msg = format!("Reading file: {}", path);
                     let _ = unsafe { log_monologue(log_msg) };
-                    
+
                     let content = unsafe { read_project_file(path.to_string())? };
                     serde_json::json!({ "content": content })
                 } else if func_name == "exec_in_sandbox" {
                     let cmd = function_call.args["command"].as_str().unwrap_or("");
                     let log_msg = format!("Executing: {}", cmd);
                     let _ = unsafe { log_monologue(log_msg) };
-                    
+
                     let output = unsafe { exec_in_sandbox(cmd.to_string())? };
                     serde_json::json!({ "output": output })
                 } else {
@@ -277,7 +317,11 @@ pub fn ask_gemini(input: String) -> FnResult<String> {
                 parts: response_parts,
             });
         } else {
-            let answer = candidate.content.parts.iter()
+            let _ = unsafe { log_usage(last_total_tokens) };
+            let answer = candidate
+                .content
+                .parts
+                .iter()
                 .find_map(|p| p.text.clone())
                 .unwrap_or_else(|| "No text response".to_string());
             return Ok(answer);

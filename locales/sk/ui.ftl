@@ -257,7 +257,7 @@ gemini-loading = Gemini premýšľa…
 gemini-label-prompt = Tvoj dotaz:
 gemini-placeholder-prompt = Napíš zadanie pre AI...
 gemini-btn-send = Odoslať
-gemini-btn-new = Nový dotaz
+gemini-btn-new = Nové vlákno
 
 ## Chyba pluginu
 plugin-error-title = Chyba pluginu

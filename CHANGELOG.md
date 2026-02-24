@@ -1,3 +1,37 @@
+## [0.7.7] - 2026-02-24
+
+### Added
+- **AI Inspector**:
+    - Introduced a dedicated **AI Inspector** panel within the Gemini modal (accessible via 🔍 icon).
+    - Real-time visualization of the **full JSON payload** sent to the AI, including system prompts and raw conversation history.
+    - Detailed **Context Trace**: Displays exactly what the AI sees, including lists of open files (with active tab indicator) and current build errors.
+    - Functional utilities: One-click "Copy" to clipboard and "Clear" trace log.
+- **Gemini CLI Branding & UX**:
+    - **Polished ASCII Logo**: Implemented a dynamic, per-line color gradient for the PolyCredo logo (Sky Blue for "Poly", Mint Green for "Credo", and Gold for "CLI").
+    - **Slant-aware Coloring**: Logic precisely follows the diagonal gap between letters for a professional, high-fidelity look.
+    - **Refined Metadata**: Version, Model, and Plan info now use soft silver/gray tones to remain readable without distracting from the main logo.
+- **Persistent AI Configuration**:
+    - Added a **✔ Save** button to Gemini settings to persist custom system prompts and language preferences globally.
+    - Settings are now stored in `~/.config/polycredo-editor/settings.toml` and survive application restarts.
+    - New **Factory Reset** logic to quickly revert to default agent instructions.
+
+### Changed
+- **Conversational Continuity (Thread Support)**:
+    - Updated the Gemini plugin to support **full conversation history**. The AI now "remembers" previous messages within a thread.
+    - Refactored host-guest communication to pass history as a structured JSON payload instead of a single string.
+- **UI Refinements**:
+    - **"New Thread" (Nové vlákno)**: Rebranded "New Query" across all localizations (CS, SK, EN, DE, RU) to better reflect modern AI interaction patterns.
+    - **Thread Reset**: Starting a new thread now clears both the UI and the underlying AI memory while restoring the welcoming ASCII logo.
+    - **Enhanced Typography**: Increased Markdown font size to **120%** and expanded block spacing (12.0px) for significantly better readability of AI responses.
+    - **Syntax Highlighting**: Enabled `better_syntax_highlighting` for the Markdown viewer, providing colored code blocks in AI answers.
+- **Ergonomic Layout**:
+    - Redesigned the Gemini modal footer to align agent controls to the left and the "Close" button to the far right.
+    - Optimized the modal using `SidePanel` / `CentralPanel` internal layouts to ensure elements fill the entire window height and don't clump at the top.
+
+### Fixed
+- **Missing Context**: Resolved an issue where AI agents would lose track of the conversation after the first message.
+- **UI Stability**: Fixed "stuck-at-top" layout bugs in the Gemini dialog through proper panel-inside-modal orchestration.
+
 ## [0.7.6] - 2026-02-23
 
 ### Added

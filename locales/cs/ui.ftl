@@ -269,7 +269,7 @@ gemini-loading = Gemini přemýšlí…
 gemini-label-prompt = Tvůj dotaz:
 gemini-placeholder-prompt = Napiš zadání pro AI (např. „Vysvětli tento kód“ nebo „Navrhni refaktoring“)...
 gemini-btn-send = Odeslat
-gemini-btn-new = Nový dotaz
+gemini-btn-new = Nové vlákno
 
 ## Nastavení
 settings-suggested-patterns = Doporučené vzory:

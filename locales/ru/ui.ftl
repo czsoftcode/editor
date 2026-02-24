@@ -274,7 +274,7 @@ gemini-loading = Gemini думает…
 gemini-label-prompt = Ваш запрос:
 gemini-placeholder-prompt = Введите задание для ИИ (например, «Объясни этот код» или «Предложи рефакторинг»)...
 gemini-btn-send = Отправить
-gemini-btn-new = Новый запрос
+gemini-btn-new = Новая ветка
 
 ## Настройки
 settings-suggested-patterns = Рекомендуемые шаблоны:

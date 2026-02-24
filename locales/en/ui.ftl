@@ -263,7 +263,7 @@ gemini-loading = Gemini is thinking…
 gemini-label-prompt = Your prompt:
 gemini-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
 gemini-btn-send = Send
-gemini-btn-new = New Query
+gemini-btn-new = New Thread
 
 ## Settings
 settings-suggested-patterns = Suggested patterns:

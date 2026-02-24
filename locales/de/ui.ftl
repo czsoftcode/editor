@@ -257,7 +257,7 @@ gemini-loading = Gemini denkt nach…
 gemini-label-prompt = Deine Frage:
 gemini-placeholder-prompt = Gib eine Anweisung für die KI ein...
 gemini-btn-send = Senden
-gemini-btn-new = Neue Anfrage
+gemini-btn-new = Neuer Thread
 
 ## Plugin-Fehler
 plugin-error-title = Plugin-Fehler

@@ -1,6 +1,6 @@
 [package]
 name = "polycredo-editor"
-version = "0.7.6"
+version = "0.7.7"
 edition = "2024"
 
 [dependencies]
@@ -15,7 +15,7 @@ notify = "7"
 rfd = "0.15"
 regex = "1"
 pulldown-cmark = "0.12"
-egui_commonmark = "0.20"
+egui_commonmark = { version = "0.20", features = ["better_syntax_highlighting"] }
 egui_term = "0.1"
 alacritty_terminal = "0.25"
 dirs = "6"

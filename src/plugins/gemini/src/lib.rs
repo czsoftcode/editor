@@ -108,8 +108,18 @@ extern "ExtismHost" {
     fn log_usage(tokens: u64);
 }
 
+#[derive(Deserialize)]
+struct PluginInput {
+    prompt: String,
+    history: Vec<(String, String)>,
+}
+
 #[plugin_fn]
-pub fn ask_gemini(input: String) -> FnResult<String> {
+pub fn ask_gemini(input_json: String) -> FnResult<String> {
+    let input: PluginInput = serde_json::from_str(&input_json).map_err(|e| {
+        anyhow::anyhow!("Failed to parse plugin input JSON: {}. Input was: {}", e, input_json)
+    })?;
+    
     let api_key = config::get("API_KEY")?.ok_or(anyhow::anyhow!("Missing API_KEY in plugin settings"))?;
     let model = config::get("MODEL")?.unwrap_or_else(|| "gemini-1.5-flash".to_string());
     
@@ -118,12 +128,13 @@ pub fn ask_gemini(input: String) -> FnResult<String> {
     let active_content = unsafe { get_active_file_content()? };
     let file_list = unsafe { list_project_files()? };
 
+    // ... (rest of the URL and tools definition stays the same)
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
         model
     );
 
-    // 2. Define Tools (Function Declarations)
+    // 2. Define Tools (stay the same)
     let tools = vec![Tool {
         function_declarations: vec![
             FunctionDeclaration {
@@ -161,7 +172,26 @@ pub fn ask_gemini(input: String) -> FnResult<String> {
         ],
     }];
 
-    // 3. Build Chat History / Prompt
+    // 3. Build Chat History
+    let mut messages = Vec::new();
+    
+    // Add history
+    for (q, a) in &input.history {
+        if q.is_empty() && a.is_empty() { continue; }
+        if !q.is_empty() {
+            messages.push(Content {
+                role: "user".to_string(),
+                parts: vec![Part { text: Some(q.clone()), function_call: None, function_response: None, extra: HashMap::new() }],
+            });
+        }
+        if !a.is_empty() {
+            messages.push(Content {
+                role: "model".to_string(),
+                parts: vec![Part { text: Some(a.clone()), function_call: None, function_response: None, extra: HashMap::new() }],
+            });
+        }
+    }
+
     let default_system_instruction = "You are an expert developer assistant with full access to a secure project sandbox.
     You can read files using 'read_project_file' and execute commands using 'exec_in_sandbox'.
     When you are about to use a tool, explain what you are doing. 
@@ -180,9 +210,9 @@ pub fn ask_gemini(input: String) -> FnResult<String> {
         context_info.push_str(&format!("Current active file ({}):\n```\n{}\n```\n", active_path, active_content));
     }
 
-    let user_prompt = format!("Context:\n{}\n\nUser Question: {}", context_info, input);
+    let user_prompt = format!("Context:\n{}\n\nUser Question: {}", context_info, input.prompt);
     
-    let mut messages = vec![Content {
+    messages.push(Content {
         role: "user".to_string(),
         parts: vec![Part {
             text: Some(user_prompt),
@@ -190,12 +220,12 @@ pub fn ask_gemini(input: String) -> FnResult<String> {
             function_response: None,
             extra: HashMap::new(),
         }],
-    }];
+    });
 
-    // 4. API Request Loop (to handle function calls)
+    // 4. API Request Loop (stays the same)
     let mut current_iteration = 0;
     let mut last_total_tokens = 0u64;
-    const MAX_ITERATIONS: i32 = 10;
+    const MAX_ITERATIONS: i32 = 20;
 
     loop {
         current_iteration += 1;

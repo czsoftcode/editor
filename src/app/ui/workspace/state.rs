@@ -175,6 +175,8 @@ pub(crate) struct WorkspaceState {
     pub gemini_system_prompt: String,
     pub gemini_language: String,
     pub gemini_total_tokens: u32,
+    pub gemini_inspector_open: bool,
+    pub gemini_last_payload: String,
     pub gemini_response: Option<String>,
     pub gemini_loading: bool,
     pub markdown_cache: egui_commonmark::CommonMarkCache,
@@ -364,11 +366,11 @@ pub(crate) fn init_workspace(
         gemini_conversation: vec![(
             String::new(),
             format!(
-                r#"    ____        __      ______              __
-   / __ \____  / /_  __/ ____/_______  ____/ /___
-  / /_/ / __ \/ / / / / /   / ___/ _ \/ __  / __ \
- / ____/ /_/ / / /_/ / /___/ /  /  __/ /_/ / /_/ /
-/_/    \____/_/\__, /\____/_/   \___/\__,_/\____/
+                r#"    ____        __       ______              __
+   / __ \____  / /_  __ / ____/_______  ____/ /___
+  / /_/ / __ \/ / / / // /   / ___/ _ \/ __  / __ \
+ / ____/ /_/ / / /_/ // /___/ /  /  __/ /_/ / /_/ /
+/_/    \____/_/\__, / \____/_/   \___/\__,_/\____/
               /____/                              CLI
 
  Version: {}
@@ -379,15 +381,19 @@ pub(crate) fn init_workspace(
                 crate::config::CLI_TIER
             ),
         )],
-        gemini_system_prompt: panel_state
-            .gemini_system_prompt
-            .clone()
+        gemini_system_prompt: settings
+            .plugins
+            .get("gemini")
+            .and_then(|s| s.config.get("SYSTEM_PROMPT").cloned())
             .unwrap_or_else(|| i18n.get("gemini-default-prompt")),
-        gemini_language: panel_state
-            .gemini_language
-            .clone()
+        gemini_language: settings
+            .plugins
+            .get("gemini")
+            .and_then(|s| s.config.get("LANGUAGE").cloned())
             .unwrap_or_else(|| i18n.lang().to_string()),
         gemini_total_tokens: 0,
+        gemini_inspector_open: false,
+        gemini_last_payload: String::new(),
         gemini_response: None,
         gemini_loading: false,
         markdown_cache: egui_commonmark::CommonMarkCache::default(),

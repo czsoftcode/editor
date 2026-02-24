@@ -61,7 +61,8 @@ impl StandardModal {
             .default_size(self.default_size)
             .min_width(self.min_size.x)
             .min_height(self.min_size.y)
-            .default_pos(ctx.screen_rect().center() - self.default_size / 2.0) // Centrované jen při prvním zobrazení
+            .pivot(egui::Align2::CENTER_CENTER)
+            .default_pos(ctx.screen_rect().center())
             .show(ctx, |ui| {
                 ui.set_min_height(self.min_size.y - 20.0);
                 result = Some(content(ui));

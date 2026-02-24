@@ -42,6 +42,7 @@ const RESOURCES_CS: &[&str] = &[
     include_str!("../locales/cs/ui.ftl"),
     include_str!("../locales/cs/dialogs.ftl"),
     include_str!("../locales/cs/errors.ftl"),
+    include_str!("../locales/cs/ai.ftl"),
 ];
 
 const RESOURCES_EN: &[&str] = &[
@@ -49,6 +50,7 @@ const RESOURCES_EN: &[&str] = &[
     include_str!("../locales/en/ui.ftl"),
     include_str!("../locales/en/dialogs.ftl"),
     include_str!("../locales/en/errors.ftl"),
+    include_str!("../locales/en/ai.ftl"),
 ];
 
 const RESOURCES_SK: &[&str] = &[
@@ -56,6 +58,7 @@ const RESOURCES_SK: &[&str] = &[
     include_str!("../locales/sk/ui.ftl"),
     include_str!("../locales/sk/dialogs.ftl"),
     include_str!("../locales/sk/errors.ftl"),
+    include_str!("../locales/sk/ai.ftl"),
 ];
 
 const RESOURCES_DE: &[&str] = &[
@@ -63,6 +66,7 @@ const RESOURCES_DE: &[&str] = &[
     include_str!("../locales/de/ui.ftl"),
     include_str!("../locales/de/dialogs.ftl"),
     include_str!("../locales/de/errors.ftl"),
+    include_str!("../locales/de/ai.ftl"),
 ];
 
 const RESOURCES_RU: &[&str] = &[
@@ -70,6 +74,7 @@ const RESOURCES_RU: &[&str] = &[
     include_str!("../locales/ru/ui.ftl"),
     include_str!("../locales/ru/dialogs.ftl"),
     include_str!("../locales/ru/errors.ftl"),
+    include_str!("../locales/ru/ai.ftl"),
 ];
 
 pub(crate) fn resources_for(lang: &str) -> &'static [&'static str] {

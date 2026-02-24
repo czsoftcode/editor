@@ -177,7 +177,7 @@ pub(crate) fn render_workspace(
 
     render_sandbox_staged_bar(ctx, ws, i18n);
     render_lsp_setup_bar(ctx, ws, i18n);
-    render_plugin_auth_bar(ctx, shared, i18n);
+    // render_plugin_auth_bar(ctx, shared, i18n); // Now handled inside specific plugin dialogs
     render_sandbox_deletion_sync_dialog(ctx, ws, i18n);
 
     // Auto-restart LSP if missing (with 30s debounce)

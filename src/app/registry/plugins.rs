@@ -65,9 +65,11 @@ impl Blacklist {
 
 #[derive(Clone)]
 struct HostState {
+    plugin_id: String,
     sandbox_root: PathBuf,
     blacklist: Arc<Mutex<Blacklist>>,
     context: Arc<Mutex<HostContext>>,
+    action_sender: Option<std::sync::mpsc::Sender<crate::app::types::AppAction>>,
 }
 
 impl HostState {
@@ -110,6 +112,7 @@ pub struct PluginManager {
     pub sandbox_root: PathBuf,
     pub blacklist: Arc<Mutex<Blacklist>>,
     pub current_context: Arc<Mutex<HostContext>>,
+    pub action_sender: Arc<Mutex<Option<std::sync::mpsc::Sender<crate::app::types::AppAction>>>>,
 }
 
 impl PluginManager {
@@ -119,6 +122,7 @@ impl PluginManager {
             sandbox_root,
             blacklist: Arc::new(Mutex::new(Blacklist::default())),
             current_context: Arc::new(Mutex::new(HostContext::default())),
+            action_sender: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -203,8 +207,12 @@ impl PluginManager {
                 wasm_bytes,
             });
         } else {
-            let plugin =
-                self.create_instance(&wasm_bytes, &metadata, &std::collections::HashMap::new())?;
+            let plugin = self.create_instance(
+                &id,
+                &wasm_bytes,
+                &metadata,
+                &std::collections::HashMap::new(),
+            )?;
             plugins.push(LoadedPlugin {
                 id,
                 path,
@@ -239,7 +247,7 @@ impl PluginManager {
             }
         };
 
-        let plugin = self.create_instance(&wasm_bytes, &metadata, plugin_config)?;
+        let plugin = self.create_instance(plugin_id, &wasm_bytes, &metadata, plugin_config)?;
         let config_hash = self.calculate_config_hash(plugin_config);
 
         let mut plugins = self.plugins.lock().expect("lock");
@@ -267,6 +275,7 @@ impl PluginManager {
 
     fn create_instance(
         &self,
+        plugin_id: &str,
         wasm_bytes: &[u8],
         metadata: &PluginMetadata,
         plugin_config: &std::collections::HashMap<String, String>,
@@ -278,9 +287,11 @@ impl PluginManager {
         manifest = manifest.with_config(plugin_config.iter());
 
         let host_state = HostState {
+            plugin_id: plugin_id.to_string(),
             sandbox_root: self.sandbox_root.clone(),
             blacklist: Arc::clone(&self.blacklist),
             context: Arc::clone(&self.current_context),
+            action_sender: self.action_sender.lock().expect("lock").clone(),
         };
 
         let functions = vec![
@@ -309,8 +320,22 @@ impl PluginManager {
                 "get_active_file_content",
                 [],
                 [ValType::I64],
-                UserData::new(host_state),
+                UserData::new(host_state.clone()),
                 host_get_active_content,
+            ),
+            Function::new(
+                "exec_in_sandbox",
+                [ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_exec_in_sandbox,
+            ),
+            Function::new(
+                "log_monologue",
+                [ValType::I64],
+                [],
+                UserData::new(host_state),
+                host_log_monologue,
             ),
         ];
 
@@ -351,7 +376,7 @@ impl PluginManager {
         };
 
         if needs_reinit {
-            let plugin = self.create_instance(&wasm_bytes, &metadata, current_config)?;
+            let plugin = self.create_instance(plugin_id, &wasm_bytes, &metadata, current_config)?;
             let config_hash = self.calculate_config_hash(current_config);
             let mut plugins = self.plugins.lock().expect("lock");
             if let Some(p) = plugins.iter_mut().find(|p| p.id == plugin_id) {
@@ -522,6 +547,77 @@ fn host_get_active_content(
         .memory_bytes_mut(h)?
         .copy_from_slice(content.as_bytes());
     outputs[0] = Val::I64(h.offset() as i64);
+    Ok(())
+}
+
+fn host_exec_in_sandbox(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    outputs: &mut [Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let command_str: String = plugin.memory_get_val(&inputs[0])?;
+
+    // HARDCODED SECURITY CHECK: Prevent escaping the sandbox via path traversal
+    if command_str.contains("..") || command_str.contains("/") && command_str.starts_with("/") {
+        let err_msg = "SECURITY VIOLATION: Command attempted to access paths outside the sandbox. Action blocked.";
+        let h = plugin.memory_alloc(err_msg.len() as u64)?;
+        plugin
+            .memory_bytes_mut(h)?
+            .copy_from_slice(err_msg.as_bytes());
+        outputs[0] = Val::I64(h.offset() as i64);
+        return Ok(());
+    }
+
+    // Security: Only allow running within the sandbox
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(&command_str)
+        .current_dir(&state.sandbox_root)
+        .output();
+
+    let result = match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            format!("STDOUT:\n{}\nSTDERR:\n{}", stdout, stderr)
+        }
+        Err(e) => format!("ERROR executing command: {}", e),
+    };
+
+    let h = plugin.memory_alloc(result.len() as u64)?;
+    plugin
+        .memory_bytes_mut(h)?
+        .copy_from_slice(result.as_bytes());
+    outputs[0] = Val::I64(h.offset() as i64);
+    Ok(())
+}
+
+fn host_log_monologue(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    _outputs: &mut [Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let message: String = plugin.memory_get_val(&inputs[0])?;
+
+    if let Some(sender) = &state.action_sender {
+        let _ = sender.send(crate::app::types::AppAction::PluginMonologue(
+            state.plugin_id.clone(),
+            message,
+        ));
+    }
+
     Ok(())
 }
 

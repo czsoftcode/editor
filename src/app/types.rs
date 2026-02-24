@@ -85,6 +85,8 @@ pub(crate) struct PersistentState {
     pub claude_float: bool,
     #[serde(default = "default_font_scale")]
     pub ai_font_scale: u32,
+    pub gemini_system_prompt: Option<String>,
+    pub gemini_language: Option<String>,
 }
 
 impl Default for PersistentState {
@@ -95,6 +97,8 @@ impl Default for PersistentState {
             show_build_terminal: true,
             claude_float: false,
             ai_font_scale: 100,
+            gemini_system_prompt: None,
+            gemini_language: None,
         }
     }
 }
@@ -114,6 +118,8 @@ pub(crate) enum AppAction {
     QuitAll,
     /// Result from a background plugin call
     PluginResponse(String, Result<String, String>),
+    /// Incremental "thought" or log from a plugin
+    PluginMonologue(String, String),
 }
 
 pub(crate) struct AppShared {

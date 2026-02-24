@@ -1,4 +1,5 @@
 use crate::app::types::AppShared;
+use crate::app::ui::widgets::ai_cli::StandardAI;
 use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::i18n::I18n;
@@ -16,6 +17,7 @@ pub fn show(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &I18n,
+    id_salt: &impl std::hash::Hash,
 ) {
     if !ws.show_gemini {
         return;
@@ -33,47 +35,165 @@ pub fn show(
 
     let mut action = None;
 
-    let modal =
-        StandardModal::new(i18n.get("gemini-title"), "gemini_modal").with_size(900.0, 700.0);
+    let modal = StandardModal::new(i18n.get("gemini-title"), (id_salt, "gemini_modal"))
+        .with_size(900.0, 700.0);
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
         action = modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
-                return Some(GeminiModalAction::Close);
-            }
+            ui.horizontal(|ui| {
+                if ui
+                    .selectable_label(ws.gemini_show_settings, i18n.get("gemini-settings-title"))
+                    .clicked()
+                {
+                    ws.gemini_show_settings = !ws.gemini_show_settings;
+                }
 
-            if response_text.is_some() && ui.button(i18n.get("gemini-btn-new")).clicked() {
-                return Some(GeminiModalAction::NewQuery);
-            }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button(i18n.get("btn-close")).clicked() {
+                        return Some(GeminiModalAction::Close);
+                    }
 
-            let can_send = !loading;
-            if ui
-                .add_enabled(
-                    can_send,
-                    egui::Button::new(i18n.get("gemini-btn-send"))
-                        .fill(egui::Color32::from_rgb(40, 80, 150)),
-                )
-                .clicked()
-            {
-                return Some(GeminiModalAction::Send);
-            }
+                    if response_text.is_some() && ui.button(i18n.get("gemini-btn-new")).clicked() {
+                        return Some(GeminiModalAction::NewQuery);
+                    }
 
-            None
+                    let can_send = !loading;
+                    if ui
+                        .add_enabled(
+                            can_send,
+                            egui::Button::new(i18n.get("gemini-btn-send"))
+                                .fill(egui::Color32::from_rgb(40, 80, 150)),
+                        )
+                        .clicked()
+                    {
+                        return Some(GeminiModalAction::Send);
+                    }
+                    None
+                })
+                .inner
+            })
+            .inner
         });
 
         // BODY
         modal.ui_body(ui, |ui| {
+            // Check if plugin needs authorization
+            let pending_auth = {
+                let sh = shared.lock().expect("lock");
+                sh.registry
+                    .plugins
+                    .get_pending_authorizations()
+                    .into_iter()
+                    .find(|(id, _)| id == "gemini")
+            };
+
+            if let Some((id, meta)) = pending_auth {
+                ui.centered_and_justified(|ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(20.0);
+                        ui.label(egui::RichText::new("🛡").size(48.0));
+                        ui.add_space(12.0);
+
+                        let mut args = fluent_bundle::FluentArgs::new();
+                        args.set("name", meta.name.clone());
+                        args.set("hosts", meta.allowed_hosts.join(", "));
+                        ui.label(
+                            egui::RichText::new(i18n.get_args("plugin-auth-bar-msg", &args))
+                                .strong()
+                                .size(16.0),
+                        );
+
+                        ui.add_space(20.0);
+                        ui.horizontal(|ui| {
+                            ui.allocate_ui(egui::vec2(ui.available_width(), 40.0), |ui| {
+                                ui.centered_and_justified(|ui| {
+                                    if ui
+                                        .button(
+                                            egui::RichText::new(format!(
+                                                "✔ {}",
+                                                i18n.get("gemini-btn-allow-start")
+                                            ))
+                                            .size(14.0),
+                                        )
+                                        .clicked()
+                                    {
+                                        let sh = shared.lock().expect("lock");
+                                        let config = sh
+                                            .settings
+                                            .plugins
+                                            .get(&id)
+                                            .map(|s| s.config.clone())
+                                            .unwrap_or_default();
+                                        let _ = sh.registry.plugins.authorize(&id, &config);
+                                    }
+                                });
+                            });
+                        });
+                    });
+                });
+                return;
+            }
+
+            if ws.gemini_show_settings {
+                ui.group(|ui| {
+                    ui.label(egui::RichText::new(i18n.get("gemini-settings-title")).strong());
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label(i18n.get("gemini-label-language"));
+                        egui::ComboBox::from_id_salt("gemini_lang")
+                            .selected_text(crate::i18n::lang_display_name(&ws.gemini_language))
+                            .show_ui(ui, |ui| {
+                                for lang in crate::i18n::SUPPORTED_LANGS {
+                                    ui.selectable_value(
+                                        &mut ws.gemini_language,
+                                        lang.to_string(),
+                                        crate::i18n::lang_display_name(lang),
+                                    );
+                                }
+                            });
+
+                        if ui
+                            .button(i18n.get("gemini-btn-reset"))
+                            .on_hover_text("Factory Reset")
+                            .clicked()
+                        {
+                            ws.gemini_system_prompt = i18n.get("gemini-default-prompt");
+                            ws.gemini_language = i18n.lang().to_string();
+                        }
+                    });
+
+                    ui.add_space(4.0);
+                    ui.label(i18n.get("gemini-label-system-prompt"));
+                    ui.add(
+                        egui::TextEdit::multiline(&mut ws.gemini_system_prompt)
+                            .desired_width(f32::INFINITY)
+                            .desired_rows(3),
+                    );
+                });
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(8.0);
+            }
+
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 // 1. VSTUPNÍ POLE (Dole)
                 ui.add_space(8.0);
-                let edit_resp = ui.add(
-                    egui::TextEdit::multiline(&mut prompt)
-                        .hint_text(i18n.get("gemini-placeholder-prompt"))
-                        .desired_width(f32::INFINITY)
-                        .font(egui::FontId::monospace(font_size))
-                        .desired_rows(4),
+
+                let (send_via_kb, edit_resp) = StandardAI::ui_input(
+                    ui,
+                    &mut prompt,
+                    font_size,
+                    &i18n.get("gemini-placeholder-prompt"),
+                    &ws.gemini_history,
+                    &mut ws.gemini_history_index,
                 );
+
+                if send_via_kb && action.is_none() {
+                    action = Some(GeminiModalAction::Send);
+                }
+
                 ui.label(egui::RichText::new(i18n.get("gemini-label-prompt")).strong());
 
                 ui.add_space(8.0);
@@ -82,22 +202,34 @@ pub fn show(
 
                 // 2. ODPOVĚĎ AI (Vyplní zbytek nahoře)
                 ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
-                    if let Some(resp) = &response_text {
+                    if !ws.gemini_conversation.is_empty() {
                         ui.label(egui::RichText::new(i18n.get("gemini-label-response")).strong());
-                        egui::ScrollArea::vertical()
-                            .id_salt("gemini_resp_scroll")
-                            .auto_shrink([false, false])
-                            .show(ui, |ui| {
-                                egui_commonmark::CommonMarkViewer::new().show(
-                                    ui,
-                                    &mut ws.markdown_cache,
-                                    resp,
-                                );
-                            });
+                        StandardAI::ui_response(
+                            ui,
+                            &ws.gemini_conversation,
+                            font_size,
+                            &mut ws.markdown_cache,
+                        );
                     } else if loading {
-                        ui.horizontal(|ui| {
-                            ui.spinner();
-                            ui.label(i18n.get("gemini-loading"));
+                        ui.vertical(|ui| {
+                            ui.horizontal(|ui| {
+                                ui.spinner();
+                                ui.label(egui::RichText::new(i18n.get("gemini-loading")).strong());
+                            });
+                            ui.add_space(4.0);
+                            egui::ScrollArea::vertical()
+                                .id_salt("gemini_monologue_scroll")
+                                .max_height(200.0)
+                                .stick_to_bottom(true)
+                                .show(ui, |ui| {
+                                    for line in &ws.gemini_monologue {
+                                        ui.label(
+                                            egui::RichText::new(format!("> {}", line))
+                                                .weak()
+                                                .monospace(),
+                                        );
+                                    }
+                                });
                         });
                     } else {
                         // Prázdný stav - zobrazíme aspoň místo
@@ -107,8 +239,8 @@ pub fn show(
                     }
                 });
 
-                // Auto-fokus na začátku
-                if response_text.is_none() && !loading {
+                // Auto-fokus na začátku, ale jen pokud nejsou otevřená nastavení (aby nekradl fokus)
+                if response_text.is_none() && !loading && !ws.gemini_show_settings {
                     edit_resp.request_focus();
                 }
             });
@@ -123,10 +255,25 @@ pub fn show(
         match act {
             GeminiModalAction::Send => {
                 if !ws.gemini_prompt.trim().is_empty() {
+                    // Add to history
+                    let p = ws.gemini_prompt.clone();
+                    if ws.gemini_history.last() != Some(&p) {
+                        ws.gemini_history.push(p.clone());
+                    }
+                    ws.gemini_history_index = None;
+                    ws.gemini_monologue.clear();
+
+                    // Add to conversation view and CLEAR prompt
+                    ws.gemini_conversation.push((p.clone(), String::new()));
+                    ws.gemini_prompt.clear();
+
                     ws.gemini_loading = true;
                     ws.gemini_response = None;
 
                     let p = ws.gemini_prompt.clone();
+                    let sys_prompt = ws.gemini_system_prompt.clone();
+                    let lang = ws.gemini_language.clone();
+
                     let shared_arc = Arc::clone(shared);
                     let plugin_manager = {
                         let sh = shared_arc.lock().expect("lock");
@@ -151,7 +298,7 @@ pub fn show(
                     });
 
                     std::thread::spawn(move || {
-                        let config = {
+                        let mut config = {
                             let shared_lock = shared_arc.lock().expect("lock");
                             shared_lock
                                 .settings
@@ -160,6 +307,11 @@ pub fn show(
                                 .map(|s| s.config.clone())
                                 .unwrap_or_default()
                         };
+
+                        // Override/Inject user-customized settings
+                        config.insert("SYSTEM_PROMPT".to_string(), sys_prompt);
+                        config.insert("LANGUAGE".to_string(), lang);
+
                         let result = plugin_manager.call("gemini", "ask_gemini", &p, &config);
                         let mut shared_lock = shared_arc.lock().expect("lock");
                         shared_lock

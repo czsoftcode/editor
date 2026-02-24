@@ -64,6 +64,7 @@ pub struct EditorApp {
 
     _ipc_server: Option<IpcServer>,
     focus_rx: mpsc::Receiver<()>,
+    action_rx: mpsc::Receiver<AppAction>,
     /// Incoming requests from secondary instances to open project in a new window.
     open_request_rx: Option<mpsc::Receiver<PathBuf>>,
 
@@ -93,6 +94,7 @@ impl EditorApp {
             Some((server, rx)) => (Some(server), Some(rx)),
             None => (None, None),
         };
+        let (action_tx, action_rx) = mpsc::channel();
         let focus_rx = ipc::start_process_listener();
 
         // Load recent projects
@@ -153,6 +155,7 @@ impl EditorApp {
             .unwrap_or_else(|| PathBuf::from("/tmp/polycredo-sandbox"));
 
         let mut registry = crate::app::registry::Registry::new(sandbox_root);
+        *registry.plugins.action_sender.lock().expect("lock") = Some(action_tx);
         registry.init_defaults();
 
         // Register default agents
@@ -268,6 +271,7 @@ impl EditorApp {
             show_close_project_confirm: false,
             _ipc_server: ipc_server,
             focus_rx,
+            action_rx,
             open_request_rx,
             missing_session_paths,
             applied_settings_version: 0,
@@ -346,6 +350,11 @@ impl EditorApp {
     }
 
     fn process_actions(&mut self, ctx: &egui::Context) {
+        // Forward incremental actions from plugins (monologues)
+        while let Ok(action) = self.action_rx.try_recv() {
+            self.shared.lock().expect("lock").actions.push(action);
+        }
+
         let actions = std::mem::take(
             &mut self
                 .shared
@@ -375,9 +384,22 @@ impl EditorApp {
                     {
                         ws.gemini_loading = false;
                         match result {
-                            Ok(text) => ws.gemini_response = Some(text),
+                            Ok(text) => {
+                                ws.gemini_response = Some(text.clone());
+                                // Update conversation history
+                                if let Some(last) = ws.gemini_conversation.last_mut() {
+                                    last.1 = text;
+                                }
+                            }
                             Err(err) => ws.plugin_error = Some(err),
                         }
+                    }
+                }
+                AppAction::PluginMonologue(id, message) => {
+                    if let Some(ws) = &mut self.root_ws
+                        && id == "gemini"
+                    {
+                        ws.gemini_monologue.push(message);
                     }
                 }
             }

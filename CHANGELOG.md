@@ -1,3 +1,30 @@
+## [0.7.6] - 2026-02-23
+
+### Added
+- **AI Agent Autonomy (Gemini)**:
+    - **Sandbox Execution**: Agents can now execute shell commands directly within the project sandbox via the new `exec_in_sandbox` host function.
+    - **Real-time Monologue**: Introduced a "thinking aloud" feature where agents log their internal actions (e.g., reading files, running tests) to the UI in real-time.
+    - **Advanced Tool Use**: Updated the Gemini plugin to support function calling for both file reading and command execution.
+- **Unified AI CLI (StandardAI)**:
+    - **Interactive Terminal UI**: Replaced standard Markdown rendering with a dedicated terminal-style output (monospace, dark theme, auto-scroll).
+    - **Conversation History**: Full support for persistent chat history (Question/Answer pairs) within the current session.
+    - **CLI-native Keyboard Handling**:
+        - `Enter` to send queries (auto-clears prompt).
+        - `Shift+Enter` / `Ctrl+J` for new lines.
+        - `Arrow Up/Down` to cycle through command history.
+- **Enhanced AI Security & Governance**:
+    - **Hardcoded Security Mandates**: Implemented immutable safety rules in both Rust (Host) and WASM (Guest) to strictly prevent agents from accessing paths outside the sandbox.
+    - **Path Traversal Protection**: Added technical validation to block `..` and absolute paths in agent-executed commands.
+    - **Contextual Authorization**: Moved plugin permission requests (e.g., internet access) directly into the agent's dialog for a less intrusive workflow.
+- **Agent Personalization**:
+    - **Dynamic Role Configuration**: Added "Agent Settings" to the Gemini modal, allowing users to customize the system prompt and communication language.
+    - **Localized AI Instructions**: Created `ai.ftl` files for all supported languages (CS, EN, SK, DE, RU) with factory-default agent instructions.
+    - **Persistence**: Agent settings (role, language) and window position are now saved per-project in `PersistentState`.
+
+### Fixed
+- **UI Focus Stability**: Resolved an issue where the main AI prompt would steal focus from settings input fields.
+- **Window Positioning**: Implemented robust window centering and project-unique IDs to ensure AI dialogs remember their last position correctly.
+
 ## [0.7.5] - 2026-02-23
 
 ### Added

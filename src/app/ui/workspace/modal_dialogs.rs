@@ -39,7 +39,7 @@ pub(super) fn render_dialogs(
     plugins::show(ctx, ws, shared, i18n, &id_salt);
 
     // 4. Gemini AI dialog
-    gemini::show(ctx, ws, shared, i18n);
+    gemini::show(ctx, ws, shared, i18n, &id_salt);
 
     // 5. New project wizard (within workspace)
     if ws.show_new_project {

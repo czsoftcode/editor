@@ -125,6 +125,7 @@ pub(crate) struct WorkspaceState {
     pub show_settings: bool,
     pub show_plugins: bool,
     pub show_gemini: bool,
+    pub gemini_show_settings: bool,
     /// Currently selected plugin in the Plugins modal.
     pub selected_plugin_id: Option<String>,
     /// Currently selected category in the Settings modal.
@@ -167,6 +168,12 @@ pub(crate) struct WorkspaceState {
     pub show_sandbox_staged: bool,
     pub plugin_error: Option<String>,
     pub gemini_prompt: String,
+    pub gemini_history: Vec<String>,
+    pub gemini_history_index: Option<usize>,
+    pub gemini_monologue: Vec<String>,
+    pub gemini_conversation: Vec<(String, String)>,
+    pub gemini_system_prompt: String,
+    pub gemini_language: String,
     pub gemini_response: Option<String>,
     pub gemini_loading: bool,
     pub markdown_cache: egui_commonmark::CommonMarkCache,
@@ -207,6 +214,8 @@ pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
         show_build_terminal: ws.show_build_terminal,
         claude_float: ws.claude_float,
         ai_font_scale: ws.ai_font_scale,
+        gemini_system_prompt: Some(ws.gemini_system_prompt.clone()),
+        gemini_language: Some(ws.gemini_language.clone()),
     }
 }
 
@@ -281,6 +290,8 @@ pub(crate) fn init_workspace(
     let local_history = crate::app::local_history::LocalHistory::new(&root_path);
     local_history.cleanup(50);
 
+    let i18n = crate::i18n::I18n::from_system();
+
     WorkspaceState {
         file_tree,
         editor: Editor::new(),
@@ -300,6 +311,7 @@ pub(crate) fn init_workspace(
         show_settings: false,
         show_plugins: false,
         show_gemini: false,
+        gemini_show_settings: false,
         selected_plugin_id: None,
         selected_settings_category: None,
         ai_font_scale: panel_state.ai_font_scale,
@@ -338,6 +350,18 @@ pub(crate) fn init_workspace(
         show_sandbox_staged: false,
         plugin_error: None,
         gemini_prompt: String::new(),
+        gemini_history: Vec::new(),
+        gemini_history_index: None,
+        gemini_monologue: Vec::new(),
+        gemini_conversation: Vec::new(),
+        gemini_system_prompt: panel_state
+            .gemini_system_prompt
+            .clone()
+            .unwrap_or_else(|| i18n.get("gemini-default-prompt")),
+        gemini_language: panel_state
+            .gemini_language
+            .clone()
+            .unwrap_or_else(|| i18n.lang().to_string()),
         gemini_response: None,
         gemini_loading: false,
         markdown_cache: egui_commonmark::CommonMarkCache::default(),

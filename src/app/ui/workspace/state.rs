@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 
 use eframe::egui;
 
 use super::super::super::build_runner::BuildError;
-use super::super::super::types::{
-    FocusedPanel, PersistentState, ProjectProfiles, Toast, default_wizard_path,
-};
+use super::super::super::types::{FocusedPanel, PersistentState, ProjectProfiles, Toast};
 use super::super::background::{fetch_git_branch, fetch_git_status};
 use super::super::dialogs::WizardState;
 use super::super::editor::Editor;
@@ -17,8 +15,8 @@ use super::super::terminal::Terminal;
 use super::super::widgets::command_palette::CommandPaletteState;
 use crate::app::lsp::LspClient;
 use crate::app::project_config::load_profiles;
-use crate::watcher::{FileWatcher, ProjectWatcher};
-use async_lsp::lsp_types::Url;
+use crate::watcher::FileWatcher;
+use crate::watcher::ProjectWatcher;
 
 /// Result of an asynchronous folder selection.
 pub(super) type FolderPickResult = (Option<PathBuf>, bool);
@@ -98,13 +96,8 @@ impl Default for ProjectSearch {
 
 pub(crate) enum FsChangeResult {
     AiDiff(String, String, String),
-    #[allow(dead_code)]
     LocalHistory(PathBuf, String),
 }
-
-// ---------------------------------------------------------------------------
-// WorkspaceState — state of a single workspace (project window)
-// ---------------------------------------------------------------------------
 
 pub(crate) struct WorkspaceState {
     pub file_tree: FileTree,
@@ -125,10 +118,9 @@ pub(crate) struct WorkspaceState {
     pub show_settings: bool,
     pub show_plugins: bool,
     pub show_gemini: bool,
+    pub show_semantic_indexing_modal: bool,
     pub gemini_show_settings: bool,
-    /// Currently selected plugin in the Plugins modal.
     pub selected_plugin_id: Option<String>,
-    /// Currently selected category in the Settings modal.
     pub selected_settings_category: Option<String>,
     pub ai_font_scale: u32,
     pub profiles: ProjectProfiles,
@@ -142,6 +134,7 @@ pub(crate) struct WorkspaceState {
     pub folder_pick_rx: Option<mpsc::Receiver<FolderPickResult>>,
     pub command_palette: Option<CommandPaletteState>,
     pub project_index: Arc<super::ProjectIndex>,
+    pub semantic_index: Arc<Mutex<super::semantic_index::SemanticIndex>>,
     pub file_picker: Option<FilePicker>,
     pub project_search: ProjectSearch,
     pub lsp_client: Option<LspClient>,
@@ -159,8 +152,6 @@ pub(crate) struct WorkspaceState {
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<String, bool>>>,
     pub ai_tool_last_check: std::time::Instant,
     pub external_change_conflict: Option<PathBuf>,
-    /// Pending sync: file was deleted in sandbox but still exists in project.
-    /// Value = relative path to file.
     pub sandbox_deletion_sync: Option<PathBuf>,
     pub terminal_close_requested: Option<usize>,
     pub ai_viewport_open: bool,
@@ -176,6 +167,7 @@ pub(crate) struct WorkspaceState {
     pub gemini_language: String,
     pub gemini_total_tokens: u32,
     pub gemini_inspector_open: bool,
+    pub gemini_focus_requested: bool,
     pub gemini_last_payload: String,
     pub gemini_response: Option<String>,
     pub gemini_loading: bool,
@@ -193,7 +185,6 @@ pub(crate) struct WorkspaceState {
     pub sandbox_staged_last_dirty: std::time::Instant,
     pub sandbox_staged_last_refresh: std::time::Instant,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
-    /// Last settings version applied to this viewport's context (Audit S-4).
     pub applied_settings_version: u64,
 }
 
@@ -210,6 +201,43 @@ pub(crate) struct SecondaryWorkspace {
     pub close_requested: Arc<AtomicBool>,
 }
 
+pub fn spawn_ai_tool_check(
+    check_list: Vec<(String, String)>,
+) -> mpsc::Receiver<HashMap<String, bool>> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut results = HashMap::new();
+        for (id, cmd) in check_list {
+            let found = std::process::Command::new("which")
+                .arg(&cmd)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+            results.insert(id, found);
+        }
+        let _ = tx.send(results);
+    });
+    rx
+}
+
+pub(crate) fn open_and_jump(ws: &mut WorkspaceState, path: PathBuf, line: usize) {
+    super::open_file_in_ws(ws, path);
+    ws.editor.jump_to_location(line, 1);
+    ws.focused_panel = FocusedPanel::Editor;
+}
+
+pub(crate) fn open_file_in_ws(ws: &mut WorkspaceState, path: PathBuf) {
+    if !path.exists() {
+        return;
+    }
+    if let Some(existing_idx) = ws.editor.tabs.iter().position(|t| t.path == path) {
+        ws.editor.active_tab = Some(existing_idx);
+    } else {
+        ws.editor.open_file(&path);
+    }
+    ws.focused_panel = FocusedPanel::Editor;
+}
+
 pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
     PersistentState {
         show_left_panel: ws.show_left_panel,
@@ -222,85 +250,201 @@ pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
     }
 }
 
-fn is_command_available(command: &str) -> bool {
-    #[cfg(windows)]
-    {
-        return std::process::Command::new("cmd")
-            .args(["/C", "where", command])
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false);
-    }
-    #[cfg(not(windows))]
-    {
-        std::process::Command::new("sh")
-            .args(["-lc", &format!("command -v {command} >/dev/null 2>&1")])
-            .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
-    }
-}
-
-pub(crate) fn spawn_ai_tool_check(
-    agents: Vec<(String, String)>,
-) -> mpsc::Receiver<HashMap<String, bool>> {
-    crate::app::ui::background::spawn_task(move || {
-        let mut status = HashMap::new();
-        for (id, cmd) in agents {
-            status.insert(id, is_command_available(&cmd));
-        }
-        status
-    })
-}
-
 pub(crate) fn init_workspace(
     root_path: PathBuf,
     panel_state: &PersistentState,
     egui_ctx: egui::Context,
     settings: &crate::settings::Settings,
 ) -> WorkspaceState {
-    let mut file_tree = FileTree::new();
-    file_tree.load(&root_path);
-    let mut project_watcher = ProjectWatcher::new(&root_path);
     let sandbox = crate::app::sandbox::Sandbox::new(&root_path);
+    let mut file_tree = FileTree::new();
+    let file_tree_in_sandbox = settings.project_read_only;
+    let target_tree_root = if file_tree_in_sandbox {
+        &sandbox.root
+    } else {
+        &root_path
+    };
+    file_tree.load(target_tree_root);
+
+    let mut project_watcher = ProjectWatcher::new(&root_path);
     project_watcher.add_path(&sandbox.root);
     let sandbox_staged_files = sandbox.get_staged_files();
 
     let git_cancel = Arc::new(AtomicBool::new(false));
     let git_branch_rx = fetch_git_branch(&root_path, Arc::clone(&git_cancel));
     let git_status_rx = fetch_git_status(&root_path, Arc::clone(&git_cancel));
+
     let project_index = Arc::new(super::ProjectIndex::new(root_path.clone()));
+    let semantic_index = Arc::new(Mutex::new(super::semantic_index::SemanticIndex::new(
+        root_path.clone(),
+    )));
     project_index.full_rescan();
-    let profiles = load_profiles(&root_path);
-    let mut wizard = WizardState::default();
-    wizard.path = default_wizard_path();
 
-    let is_rust = root_path.join("Cargo.toml").exists();
-    let lsp_installed = LspClient::is_installed();
+    // Start semantic index initialization and indexing in background
+    let si_clone = Arc::clone(&semantic_index);
+    let pi_clone = Arc::clone(&project_index);
+    let thread_root = root_path.clone();
+    let ctx_clone = egui_ctx.clone();
+    let blacklist_patterns = settings.blacklist.clone();
 
-    let (lsp_client, lsp_binary_missing) = if is_rust {
-        if lsp_installed {
-            let root_uri = Url::from_directory_path(&root_path).expect("valid root path for Url");
-            let client = LspClient::new(egui_ctx.clone(), root_uri);
-            let missing = client.is_none();
-            (client, missing)
-        } else {
-            (None, true)
+    std::thread::spawn(move || {
+        println!("[SemanticIndex] Thread started. Waiting for file scan...");
+
+        // Mark as indexing immediately
+        {
+            let si = si_clone.lock().unwrap();
+            si.is_indexing.store(true, Ordering::SeqCst);
+            // Attempt to load existing cache
+            if let Err(e) = si.load() {
+                eprintln!("[SemanticIndex] Cache load failed: {}", e);
+            }
         }
-    } else {
-        (None, false)
-    };
 
-    let local_history = crate::app::local_history::LocalHistory::new(&root_path);
-    local_history.cleanup(50);
+        // Wait for project index to have some files (max 10 seconds)
+        let start_wait = std::time::Instant::now();
+        while pi_clone.get_files().is_empty() && start_wait.elapsed().as_secs() < 10 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
 
-    let i18n = crate::i18n::I18n::from_system();
+        let files = pi_clone.get_files();
+        {
+            let si = si_clone.lock().unwrap();
+            si.files_total.store(files.len(), Ordering::SeqCst);
+        }
+        ctx_clone.request_repaint();
 
-    let gemini_model = settings
-        .plugins
-        .get("gemini")
-        .and_then(|s| s.config.get("MODEL").cloned())
-        .unwrap_or_else(|| "gemini-1.5-flash".to_string());
+        // 1. Initialize ML model
+        let mut temp_si = super::semantic_index::SemanticIndex::new(thread_root.clone());
+        if let Err(e) = temp_si.init() {
+            let err_msg = format!("Failed to initialize semantic index: {}", e);
+            eprintln!("[SemanticIndex] {}", err_msg);
+            let si = si_clone.lock().unwrap();
+            *si.error.lock().unwrap() = Some(err_msg);
+            si.is_indexing.store(false, Ordering::SeqCst);
+            ctx_clone.request_repaint();
+            return;
+        }
+
+        let model = temp_si.model.as_ref().unwrap();
+        let tokenizer = temp_si.tokenizer.as_ref().unwrap();
+
+        // 2. Index files (Smart incremental indexing)
+        for (idx, rel_path) in files.iter().enumerate() {
+            let path_str = rel_path.to_string_lossy();
+
+            {
+                let si = si_clone.lock().unwrap();
+                si.files_processed.store(idx + 1, Ordering::SeqCst);
+                *si.current_file.lock().unwrap() = path_str.to_string();
+            }
+            ctx_clone.request_repaint();
+
+            // --- DYNAMIC FILTRATION ---
+            if path_str.starts_with('.') || path_str.contains("/.") {
+                continue;
+            }
+
+            let mut is_blacklisted = false;
+            for pattern in &blacklist_patterns {
+                if path_str.contains(pattern.trim_matches('*')) {
+                    is_blacklisted = true;
+                    break;
+                }
+            }
+            if is_blacklisted {
+                continue;
+            }
+
+            let ext = rel_path.extension().and_then(|s| s.to_str()).unwrap_or("");
+            let is_code = matches!(
+                ext,
+                "rs" | "toml" | "js" | "ts" | "py" | "c" | "cpp" | "h" | "sh" | "ftl"
+            );
+            if !is_code {
+                continue;
+            }
+
+            let abs_path = thread_root.join(rel_path);
+            let mtime = std::fs::metadata(&abs_path)
+                .and_then(|m| m.modified())
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+
+            // Check if we need to re-index this file
+            let needs_indexing = {
+                let si = si_clone.lock().unwrap();
+                let snippets = si.snippets.lock().unwrap();
+                !snippets
+                    .iter()
+                    .any(|s| s.mtime == mtime && &s.path == rel_path)
+            };
+
+            if needs_indexing && let Ok(content) = std::fs::read_to_string(&abs_path) {
+                if content.len() > 100_000 {
+                    continue;
+                }
+
+                if content.as_bytes().contains(&0) {
+                    continue;
+                }
+
+                {
+                    let si = si_clone.lock().unwrap();
+                    let mut snippets = si.snippets.lock().unwrap();
+                    snippets.retain(|s| &s.path != rel_path);
+                }
+
+                let lines: Vec<&str> = content.lines().collect();
+                let chunk_size = 30;
+                let overlap = 5;
+                let mut start = 0;
+
+                while start < lines.len() {
+                    let end = (start + chunk_size).min(lines.len());
+                    let chunk_text = lines[start..end].join("\n");
+
+                    if !chunk_text.trim().is_empty()
+                        && let Ok(embedding) =
+                            temp_si.vectorize_with_model(&chunk_text, model, tokenizer)
+                    {
+                        let si = si_clone.lock().unwrap();
+                        si.snippets.lock().unwrap().push(
+                            crate::app::ui::workspace::semantic_index::SemanticSnippet {
+                                path: rel_path.clone(),
+                                line_start: start + 1,
+                                content: chunk_text,
+                                embedding,
+                                mtime,
+                            },
+                        );
+                    }
+                    if end == lines.len() {
+                        break;
+                    }
+                    start += chunk_size - overlap;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        }
+
+        // 3. Finalize and Save
+        {
+            let mut si = si_clone.lock().unwrap();
+            si.model = temp_si.model;
+            si.tokenizer = temp_si.tokenizer;
+            si.is_indexing.store(false, Ordering::SeqCst);
+            if let Err(e) = si.save() {
+                eprintln!("[SemanticIndex] Save failed: {}", e);
+            }
+        }
+        ctx_clone.request_repaint();
+        println!("[SemanticIndex] Indexing complete.");
+    });
+
+    let i18n = crate::i18n::I18n::new(&settings.lang);
+    let profiles = load_profiles(&root_path);
 
     WorkspaceState {
         file_tree,
@@ -309,8 +453,8 @@ pub(crate) fn init_workspace(
         project_watcher,
         claude_tabs: Vec::new(),
         claude_active_tab: 0,
-        next_claude_tab_id: 100,
-        next_terminal_id: 1000,
+        next_claude_tab_id: 1,
+        next_terminal_id: 2,
         build_terminal: None,
         focused_panel: FocusedPanel::Editor,
         root_path: root_path.clone(),
@@ -321,6 +465,7 @@ pub(crate) fn init_workspace(
         show_settings: false,
         show_plugins: false,
         show_gemini: false,
+        show_semantic_indexing_modal: true,
         gemini_show_settings: false,
         selected_plugin_id: None,
         selected_settings_category: None,
@@ -331,15 +476,16 @@ pub(crate) fn init_workspace(
         selected_agent_id: "gemini".to_string(),
         claude_float: panel_state.claude_float,
         show_new_project: false,
-        wizard,
+        wizard: crate::app::ui::dialogs::WizardState::default(),
         toasts: Vec::new(),
         folder_pick_rx: None,
         command_palette: None,
         project_index,
+        semantic_index,
         file_picker: None,
         project_search: ProjectSearch::default(),
-        lsp_client,
-        lsp_binary_missing,
+        lsp_client: None,
+        lsp_binary_missing: false,
         lsp_install_rx: None,
         git_branch: None,
         git_branch_rx: Some(git_branch_rx),
@@ -365,20 +511,10 @@ pub(crate) fn init_workspace(
         gemini_monologue: Vec::new(),
         gemini_conversation: vec![(
             String::new(),
-            format!(
-                r#"    ____        __       ______              __
-   / __ \____  / /_  __ / ____/_______  ____/ /___
-  / /_/ / __ \/ / / / // /   / ___/ _ \/ __  / __ \
- / ____/ /_/ / / /_/ // /___/ /  /  __/ /_/ / /_/ /
-/_/    \____/_/\__, / \____/_/   \___/\__,_/\____/
-              /____/                              CLI
-
- Version: {}
- Model:   {}
- Plan:    {}"#,
+            crate::app::ui::widgets::ai_cli::StandardAI::get_logo(
                 crate::config::CLI_VERSION,
-                gemini_model,
-                crate::config::CLI_TIER
+                "gemini-1.5-flash",
+                crate::config::CLI_TIER,
             ),
         )],
         gemini_system_prompt: settings
@@ -393,35 +529,24 @@ pub(crate) fn init_workspace(
             .unwrap_or_else(|| i18n.lang().to_string()),
         gemini_total_tokens: 0,
         gemini_inspector_open: false,
+        gemini_focus_requested: true,
         gemini_last_payload: String::new(),
         gemini_response: None,
         gemini_loading: false,
         markdown_cache: egui_commonmark::CommonMarkCache::default(),
         sync_confirmation: None,
         pending_agent_id: None,
-        build_in_sandbox: false,
-        file_tree_in_sandbox: false,
+        build_in_sandbox: settings.project_read_only,
+        file_tree_in_sandbox,
         git_cancel,
-        local_history,
+        local_history: crate::app::local_history::LocalHistory::new(&root_path),
         sandbox,
         sandbox_staged_files,
         sandbox_staged_rx: None,
-        sandbox_staged_dirty: true,
+        sandbox_staged_dirty: false,
         sandbox_staged_last_dirty: std::time::Instant::now(),
         sandbox_staged_last_refresh: std::time::Instant::now(),
         background_io_rx: None,
         applied_settings_version: 0,
     }
-}
-
-pub(crate) fn open_file_in_ws(ws: &mut WorkspaceState, path: PathBuf) {
-    ws.editor.open_file(&path);
-    if let Some(parent) = path.parent() {
-        ws.watcher.watch(parent);
-    }
-}
-
-pub(crate) fn open_and_jump(ws: &mut WorkspaceState, path: PathBuf, line: usize) {
-    open_file_in_ws(ws, path);
-    ws.editor.jump_to_line(line);
 }

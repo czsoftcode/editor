@@ -82,6 +82,10 @@ pub struct Settings {
     #[serde(default = "default_auto_show_ai_diff")]
     pub auto_show_ai_diff: bool,
 
+    /// Whether the main project is read-only (Safe Mode).
+    #[serde(default = "default_true")]
+    pub project_read_only: bool,
+
     /// Configuration for individual plugins. Key = plugin ID (file stem).
     #[serde(default)]
     pub plugins: HashMap<String, PluginSettings>,
@@ -101,6 +105,7 @@ impl Default for Settings {
             diff_side_by_side: false,
             privacy_accepted: false,
             auto_show_ai_diff: true,
+            project_read_only: true,
             plugins: HashMap::new(),
             blacklist: vec![
                 ".env*".to_string(),

@@ -140,6 +140,19 @@ pub fn show(
                                     browse_requested = true;
                                 }
                             });
+                            ui.add_space(20.0);
+
+                            ui.separator();
+                            ui.add_space(10.0);
+                            ui.checkbox(
+                                &mut draft.project_read_only,
+                                i18n.get("settings-safe-mode"),
+                            );
+                            ui.label(
+                                egui::RichText::new(i18n.get("settings-safe-mode-hint"))
+                                    .small()
+                                    .weak(),
+                            );
                         } else if selected_cat == "editor" {
                             ui.strong(
                                 egui::RichText::new(i18n.get("settings-category-editor"))

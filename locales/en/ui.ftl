@@ -228,6 +228,8 @@ settings-theme = Theme
 settings-theme-dark = Dark
 settings-theme-light = Light
 settings-auto-show-diff = Automatically open AI change preview
+settings-safe-mode = Safe Mode (Project Read-Only)
+settings-safe-mode-hint = When enabled, file tree and build default to Sandbox, and direct project saving is blocked.
 settings-diff-mode = AI Diff Layout
 settings-diff-inline = Inline (+ / -)
 settings-diff-side-by-side = Side-by-side
@@ -264,6 +266,13 @@ gemini-label-prompt = Your prompt:
 gemini-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
 gemini-btn-send = Send
 gemini-btn-new = New Thread
+
+## Semantic Indexing (RAG)
+semantic-indexing-title = Semantic Project Indexing
+semantic-indexing-init = Initializing ML model (downloading)...
+semantic-indexing-processing = Processing: { $processed } / { $total }
+semantic-indexing-btn-bg = Run in Background
+semantic-indexing-status-bar = Indexing project...
 
 ## Settings
 settings-suggested-patterns = Suggested patterns:

@@ -231,6 +231,8 @@ settings-theme = Téma
 settings-theme-dark = Tmavé
 settings-theme-light = Světlé
 settings-auto-show-diff = Automaticky otevírat náhled změn AI
+settings-safe-mode = Bezpečný režim (Projekt pouze pro čtení)
+settings-safe-mode-hint = Při zapnutí jsou zobrazení a build přepnuty na Sandbox a nelze přímo ukládat do projektu.
 settings-diff-mode = Zobrazení AI Diffu
 settings-diff-inline = Sloučené (+ / -)
 settings-diff-side-by-side = Vedle sebe
@@ -270,6 +272,13 @@ gemini-label-prompt = Tvůj dotaz:
 gemini-placeholder-prompt = Napiš zadání pro AI (např. „Vysvětli tento kód“ nebo „Navrhni refaktoring“)...
 gemini-btn-send = Odeslat
 gemini-btn-new = Nové vlákno
+
+## Sémantická indexace (RAG)
+semantic-indexing-title = Sémantická indexace projektu
+semantic-indexing-init = Inicializace ML modelu (stahování)...
+semantic-indexing-processing = Zpracování: { $processed } / { $total }
+semantic-indexing-btn-bg = Spustit na pozadí
+semantic-indexing-status-bar = Indexace projektu...
 
 ## Nastavení
 settings-suggested-patterns = Doporučené vzory:

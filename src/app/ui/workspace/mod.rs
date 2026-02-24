@@ -1,6 +1,7 @@
 pub(crate) mod index;
 mod menubar;
 mod modal_dialogs;
+pub(crate) mod semantic_index;
 pub(crate) mod state;
 
 // Re-exports for external callers
@@ -23,6 +24,7 @@ use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{render_file_picker, render_project_search_dialog};
 use super::widgets::command_palette::{execute_command, render_command_palette};
+use super::widgets::modal::StandardModal;
 use crate::config;
 pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
@@ -100,10 +102,12 @@ pub(crate) fn render_workspace(
 
     // Keyboard shortcuts
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        if let Some(err) = ws
-            .editor
-            .save(i18n, &shared.lock().expect("lock").is_internal_save)
-        {
+        let settings = Arc::clone(&shared.lock().expect("lock").settings);
+        if let Some(err) = ws.editor.save(
+            i18n,
+            &shared.lock().expect("lock").is_internal_save,
+            settings.project_read_only,
+        ) {
             ws.toasts.push(Toast::error(err));
         }
         if ws.git_status_rx.is_none() {
@@ -236,6 +240,7 @@ pub(crate) fn render_workspace(
         if let Some(plugin_res) = execute_command(cmd_id, &mut actions, shared) {
             if plugin_res == "OPEN_GEMINI_MODAL" {
                 ws.show_gemini = true;
+                ws.gemini_focus_requested = true;
                 ws.gemini_response = None;
             } else if plugin_res.starts_with("Plugin error:") {
                 ws.plugin_error = Some(plugin_res);
@@ -251,8 +256,27 @@ pub(crate) fn render_workspace(
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
         .show(ctx, |ui| {
-            ws.editor
-                .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
+            ui.horizontal(|ui| {
+                ws.editor
+                    .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
+
+                // Semantic Indexing Indicator
+                let is_indexing = ws
+                    .semantic_index
+                    .lock()
+                    .map(|si| si.is_indexing.load(std::sync::atomic::Ordering::SeqCst))
+                    .unwrap_or(false);
+
+                if is_indexing {
+                    ui.separator();
+                    ui.spinner();
+                    ui.label(
+                        egui::RichText::new(i18n.get("semantic-indexing-status-bar"))
+                            .small()
+                            .color(egui::Color32::from_rgb(100, 200, 255)),
+                    );
+                }
+            });
         });
 
     let dialog_open = ws.file_tree.has_open_dialog()
@@ -303,7 +327,7 @@ pub(crate) fn render_workspace(
         ws.watcher.watch(parent);
     }
 
-    if !ai_clicked && !left_clicked && !ai_viewport_clicked {
+    if !ai_clicked && !left_clicked && !ai_viewport_clicked && !ws.show_gemini {
         let in_terminal =
             ws.focused_panel == FocusedPanel::Claude || ws.focused_panel == FocusedPanel::Build;
         if in_terminal {
@@ -313,6 +337,7 @@ pub(crate) fn render_workspace(
     }
 
     render_dialogs(ctx, ws, shared, i18n);
+    render_semantic_indexing_modal(ctx, ws, i18n);
     render_toasts(ctx, ws);
 
     open_here_path
@@ -462,6 +487,98 @@ fn render_plugin_auth_bar(
     });
 }
 
+fn render_semantic_indexing_modal(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    i18n: &crate::i18n::I18n,
+) {
+    if !ws.show_semantic_indexing_modal {
+        return;
+    }
+
+    let (is_indexing, processed, total, current_file, error) = {
+        let si = ws.semantic_index.lock().unwrap();
+        (
+            si.is_indexing.load(std::sync::atomic::Ordering::SeqCst),
+            si.files_processed.load(std::sync::atomic::Ordering::SeqCst),
+            si.files_total.load(std::sync::atomic::Ordering::SeqCst),
+            si.current_file.lock().unwrap().clone(),
+            si.error.lock().unwrap().clone(),
+        )
+    };
+
+    if !is_indexing && error.is_none() && (processed >= total || total == 0) {
+        // If we are not indexing and either everything is processed OR there was nothing to process, close.
+        // But only if there is no error to show.
+        ws.show_semantic_indexing_modal = false;
+        return;
+    }
+
+    let modal = StandardModal::new(
+        i18n.get("semantic-indexing-title"),
+        "semantic_indexing_modal",
+    )
+    .with_size(500.0, 220.0);
+
+    let mut local_show = ws.show_semantic_indexing_modal;
+    let has_error = error.is_some();
+
+    modal.show(ctx, &mut local_show, |ui: &mut egui::Ui| {
+        modal.ui_body(ui, |ui: &mut egui::Ui| {
+            ui.vertical_centered(|ui: &mut egui::Ui| {
+                ui.add_space(10.0);
+
+                if let Some(err) = &error {
+                    ui.label(
+                        egui::RichText::new("⚠ Error")
+                            .color(egui::Color32::LIGHT_RED)
+                            .strong(),
+                    );
+                    ui.add_space(4.0);
+                    ui.label(egui::RichText::new(err).small().weak());
+                } else if total == 0 {
+                    ui.spinner();
+                    ui.label(i18n.get("semantic-indexing-init"));
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new("(This may take a minute on first run)")
+                            .small()
+                            .weak(),
+                    );
+                } else {
+                    let progress = processed as f32 / total as f32;
+                    ui.add(egui::ProgressBar::new(progress).show_percentage());
+                    ui.add_space(8.0);
+
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("processed", processed as i64);
+                    args.set("total", total as i64);
+                    ui.label(i18n.get_args("semantic-indexing-processing", &args));
+
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new(current_file)
+                            .color(egui::Color32::from_rgb(100, 180, 255))
+                            .monospace(),
+                    );
+                }
+                ui.add_space(10.0);
+            });
+        });
+
+        modal.ui_footer(ui, |ui: &mut egui::Ui| {
+            let btn_label = if has_error {
+                i18n.get("btn-close")
+            } else {
+                i18n.get("semantic-indexing-btn-bg")
+            };
+            if ui.button(btn_label).clicked() {
+                ws.show_semantic_indexing_modal = false;
+            }
+            None::<()>
+        });
+    });
+}
 fn render_sandbox_deletion_sync_dialog(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,

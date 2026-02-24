@@ -287,12 +287,15 @@ pub(super) fn process_background_events(
         ws.sandbox_staged_last_refresh = std::time::Instant::now();
     }
 
-    if ws.external_change_conflict.is_none()
-        && let Some(err) = ws
-            .editor
-            .try_autosave(i18n, &shared.lock().expect("lock").is_internal_save)
-    {
-        ws.toasts.push(Toast::error(err));
+    if ws.external_change_conflict.is_none() {
+        let read_only = shared.lock().expect("lock").settings.project_read_only;
+        if let Some(err) = ws.editor.try_autosave(
+            i18n,
+            &shared.lock().expect("lock").is_internal_save,
+            read_only,
+        ) {
+            ws.toasts.push(Toast::error(err));
+        }
     }
 
     if let Some(rx) = &ws.lsp_install_rx

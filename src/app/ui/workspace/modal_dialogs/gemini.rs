@@ -194,35 +194,51 @@ pub fn show(
             GeminiModalAction::Send => {
                 if !ws.gemini_prompt.trim().is_empty() {
                     let captured_prompt = ws.gemini_prompt.clone();
+                    let context_payload = StandardAI::generate_context(ws);
 
-                    // Construct JSON input for the plugin (including history)
+                    // Construct JSON input for the plugin (including history and unified context)
                     let plugin_input = serde_json::json!({
                         "prompt": captured_prompt,
-                        "history": ws.gemini_conversation
+                        "history": ws.gemini_conversation,
+                        "context": context_payload,
+                        "tools": StandardAI::get_standard_tools()
                     });
                     let input_json = serde_json::to_string(&plugin_input).unwrap_or_default();
 
                     // Capture full payload for inspector (Visual feedback)
                     let mut payload =
                         format!("--- SYSTEM PROMPT ---\n{}\n\n", ws.gemini_system_prompt);
-                    payload.push_str("--- FULL JSON PAYLOAD SENT TO PLUGIN ---\n");
-                    payload
-                        .push_str(&serde_json::to_string_pretty(&plugin_input).unwrap_or_default());
+                    let json_pretty =
+                        serde_json::to_string_pretty(&plugin_input).unwrap_or_default();
+
+                    payload.push_str(&format!(
+                        "--- FULL JSON PAYLOAD SENT TO PLUGIN (Size: {} bytes) ---\n",
+                        json_pretty.len()
+                    ));
+                    payload.push_str(&json_pretty);
                     payload.push_str("\n\n");
 
-                    // Context for inspector (what tools can see)
-                    if !ws.editor.tabs.is_empty() {
-                        payload.push_str("--- OPEN FILES (Visible to host functions) ---\n");
-                        for (i, tab) in ws.editor.tabs.iter().enumerate() {
-                            let path = tab.path.strip_prefix(&ws.root_path).unwrap_or(&tab.path);
-                            let active_mark = if Some(i) == ws.editor.active_tab {
-                                " (ACTIVE)"
-                            } else {
-                                ""
-                            };
-                            payload.push_str(&format!("- {}{}\n", path.display(), active_mark));
-                        }
-                        payload.push('\n');
+                    // Context summary for inspector (Human readable part)
+                    payload.push_str("--- CONTEXT SUMMARY ---\n");
+                    payload.push_str(&format!(
+                        "Open Files: {}\n",
+                        context_payload.open_files.len()
+                    ));
+                    for f in &context_payload.open_files {
+                        payload.push_str(&format!("  - {}\n", f.path));
+                    }
+
+                    payload.push_str(&format!(
+                        "\nBuild Errors: {}\n",
+                        context_payload.build_errors.len()
+                    ));
+                    for e in &context_payload.build_errors {
+                        let level = if e.is_warning { "WARN" } else { "ERR" };
+                        payload.push_str(&format!("  - [{}] {}:{}\n", level, e.file, e.line));
+                    }
+
+                    if let Some(active) = &context_payload.active_file {
+                        payload.push_str(&format!("\nActive File: {}\n", active.path));
                     }
 
                     ws.gemini_last_payload = payload;
@@ -266,6 +282,9 @@ pub fn show(
                     plugin_manager.set_context(crate::app::registry::plugins::HostContext {
                         active_file_path: active_path,
                         active_file_content: active_content,
+                        project_index: Some(Arc::clone(&ws.project_index)),
+                        semantic_index: Some(Arc::clone(&ws.semantic_index)),
+                        root_path: Some(ws.root_path.clone()),
                     });
 
                     std::thread::spawn(move || {
@@ -299,6 +318,8 @@ pub fn show(
                 ws.gemini_response = None;
                 ws.gemini_prompt.clear();
                 ws.gemini_last_payload.clear();
+                ws.gemini_total_tokens = 0;
+                ctx.request_repaint(); // Vynutit okamžité překreslení!
 
                 // Get current model from settings to show in logo
                 let gemini_model = {
@@ -312,20 +333,10 @@ pub fn show(
 
                 ws.gemini_conversation = vec![(
                     String::new(),
-                    format!(
-                        r#"    ____        __       ______              __
-               / __ \____  / /_  __ / ____/_______  ____/ /___
-              / /_/ / __ \/ / / / // /   / ___/ _ \/ __  / __ \
-             / ____/ /_/ / / /_/ // /___/ /  /  __/ /_/ / /_/ /
-            /_/    \____/_/\__, / \____/_/   \___/\__,_/\____/
-                          /____/                              CLI
-            
-             Version: {}
-             Model:   {}
-             Plan:    {}"#,
+                    StandardAI::get_logo(
                         crate::config::CLI_VERSION,
-                        gemini_model,
-                        crate::config::CLI_TIER
+                        &gemini_model,
+                        crate::config::CLI_TIER,
                     ),
                 )];
             }
@@ -367,7 +378,7 @@ fn render_gemini_main_ui(
     font_size: f32,
     action: &mut Option<GeminiModalAction>,
     loading: bool,
-    has_response: bool,
+    _has_response: bool,
 ) {
     if ws.gemini_show_settings {
         ui.group(|ui| {
@@ -521,8 +532,11 @@ fn render_gemini_main_ui(
             }
         });
 
-        if !has_response && !loading && !ws.gemini_show_settings {
+        // Auto-focus logic: we only want to grab focus once when the user might expect it
+        // but not in every frame which breaks other background elements.
+        if ws.gemini_focus_requested && !ws.gemini_show_settings {
             edit_resp.request_focus();
+            ws.gemini_focus_requested = false;
         }
     });
 }

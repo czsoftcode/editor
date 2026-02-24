@@ -1,9 +1,180 @@
 use eframe::egui;
+use serde::{Deserialize, Serialize};
+
+/// Data structure representing the current project context for AI agents.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct AiContextPayload {
+    pub open_files: Vec<AiFileContext>,
+    pub build_errors: Vec<AiBuildErrorContext>,
+    pub active_file: Option<AiFileContext>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AiFileContext {
+    pub path: String,
+    pub content: Option<String>,
+    pub is_active: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AiBuildErrorContext {
+    pub file: String,
+    pub line: usize,
+    pub message: String,
+    pub is_warning: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AiToolDeclaration {
+    pub name: String,
+    pub description: String,
+    pub parameters: serde_json::Value,
+}
 
 /// StandardAI provides shared logic for AI CLI-like interfaces.
 pub struct StandardAI;
 
 impl StandardAI {
+    /// Returns a list of standard tools available to all AI agents.
+    pub fn get_standard_tools() -> Vec<AiToolDeclaration> {
+        vec![
+            AiToolDeclaration {
+                name: "list_project_files".to_string(),
+                description: "Returns a list of all files in the project. Use this first if you don't know which files are available.".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }),
+            },
+            AiToolDeclaration {
+                name: "read_project_file".to_string(),
+                description: "Reads the content of a specific file from the project. Use this if you need to analyze code.".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Relative path to the file."
+                        }
+                    },
+                    "required": ["path"]
+                }),
+            },
+            AiToolDeclaration {
+                name: "search_project".to_string(),
+                description: "Performs a full-text search across all files. Returns snippets of matching lines.".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Text to search for."
+                        }
+                    },
+                    "required": ["query"]
+                }),
+            },
+            AiToolDeclaration {
+                name: "semantic_search".to_string(),
+                description: "Searches the project by meaning (semantic search). Use this for conceptual questions like 'how is auth handled' or 'find code related to terminal rendering'.".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Natural language query or concept to search for."
+                        }
+                    },
+                    "required": ["query"]
+                }),
+            },
+            AiToolDeclaration {
+                name: "exec_in_sandbox".to_string(),
+                description: "Executes a shell command within the project sandbox and returns output.".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The command to run (e.g. 'cargo check')."
+                        }
+                    },
+                    "required": ["command"]
+                }),
+            },
+        ]
+    }
+
+    /// Returns the centralized ASCII logo with version and model info.
+    pub fn get_logo(version: &str, model: &str, tier: &str) -> String {
+        format!(
+            r#"    ____        __       ______              __
+   / __ \____  / /_  __ / ____/_______  ____/ /___
+  / /_/ / __ \/ / / / // /   / ___/ _ \/ __  / __ \
+ / ____/ /_/ / / /_/ // /___/ /  /  __/ /_/ / /_/ /
+/_/    \____/_/\__, / \____/_/   \___/\__,_/\____/
+              /____/                              CLI
+
+ Version: {}
+ Model:   {}
+ Plan:    {}"#,
+            version, model, tier
+        )
+    }
+
+    /// Generates a unified context payload from the current workspace state.
+    pub fn generate_context(
+        ws: &crate::app::ui::workspace::state::WorkspaceState,
+    ) -> AiContextPayload {
+        let mut payload = AiContextPayload::default();
+
+        // 1. Gather Open Files
+        for (i, tab) in ws.editor.tabs.iter().enumerate() {
+            let rel_path = tab
+                .path
+                .strip_prefix(&ws.root_path)
+                .unwrap_or(&tab.path)
+                .to_string_lossy()
+                .into_owned();
+
+            let is_active = Some(i) == ws.editor.active_tab;
+            let file_ctx = AiFileContext {
+                path: rel_path.clone(),
+                content: if is_active {
+                    Some(tab.content.clone())
+                } else {
+                    None
+                },
+                is_active,
+            };
+
+            payload.open_files.push(file_ctx.clone());
+            if is_active {
+                payload.active_file = Some(file_ctx);
+            }
+        }
+
+        // 2. Gather Build Errors
+        for err in &ws.build_errors {
+            let rel_path = err
+                .file
+                .strip_prefix(&ws.root_path)
+                .unwrap_or(&err.file)
+                .to_string_lossy()
+                .into_owned();
+
+            payload.build_errors.push(AiBuildErrorContext {
+                file: rel_path,
+                line: err.line,
+                message: err.message.clone(),
+                is_warning: err.is_warning,
+            });
+        }
+
+        payload
+    }
+
     /// Renders a multiline text edit with CLI-like behavior:
     /// - Enter: returns true (should send)
     /// - Shift+Enter, Ctrl+Enter, Ctrl+J: inserts a newline

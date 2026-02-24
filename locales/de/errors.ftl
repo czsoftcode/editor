@@ -9,6 +9,7 @@ error-file-delete = Fehler beim Löschen von { $name }: { $reason }
 error-file-rename = Fehler beim Umbenennen: { $reason }
 error-file-create = Fehler beim Erstellen der Datei { $name }: { $reason }
 error-file-read-only-error = "{ $name }" kann nicht gespeichert werden, da sie nicht korrekt gelesen werden konnte. Dieser Tab ist nun schreibgeschützt, um Datenverlust zu vermeiden.
+error-safe-mode-blocked = Das Projekt befindet sich im sicheren Modus (schreibgeschützt). Sie können Änderungen nur in der Sandbox vornehmen oder den sicheren Modus in den Einstellungen deaktivieren.
 error-file-watch = Fehler bei der Dateiüberwachung
 
 ## Verzeichnisse

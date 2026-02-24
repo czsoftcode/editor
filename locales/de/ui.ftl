@@ -214,6 +214,8 @@ settings-theme = Design
 settings-theme-dark = Dunkel
 settings-theme-light = Hell
 settings-auto-show-diff = KI-Änderungsvorschau automatisch öffnen
+settings-safe-mode = Sicherer Modus (Projekt schreibgeschützt)
+settings-safe-mode-hint = Wenn aktiviert, wechseln Dateibaum und Build zum Sandbox-Modus, und direktes Speichern im Projekt ist blockiert.
 settings-diff-mode = KI-Diff-Layout
 settings-diff-inline = Zusammengefügt (+ / -)
 settings-diff-side-by-side = Nebeneinander
@@ -258,6 +260,13 @@ gemini-label-prompt = Deine Frage:
 gemini-placeholder-prompt = Gib eine Anweisung für die KI ein...
 gemini-btn-send = Senden
 gemini-btn-new = Neuer Thread
+
+## Semantische Indexierung (RAG)
+semantic-indexing-title = Semantische Projektindexierung
+semantic-indexing-init = ML-Modell wird initialisiert (Download)...
+semantic-indexing-processing = Verarbeitung: { $processed } / { $total }
+semantic-indexing-btn-bg = Im Hintergrund ausführen
+semantic-indexing-status-bar = Projekt-Indexierung...
 
 ## Plugin-Fehler
 plugin-error-title = Plugin-Fehler

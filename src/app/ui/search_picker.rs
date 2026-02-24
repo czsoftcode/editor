@@ -205,6 +205,36 @@ pub(super) fn render_file_picker(
     selected_file
 }
 
+/// Synchronous project-wide search for AI agents.
+pub(crate) fn project_search_sync(
+    root: &Path,
+    files: &[PathBuf],
+    query: &str,
+    max_results: usize,
+) -> Vec<SearchResult> {
+    let q = query.to_lowercase();
+    let mut results = Vec::new();
+    for rel in files {
+        let abs = root.join(rel);
+        let Ok(content) = std::fs::read_to_string(&abs) else {
+            continue;
+        };
+        for (idx, line) in content.lines().enumerate() {
+            if line.to_lowercase().contains(&q) {
+                results.push(SearchResult {
+                    file: rel.clone(),
+                    line: idx + 1,
+                    text: line.trim().to_string(),
+                });
+                if results.len() >= max_results {
+                    return results;
+                }
+            }
+        }
+    }
+    results
+}
+
 /// Starts project-wide search in the background (pure Rust, no external tools).
 fn run_project_search(
     root: PathBuf,

@@ -5,9 +5,9 @@ args = ["check"]
 error_parser = "Rust"
 
 [[runners]]
-name = "Build"
+name = "Build --release -j 12"
 command = "cargo"
-args = ["build"]
+args = ["build", "--release", "-j", "12"]
 error_parser = "Rust"
 
 [[runners]]

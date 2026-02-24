@@ -5,6 +5,7 @@ use eframe::egui;
 
 use super::super::types::{AppShared, FocusedPanel};
 use super::terminal::Terminal;
+use super::widgets::ai_cli::{AiContextPayload, StandardAI};
 use super::widgets::tab_bar::{TabBarAction, TabItem, render_compact_tab_bar};
 use super::workspace::{WorkspaceState, spawn_ai_tool_check};
 use crate::app::registry::Agent;
@@ -14,7 +15,35 @@ use crate::config;
 // Helper functions
 // ---------------------------------------------------------------------------
 
+pub(crate) fn format_context_for_terminal(ctx: &AiContextPayload) -> String {
+    let mut s = String::new();
+    s.push_str("Context info (paths are relative to current working directory):\n");
+
+    if !ctx.open_files.is_empty() {
+        s.push_str("Open files:\n");
+        for file in &ctx.open_files {
+            let active = if file.is_active { " (active)" } else { "" };
+            s.push_str(&format!("- {}{}\n", file.path, active));
+        }
+    }
+
+    if !ctx.build_errors.is_empty() {
+        s.push_str("\nBuild errors:\n");
+        for err in &ctx.build_errors {
+            let level = if err.is_warning { "Warning" } else { "Error" };
+            s.push_str(&format!(
+                "[{}] {}:{}: {}\n",
+                level, err.file, err.line, err.message
+            ));
+        }
+    } else {
+        s.push_str("\nBuild is clean.\n");
+    }
+    s
+}
+
 fn ai_tool_is_available(available: &HashMap<String, bool>, id: &str) -> bool {
+    // ... rest of the file stays same but uses format_context_for_terminal(StandardAI::generate_context(ws))
     available.get(id).copied().unwrap_or(false)
 }
 
@@ -135,7 +164,7 @@ fn render_ai_tool_controls(
             // No sync needed, start immediately
             let cmd = agent.command.clone();
             let active = ws.claude_active_tab;
-            let context = generate_ai_context(ws);
+            let context = format_context_for_terminal(&StandardAI::generate_context(ws));
             if let Some(terminal) = ws.claude_tabs.get_mut(active) {
                 terminal.send_command(&cmd);
                 if agent.context_aware {
@@ -160,52 +189,11 @@ fn render_ai_tool_controls(
         && let Some(agent) = current_agent
         && agent.context_aware
     {
-        let context = generate_ai_context(ws);
+        let context = format_context_for_terminal(&StandardAI::generate_context(ws));
         if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
             terminal.send_command(&context);
         }
     }
-}
-
-pub(crate) fn generate_ai_context(ws: &WorkspaceState) -> String {
-    let mut context = String::new();
-
-    context.push_str("Context info (paths are relative to current working directory):\n");
-
-    // 1. Open files
-    if !ws.editor.tabs.is_empty() {
-        context.push_str("Open files:\n");
-        for (i, tab) in ws.editor.tabs.iter().enumerate() {
-            // Strip project root path to get relative path (valid for both project and sandbox)
-            let path = tab.path.strip_prefix(&ws.root_path).unwrap_or(&tab.path);
-            let active = if Some(i) == ws.editor.active_tab {
-                " (active)"
-            } else {
-                ""
-            };
-            context.push_str(&format!("- {}{}\n", path.display(), active));
-        }
-    }
-
-    // 2. Build errors
-    if !ws.build_errors.is_empty() {
-        context.push_str("\nBuild errors:\n");
-        for err in &ws.build_errors {
-            let level = if err.is_warning { "Warning" } else { "Error" };
-            let path = err.file.strip_prefix(&ws.root_path).unwrap_or(&err.file);
-            context.push_str(&format!(
-                "[{}] {}:{}: {}\n",
-                level,
-                path.display(),
-                err.line,
-                err.message
-            ));
-        }
-    } else {
-        context.push_str("\nBuild is clean.\n");
-    }
-
-    context
 }
 
 /// Renders terminal tabs and returns the requested action.

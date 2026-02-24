@@ -45,6 +45,7 @@ impl Editor {
         &mut self,
         i18n: &crate::i18n::I18n,
         is_internal_save: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+        read_only: bool,
     ) -> Option<String> {
         let should_save = self.active().is_some_and(|t| {
             !t.deleted
@@ -53,7 +54,7 @@ impl Editor {
                     .is_some_and(|e| e.elapsed().as_millis() >= AUTOSAVE_DELAY_MS)
         });
         if should_save {
-            self.save(i18n, is_internal_save)
+            self.save(i18n, is_internal_save, read_only)
         } else {
             None
         }
@@ -64,8 +65,17 @@ impl Editor {
         &mut self,
         i18n: &crate::i18n::I18n,
         is_internal_save: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+        read_only: bool,
     ) -> Option<String> {
         let tab = self.active_mut()?;
+
+        // If Safe Mode is on, only allow saving files within the sandbox
+        if read_only {
+            let path_str = tab.path.to_string_lossy();
+            if !path_str.contains(".polycredo/sandbox") {
+                return Some(i18n.get("error-safe-mode-blocked"));
+            }
+        }
 
         if tab.read_error {
             let mut args = fluent_bundle::FluentArgs::new();
@@ -127,8 +137,16 @@ impl Editor {
         path: &PathBuf,
         i18n: &crate::i18n::I18n,
         is_internal_save: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+        read_only: bool,
     ) -> Option<String> {
         let tab = self.tabs.iter_mut().find(|t| t.path == *path)?;
+
+        if read_only {
+            let path_str = tab.path.to_string_lossy();
+            if !path_str.contains(".polycredo/sandbox") {
+                return Some(i18n.get("error-safe-mode-blocked"));
+            }
+        }
 
         if tab.read_error {
             let mut args = fluent_bundle::FluentArgs::new();

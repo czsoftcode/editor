@@ -237,6 +237,8 @@ settings-theme = Тема
 settings-theme-dark = Темная
 settings-theme-light = Светлая
 settings-auto-show-diff = Автоматически открывать предпросмотр изменений ИИ
+settings-safe-mode = Безопасный режим (Проект только для чтения)
+settings-safe-mode-hint = При включении дерево файлов и билд по умолчанию переходят в Sandbox, а прямое сохранение в проект заблокировано.
 settings-diff-mode = Отображение AI Diff
 settings-diff-inline = Совмещенное (+ / -)
 settings-diff-side-by-side = Рядом
@@ -275,6 +277,13 @@ gemini-label-prompt = Ваш запрос:
 gemini-placeholder-prompt = Введите задание для ИИ (например, «Объясни этот код» или «Предложи рефакторинг»)...
 gemini-btn-send = Отправить
 gemini-btn-new = Новая ветка
+
+## Семантическая индексация (RAG)
+semantic-indexing-title = Семантическая индексация проекта
+semantic-indexing-init = Инициализация модели ML (загрузка)...
+semantic-indexing-processing = Обработка: { $processed } / { $total }
+semantic-indexing-btn-bg = Запустить в фоне
+semantic-indexing-status-bar = Индексация проекта...
 
 ## Настройки
 settings-suggested-patterns = Рекомендуемые шаблоны:

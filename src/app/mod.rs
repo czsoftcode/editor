@@ -419,7 +419,9 @@ impl EditorApp {
                     if let Some(ws) = &mut self.root_ws
                         && id == "gemini"
                     {
-                        ws.gemini_total_tokens += tokens;
+                        // Add the total tokens consumed by the last request to the session counter.
+                        // The plugin is now responsible for sending the total only once per interaction.
+                        ws.gemini_total_tokens = ws.gemini_total_tokens.saturating_add(tokens);
                     }
                 }
             }

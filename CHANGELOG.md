@@ -1,3 +1,27 @@
+## [0.7.8] - 2026-02-24
+
+### Added
+- **Sandbox-First Semantic RAG**:
+    - **Dynamic Indexing**: The RAG system now indexes exclusively the `.polycredo/sandbox/` directory, ensuring the AI always works with its own most recent changes.
+    - **Smart Exclusion**: Integrated `.gitignore` and user blacklist into the indexer. Added logic to prevent the indexer from ignoring its own sandbox root.
+    - **Line-Segment Reading**: Added `line_start` parameter to `read_project_file`, allowing AI to navigate and read large files in chunks (avoiding 10k character truncation limits).
+- **Professional Agent Mandates**:
+    - **Hardcoded Integrity**: Added unchangeable system instructions to the Gemini plugin that mandate accuracy, prohibit hallucinations, and enforce the use of RAG for code discovery.
+    - **Thinking Trace**: AI now logs its step-by-step reasoning to `.gemini_trace.log` in the sandbox for transparent debugging.
+- **Enhanced UI Features**:
+    - **Thread Export**: Added a "📋 Copy Thread" button to each AI response for easy clipboard export of Q&A pairs.
+    - **Better Readability**: Enabled automatic text wrapping for both AI responses and the thinking monologue.
+
+### Fixed
+- **Plugin Protocol Reliability**:
+    - **Multi-step Tool Calling**: Fixed a critical bug where tool definitions were lost after the first iteration, causing "malformed function call" errors.
+    - **API Compatibility**: Updated tool responses to always return JSON objects (never raw arrays) to satisfy strict Google Gemini API requirements.
+    - **Message Splitting**: Implemented automatic splitting of mixed AI responses (text + tool calls) into separate turns to prevent API rejection.
+- **Branding Consistency**: Corrected the Gemini logo to display the actual model ID from settings instead of a hardcoded default.
+- **Code Stability**:
+    - Resolved compilation errors in `terminal.rs` caused by Alacritty 0.25 API changes.
+    - Fixed Clippy warnings regarding collapsible if-statements and unused imports.
+
 ## [0.7.7] - 2026-02-24
 
 ### Added

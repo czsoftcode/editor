@@ -40,7 +40,7 @@ impl StandardAI {
         vec![
             AiToolDeclaration {
                 name: "list_project_files".to_string(),
-                description: "Returns a list of all files in the project. Use this first if you don't know which files are available.".to_string(),
+                description: "BACKUP TOOL: Use ONLY if 'semantic_search' failed to find what you need. Provides a raw list of files for manual directory mapping.".to_string(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {},
@@ -49,16 +49,38 @@ impl StandardAI {
             },
             AiToolDeclaration {
                 name: "read_project_file".to_string(),
-                description: "Reads the content of a specific file from the project. Use this if you need to analyze code.".to_string(),
+                description: "Reads the content of a specific file from the project. Use this if you need to analyze code. Use 'line_start' to read large files in segments or to jump to a specific location found by semantic_search.".to_string(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
                         "path": {
                             "type": "string",
                             "description": "Relative path to the file."
+                        },
+                        "line_start": {
+                            "type": "integer",
+                            "description": "Optional: Line number to start reading from (default is 1). Use this to read the next segment if a file was truncated."
                         }
                     },
                     "required": ["path"]
+                }),
+            },
+            AiToolDeclaration {
+                name: "write_file".to_string(),
+                description: "MANDATORY FOR REPORTS: Creates or overwrites a file in the project sandbox. Use this for ALL reports, documentation, or code proposals. NEVER claim you cannot write files.".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Relative path to the file."
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The full text content to write."
+                        }
+                    },
+                    "required": ["path", "content"]
                 }),
             },
             AiToolDeclaration {
@@ -466,6 +488,31 @@ impl StandardAI {
                                     });
                                 }
                             }
+
+                            ui.add_space(8.0);
+
+                            // Interaction bar for this thread item
+                            ui.horizontal(|ui| {
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        if ui
+                                            .button("📋 Copy Thread")
+                                            .on_hover_text(
+                                                "Copy this question and answer to clipboard",
+                                            )
+                                            .clicked()
+                                        {
+                                            let full_text = if q.is_empty() {
+                                                a.clone()
+                                            } else {
+                                                format!(">>> {}\n\n{}", q, a)
+                                            };
+                                            ui.ctx().copy_text(full_text);
+                                        }
+                                    },
+                                );
+                            });
 
                             ui.add_space(12.0);
                             ui.separator();

@@ -104,7 +104,7 @@ EOF
 
 build_binary() {
     echo "==> Building release binary"
-    cargo build --release --manifest-path "$ROOT_DIR/Cargo.toml"
+    cargo build --release -j 12 --manifest-path "$ROOT_DIR/Cargo.toml"
     if [[ ! -x "$BIN_SOURCE" ]]; then
         echo "Release binary nebyla nalezena: $BIN_SOURCE" >&2
         exit 1

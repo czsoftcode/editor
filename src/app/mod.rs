@@ -424,6 +424,13 @@ impl EditorApp {
                         ws.gemini_total_tokens = ws.gemini_total_tokens.saturating_add(tokens);
                     }
                 }
+                AppAction::PluginPayload(id, payload) => {
+                    if let Some(ws) = &mut self.root_ws
+                        && id == "gemini"
+                    {
+                        ws.gemini_last_payload = payload;
+                    }
+                }
             }
         }
     }

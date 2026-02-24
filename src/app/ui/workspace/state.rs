@@ -282,42 +282,109 @@ pub(crate) fn init_workspace(
 
     // Start semantic index initialization and indexing in background
     let si_clone = Arc::clone(&semantic_index);
-    let pi_clone = Arc::clone(&project_index);
     let thread_root = root_path.clone();
+    let thread_sandbox_root = thread_root.join(".polycredo").join("sandbox");
     let ctx_clone = egui_ctx.clone();
-    let blacklist_patterns = settings.blacklist.clone();
+
+    // Load ignore patterns once before thread starts
+    let mut blacklist_strings = settings.blacklist.clone();
+    let gitignore_path = thread_root.join(".gitignore");
+    if let Ok(content) = std::fs::read_to_string(gitignore_path) {
+        for line in content.lines() {
+            let line = line.trim();
+            if !line.is_empty() && !line.starts_with('#') {
+                // Ignore the rule that ignores the sandbox itself!
+                if line.contains(".polycredo") || line.contains("sandbox") {
+                    continue;
+                }
+                blacklist_strings.push(line.to_string());
+            }
+        }
+    }
+
+    // Compile regexes
+    let mut blacklist_regexes = Vec::new();
+    for pattern in &blacklist_strings {
+        let regex_pattern = pattern
+            .replace('.', "\\.")
+            .replace('*', ".*")
+            .replace('?', ".");
+        if let Ok(re) = regex::Regex::new(&format!("^{}$", regex_pattern)) {
+            blacklist_regexes.push(re);
+        }
+    }
 
     std::thread::spawn(move || {
-        println!("[SemanticIndex] Thread started. Waiting for file scan...");
+        println!("[SemanticIndex] Thread started. Virtual Root: Sandbox.");
 
-        // Mark as indexing immediately
         {
             let si = si_clone.lock().unwrap();
             si.is_indexing.store(true, Ordering::SeqCst);
-            // Attempt to load existing cache
             if let Err(e) = si.load() {
                 eprintln!("[SemanticIndex] Cache load failed: {}", e);
             }
         }
 
-        // Wait for project index to have some files (max 10 seconds)
-        let start_wait = std::time::Instant::now();
-        while pi_clone.get_files().is_empty() && start_wait.elapsed().as_secs() < 10 {
-            std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        // 1. COLLECT FILES FROM SANDBOX (The only truth)
+        let mut files = Vec::new();
+        if thread_sandbox_root.exists() {
+            for entry in walkdir::WalkDir::new(&thread_sandbox_root)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+
+                if let Ok(rel) = entry.path().strip_prefix(&thread_sandbox_root) {
+                    let path_str = rel.to_string_lossy();
+
+                    // --- FILTERING RELATIVE TO SANDBOX ---
+                    let mut is_blacklisted = false;
+
+                    // Check the full relative path
+                    for re in &blacklist_regexes {
+                        if re.is_match(&path_str) {
+                            is_blacklisted = true;
+                            break;
+                        }
+                    }
+
+                    // Check individual components (to catch ignored directories)
+                    if !is_blacklisted {
+                        for part in rel.components() {
+                            let part_str = part.as_os_str().to_string_lossy();
+                            for re in &blacklist_regexes {
+                                if re.is_match(&part_str) {
+                                    is_blacklisted = true;
+                                    break;
+                                }
+                            }
+                            if is_blacklisted {
+                                break;
+                            }
+                        }
+                    }
+
+                    if !is_blacklisted {
+                        files.push(rel.to_path_buf());
+                    }
+                }
+            }
         }
 
-        let files = pi_clone.get_files();
         {
             let si = si_clone.lock().unwrap();
             si.files_total.store(files.len(), Ordering::SeqCst);
         }
         ctx_clone.request_repaint();
 
-        // 1. Initialize ML model
+        // 2. Initialize ML model
         let mut temp_si = super::semantic_index::SemanticIndex::new(thread_root.clone());
         if let Err(e) = temp_si.init() {
             let err_msg = format!("Failed to initialize semantic index: {}", e);
-            eprintln!("[SemanticIndex] {}", err_msg);
             let si = si_clone.lock().unwrap();
             *si.error.lock().unwrap() = Some(err_msg);
             si.is_indexing.store(false, Ordering::SeqCst);
@@ -328,7 +395,7 @@ pub(crate) fn init_workspace(
         let model = temp_si.model.as_ref().unwrap();
         let tokenizer = temp_si.tokenizer.as_ref().unwrap();
 
-        // 2. Index files (Smart incremental indexing)
+        // 3. Index files from sandbox
         for (idx, rel_path) in files.iter().enumerate() {
             let path_str = rel_path.to_string_lossy();
 
@@ -339,32 +406,7 @@ pub(crate) fn init_workspace(
             }
             ctx_clone.request_repaint();
 
-            // --- DYNAMIC FILTRATION ---
-            if path_str.starts_with('.') || path_str.contains("/.") {
-                continue;
-            }
-
-            let mut is_blacklisted = false;
-            for pattern in &blacklist_patterns {
-                if path_str.contains(pattern.trim_matches('*')) {
-                    is_blacklisted = true;
-                    break;
-                }
-            }
-            if is_blacklisted {
-                continue;
-            }
-
-            let ext = rel_path.extension().and_then(|s| s.to_str()).unwrap_or("");
-            let is_code = matches!(
-                ext,
-                "rs" | "toml" | "js" | "ts" | "py" | "c" | "cpp" | "h" | "sh" | "ftl"
-            );
-            if !is_code {
-                continue;
-            }
-
-            let abs_path = thread_root.join(rel_path);
+            let abs_path = thread_sandbox_root.join(rel_path);
             let mtime = std::fs::metadata(&abs_path)
                 .and_then(|m| m.modified())
                 .ok()
@@ -372,7 +414,6 @@ pub(crate) fn init_workspace(
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
 
-            // Check if we need to re-index this file
             let needs_indexing = {
                 let si = si_clone.lock().unwrap();
                 let snippets = si.snippets.lock().unwrap();
@@ -382,11 +423,7 @@ pub(crate) fn init_workspace(
             };
 
             if needs_indexing && let Ok(content) = std::fs::read_to_string(&abs_path) {
-                if content.len() > 100_000 {
-                    continue;
-                }
-
-                if content.as_bytes().contains(&0) {
+                if content.len() > 100_000 || content.as_bytes().contains(&0) {
                     continue;
                 }
 
@@ -429,7 +466,6 @@ pub(crate) fn init_workspace(
             }
         }
 
-        // 3. Finalize and Save
         {
             let mut si = si_clone.lock().unwrap();
             si.model = temp_si.model;
@@ -513,7 +549,11 @@ pub(crate) fn init_workspace(
             String::new(),
             crate::app::ui::widgets::ai_cli::StandardAI::get_logo(
                 crate::config::CLI_VERSION,
-                "gemini-1.5-flash",
+                &settings
+                    .plugins
+                    .get("gemini")
+                    .and_then(|s| s.config.get("MODEL").cloned())
+                    .unwrap_or_else(|| "gemini-1.5-flash".to_string()),
                 crate::config::CLI_TIER,
             ),
         )],

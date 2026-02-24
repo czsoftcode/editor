@@ -1,4 +1,4 @@
-/target
+target/
 .polycredo/history
 .aider*
 .polycredo/sandbox/
@@ -9,4 +9,4 @@
 parse_diff_test.rs
 check.sh
 .build_number
-/test-docs
+test-docs/

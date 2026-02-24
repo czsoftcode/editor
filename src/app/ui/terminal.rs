@@ -33,6 +33,8 @@ pub struct Terminal {
     path_regex: Regex,
     /// Cache for path detection to save CPU: (Point, Option<Action>)
     path_cache: Option<((i32, usize), Option<TerminalAction>)>,
+    /// Whether the user is currently selecting text via mouse drag
+    is_selecting: bool,
 }
 
 impl Terminal {
@@ -57,6 +59,7 @@ impl Terminal {
                 scroll_drag_acc: 0.0,
                 path_regex,
                 path_cache: None,
+                is_selecting: false,
             },
             Err(err) => Self {
                 id,
@@ -69,6 +72,7 @@ impl Terminal {
                 scroll_drag_acc: 0.0,
                 path_regex,
                 path_cache: None,
+                is_selecting: false,
             },
         }
     }
@@ -153,10 +157,6 @@ impl Terminal {
     ) -> Option<TerminalAction> {
         let mut action = None;
 
-        // Process events from PTY — limit per frame, the rest will be consumed in the next frame.
-        // Without a limit, an output burst (cargo build, grep, etc.) would block the UI for tens of ms.
-        // PtyWrite events (CPR responses, color queries, …) are collected and written back to the PTY
-        // after the borrow of pty_receiver ends, so the backend can be mutably borrowed.
         let mut pty_writes: Vec<Vec<u8>> = Vec::new();
         if let Some(pty_receiver) = &self.pty_receiver {
             for _ in 0..config::TERMINAL_MAX_EVENTS_PER_FRAME {
@@ -200,14 +200,11 @@ impl Terminal {
             return None;
         }
 
-        // 'R' key restarts the terminal after exit (must be focused)
         if self.exited && focused && ui.input(|i| i.key_pressed(egui::Key::R)) {
             self.restart(ui.ctx());
             return Some(TerminalAction::Clicked);
         }
 
-        // On exit, reserve the bottom strip for the exit banner; the terminal is still displayed
-        // so the user can see the output history.
         let exit_banner_height = if self.exited { 24.0 } else { 0.0 };
         let term_height = (ui.available_height() - exit_banner_height).max(1.0);
         let term_width = (ui.available_width() - config::TERMINAL_SCROLLBAR_WIDTH).max(10.0);
@@ -219,7 +216,6 @@ impl Terminal {
         let terminal = {
             let backend = self.backend.as_mut()?;
             TerminalView::new(ui, backend)
-                // Defocus terminal after exit — history is shown without cursor
                 .set_focus(focused && !self.exited)
                 .set_font(term_font)
                 .set_size(egui::Vec2::new(term_width, term_height))
@@ -227,13 +223,54 @@ impl Terminal {
 
         let response = ui.add(terminal);
 
+        // --- SAFE AUTO-SCROLL AND SELECTION UPDATE ---
+        if focused && !self.exited {
+            let pointer = ui.input(|i| i.pointer.clone());
+            if pointer.primary_down() {
+                if response.contains_pointer() || self.is_selecting {
+                    self.is_selecting = true;
+
+                    if let Some(pos) = pointer.interact_pos() {
+                        let rel_y = pos.y - response.rect.min.y;
+
+                        let mut scroll_amount = 0;
+                        if rel_y < 0.0 {
+                            scroll_amount = 1; // Scroll up
+                        } else if rel_y > response.rect.height() {
+                            scroll_amount = -1; // Scroll down
+                        }
+
+                        if let Some(backend) = &mut self.backend {
+                            if scroll_amount != 0 {
+                                backend.process_command(egui_term::BackendCommand::Scroll(
+                                    scroll_amount,
+                                ));
+                            }
+
+                            // Only update selection if we actually moved or scrolled
+                            // We MUST clamp the Y coordinate to be within the visible area (0 to height-1)
+                            // to avoid the "assertion failed: requested.0 < self.visible_lines" panic in Alacritty.
+                            let clamped_x = (pos.x - response.rect.min.x)
+                                .clamp(0.0, response.rect.width() - 1.0);
+                            let clamped_y = rel_y.clamp(0.0, response.rect.height() - 1.0);
+                            backend.process_command(egui_term::BackendCommand::SelectUpdate(
+                                clamped_x, clamped_y,
+                            ));
+                        }
+                    }
+                }
+            } else {
+                self.is_selecting = false;
+            }
+        }
+
         if response.clicked() || response.has_focus() {
             action = Some(TerminalAction::Clicked);
         } else if response.hovered() {
             action = Some(TerminalAction::Hovered);
         }
 
-        // --- PATH DETECTION AND NAVIGATION (OPTIMIZED) ---
+        // --- PATH DETECTION AND NAVIGATION ---
         if let Some(pos) = response.interact_pointer_pos() {
             if let Some(backend) = &self.backend {
                 let content = backend.last_content();
@@ -247,11 +284,6 @@ impl Terminal {
                     let line_idx = (rel_y / cell_h) as i32;
                     let grid_line_idx = line_idx - display_offset as i32;
 
-                    if grid_line_idx < 0 {
-                        return None;
-                    }
-
-                    // Check cache
                     let current_point = (grid_line_idx, col_idx);
                     let cached_result = if let Some((point, res)) = &self.path_cache {
                         if *point == current_point {
@@ -266,14 +298,16 @@ impl Terminal {
                     let nav_action = if let Some(res) = cached_result {
                         res
                     } else {
-                        // Cache miss: detect path
                         let mut detected = None;
-                        let grid_line = alacritty_terminal::index::Line(grid_line_idx);
+                        // Use a safer line access method to avoid panics
+                        let num_lines = content.grid.total_lines() as i32;
+                        let history_size = content.grid.history_size() as i32;
 
-                        let num_lines = content.grid.total_lines();
-                        // Alacritty line indexing is tricky. total_lines includes history.
-                        // We check bounds safely.
-                        if grid_line.0 < num_lines as i32 {
+                        // Line index must be between -history_size and screen_lines
+                        if grid_line_idx >= -history_size
+                            && grid_line_idx < (num_lines - history_size)
+                        {
+                            let grid_line = alacritty_terminal::index::Line(grid_line_idx);
                             let row = &content.grid[grid_line];
                             let mut line_text = String::new();
                             let num_cols = content.grid.columns();
@@ -316,8 +350,6 @@ impl Terminal {
             self.path_cache = None;
         }
 
-        // On Linux, Ctrl+X is delivered as Event::Cut (not Event::Key), but TerminalView only
-        // handles Event::Copy — Event::Cut is never forwarded to the PTY.  Map it here.
         if focused
             && !self.exited
             && ui.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Cut)))
@@ -326,10 +358,6 @@ impl Terminal {
             backend.process_command(egui_term::BackendCommand::Write(vec![0x18]));
         }
 
-        // TerminalView processes keyboard input only when the pointer is inside the widget
-        // (vendor view.rs: `if !layout.has_focus() || !layout.contains_pointer()`).
-        // When focused but the pointer is elsewhere (e.g. user typed Ctrl+X in nano while
-        // the mouse drifted away), we handle the keyboard events ourselves here.
         if focused && !self.exited && !response.contains_pointer() {
             let mut writes: Vec<Vec<u8>> = Vec::new();
             ui.input(|i| {
@@ -359,7 +387,6 @@ impl Terminal {
             }
         }
 
-        // Inactive terminal: dimming + hollow cursor instead of solid block
         if !focused {
             let painter = ui.painter_at(response.rect);
             let Some(content) = self.backend.as_ref().map(|b| b.last_content()) else {
@@ -404,7 +431,6 @@ impl Terminal {
             }
         }
 
-        // Context menu
         let menu_size = 15.0;
         response.context_menu(|ui| {
             let selected = if let Some(backend) = self.backend.as_ref() {
@@ -414,41 +440,53 @@ impl Terminal {
                     let mut last_line = None;
                     let mut current_line_buffer = String::new();
                     let mut was_wrapped = false;
-                    for indexed in content.grid.display_iter() {
-                        if range.contains(indexed.point) {
-                            if let Some(last) = last_line
-                                && indexed.point.line != last
-                            {
-                                // New line started, add newline if not wrapped
-                                if was_wrapped {
-                                    let trimmed = current_line_buffer.trim_end();
-                                    result.push_str(trimmed);
-                                    if current_line_buffer.len() > trimmed.len() {
-                                        result.push(' ');
+
+                    let num_cols = content.grid.columns();
+                    // BEWARE: Alacritty line indexing is tricky.
+                    // Let's use a VERY safe iteration method to avoid panics.
+                    let total_lines = content.grid.total_lines() as i32;
+                    let history_size = content.grid.history_size() as i32;
+
+                    for line_idx in -history_size..(total_lines - history_size) {
+                        let line = alacritty_terminal::index::Line(line_idx);
+                        let row = &content.grid[line];
+                        for col_idx in 0..num_cols {
+                            let col = alacritty_terminal::index::Column(col_idx);
+                            let point = alacritty_terminal::index::Point::new(line, col);
+
+                            if range.contains(point) {
+                                let cell = &row[col];
+                                if let Some(last) = last_line
+                                    && line != last
+                                {
+                                    if was_wrapped {
+                                        let trimmed = current_line_buffer.trim_end();
+                                        result.push_str(trimmed);
+                                        if current_line_buffer.len() > trimmed.len() {
+                                            result.push(' ');
+                                        }
+                                    } else {
+                                        result.push_str(current_line_buffer.trim_end());
+                                        result.push('\n');
                                     }
-                                } else {
-                                    result.push_str(current_line_buffer.trim_end());
-                                    result.push('\n');
+                                    current_line_buffer.clear();
                                 }
-                                current_line_buffer.clear();
+                                current_line_buffer.push(cell.c);
+                                last_line = Some(line);
+                                was_wrapped = cell
+                                    .flags
+                                    .contains(alacritty_terminal::term::cell::Flags::WRAPLINE);
                             }
-                            current_line_buffer.push(indexed.c);
-                            last_line = Some(indexed.point.line);
-                            was_wrapped = indexed
-                                .cell
-                                .flags
-                                .contains(alacritty_terminal::term::cell::Flags::WRAPLINE);
                         }
                     }
-                    // Append the last line buffer
                     result.push_str(current_line_buffer.trim_end());
                 }
                 result
             } else {
                 String::new()
             };
-            let has_selection = !selected.trim().is_empty();
 
+            let has_selection = !selected.trim().is_empty();
             if ui
                 .add_enabled(
                     has_selection,
@@ -459,7 +497,6 @@ impl Terminal {
                 ui.ctx().copy_text(selected);
                 ui.close_menu();
             }
-
             if ui
                 .button(egui::RichText::new(i18n.get("btn-paste")).size(menu_size))
                 .clicked()
@@ -476,10 +513,7 @@ impl Terminal {
             }
         });
 
-        // Scrollbar
         self.draw_scrollbar(ui, response.rect, term_height);
-
-        // Exit banner — displayed below the terminal history
         if self.exited {
             ui.horizontal(|ui| {
                 ui.add_space(6.0);
@@ -489,13 +523,9 @@ impl Terminal {
                 );
             });
         }
-
         action
     }
 
-    /// Explicitly terminates the shell process group (Unix). Called implicitly from Drop.
-    /// Uses SIGTERM on -pid (entire process group), so cargo run and similar
-    /// children terminate along with the shell — they don't survive as orphans.
     #[cfg(unix)]
     fn kill_process_group(&self) {
         if self.exited {
@@ -519,10 +549,7 @@ impl Terminal {
             egui::Pos2::new(term_rect.max.x, term_rect.min.y),
             egui::Vec2::new(config::TERMINAL_SCROLLBAR_WIDTH, height),
         );
-
         let painter = ui.painter_at(sb_rect);
-
-        // Scrollbar background
         painter.rect_filled(
             sb_rect,
             egui::CornerRadius::ZERO,
@@ -535,7 +562,6 @@ impl Terminal {
         let display_offset = content.grid.display_offset();
 
         if history_size == 0 {
-            // No history — scrollbar as decoration (full track = everything visible)
             let thumb_rect = sb_rect.shrink2(egui::Vec2::new(2.0, 0.0));
             painter.rect_filled(
                 thumb_rect,
@@ -551,21 +577,15 @@ impl Terminal {
         let thumb_ratio = screen_lines as f32 / total_lines as f32;
         let thumb_h = (thumb_ratio * track_h).max(20.0);
         let track_range = (track_h - thumb_h).max(1.0);
-
-        // display_offset = 0 → bottom → thumb at bottom
-        // display_offset = history_size → top → thumb at top
         let scroll_frac = display_offset as f32 / history_size as f32;
         let thumb_top = sb_rect.min.y + (1.0 - scroll_frac) * track_range;
-
         let thumb_rect = egui::Rect::from_min_size(
             egui::Pos2::new(sb_rect.min.x + 2.0, thumb_top),
             egui::Vec2::new(config::TERMINAL_SCROLLBAR_WIDTH - 4.0, thumb_h),
         );
 
-        // Interaction
         let sb_id = ui.id().with("scrollbar");
         let sb_response = ui.interact(sb_rect, sb_id, egui::Sense::drag());
-
         let thumb_color = if sb_response.hovered() || sb_response.dragged() {
             egui::Color32::from_gray(140)
         } else {
@@ -573,10 +593,8 @@ impl Terminal {
         };
         painter.rect_filled(thumb_rect, egui::CornerRadius::same(3), thumb_color);
 
-        // Drag: translate pixels to lines
         if sb_response.dragged() {
             let dy = sb_response.drag_delta().y;
-            // Negative dy (dragging up) = scroll to history = positive delta
             self.scroll_drag_acc -= dy;
             let lines_per_pixel = history_size as f32 / track_range;
             let line_delta = (self.scroll_drag_acc * lines_per_pixel) as i32;
@@ -588,7 +606,6 @@ impl Terminal {
             self.scroll_drag_acc = 0.0;
         }
 
-        // Click on track (outside thumb) = page scroll
         if sb_response.clicked()
             && let Some(pos) = sb_response.interact_pointer_pos()
         {
@@ -602,13 +619,8 @@ impl Terminal {
     }
 }
 
-/// Maps an egui key event to the byte sequence the PTY expects.
-/// Used as a fallback when TerminalView skips keyboard input because the pointer
-/// is not hovering over the terminal widget.
 fn terminal_key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<u8>> {
     use egui::Key::*;
-
-    // Ctrl+letter → ASCII control character (0x01–0x1a)
     if modifiers.ctrl && !modifiers.shift && !modifiers.alt {
         let b: u8 = match key {
             A => 0x01,
@@ -641,8 +653,6 @@ fn terminal_key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<
         };
         return Some(vec![b]);
     }
-
-    // Unmodified special keys
     if modifiers.is_none() {
         return match key {
             Enter => Some(vec![0x0d]),
@@ -662,26 +672,19 @@ fn terminal_key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<
             _ => None,
         };
     }
-
-    // Shift+Tab → reverse tab
     if modifiers == egui::Modifiers::SHIFT && key == Tab {
         return Some(b"\x1b[Z".to_vec());
     }
-
     None
 }
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        if !self.exited {
-            // Try graceful exit first to trigger Event::Exit in the vendor's thread loop.
-            // This prevents the busy-loop bug in egui_term where recv() returns Err
-            // but the loop continues.
-            if let Some(backend) = &mut self.backend {
-                backend.process_command(egui_term::BackendCommand::Write(b"exit\n".to_vec()));
-                // Give it a tiny moment to process and send the Event::Exit
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
+        if !self.exited
+            && let Some(backend) = &mut self.backend
+        {
+            backend.process_command(egui_term::BackendCommand::Write(b"exit\n".to_vec()));
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
         #[cfg(unix)]
         self.kill_process_group();

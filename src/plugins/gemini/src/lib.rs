@@ -2,7 +2,7 @@ use extism_pdk::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct GeminiRequest {
     contents: Vec<Content>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -11,12 +11,12 @@ struct GeminiRequest {
     tools: Vec<Tool>,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 struct Tool {
     function_declarations: Vec<FunctionDeclaration>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct FunctionDeclaration {
     name: String,
     description: String,
@@ -24,7 +24,7 @@ struct FunctionDeclaration {
     parameters: Option<serde_json::Value>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
 struct Content {
     #[serde(default)]
     role: String,
@@ -32,7 +32,7 @@ struct Content {
     parts: Vec<Part>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct Part {
     #[serde(skip_serializing_if = "Option::is_none")]
     text: Option<String>,
@@ -46,7 +46,7 @@ struct Part {
     extra: HashMap<String, serde_json::Value>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct FunctionCall {
     name: String,
     #[serde(default)]
@@ -55,42 +55,32 @@ struct FunctionCall {
     extra: HashMap<String, serde_json::Value>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct FunctionResponse {
     name: String,
     response: serde_json::Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct GeminiResponse {
     candidates: Option<Vec<Candidate>>,
     #[serde(rename = "usageMetadata")]
     usage_metadata: Option<UsageMetadata>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct UsageMetadata {
-    #[serde(rename = "promptTokenCount", default)]
-    prompt_token_count: u32,
-    #[serde(rename = "candidatesTokenCount", default)]
-    candidates_token_count: u32,
     #[serde(rename = "totalTokenCount", default)]
     total_token_count: u32,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 struct Candidate {
     #[serde(default)]
     content: Content,
-    #[serde(rename = "finishReason")]
-    finish_reason: Option<String>,
-    #[serde(rename = "finishMessage")]
-    finish_message: Option<String>,
 }
 
-// --- Data structures for Unified Context & Tools ---
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct PluginInput {
     prompt: String,
     history: Vec<(String, String)>,
@@ -98,20 +88,20 @@ struct PluginInput {
     tools: Option<Vec<FunctionDeclaration>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct AiContextPayload {
     pub open_files: Vec<AiFileContext>,
     pub build_errors: Vec<AiBuildErrorContext>,
     pub active_file: Option<AiFileContext>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct AiFileContext {
     pub path: String,
     pub content: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct AiBuildErrorContext {
     pub file: String,
     pub line: usize,
@@ -119,263 +109,137 @@ pub struct AiBuildErrorContext {
     pub is_warning: bool,
 }
 
-// --- Host Functions ---
 #[host_fn]
 extern "ExtismHost" {
     fn read_project_file(path: String) -> String;
+    fn write_project_file(input: String);
     fn list_project_files() -> String;
     fn search_project(query: String) -> String;
     fn semantic_search(query: String) -> String;
     fn exec_in_sandbox(command: String) -> String;
     fn log_monologue(message: String);
     fn log_usage(tokens: u64);
+    fn log_payload(payload: String);
 }
 
 #[plugin_fn]
 pub fn ask_gemini(input_json: String) -> FnResult<String> {
-    let input: PluginInput = serde_json::from_str(&input_json).map_err(|e| {
-        anyhow::anyhow!("Failed to parse plugin input JSON: {}. Input was: {}", e, input_json)
-    })?;
-    
-    let api_key = config::get("API_KEY")?.ok_or(anyhow::anyhow!("Missing API_KEY in plugin settings"))?;
+    let input: PluginInput = serde_json::from_str(&input_json)?;
+    let api_key = config::get("API_KEY")?.ok_or(anyhow::anyhow!("Missing API_KEY"))?;
     let model = config::get("MODEL")?.unwrap_or_else(|| "gemini-1.5-flash".to_string());
-    
-    let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
-        model
-    );
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent", model);
 
-    // 2. Prepare Tools
-    let tools = if let Some(decls) = input.tools {
-        vec![Tool { function_declarations: decls }]
-    } else {
-        vec![]
-    };
+    let tools = if let Some(decls) = input.tools { vec![Tool { function_declarations: decls }] } else { vec![] };
 
-    // 3. Build Chat History
     let mut messages = Vec::new();
-    
     for (q, a) in &input.history {
-        if q.is_empty() && a.is_empty() { continue; }
-        if q.is_empty() && (a.contains("____") || a.contains("Version:")) {
-            continue;
-        }
+        if q.is_empty() && (a.contains("____") || a.contains("Version:")) { continue; }
         if !q.is_empty() {
-            messages.push(Content {
-                role: "user".to_string(),
-                parts: vec![Part { text: Some(q.clone()), function_call: None, function_response: None, extra: HashMap::new() }],
-            });
+            messages.push(Content { role: "user".to_string(), parts: vec![Part { text: Some(q.clone()), function_call: None, function_response: None, extra: HashMap::new() }] });
         }
         if !a.is_empty() {
-            messages.push(Content {
-                role: "model".to_string(),
-                parts: vec![Part { text: Some(a.clone()), function_call: None, function_response: None, extra: HashMap::new() }],
-            });
+            messages.push(Content { role: "model".to_string(), parts: vec![Part { text: Some(a.clone()), function_call: None, function_response: None, extra: HashMap::new() }] });
         }
     }
 
-    let default_system_instruction = "You are an expert developer assistant with full access to a secure project sandbox.
-    IMPORTANT: You must use the provided TOOLS for all project-related actions. 
-    Use 'list_project_files' to see what files exist, 'read_project_file' to see code, 'search_project' for keywords, 
-    or 'semantic_search' to find code related to concepts/meanings.";
-
-    let mut system_instruction = config::get("SYSTEM_PROMPT")?.unwrap_or_else(|| default_system_instruction.to_string());
     let language = config::get("LANGUAGE")?.unwrap_or_else(|| "en".to_string());
+    let mut system_instruction = config::get("SYSTEM_PROMPT")?.unwrap_or_else(|| "Expert Rust Developer.".to_string());
 
-    system_instruction.push_str("\n\nCORE SECURITY MANDATE: You are strictly confined to the project sandbox directory.");
-    system_instruction.push_str(&format!("\nCRITICAL: You must communicate ONLY in this language: {}.", language));
+    system_instruction.push_str("\n\nCORE MANDATE: Use 'semantic_search' for code discovery. If truncated, use 'line_start' to read more. YOU MUST USE 'write_file' TO SAVE REPORTS.");
+    system_instruction.push_str(&format!("\n\nLanguage: {}. Text thoughts must be separate from calls.", language));
 
-    // Assemble Lean Context
-    let mut context_info = String::new();
-    
-    if let Some(ctx) = &input.context {
-        if !ctx.open_files.is_empty() {
-            context_info.push_str("Currently open files in editor tabs:\n");
-            for file in &ctx.open_files {
-                let active_mark = if let Some(active) = &ctx.active_file {
-                    if active.path == file.path { " (ACTIVE)" } else { "" }
-                } else { "" };
-                context_info.push_str(&format!("- {}{}\n", file.path, active_mark));
-            }
-            context_info.push('\n');
-        }
+    let user_prompt = format!("Context: {:?}\n\nQuestion: {}", input.context, input.prompt);
+    messages.push(Content { role: "user".to_string(), parts: vec![Part { text: Some(user_prompt), function_call: None, function_response: None, extra: HashMap::new() }] });
 
-        if !ctx.build_errors.is_empty() {
-            context_info.push_str("Current Build Errors/Warnings:\n");
-            for err in &ctx.build_errors {
-                let level = if err.is_warning { "Warning" } else { "Error" };
-                context_info.push_str(&format!("[{}] {}:{}: {}\n", level, err.file, err.line, err.message));
-            }
-            context_info.push('\n');
-        }
-        
-        context_info.push_str("Note: Use 'list_project_files' if you need to know about files not listed above.\n");
-    }
-
-    let user_prompt = format!("Context:\n{}\n\nUser Question: {}", context_info, input.prompt);
-    
-    messages.push(Content {
-        role: "user".to_string(),
-        parts: vec![Part {
-            text: Some(user_prompt),
-            function_call: None,
-            function_response: None,
-            extra: HashMap::new(),
-        }],
-    });
-
-    // 4. API Request Loop
     let mut current_iteration = 0;
     let mut last_total_tokens = 0u64;
-    const MAX_ITERATIONS: i32 = 15;
+    const MAX_ITERATIONS: i32 = 100;
+    let mut trace_log = format!("--- TRACE ---\nPrompt: {}\n\n", input.prompt);
 
     loop {
         current_iteration += 1;
-        if current_iteration > MAX_ITERATIONS {
-            let _ = unsafe { log_usage(last_total_tokens) };
-            return Ok("Error: AI exceeded maximum tool call depth.".to_string());
-        }
+        if current_iteration > MAX_ITERATIONS { break; }
+
+        let history_window = if messages.len() > 30 {
+            let mut window = vec![messages[0].clone()];
+            let mut start = messages.len() - 29;
+            while start > 1 && messages[start].role == "user" && messages[start].parts.iter().any(|p| p.function_response.is_some()) { start -= 1; }
+            window.extend(messages[start..].to_vec());
+            window
+        } else {
+            messages.clone()
+        };
 
         let req = GeminiRequest {
-            system_instruction: Some(Content {
-                role: "system".to_string(),
-                parts: vec![Part {
-                    text: Some(system_instruction.to_string()),
-                    function_call: None,
-                    function_response: None,
-                    extra: HashMap::new(),
-                }],
-            }),
-            contents: messages.clone(),
-            tools: if current_iteration == 1 {
-                tools.clone()
-            } else {
-                vec![]
-            },
+            system_instruction: Some(Content { role: "system".to_string(), parts: vec![Part { text: Some(system_instruction.clone()), function_call: None, function_response: None, extra: HashMap::new() }] }),
+            contents: history_window,
+            tools: tools.clone(),
         };
 
         let body = serde_json::to_string(&req)?;
-        let http_req = HttpRequest::new(&url)
-            .with_method("POST")
-            .with_header("Content-Type", "application/json")
-            .with_header("x-goog-api-key", &api_key);
+        if let Ok(pretty) = serde_json::to_string_pretty(&req) { let _ = unsafe { log_payload(pretty) }; }
 
+        let http_req = HttpRequest::new(&url).with_method("POST").with_header("Content-Type", "application/json").with_header("x-goog-api-key", &api_key);
         let resp = http::request(&http_req, Some(body))?;
-        if resp.status() != 200 && resp.status() != 0 {
-            let _ = unsafe { log_usage(last_total_tokens) };
-            return Err(anyhow::anyhow!(
-                "Gemini API error ({}): {}",
-                resp.status(),
-                String::from_utf8_lossy(&resp.body())
-            )
-            .into());
-        }
+        if resp.status() != 200 && resp.status() != 0 { return Err(anyhow::anyhow!("API Error {}: {}", resp.status(), String::from_utf8_lossy(&resp.body())).into()); }
 
-        let body_bytes = resp.body();
-        let gemini_resp: GeminiResponse = serde_json::from_slice(&body_bytes).map_err(|e| {
-            let raw_body = String::from_utf8_lossy(&body_bytes);
-            anyhow::anyhow!("Failed to parse Gemini response: {}. Body: {}", e, raw_body)
-        })?;
-
+        let gemini_resp: GeminiResponse = serde_json::from_slice(&resp.body())?;
         if let Some(usage) = &gemini_resp.usage_metadata {
             last_total_tokens = usage.total_token_count as u64;
-            let usage_msg = format!(
-                "Token usage: {} (In: {}, Out: {})",
-                usage.total_token_count, usage.prompt_token_count, usage.candidates_token_count
-            );
-            let _ = unsafe { log_monologue(usage_msg) };
+            let _ = unsafe { log_monologue(format!("Step {}: {} tokens", current_iteration, usage.total_token_count)) };
         }
 
-        let candidates = gemini_resp.candidates.unwrap_or_default();
-        if candidates.is_empty() {
-            let _ = unsafe { log_usage(last_total_tokens) };
-            return Ok("Error: Gemini API returned no candidates. This might be a safety block or API error.".to_string());
-        }
-        
-        let candidate = candidates[0].clone();
-
-        // Handle error states in candidates
-        if let Some(reason) = &candidate.finish_reason {
-            if reason == "MALFORMED_FUNCTION_CALL" {
-                let _ = unsafe { log_usage(last_total_tokens) };
-                return Ok(format!("Error: AI generated a malformed function call. Message: {}", candidate.finish_message.as_deref().unwrap_or("none")));
-            }
-        }
-
-        let mut has_function_call = false;
-        let mut response_parts = Vec::new();
+        let candidate = gemini_resp.candidates.unwrap_or_default().get(0).cloned().ok_or(anyhow::anyhow!("No candidate"))?;
+        let mut model_text = Vec::new();
+        let mut model_calls = Vec::new();
 
         for part in &candidate.content.parts {
-            if let Some(function_call) = &part.function_call {
-                has_function_call = true;
-
-                let func_name = function_call
-                    .name
-                    .strip_prefix("default_api:")
-                    .unwrap_or(&function_call.name);
-
-                let result = if func_name == "read_project_file" {
-                    let path = function_call.args["path"].as_str().unwrap_or("");
-                    let _ = unsafe { log_monologue(format!("Reading file: {}", path)) };
-                    let content = unsafe { read_project_file(path.to_string())? };
-                    serde_json::json!({ "content": content })
-                } else if func_name == "search_project" {
-                    let query = function_call.args["query"].as_str().unwrap_or("");
-                    let _ = unsafe { log_monologue(format!("Searching project for: '{}'", query)) };
-                    let results_json = unsafe { search_project(query.to_string())? };
-                    let mut results: Vec<serde_json::Value> = serde_json::from_str(&results_json).unwrap_or(vec![]);
-                    let total_found = results.len();
-                    results.truncate(20);
-                    serde_json::json!({ "results": results, "total_found": total_found })
-                } else if func_name == "semantic_search" {
-                    let query = function_call.args["query"].as_str().unwrap_or("");
-                    let _ = unsafe { log_monologue(format!("Semantic search for: '{}'", query)) };
-                    let results_json = unsafe { semantic_search(query.to_string())? };
-                    let results: serde_json::Value = serde_json::from_str(&results_json).unwrap_or(serde_json::json!([]));
-                    serde_json::json!({ "results": results })
-                } else if func_name == "list_project_files" {
-                    let _ = unsafe { log_monologue("Listing project files...".to_string()) };
-                    let files = unsafe { list_project_files()? };
-                    serde_json::json!({ "files": files })
-                } else if func_name == "exec_in_sandbox" {
-                    let cmd = function_call.args["command"].as_str().unwrap_or("");
-                    let _ = unsafe { log_monologue(format!("Executing: {}", cmd)) };
-                    let output = unsafe { exec_in_sandbox(cmd.to_string())? };
-                    serde_json::json!({ "output": output })
-                } else {
-                    serde_json::json!({ "error": format!("Unknown function: {}", function_call.name) })
-                };
-
-                response_parts.push(Part {
-                    text: None,
-                    function_call: None,
-                    function_response: Some(FunctionResponse {
-                        name: function_call.name.clone(),
-                        response: result,
-                    }),
-                    extra: HashMap::new(),
-                });
-            }
+            if let Some(t) = &part.text { if !t.trim().is_empty() { 
+                model_text.push(part.clone()); 
+                let _ = unsafe { log_monologue(format!("> {}", t)) }; 
+                trace_log.push_str(t); 
+            } }
+            if part.function_call.is_some() { model_calls.push(part.clone()); }
         }
 
-        if has_function_call {
-            messages.push(Content {
-                role: "model".to_string(),
-                parts: candidate.content.parts.clone(),
-            });
-            messages.push(Content {
-                role: "user".to_string(),
-                parts: response_parts,
-            });
+        if !model_calls.is_empty() {
+            if !model_text.is_empty() { messages.push(Content { role: "model".to_string(), parts: model_text }); }
+            messages.push(Content { role: "model".to_string(), parts: model_calls.clone() });
+
+            let mut response_parts = Vec::new();
+            for part in &model_calls {
+                let call = part.function_call.as_ref().unwrap();
+                let name = call.name.strip_prefix("default_api:").unwrap_or(&call.name);
+                trace_log.push_str(&format!("\nCall: {} {:?}\n", name, call.args));
+
+                // MANDATORY: Function response MUST be an object {}, NOT an array []
+                let result = if name == "read_project_file" {
+                    serde_json::json!({ "content": unsafe { read_project_file(serde_json::to_string(&call.args)?)? } })
+                } else if name == "write_file" {
+                    unsafe { write_project_file(serde_json::to_string(&call.args)?)? };
+                    serde_json::json!({ "status": "success" })
+                } else if name == "semantic_search" || name == "search_project" {
+                    let q = call.args["query"].as_str().unwrap_or("");
+                    let res_str = if name == "semantic_search" { unsafe { semantic_search(q.to_string())? } } else { unsafe { search_project(q.to_string())? } };
+                    let res_json: serde_json::Value = serde_json::from_str(&res_str).unwrap_or(serde_json::json!([]));
+                    serde_json::json!({ "results": res_json }) // Wrap array in object!
+                } else if name == "list_project_files" {
+                    let res_str = unsafe { list_project_files()? };
+                    let res_json: serde_json::Value = serde_json::from_str(&res_str).unwrap_or(serde_json::json!([]));
+                    res_json // This one is already an object from host
+                } else if name == "exec_in_sandbox" {
+                    serde_json::json!({ "output": unsafe { exec_in_sandbox(call.args["command"].as_str().unwrap_or("").to_string())? } })
+                } else { serde_json::json!({"error": "unknown function"}) };
+
+                response_parts.push(Part { text: None, function_call: None, function_response: Some(FunctionResponse { name: call.name.clone(), response: result }), extra: HashMap::new() });
+            }
+            messages.push(Content { role: "user".to_string(), parts: response_parts });
         } else {
             let _ = unsafe { log_usage(last_total_tokens) };
-            let answer = candidate
-                .content
-                .parts
-                .iter()
-                .find_map(|p| p.text.clone())
-                .unwrap_or_else(|| "No text response".to_string());
-            return Ok(answer);
+            let ans = candidate.content.parts.iter().find_map(|p| p.text.clone()).unwrap_or_default();
+            let _ = unsafe { write_project_file(serde_json::to_string(&serde_json::json!({"path": ".gemini_trace.log", "content": trace_log}))?) };
+            return Ok(ans);
         }
     }
+    Ok("Exceeded depth".to_string())
 }

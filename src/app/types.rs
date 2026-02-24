@@ -122,6 +122,8 @@ pub(crate) enum AppAction {
     PluginMonologue(String, String),
     /// Token usage info from a plugin
     PluginUsage(String, u32),
+    /// RAW JSON payload from a plugin for inspection
+    PluginPayload(String, String),
 }
 
 pub(crate) struct AppShared {

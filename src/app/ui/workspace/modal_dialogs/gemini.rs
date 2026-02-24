@@ -205,43 +205,11 @@ pub fn show(
                     });
                     let input_json = serde_json::to_string(&plugin_input).unwrap_or_default();
 
-                    // Capture full payload for inspector (Visual feedback)
-                    let mut payload =
-                        format!("--- SYSTEM PROMPT ---\n{}\n\n", ws.gemini_system_prompt);
-                    let json_pretty =
-                        serde_json::to_string_pretty(&plugin_input).unwrap_or_default();
-
-                    payload.push_str(&format!(
-                        "--- FULL JSON PAYLOAD SENT TO PLUGIN (Size: {} bytes) ---\n",
-                        json_pretty.len()
-                    ));
-                    payload.push_str(&json_pretty);
-                    payload.push_str("\n\n");
-
-                    // Context summary for inspector (Human readable part)
-                    payload.push_str("--- CONTEXT SUMMARY ---\n");
-                    payload.push_str(&format!(
-                        "Open Files: {}\n",
-                        context_payload.open_files.len()
-                    ));
-                    for f in &context_payload.open_files {
-                        payload.push_str(&format!("  - {}\n", f.path));
-                    }
-
-                    payload.push_str(&format!(
-                        "\nBuild Errors: {}\n",
-                        context_payload.build_errors.len()
-                    ));
-                    for e in &context_payload.build_errors {
-                        let level = if e.is_warning { "WARN" } else { "ERR" };
-                        payload.push_str(&format!("  - [{}] {}:{}\n", level, e.file, e.line));
-                    }
-
-                    if let Some(active) = &context_payload.active_file {
-                        payload.push_str(&format!("\nActive File: {}\n", active.path));
-                    }
-
-                    ws.gemini_last_payload = payload;
+                    // Initial feedback for inspector
+                    ws.gemini_last_payload = "Constructing final request in WASM plugin...\n\n\
+                        The final payload including hardcoded RAG mandates and filtered history \
+                        will appear here once the plugin prepares the outgoing API call."
+                        .to_string();
 
                     // Add to history
                     if ws.gemini_history.last() != Some(&captured_prompt) {
@@ -516,10 +484,13 @@ fn render_gemini_main_ui(
                         .stick_to_bottom(true)
                         .show(ui, |ui| {
                             for line in &ws.gemini_monologue {
-                                ui.label(
-                                    egui::RichText::new(format!("> {}", line))
-                                        .weak()
-                                        .monospace(),
+                                ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(format!("> {}", line))
+                                            .weak()
+                                            .monospace(),
+                                    )
+                                    .wrap(),
                                 );
                             }
                         });

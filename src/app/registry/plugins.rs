@@ -311,6 +311,13 @@ impl PluginManager {
                 host_read_file,
             ),
             Function::new(
+                "write_project_file",
+                [ValType::I64],
+                [],
+                UserData::new(host_state.clone()),
+                host_write_file,
+            ),
+            Function::new(
                 "list_project_files",
                 [],
                 [ValType::I64],
@@ -363,8 +370,15 @@ impl PluginManager {
                 "log_usage",
                 [ValType::I64],
                 [],
-                UserData::new(host_state),
+                UserData::new(host_state.clone()),
                 host_log_usage,
+            ),
+            Function::new(
+                "log_payload",
+                [ValType::I64],
+                [],
+                UserData::new(host_state),
+                host_log_payload,
             ),
         ];
 
@@ -475,23 +489,40 @@ fn host_search_project(
     let query: String = plugin.memory_get_val(&inputs[0])?;
     let ctx = state.context.lock().expect("lock");
 
-    let result_json = if let (Some(index), Some(root)) = (&ctx.project_index, &ctx.root_path) {
-        let files = index.get_files();
-        let results = crate::app::ui::search_picker::project_search_sync(root, &files, &query, 100);
+    let result_json = if let Some(root) = &ctx.root_path {
+        // PROFESSIONAL UPGRADE: Use real grep with context to give AI more info in one step
+        let output = std::process::Command::new("grep")
+            .arg("-r")
+            .arg("-n")
+            .arg("-C")
+            .arg("2")
+            .arg("--exclude-dir=target")
+            .arg("--exclude-dir=.git")
+            .arg(&query)
+            .current_dir(root)
+            .output();
 
-        // Convert SearchResult to a simplified JSON for AI
-        let simplified: Vec<serde_json::Value> = results
-            .into_iter()
-            .map(|r| {
-                serde_json::json!({
-                    "file": r.file.to_string_lossy(),
-                    "line": r.line,
-                    "text": r.text
-                })
-            })
-            .collect();
-
-        serde_json::to_string(&simplified).unwrap_or_else(|_| "[]".to_string())
+        match output {
+            Ok(out) => {
+                let text = String::from_utf8_lossy(&out.stdout);
+                let mut results = Vec::new();
+                for line in text.lines().take(60) {
+                    if let Some((path_and_line, content)) = line.split_once(":")
+                        && let Some((path, line_num)) = path_and_line.split_once(":")
+                    {
+                        results.push(serde_json::json!({
+                            "file": path.trim(),
+                            "line": line_num.parse::<usize>().unwrap_or(0),
+                            "content": content.trim()
+                        }));
+                        continue;
+                    }
+                    results.push(serde_json::json!({ "raw": line }));
+                }
+                serde_json::to_string(&results).unwrap_or_else(|_| "[]".to_string())
+            }
+            Err(_) => "[]".to_string(),
+        }
     } else {
         "[]".to_string()
     };
@@ -520,16 +551,18 @@ fn host_semantic_search(
 
     let result_json = if let Some(index_arc) = &ctx.semantic_index {
         let index = index_arc.lock().unwrap();
-        match index.search(&query, 10) {
+        // REDUCED: From 10 to 5 results to save tokens
+        match index.search(&query, 5) {
             Ok(results) => {
                 let simplified: Vec<serde_json::Value> = results
                     .into_iter()
                     .map(|(score, path, line, text)| {
                         serde_json::json!({
-                            "score": score,
+                            "relevance": format!("{:.2}%", score * 100.0),
                             "file": path.to_string_lossy(),
                             "line": line,
-                            "text": text
+                            "context_snippet": text,
+                            "action_hint": format!("To see the full implementation here, call 'read_project_file' with path: '{}' and line_start: {}", path.to_string_lossy(), line)
                         })
                     })
                     .collect();
@@ -560,8 +593,13 @@ fn host_read_file(
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
 
-    // V Extismu 1.13 se String získá takto bez přímého MemoryHandle
-    let path_str: String = plugin.memory_get_val(&inputs[0])?;
+    // Input is now expected to be a JSON string: {"path": "...", "line_start": 1}
+    let input_str: String = plugin.memory_get_val(&inputs[0])?;
+    let input: serde_json::Value =
+        serde_json::from_str(&input_str).unwrap_or(serde_json::json!({"path": input_str}));
+
+    let path_str = input["path"].as_str().unwrap_or("");
+    let line_start = input["line_start"].as_u64().unwrap_or(1) as usize;
     let rel_path = Path::new(&path_str);
 
     if !state.is_allowed(rel_path) {
@@ -573,8 +611,27 @@ fn host_read_file(
     }
 
     let full_path = state.sandbox_root.join(rel_path);
-    let content = fs::read_to_string(full_path)
+    let full_content = fs::read_to_string(full_path)
         .unwrap_or_else(|_| "File not found or unreadable".to_string());
+
+    // Slice the content based on line_start
+    let lines: Vec<&str> = full_content.lines().collect();
+    let total_lines = lines.len();
+    let mut content = if line_start > 1 && line_start <= total_lines {
+        lines[line_start - 1..].join("\n")
+    } else {
+        full_content
+    };
+
+    // TRUNCATE: Limit to 10k chars to save tokens
+    let max_chars = 10000;
+    if content.len() > max_chars {
+        content.truncate(max_chars);
+        content.push_str(&format!(
+            "\n\n[FILE TRUNCATED: Showing 10k chars from line {}. Total lines in file: {}. Use 'line_start' to read the next segment!]",
+            line_start, total_lines
+        ));
+    }
 
     let h = plugin.memory_alloc(content.len() as u64)?;
     plugin
@@ -601,7 +658,6 @@ fn host_list_files(
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_string_lossy();
-            // Skip heavy directories to save tokens
             if name == "target" || name == ".git" || name == "node_modules" || name == "vendor" {
                 return false;
             }
@@ -623,11 +679,22 @@ fn host_list_files(
         }
     }
 
-    let result = files.join("\n");
-    let h = plugin.memory_alloc(result.len() as u64)?;
+    let total_found = files.len();
+    if total_found > 300 {
+        files.truncate(300);
+    }
+
+    let result_json = serde_json::to_string(&serde_json::json!({
+        "files": files,
+        "total_count": total_found,
+        "truncated": total_found > 300,
+        "message": if total_found > 300 { "Showing first 300 files. Use 'semantic_search' to find specific logic." } else { "Full file list retrieved." }
+    })).unwrap_or_default();
+
+    let h = plugin.memory_alloc(result_json.len() as u64)?;
     plugin
         .memory_bytes_mut(h)?
-        .copy_from_slice(result.as_bytes());
+        .copy_from_slice(result_json.as_bytes());
     outputs[0] = Val::I64(h.offset() as i64);
     Ok(())
 }
@@ -728,6 +795,51 @@ fn host_exec_in_sandbox(
     Ok(())
 }
 
+fn host_write_file(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    _outputs: &mut [Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let input_str: String = plugin.memory_get_val(&inputs[0])?;
+    let input: serde_json::Value =
+        serde_json::from_str(&input_str).map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
+
+    let path_str = input["path"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("Missing path"))?;
+    let content = input["content"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("Missing content"))?;
+    let rel_path = Path::new(&path_str);
+
+    if !state.is_allowed(rel_path) {
+        return Err(anyhow::anyhow!(
+            "Security violation: Access to '{}' is blocked",
+            path_str
+        ));
+    }
+
+    let full_path = state.sandbox_root.join(rel_path);
+
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    fs::write(full_path, content)?;
+
+    if let Some(ctx) = &state.egui_ctx {
+        ctx.request_repaint();
+    }
+
+    Ok(())
+}
+
 fn host_log_monologue(
     plugin: &mut CurrentPlugin,
     inputs: &[Val],
@@ -772,6 +884,33 @@ fn host_log_usage(
         let _ = sender.send(crate::app::types::AppAction::PluginUsage(
             state.plugin_id.clone(),
             tokens,
+        ));
+    }
+
+    if let Some(ctx) = &state.egui_ctx {
+        ctx.request_repaint();
+    }
+
+    Ok(())
+}
+
+fn host_log_payload(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    _outputs: &mut [Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let payload: String = plugin.memory_get_val(&inputs[0])?;
+
+    if let Some(sender) = &state.action_sender {
+        let _ = sender.send(crate::app::types::AppAction::PluginPayload(
+            state.plugin_id.clone(),
+            payload,
         ));
     }
 

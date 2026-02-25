@@ -1,3 +1,17 @@
+## [0.7.16] - 2026-02-25
+
+### Added
+- **AI Chat UI Redesign**: Major UX overhaul for a professional terminal-like feel.
+    - **Flowing Layout**: Conversation and prompt now grow dynamically from the top.
+    - **Upward-Expanding Prompt**: Input field grows upwards as you type, keeping the current line stable.
+    - **Unified Dark Theme**: Entire modal body matches the viewer's dark background.
+    - **Consistent History**: User questions in history are now wrapped in blue-gray blocks matching the prompt style.
+    - **Bottom Settings**: Agent settings moved to the footer with a "push-up" effect on the history.
+- **Visual Refinements**: 
+    - Visible separators between messages and above the status bar.
+    - Improved ASCII logo rendering with tight line spacing.
+    - Custom padding and light text color for the prompt area.
+
 ## [0.7.15] - 2026-02-25
 
 ### Added

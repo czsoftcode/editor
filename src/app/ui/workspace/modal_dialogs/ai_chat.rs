@@ -23,7 +23,6 @@ pub fn show(
     id_salt: &impl std::hash::Hash,
 ) {
     if !ws.show_gemini {
-        // Keeping show_gemini for now as it's the flag in state, but logic is generic
         return;
     }
 
@@ -43,7 +42,14 @@ pub fn show(
     let modal = StandardModal::new(i18n.get("gemini-title"), (id_salt, "ai_chat_modal"))
         .with_size(modal_width, 700.0);
 
+    let viewer_bg = egui::Color32::from_rgb(20, 20, 25);
+
     modal.show(ctx, &mut show_flag, |ui| {
+        ui.visuals_mut().window_fill = viewer_bg;
+        ui.visuals_mut().panel_fill = viewer_bg;
+        ui.visuals_mut().widgets.noninteractive.bg_fill = viewer_bg;
+        ui.visuals_mut().widgets.noninteractive.bg_stroke = egui::Stroke::NONE;
+
         if (ui.input(|i| i.pointer.any_click()) || ui.ui_contains_pointer())
             && ui.ui_contains_pointer()
             && ws.focused_panel != crate::app::types::FocusedPanel::Gemini
@@ -82,7 +88,6 @@ pub fn show(
 
         // BODY
         modal.ui_body(ui, |ui| {
-            // Check if active agent needs authorization (e.g. Gemini plugin)
             check_agent_authorization(shared, ws, ui);
 
             if inspector_open {
@@ -90,6 +95,7 @@ pub fn show(
                     .resizable(true)
                     .default_width(600.0)
                     .width_range(400.0..=800.0)
+                    .frame(egui::Frame::NONE.fill(viewer_bg))
                     .show_inside(ui, |ui| {
                         render_chat_main_ui(
                             ui,
@@ -102,16 +108,29 @@ pub fn show(
                         );
                     });
 
-                egui::CentralPanel::default().show_inside(ui, |ui| {
-                    render_inspector(ui, ws, font_size);
-                });
+                egui::CentralPanel::default()
+                    .frame(egui::Frame::NONE.fill(viewer_bg))
+                    .show_inside(ui, |ui| {
+                        render_inspector(ui, ws, font_size);
+                    });
             } else {
-                render_chat_main_ui(ui, ws, i18n, &mut prompt, font_size, &mut action, loading);
+                egui::CentralPanel::default()
+                    .frame(egui::Frame::NONE.fill(viewer_bg))
+                    .show_inside(ui, |ui| {
+                        render_chat_main_ui(
+                            ui,
+                            ws,
+                            i18n,
+                            &mut prompt,
+                            font_size,
+                            &mut action,
+                            loading,
+                        );
+                    });
             }
         });
     });
 
-    // Sync back
     ws.gemini_prompt = prompt;
     ws.show_gemini = show_flag;
 
@@ -163,81 +182,145 @@ fn render_chat_main_ui(
     action: &mut Option<AiModalAction>,
     loading: bool,
 ) {
-    if ws.gemini_show_settings {
-        if AiChatWidget::ui_settings(
-            ui,
-            &mut ws.gemini_expertise,
-            &mut ws.gemini_reasoning_depth,
-            &mut ws.gemini_language,
-            &mut ws.gemini_system_prompt,
-            i18n,
-        ) {
-            // Settings changed, could trigger auto-save here if needed
-        }
-        if ui.button(format!("✔ {}", i18n.get("btn-save"))).clicked() {
-            *action = Some(AiModalAction::SaveSettings);
-        }
-        ui.add_space(8.0);
-        ui.separator();
-        ui.add_space(8.0);
-    }
-
-    // Input / Approval Area
-    ui.add_space(4.0);
-    if loading && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-        ws.gemini_cancellation_token
-            .store(true, std::sync::atomic::Ordering::Relaxed);
-    }
-
-    if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
-        render_approval_ui(ui, id, action_name, details, sender, ws);
-    } else {
-        ui.label(egui::RichText::new(i18n.get("gemini-label-prompt")).strong());
-        let (send_via_kb, resp) = AiChatWidget::ui_input(
-            ui,
-            prompt,
-            font_size,
-            &i18n.get("gemini-placeholder-prompt"),
-            &ws.gemini_history,
-            &mut ws.gemini_history_index,
-        );
-        if ws.gemini_focus_requested {
-            resp.request_focus();
-            ws.gemini_focus_requested = false;
-        }
-        if send_via_kb {
-            *action = Some(AiModalAction::Send);
-        }
-    }
-
-    ui.add_space(8.0);
-    render_info_bar(ui, ws, loading);
-    ui.add_space(4.0);
-    ui.separator();
-    ui.add_space(8.0);
-
-    // Results / History Area
+    let viewer_bg = egui::Color32::from_rgb(20, 20, 25);
+    // Normal Top-Down layout
     ui.vertical(|ui| {
-        if !ws.gemini_conversation.is_empty() {
-            ui.label(egui::RichText::new(i18n.get("gemini-label-response")).strong());
-            AiChatWidget::ui_conversation(
-                ui,
-                &ws.gemini_conversation,
-                font_size,
-                &mut ws.markdown_cache,
-            );
-        } else if loading {
-            ui.horizontal(|ui| {
-                ui.spinner();
-                ui.label(egui::RichText::new(i18n.get("gemini-loading")).strong());
-            });
-            ui.add_space(4.0);
-            egui::ScrollArea::vertical()
-                .id_salt("monologue_scroll")
-                .max_height(200.0)
-                .stick_to_bottom(true)
-                .show(ui, |ui| {
+        ui.spacing_mut().item_spacing.y = 0.0;
+
+        // Calculate reserved space for bottom elements to limit history growth
+        let mut bottom_h = 110.0; // Base for Info + Prompt
+        if ws.gemini_show_settings {
+            bottom_h += 220.0;
+        }
+        if ws.pending_plugin_approval.is_some() {
+            bottom_h += 300.0;
+        }
+
+        let max_history_h = ui.available_height() - bottom_h;
+
+        // 1. RESULTS / HISTORY AREA (Grows with content)
+        egui::ScrollArea::vertical()
+            .id_salt("ai_history_main_scroll")
+            .auto_shrink([false, true]) // Rosteme s obsahem!
+            .max_height(max_history_h.max(100.0))
+            .stick_to_bottom(true)
+            .show(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = 8.0;
+                if !ws.gemini_conversation.is_empty() {
+                    AiChatWidget::ui_conversation(
+                        ui,
+                        &ws.gemini_conversation,
+                        font_size,
+                        &mut ws.markdown_cache,
+                    );
+                } else if loading {
+                    ui.add_space(4.0);
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(egui::RichText::new(i18n.get("gemini-loading")).strong());
+                    });
+                    ui.add_space(4.0);
                     AiChatWidget::ui_monologue(ui, &ws.gemini_monologue, &mut ws.markdown_cache);
+                } else {
+                    ui.centered_and_justified(|ui| {
+                        ui.label(egui::RichText::new("PolyCredo AI").weak().size(24.0));
+                    });
+                }
+            });
+
+        // 2. SEPARATOR (Always below history)
+        ui.add_space(4.0);
+        ui.scope(|ui| {
+            ui.visuals_mut().widgets.noninteractive.bg_stroke =
+                egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+            ui.separator();
+        });
+
+        // 3. CONTROLS (Info Bar + Prompt)
+        if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
+            render_approval_ui(ui, id, action_name, details, sender, ws);
+        } else {
+            // INFO BAR
+            egui::Frame::new()
+                .fill(viewer_bg)
+                .inner_margin(egui::Margin::symmetric(8, 2))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    render_info_bar(ui, ws, loading);
+                });
+
+            ui.add_space(4.0);
+
+            // PROMPT
+            let prompt_bg = egui::Color32::from_rgb(45, 55, 65);
+            let text_color = egui::Color32::from_rgb(200, 200, 200);
+
+            egui::Frame::new()
+                .fill(prompt_bg)
+                .inner_margin(egui::Margin::symmetric(8, 2))
+                .corner_radius(4.0)
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    let visuals = ui.visuals_mut();
+                    visuals.override_text_color = Some(text_color);
+                    visuals.selection.stroke = egui::Stroke::NONE;
+                    visuals.extreme_bg_color = prompt_bg;
+                    visuals.widgets.hovered.expansion = 0.0;
+                    visuals.widgets.active.expansion = 0.0;
+
+                    if loading && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                        ws.gemini_cancellation_token
+                            .store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+
+                    let (send_via_kb, resp) = AiChatWidget::ui_input(
+                        ui,
+                        prompt,
+                        font_size,
+                        &i18n.get("gemini-placeholder-prompt"),
+                        &ws.gemini_history,
+                        &mut ws.gemini_history_index,
+                    );
+                    if ws.gemini_focus_requested {
+                        resp.request_focus();
+                        ws.gemini_focus_requested = false;
+                    }
+                    if send_via_kb {
+                        *action = Some(AiModalAction::Send);
+                    }
+                });
+        }
+
+        // 4. SETTINGS (At the very bottom, pushing things up if needed)
+        if ws.gemini_show_settings {
+            ui.add_space(8.0);
+            let settings_bg = egui::Color32::from_rgb(30, 35, 45);
+            egui::Frame::new()
+                .fill(settings_bg)
+                .inner_margin(12.0)
+                .corner_radius(4.0)
+                .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(60)))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    if AiChatWidget::ui_settings(
+                        ui,
+                        &mut ws.gemini_expertise,
+                        &mut ws.gemini_reasoning_depth,
+                        &mut ws.gemini_language,
+                        &mut ws.gemini_system_prompt,
+                        i18n,
+                    ) {
+                        // Settings changed
+                    }
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        if ui.button(format!("✔ {}", i18n.get("btn-save"))).clicked() {
+                            *action = Some(AiModalAction::SaveSettings);
+                        }
+                        if ui.button(i18n.get("btn-close")).clicked() {
+                            ws.gemini_show_settings = false;
+                        }
+                    });
                 });
         }
     });
@@ -253,47 +336,71 @@ fn render_approval_ui(
 ) {
     egui::Frame::new()
         .fill(egui::Color32::from_rgb(60, 45, 10))
-        .stroke(egui::Stroke::new(1.0, egui::Color32::YELLOW))
-        .inner_margin(10.0)
-        .corner_radius(4.0)
+        .stroke(egui::Stroke::new(1.5, egui::Color32::YELLOW))
+        .inner_margin(16.0)
+        .corner_radius(8.0)
         .show(ui, |ui| {
-            ui.label(
-                egui::RichText::new(format!("Agent '{}' vyžaduje schválení:", id))
-                    .strong()
-                    .color(egui::Color32::YELLOW),
-            );
-            ui.add_space(8.0);
-            egui::ScrollArea::vertical()
-                .max_height(200.0)
-                .show(ui, |ui| {
-                    egui_commonmark::CommonMarkViewer::new().show(
-                        ui,
-                        &mut ws.markdown_cache,
-                        &details,
+            ui.set_width(ui.available_width());
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("⚠️").size(24.0));
+                    ui.label(
+                        egui::RichText::new(format!("Agent '{}' vyžaduje schválení akce", id))
+                            .strong()
+                            .size(20.0)
+                            .color(egui::Color32::YELLOW),
                     );
                 });
-            ui.add_space(12.0);
-            ui.horizontal(|ui| {
-                if ui.button("1 - Provést").clicked()
-                    || ui.input(|i| i.key_pressed(egui::Key::Num1))
-                {
-                    let _ = sender.send(crate::app::types::PluginApprovalResponse::Approve);
-                }
-                if ui.button("2 - Vždy").clicked() || ui.input(|i| i.key_pressed(egui::Key::Num2))
-                {
-                    let _ = sender.send(crate::app::types::PluginApprovalResponse::ApproveAlways);
-                }
-                if ui.button("3/Esc - Zamítnout").clicked()
-                    || ui.input(|i| {
-                        i.key_pressed(egui::Key::Num3) || i.key_pressed(egui::Key::Escape)
-                    })
-                {
-                    let _ = sender.send(crate::app::types::PluginApprovalResponse::Deny);
-                    ws.gemini_cancellation_token
-                        .store(true, std::sync::atomic::Ordering::Relaxed);
-                } else {
-                    ws.pending_plugin_approval = Some((id, _action_name, details, sender));
-                }
+                ui.add_space(12.0);
+
+                egui::ScrollArea::vertical()
+                    .max_height(250.0)
+                    .id_salt("approval_details_scroll")
+                    .show(ui, |ui| {
+                        egui_commonmark::CommonMarkViewer::new().show(
+                            ui,
+                            &mut ws.markdown_cache,
+                            &details,
+                        );
+                    });
+
+                ui.add_space(20.0);
+                ui.horizontal(|ui| {
+                    let btn_size = egui::vec2(150.0, 32.0);
+                    if ui
+                        .add_sized(
+                            btn_size,
+                            egui::Button::new(egui::RichText::new("1 - Provést").strong()),
+                        )
+                        .clicked()
+                        || ui.input(|i| i.key_pressed(egui::Key::Num1))
+                    {
+                        let _ = sender.send(crate::app::types::PluginApprovalResponse::Approve);
+                    }
+                    ui.add_space(12.0);
+                    if ui
+                        .add_sized(btn_size, egui::Button::new("2 - Schvalovat vždy"))
+                        .clicked()
+                        || ui.input(|i| i.key_pressed(egui::Key::Num2))
+                    {
+                        let _ =
+                            sender.send(crate::app::types::PluginApprovalResponse::ApproveAlways);
+                    }
+                    ui.add_space(12.0);
+                    if ui
+                        .add_sized(btn_size, egui::Button::new("3/Esc - Zamítnout"))
+                        .clicked()
+                        || ui.input(|i| {
+                            i.key_pressed(egui::Key::Num3) || i.key_pressed(egui::Key::Escape)
+                        })
+                    {
+                        let _ = sender.send(crate::app::types::PluginApprovalResponse::Deny);
+                        ws.gemini_cancellation_token
+                            .store(true, std::sync::atomic::Ordering::Relaxed);
+                    } else {
+                        ws.pending_plugin_approval = Some((id, _action_name, details, sender));
+                    }
+                });
             });
         });
 }
@@ -305,12 +412,15 @@ fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool) {
         } else {
             ui.label("📁");
         }
-        ui.label(ws.sandbox.root.to_string_lossy());
+        ui.label(egui::RichText::new(ws.sandbox.root.to_string_lossy()).weak());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(format!(
-                "In: {} | Out: {}",
-                ws.gemini_in_tokens, ws.gemini_out_tokens
-            ));
+            ui.label(
+                egui::RichText::new(format!(
+                    "In: {} | Out: {}",
+                    ws.gemini_in_tokens, ws.gemini_out_tokens
+                ))
+                .weak(),
+            );
         });
     });
 }
@@ -452,7 +562,6 @@ fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) 
         )
     };
 
-    // Set host context for tools
     let active_path = ws.editor.active_path().map(|p| {
         p.strip_prefix(&ws.root_path)
             .unwrap_or(p)

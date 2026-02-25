@@ -71,7 +71,9 @@ impl AiChatWidget {
                 .hint_text(hint)
                 .desired_width(f32::INFINITY)
                 .font(egui::FontId::monospace(font_size))
-                .desired_rows(4),
+                .margin(egui::vec2(4.0, font_size * 0.5))
+                .desired_rows(1)
+                .frame(false),
         );
 
         (send, response)
@@ -84,69 +86,87 @@ impl AiChatWidget {
         font_size: f32,
         cache: &mut egui_commonmark::CommonMarkCache,
     ) {
-        let terminal_bg = egui::Color32::from_rgb(20, 20, 25);
-        let terminal_text = egui::Color32::from_rgb(175, 175, 175);
-        let question_text = egui::Color32::from_rgb(70, 110, 160);
         let poly_color = egui::Color32::from_rgb(70, 110, 160);
         let credo_color = egui::Color32::from_rgb(70, 160, 110);
+        let terminal_text = egui::Color32::from_rgb(175, 175, 175);
         let path_purple = egui::Color32::from_rgb(120, 80, 170);
 
-        egui::Frame::new()
-            .fill(terminal_bg)
-            .inner_margin(8.0)
-            .corner_radius(4.0)
-            .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(50)))
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical()
-                    .id_salt("ai_chat_scroll")
-                    .auto_shrink([false, false])
-                    .stick_to_bottom(true)
+        let path_re = regex::Regex::new(r"(?P<link>\[[^\]]+\]\([^\)]+\))|`(?P<code_inner>[^`]+)`|(?P<path>\b(?:src|locales|docs|app|ui|workspace|packaging|privacy|vendor|target)/[a-zA-Z0-9_\-./]+\.[a-z0-9]+\b|\b[a-zA-Z0-9_\-./]+\.(?:rs|toml|md|ftl|sh|json)\b)").ok();
+
+        for (q, a) in conversation {
+            // User Question (Styled to match the input prompt)
+            if !q.is_empty() {
+                let prompt_bg = egui::Color32::from_rgb(50, 60, 75);
+                let text_color = egui::Color32::from_rgb(200, 200, 200);
+
+                egui::Frame::new()
+                    .fill(prompt_bg)
+                    .inner_margin(egui::Margin::symmetric(8, 4))
+                    .corner_radius(4.0)
                     .show(ui, |ui| {
-                        let path_re = regex::Regex::new(r"(?P<link>\[[^\]]+\]\([^\)]+\))|`(?P<code_inner>[^`]+)`|(?P<path>\b(?:src|locales|docs|app|ui|workspace|packaging|privacy|vendor|target)/[a-zA-Z0-9_\-./]+\.[a-z0-9]+\b|\b[a-zA-Z0-9_\-./]+\.(?:rs|toml|md|ftl|sh|json)\b)").ok();
-
-                        for (q, a) in conversation {
-                            // User Question
-                            if !q.is_empty() {
-                                ui.horizontal(|ui| {
-                                    ui.label(egui::RichText::new(">>>").color(question_text).monospace().size(font_size));
-                                    let mut q_mut = q.clone();
-                                    ui.add(egui::TextEdit::multiline(&mut q_mut)
-                                        .font(egui::FontId::monospace(font_size))
-                                        .text_color(question_text)
-                                        .code_editor()
-                                        .lock_focus(false)
-                                        .interactive(true)
-                                        .desired_width(f32::INFINITY));
-                                });
-                                ui.add_space(4.0);
-                            }
-
-                            // Agent Answer
-                            if !a.is_empty() {
-                                if a.contains("____        __") && a.contains("CLI") {
-                                    Self::render_logo(ui, a, font_size, poly_color, credo_color);
-                                } else {
-                                    Self::render_markdown(ui, a, font_size, terminal_text, path_purple, &path_re, cache);
-                                }
-                            }
-
-                            ui.add_space(8.0);
-                            ui.horizontal(|ui| {
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if ui.button("📋 Copy Thread").clicked() {
-                                        let full_text = if q.is_empty() { a.clone() } else { format!(">>> {}
-
-{}", q, a) };
-                                        ui.ctx().copy_text(full_text);
-                                    }
-                                });
-                            });
-                            ui.add_space(8.0);
-                            ui.separator();
-                            ui.add_space(8.0);
-                        }
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new("->")
+                                    .color(text_color)
+                                    .monospace()
+                                    .size(font_size),
+                            );
+                            let mut q_mut = q.clone();
+                            ui.add(
+                                egui::TextEdit::multiline(&mut q_mut)
+                                    .font(egui::FontId::monospace(font_size))
+                                    .text_color(text_color)
+                                    .code_editor()
+                                    .frame(false) // No internal frame
+                                    .lock_focus(false)
+                                    .interactive(true)
+                                    .desired_width(f32::INFINITY),
+                            );
+                        });
                     });
+                ui.add_space(4.0);
+            }
+
+            // Agent Answer
+            if !a.is_empty() {
+                if a.contains("____        __") && a.contains("CLI") {
+                    Self::render_logo(ui, a, font_size, poly_color, credo_color);
+                } else {
+                    Self::render_markdown(
+                        ui,
+                        a,
+                        font_size,
+                        terminal_text,
+                        path_purple,
+                        &path_re,
+                        cache,
+                    );
+                }
+            }
+
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("📋 Copy Thread").clicked() {
+                        let full_text = if q.is_empty() {
+                            a.clone()
+                        } else {
+                            format!(">>> {}\n\n{}", q, a)
+                        };
+                        ui.ctx().copy_text(full_text);
+                    }
+                });
             });
+            ui.add_space(4.0);
+
+            // Visible separator
+            ui.scope(|ui| {
+                ui.visuals_mut().widgets.noninteractive.bg_stroke =
+                    egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+                ui.separator();
+            });
+            ui.add_space(4.0);
+        }
     }
 
     fn render_logo(
@@ -156,110 +176,113 @@ impl AiChatWidget {
         poly_color: egui::Color32,
         credo_color: egui::Color32,
     ) {
-        let mut logo_line_idx = 0;
-        for line in text.lines() {
-            if line.contains("____")
-                || line.contains(" / ")
-                || line.contains("/_/")
-                || line.contains("/____/")
-            {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    let split_point = match logo_line_idx {
-                        0 => 25,
-                        1 => 24,
-                        2 => 23,
-                        3 => 22,
-                        4 => 21,
-                        5 => 20,
-                        _ => 22,
-                    };
-                    logo_line_idx += 1;
-                    let actual_split = split_point.min(line.len());
-                    let poly = &line[..actual_split];
-                    let credo_full = &line[actual_split..];
+        ui.vertical(|ui| {
+            ui.spacing_mut().item_spacing.y = 0.0; // Tight vertical spacing for ASCII art
+            let mut logo_line_idx = 0;
+            for line in text.lines() {
+                if line.contains("____")
+                    || line.contains(" / ")
+                    || line.contains("/_/")
+                    || line.contains("/____/")
+                {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        let split_point = match logo_line_idx {
+                            0 => 25,
+                            1 => 24,
+                            2 => 23,
+                            3 => 22,
+                            4 => 21,
+                            5 => 20,
+                            _ => 22,
+                        };
+                        logo_line_idx += 1;
+                        let actual_split = split_point.min(line.len());
+                        let poly = &line[..actual_split];
+                        let credo_full = &line[actual_split..];
 
-                    ui.label(
-                        egui::RichText::new(poly)
-                            .color(poly_color)
-                            .monospace()
-                            .size(font_size),
-                    );
-                    if line.contains("CLI") {
-                        let parts: Vec<&str> = credo_full.splitn(2, "CLI").collect();
                         ui.label(
-                            egui::RichText::new(parts[0])
-                                .color(credo_color)
+                            egui::RichText::new(poly)
+                                .color(poly_color)
                                 .monospace()
                                 .size(font_size),
                         );
-                        ui.label(
-                            egui::RichText::new("CLI")
-                                .color(egui::Color32::from_rgb(110, 90, 0))
-                                .monospace()
-                                .size(font_size),
-                        );
-                        if parts.len() > 1 {
+                        if line.contains("CLI") {
+                            let parts: Vec<&str> = credo_full.splitn(2, "CLI").collect();
                             ui.label(
-                                egui::RichText::new(parts[1])
+                                egui::RichText::new(parts[0])
+                                    .color(credo_color)
+                                    .monospace()
+                                    .size(font_size),
+                            );
+                            ui.label(
+                                egui::RichText::new("CLI")
+                                    .color(egui::Color32::from_rgb(110, 90, 0))
+                                    .monospace()
+                                    .size(font_size),
+                            );
+                            if parts.len() > 1 {
+                                ui.label(
+                                    egui::RichText::new(parts[1])
+                                        .color(credo_color)
+                                        .monospace()
+                                        .size(font_size),
+                                );
+                            }
+                        } else {
+                            ui.label(
+                                egui::RichText::new(credo_full)
                                     .color(credo_color)
                                     .monospace()
                                     .size(font_size),
                             );
                         }
-                    } else {
-                        ui.label(
-                            egui::RichText::new(credo_full)
-                                .color(credo_color)
-                                .monospace()
-                                .size(font_size),
-                        );
-                    }
-                });
-            } else if line.trim().starts_with("Version:")
-                || line.trim().starts_with("Model:")
-                || line.trim().starts_with("Rank:")
-            {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    let parts: Vec<&str> = line.splitn(2, ':').collect();
-                    if parts.len() == 2 {
-                        ui.label(
-                            egui::RichText::new(parts[0])
-                                .color(egui::Color32::from_gray(90))
-                                .monospace()
-                                .size(font_size),
-                        );
-                        ui.label(
-                            egui::RichText::new(":")
-                                .color(egui::Color32::from_gray(50))
-                                .monospace()
-                                .size(font_size),
-                        );
-                        ui.label(
-                            egui::RichText::new(parts[1])
-                                .color(egui::Color32::from_rgb(175, 175, 175))
-                                .monospace()
-                                .size(font_size),
-                        );
-                    } else {
-                        ui.label(
-                            egui::RichText::new(line)
-                                .color(egui::Color32::from_rgb(175, 175, 175))
-                                .monospace()
-                                .size(font_size),
-                        );
-                    }
-                });
-            } else {
-                ui.label(
-                    egui::RichText::new(line)
-                        .color(egui::Color32::from_rgb(175, 175, 175))
-                        .monospace()
-                        .size(font_size),
-                );
+                    });
+                } else if line.trim().starts_with("Version:")
+                    || line.trim().starts_with("Model:")
+                    || line.trim().starts_with("Rank:")
+                {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        let parts: Vec<&str> = line.splitn(2, ':').collect();
+                        if parts.len() == 2 {
+                            ui.label(
+                                egui::RichText::new(parts[0])
+                                    .color(egui::Color32::from_gray(90))
+                                    .monospace()
+                                    .size(font_size),
+                            );
+                            ui.label(
+                                egui::RichText::new(":")
+                                    .color(egui::Color32::from_gray(50))
+                                    .monospace()
+                                    .size(font_size),
+                            );
+                            ui.label(
+                                egui::RichText::new(parts[1])
+                                    .color(egui::Color32::from_rgb(175, 175, 175))
+                                    .monospace()
+                                    .size(font_size),
+                            );
+                        } else {
+                            ui.label(
+                                egui::RichText::new(line)
+                                    .color(egui::Color32::from_rgb(175, 175, 175))
+                                    .monospace()
+                                    .size(font_size),
+                            );
+                        }
+                    });
+                } else {
+                    ui.label(
+                        egui::RichText::new(line)
+                            .color(egui::Color32::from_rgb(175, 175, 175))
+                            .monospace()
+                            .size(font_size),
+                    );
+                }
             }
-        }
+        });
     }
 
     fn render_markdown(
@@ -298,7 +321,7 @@ impl AiChatWidget {
                 egui::FontId::proportional(md_font_size * 1.25),
             );
 
-            style.spacing.item_spacing.y = 8.0;
+            style.spacing.item_spacing.y = 4.0; // Tighter paragraph spacing
 
             let mut current_block = String::new();
             let mut is_monologue_mode = false;
@@ -363,17 +386,9 @@ impl AiChatWidget {
                 if is_mono_line {
                     let clean = line.replace('>', "").trim().to_string();
                     if clean.starts_with("Step") {
-                        current_block.push_str(&format!(
-                            "_{}_
-",
-                            clean
-                        ));
+                        current_block.push_str(&format!("_{}_\n", clean));
                     } else {
-                        current_block.push_str(&format!(
-                            "{}
-",
-                            clean
-                        ));
+                        current_block.push_str(&format!("{}\n", clean));
                     }
                 } else {
                     current_block.push_str(line);
@@ -407,33 +422,43 @@ impl AiChatWidget {
             for line in monologue {
                 let mut processed = line.clone();
                 if let Some(re) = &path_re {
-                    processed = re.replace_all(&processed, |caps: &regex::Captures| {
-                        if caps.name("link").is_some() { caps[0].to_string() }
-                        else if let Some(c) = caps.name("code_inner") { format!("[{}](code)", c.as_str()) }
-                        else { format!("[{}](path)", &caps[0]) }
-                    }).to_string();
+                    processed = re
+                        .replace_all(&processed, |caps: &regex::Captures| {
+                            if caps.name("link").is_some() {
+                                caps[0].to_string()
+                            } else if let Some(c) = caps.name("code_inner") {
+                                format!("[{}](code)", c.as_str())
+                            } else {
+                                format!("[{}](path)", &caps[0])
+                            }
+                        })
+                        .to_string();
                 }
 
                 let trimmed = processed.trim();
                 if trimmed.starts_with("Step") {
-                    full_text.push_str(&format!("_{}_
-", trimmed.replace('>', "").trim()));
+                    full_text.push_str(&format!("_{}_\n", trimmed.replace('>', "").trim()));
                 } else {
-                    full_text.push_str(&format!("│ {}
-", trimmed.replace('>', "").trim()));
+                    full_text.push_str(&format!("│ {}\n", trimmed.replace('>', "").trim()));
                 }
             }
 
             if !full_text.is_empty() {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 0.0;
-                    let (rect, _) = ui.allocate_at_least(egui::vec2(2.0, 0.0), egui::Sense::hover());
+                    let (rect, _) =
+                        ui.allocate_at_least(egui::vec2(2.0, 0.0), egui::Sense::hover());
                     ui.painter().rect_filled(rect, 0.0, terminal_text);
 
                     egui::Frame::new()
                         .fill(egui::Color32::from_gray(35))
                         .inner_margin(egui::Margin::symmetric(12, 12))
-                        .corner_radius(egui::CornerRadius { nw: 0, ne: 4, sw: 0, se: 4 })
+                        .corner_radius(egui::CornerRadius {
+                            nw: 0,
+                            ne: 4,
+                            sw: 0,
+                            se: 4,
+                        })
                         .show(ui, |ui| {
                             egui_commonmark::CommonMarkViewer::new().show(ui, cache, &full_text);
                         });

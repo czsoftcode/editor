@@ -384,7 +384,7 @@ impl PluginManager {
             ),
             Function::new(
                 "log_usage",
-                [ValType::I64],
+                [ValType::I64, ValType::I64],
                 [],
                 UserData::new(host_state.clone()),
                 host_log_usage,
@@ -1007,12 +1007,14 @@ fn host_log_usage(
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
 
-    let tokens = inputs[0].i64().unwrap_or(0) as u32;
+    let in_tokens = inputs[0].i64().unwrap_or(0) as u32;
+    let out_tokens = inputs.get(1).and_then(|v| v.i64()).unwrap_or(0) as u32;
 
     if let Some(sender) = &state.action_sender {
         let _ = sender.send(crate::app::types::AppAction::PluginUsage(
             state.plugin_id.clone(),
-            tokens,
+            in_tokens,
+            out_tokens,
         ));
     }
 

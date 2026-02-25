@@ -1,7 +1,8 @@
 target/
-.polycredo/history
+.polycredo/history/
 .aider*
 .polycredo/sandbox/
+.polycredo/plugins/
 .build_number
 .gemini-*
 .claude-notes.md

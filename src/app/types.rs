@@ -49,6 +49,8 @@ pub(crate) struct ProjectProfiles {
 // Helper types
 // ---------------------------------------------------------------------------
 
+use crate::app::ui::widgets::ai_cli::{AiExpertiseRole, AiReasoningDepth};
+
 #[derive(PartialEq, Clone, Copy)]
 pub(crate) enum FocusedPanel {
     Build,
@@ -87,6 +89,8 @@ pub(crate) struct PersistentState {
     pub ai_font_scale: u32,
     pub gemini_system_prompt: Option<String>,
     pub gemini_language: Option<String>,
+    pub gemini_expertise: Option<AiExpertiseRole>,
+    pub gemini_reasoning_depth: Option<AiReasoningDepth>,
 }
 
 impl Default for PersistentState {
@@ -99,6 +103,8 @@ impl Default for PersistentState {
             ai_font_scale: 100,
             gemini_system_prompt: None,
             gemini_language: None,
+            gemini_expertise: None,
+            gemini_reasoning_depth: None,
         }
     }
 }
@@ -120,8 +126,8 @@ pub(crate) enum AppAction {
     PluginResponse(String, Result<String, String>),
     /// Incremental "thought" or log from a plugin
     PluginMonologue(String, String),
-    /// Token usage info from a plugin
-    PluginUsage(String, u32),
+    /// Token usage info from a plugin (id, in_tokens, out_tokens)
+    PluginUsage(String, u32, u32),
     /// RAW JSON payload from a plugin for inspection
     PluginPayload(String, String),
     /// Request for user approval for a dangerous AI action (plugin_id, action_name, action_details, sender)

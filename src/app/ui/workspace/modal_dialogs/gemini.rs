@@ -221,6 +221,8 @@ pub fn show(
 
                     let sys_prompt = ws.gemini_system_prompt.clone();
                     let lang = ws.gemini_language.clone();
+                    let expertise = ws.gemini_expertise;
+                    let depth = ws.gemini_reasoning_depth;
 
                     let shared_arc = Arc::clone(shared);
                     let plugin_manager = {
@@ -264,8 +266,12 @@ pub fn show(
                                 .unwrap_or_default()
                         };
 
+                        // Inject intelligence mandates into system prompt
+                        let intelligence_mandate = StandardAI::get_system_mandates(expertise, depth);
+                        let final_sys_prompt = format!("{}\n\n{}", intelligence_mandate, sys_prompt);
+
                         // Override/Inject user-customized settings
-                        config.insert("SYSTEM_PROMPT".to_string(), sys_prompt);
+                        config.insert("SYSTEM_PROMPT".to_string(), final_sys_prompt);
                         config.insert("LANGUAGE".to_string(), lang);
 
                         let result =
@@ -284,7 +290,8 @@ pub fn show(
                 ws.gemini_response = None;
                 ws.gemini_prompt.clear();
                 ws.gemini_last_payload.clear();
-                ws.gemini_total_tokens = 0;
+                ws.gemini_in_tokens = 0;
+                ws.gemini_out_tokens = 0;
                 ctx.request_repaint(); // Vynutit okamžité překreslení!
 
                 // Get current model from settings to show in logo
@@ -302,7 +309,8 @@ pub fn show(
                     StandardAI::get_logo(
                         crate::config::CLI_VERSION,
                         &gemini_model,
-                        crate::config::CLI_TIER,
+                        ws.gemini_expertise,
+                        ws.gemini_reasoning_depth,
                     ),
                 )];
             }
@@ -312,11 +320,15 @@ pub fn show(
             GeminiModalAction::SaveSettings => {
                 let sys_prompt = ws.gemini_system_prompt.clone();
                 let lang = ws.gemini_language.clone();
+                let expertise = ws.gemini_expertise;
+                let depth = ws.gemini_reasoning_depth;
 
                 let mut shared_lock = shared.lock().expect("lock");
                 let mut settings = (*shared_lock.settings).clone();
 
                 let gemini_settings = settings.plugins.entry("gemini".to_string()).or_default();
+                gemini_settings.expertise = expertise;
+                gemini_settings.reasoning_depth = depth;
                 gemini_settings
                     .config
                     .insert("SYSTEM_PROMPT".to_string(), sys_prompt);
@@ -352,6 +364,28 @@ fn render_gemini_main_ui(
             ui.add_space(4.0);
 
             ui.horizontal(|ui| {
+                ui.label("Rank:");
+                egui::ComboBox::from_id_salt("gemini_expertise")
+                    .selected_text(ws.gemini_expertise.as_str())
+                    .show_ui(ui, |ui| {
+                        use crate::app::ui::widgets::ai_cli::AiExpertiseRole;
+                        ui.selectable_value(&mut ws.gemini_expertise, AiExpertiseRole::Junior, "Junior");
+                        ui.selectable_value(&mut ws.gemini_expertise, AiExpertiseRole::Senior, "Senior");
+                        ui.selectable_value(&mut ws.gemini_expertise, AiExpertiseRole::Master, "Master");
+                    });
+
+                ui.add_space(8.0);
+                ui.label("Depth:");
+                egui::ComboBox::from_id_salt("gemini_depth")
+                    .selected_text(ws.gemini_reasoning_depth.as_str())
+                    .show_ui(ui, |ui| {
+                        use crate::app::ui::widgets::ai_cli::AiReasoningDepth;
+                        ui.selectable_value(&mut ws.gemini_reasoning_depth, AiReasoningDepth::Fast, "Fast");
+                        ui.selectable_value(&mut ws.gemini_reasoning_depth, AiReasoningDepth::Balanced, "Balanced");
+                        ui.selectable_value(&mut ws.gemini_reasoning_depth, AiReasoningDepth::Deep, "Deep");
+                    });
+
+                ui.add_space(16.0);
                 ui.label(i18n.get("gemini-label-language"));
                 egui::ComboBox::from_id_salt("gemini_lang")
                     .selected_text(crate::i18n::lang_display_name(&ws.gemini_language))
@@ -511,8 +545,7 @@ fn render_gemini_main_ui(
 
         ui.label(egui::RichText::new(display_path).weak());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let tokens = ws.gemini_total_tokens;
-            ui.label(egui::RichText::new(format!("Session tokens: {}", tokens)).weak());
+            ui.label(egui::RichText::new(format!("In: {} | Out: {}", ws.gemini_in_tokens, ws.gemini_out_tokens)).weak());
         });
     });
 

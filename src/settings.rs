@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use crate::app::ui::widgets::ai_cli::{AiExpertiseRole, AiReasoningDepth};
 
 const SETTINGS_FILE: &str = "settings.toml";
 const OLD_SETTINGS_FILE: &str = "settings.json";
@@ -9,12 +10,27 @@ const CONFIG_DIR_NAME: &str = "polycredo-editor";
 // PluginSettings — configuration for individual WASM plugins
 // ---------------------------------------------------------------------------
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct PluginSettings {
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]
+    pub expertise: AiExpertiseRole,
+    #[serde(default)]
+    pub reasoning_depth: AiReasoningDepth,
+    #[serde(default)]
     pub config: HashMap<String, String>,
+}
+
+impl Default for PluginSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            expertise: AiExpertiseRole::default(),
+            reasoning_depth: AiReasoningDepth::default(),
+            config: HashMap::new(),
+        }
+    }
 }
 
 fn default_true() -> bool {

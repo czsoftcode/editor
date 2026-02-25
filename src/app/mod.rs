@@ -180,12 +180,27 @@ impl EditorApp {
             context_aware: true,
         });
 
-        // Load WASM plugins from ~/.polycredo-editor/plugins
-        let plugins_dir = ipc::plugins_dir();
+        // Load WASM plugins from multiple locations (AI Sandbox -> Project -> Global)
         registry.plugins.set_blacklist(settings.blacklist.clone());
+        
+        if let Some(project_root) = paths_to_open.first() {
+            // 1. Plugins in AI Sandbox (AI agent can write here!)
+            let sandbox_plugins = project_root.join(".polycredo").join("sandbox").join("plugins");
+            if let Err(e) = registry.plugins.load_from_dir(&sandbox_plugins) {
+                eprintln!("Failed to load sandbox plugins from {:?}: {}", sandbox_plugins, e);
+            }
 
-        if let Err(e) = registry.plugins.load_from_dir(&plugins_dir) {
-            eprintln!("Failed to load plugins: {}", e);
+            // 2. Persistent Project Plugins
+            let project_plugins = project_root.join(".polycredo").join("plugins");
+            if let Err(e) = registry.plugins.load_from_dir(&project_plugins) {
+                eprintln!("Failed to load project plugins from {:?}: {}", project_plugins, e);
+            }
+        }
+
+        // 3. Global Fallback
+        let global_plugins = ipc::plugins_dir();
+        if let Err(e) = registry.plugins.load_from_dir(&global_plugins) {
+            eprintln!("Failed to load global plugins from {:?}: {}", global_plugins, e);
         }
 
         // Auto-register "hello" plugin command if loaded
@@ -415,13 +430,13 @@ impl EditorApp {
                         }
                     }
                 }
-                AppAction::PluginUsage(id, tokens) => {
+                AppAction::PluginUsage(id, in_t, out_t) => {
                     if let Some(ws) = &mut self.root_ws
                         && id == "gemini"
                     {
-                        // Add the total tokens consumed by the last request to the session counter.
-                        // The plugin is now responsible for sending the total only once per interaction.
-                        ws.gemini_total_tokens = ws.gemini_total_tokens.saturating_add(tokens);
+                        // Add the input and output tokens consumed by the last request to the session counter.
+                        ws.gemini_in_tokens = ws.gemini_in_tokens.saturating_add(in_t);
+                        ws.gemini_out_tokens = ws.gemini_out_tokens.saturating_add(out_t);
                     }
                 }
                 AppAction::PluginPayload(id, payload) => {

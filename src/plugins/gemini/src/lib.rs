@@ -70,6 +70,10 @@ struct GeminiResponse {
 
 #[derive(Deserialize, Debug)]
 struct UsageMetadata {
+    #[serde(rename = "promptTokenCount", default)]
+    prompt_token_count: u32,
+    #[serde(rename = "candidatesTokenCount", default)]
+    candidates_token_count: u32,
     #[serde(rename = "totalTokenCount", default)]
     total_token_count: u32,
 }
@@ -118,7 +122,7 @@ extern "ExtismHost" {
     fn semantic_search(query: String) -> String;
     fn exec_in_sandbox(command: String) -> String;
     fn log_monologue(message: String);
-    fn log_usage(tokens: u64);
+    fn log_usage(in_tokens: u64, out_tokens: u64);
     fn log_payload(payload: String);
 }
 
@@ -152,7 +156,8 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
     messages.push(Content { role: "user".to_string(), parts: vec![Part { text: Some(user_prompt), function_call: None, function_response: None, extra: HashMap::new() }] });
 
     let mut current_iteration = 0;
-    let mut last_total_tokens = 0u64;
+    let mut last_in_tokens = 0u64;
+    let mut last_out_tokens = 0u64;
     const MAX_ITERATIONS: i32 = 100;
     let mut trace_log = format!("--- TRACE ---\nPrompt: {}\n\n", input.prompt);
 
@@ -185,8 +190,9 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
 
         let gemini_resp: GeminiResponse = serde_json::from_slice(&resp.body())?;
         if let Some(usage) = &gemini_resp.usage_metadata {
-            last_total_tokens = usage.total_token_count as u64;
-            let _ = unsafe { log_monologue(format!("Step {}: {} tokens", current_iteration, usage.total_token_count)) };
+            last_in_tokens = usage.prompt_token_count as u64;
+            last_out_tokens = usage.candidates_token_count as u64;
+            let _ = unsafe { log_monologue(format!("Step {}: In: {} | Out: {} tokens", current_iteration, last_in_tokens, last_out_tokens)) };
         }
 
         let candidate = gemini_resp.candidates.unwrap_or_default().get(0).cloned().ok_or(anyhow::anyhow!("No candidate"))?;
@@ -249,7 +255,7 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
             }
             messages.push(Content { role: "user".to_string(), parts: response_parts });
         } else {
-            let _ = unsafe { log_usage(last_total_tokens) };
+            let _ = unsafe { log_usage(last_in_tokens, last_out_tokens) };
             let ans = candidate.content.parts.iter().find_map(|p| p.text.clone()).unwrap_or_default();
             // Trace log is best-effort, don't fail the whole request if it fails
             let _ = unsafe { 

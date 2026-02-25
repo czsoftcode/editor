@@ -1,6 +1,66 @@
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
+/// Expertise level of the AI agent, defining its persona and code quality standards.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq)]
+pub enum AiExpertiseRole {
+    /// Focuses on simple tasks, might need more guidance, uses basic patterns.
+    Junior,
+    /// Experienced developer, follows conventions, thinks about technical debt.
+    #[default]
+    Senior,
+    /// Architect level. Deep understanding of the system, optimization, and security.
+    Master,
+}
+
+impl AiExpertiseRole {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AiExpertiseRole::Junior => "Junior",
+            AiExpertiseRole::Senior => "Senior",
+            AiExpertiseRole::Master => "Master",
+        }
+    }
+
+    pub fn get_persona_mandate(&self) -> &'static str {
+        match self {
+            AiExpertiseRole::Junior => "ROLE: JUNIOR DEVELOPER. You are eager to help but cautious. Follow instructions literally. Use simple, readable code. If unsure, ask for clarification. Do not over-engineer.",
+            AiExpertiseRole::Senior => "ROLE: SENIOR DEVELOPER. You are an experienced engineer. Maintain high standards, follow project conventions, and ensure code is maintainable. Proactively suggest improvements for readability and performance.",
+            AiExpertiseRole::Master => "ROLE: MASTER ARCHITECT. You have a deep understanding of software systems. Prioritize security, scalability, and extreme optimization. Think about long-term architectural impacts and edge cases. Your code must be impeccable.",
+        }
+    }
+}
+
+/// Reasoning depth defining how much analysis the agent should perform.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq)]
+pub enum AiReasoningDepth {
+    /// Quick responses, low token usage, minimal research.
+    Fast,
+    /// Standard balance, reads relevant files.
+    #[default]
+    Balanced,
+    /// Deep analysis, multiple research steps, exhaustive validation.
+    Deep,
+}
+
+impl AiReasoningDepth {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AiReasoningDepth::Fast => "Fast",
+            AiReasoningDepth::Balanced => "Balanced",
+            AiReasoningDepth::Deep => "Deep",
+        }
+    }
+
+    pub fn get_reasoning_mandate(&self) -> &'static str {
+        match self {
+            AiReasoningDepth::Fast => "REASONING: FAST. Provide direct answers. Minimize file reading. Focus on the immediate prompt and currently open files.",
+            AiReasoningDepth::Balanced => "REASONING: BALANCED. Perform necessary research. Check 2-3 related files if needed to ensure consistency. Think before you act.",
+            AiReasoningDepth::Deep => "REASONING: DEEP. This is a complex task. You MUST perform exhaustive codebase research using semantic search and file reading. Map dependencies. Verify your logic through multi-step 'monologue' steps (> step). Do not rush.",
+        }
+    }
+}
+
 /// Data structure representing the current project context for AI agents.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct AiContextPayload {
@@ -35,6 +95,15 @@ pub struct AiToolDeclaration {
 pub struct StandardAI;
 
 impl StandardAI {
+    /// Returns the centralized system mandates for an agent based on its configuration.
+    pub fn get_system_mandates(role: AiExpertiseRole, depth: AiReasoningDepth) -> String {
+        format!(
+            "{}\n{}\n\nStrictly adhere to these levels of expertise and reasoning depth.",
+            role.get_persona_mandate(),
+            depth.get_reasoning_mandate()
+        )
+    }
+
     /// Returns a list of standard tools available to all AI agents.
     pub fn get_standard_tools() -> Vec<AiToolDeclaration> {
         vec![
@@ -129,7 +198,7 @@ impl StandardAI {
     }
 
     /// Returns the centralized ASCII logo with version and model info.
-    pub fn get_logo(version: &str, model: &str, tier: &str) -> String {
+    pub fn get_logo(version: &str, model: &str, role: AiExpertiseRole, depth: AiReasoningDepth) -> String {
         format!(
             r#"    ____        __       ______              __
    / __ \____  / /_  __ / ____/_______  ____/ /___
@@ -140,8 +209,8 @@ impl StandardAI {
 
  Version: {}
  Model:   {}
- Plan:    {}"#,
-            version, model, tier
+ Rank:    {} ({})"#,
+            version, model, role.as_str(), depth.as_str()
         )
     }
 
@@ -286,7 +355,7 @@ impl StandardAI {
         _cache: &mut egui_commonmark::CommonMarkCache,
     ) {
         let terminal_bg = egui::Color32::from_rgb(20, 20, 25);
-        let terminal_text = egui::Color32::from_rgb(175, 175, 175); // Improved gray
+        let terminal_text = egui::Color32::from_rgb(175, 175, 175);
         let question_text = egui::Color32::from_rgb(70, 110, 160);
         let poly_color = egui::Color32::from_rgb(70, 110, 160);
         let credo_color = egui::Color32::from_rgb(70, 160, 110);
@@ -306,7 +375,7 @@ impl StandardAI {
                         let path_re = regex::Regex::new(r"(?P<link>\[[^\]]+\]\([^\)]+\))|`(?P<code_inner>[^`]+)`|(?P<path>\b(?:src|locales|docs|app|ui|workspace|packaging|privacy|vendor|target)/[a-zA-Z0-9_\-./]+\.[a-z0-9]+\b|\b[a-zA-Z0-9_\-./]+\.(?:rs|toml|md|ftl|sh|json)\b)").ok();
 
                         for (q, a) in conversation {
-                            // Question (only if not empty)
+                            // Question
                             if !q.is_empty() {
                                 ui.horizontal(|ui| {
                                     ui.label(
@@ -332,14 +401,10 @@ impl StandardAI {
                             // Answer
                             if !a.is_empty() {
                                 if a.contains("____        __") && a.contains("CLI") {
-                                    // Special rendering for the logo
+                                    // Special rendering for the ASCII logo
                                     let mut logo_line_idx = 0;
                                     for line in a.lines() {
-                                        if line.contains("____")
-                                            || line.contains(" / ")
-                                            || line.contains("/_/")
-                                            || line.contains("/____/")
-                                        {
+                                        if line.contains("____") || line.contains(" / ") || line.contains("/_/") || line.contains("/____/") {
                                             ui.horizontal(|ui| {
                                                 ui.spacing_mut().item_spacing.x = 0.0;
                                                 let split_point = match logo_line_idx {
@@ -362,7 +427,7 @@ impl StandardAI {
                                                     ui.label(egui::RichText::new(credo_full).color(credo_color).monospace().size(font_size));
                                                 }
                                             });
-                                        } else if line.trim().starts_with("Version:") || line.trim().starts_with("Model:") || line.trim().starts_with("Plan:") {
+                                        } else if line.trim().starts_with("Version:") || line.trim().starts_with("Model:") || line.trim().starts_with("Rank:") {
                                             ui.horizontal(|ui| {
                                                 ui.spacing_mut().item_spacing.x = 0.0;
                                                 let parts: Vec<&str> = line.splitn(2, ':').collect();
@@ -379,6 +444,7 @@ impl StandardAI {
                                         }
                                     }
                                 } else {
+                                    // Normal Markdown Rendering with "Monologue" support
                                     ui.scope(|ui| {
                                         let md_font_size = font_size * 1.2;
                                         let style = ui.style_mut();
@@ -394,138 +460,63 @@ impl StandardAI {
                                         text_styles.insert(egui::TextStyle::Button, egui::FontId::proportional(md_font_size));
                                         text_styles.insert(egui::TextStyle::Heading, egui::FontId::proportional(md_font_size * 1.25));
 
-                                                                                                                        style.spacing.item_spacing.y = 12.0;
+                                        style.spacing.item_spacing.y = 8.0;
 
-                                                                                                                        // Render blocks with frames for monologues
-                                                                                                                        let mut normal_text = String::new();
+                                        let mut current_block = String::new();
+                                        let mut is_monologue_mode = false;
 
-                                                                                let mut monologue_block = String::new();
+                                        let flush_block = |ui: &mut egui::Ui, block: &mut String, mono: bool, cache: &mut egui_commonmark::CommonMarkCache| {
+                                            if block.is_empty() { return; }
+                                            let mut text = block.clone();
+                                            if let Some(re) = &path_re {
+                                                text = re.replace_all(&text, |caps: &regex::Captures| {
+                                                    if caps.name("link").is_some() { caps[0].to_string() }
+                                                    else if let Some(c) = caps.name("code_inner") { format!("[{}](code)", c.as_str()) }
+                                                    else { format!("[{}](path)", &caps[0]) }
+                                                }).to_string();
+                                            }
 
-                                                                                for line in a.lines() {
-                                                                                    let trimmed = line.trim();
-                                                                                    if trimmed.starts_with('>') || trimmed.starts_with("Step") {
-                                                                                        if !normal_text.is_empty() {
-                                                                                            egui_commonmark::CommonMarkViewer::new().show(
-                                                                                                ui,
-                                                                                                _cache,
-                                                                                                &normal_text,
-                                                                                            );
-                                                                                            normal_text.clear();
-                                                                                        }
+                                            if mono {
+                                                ui.horizontal(|ui| {
+                                                    ui.spacing_mut().item_spacing.x = 0.0;
+                                                    let (rect, _) = ui.allocate_at_least(egui::vec2(2.0, 0.0), egui::Sense::hover());
+                                                    ui.painter().rect_filled(rect, 0.0, terminal_text);
+                                                    egui::Frame::new()
+                                                        .fill(egui::Color32::from_gray(35))
+                                                        .inner_margin(egui::Margin::symmetric(12, 8))
+                                                        .corner_radius(egui::CornerRadius { nw: 0, ne: 4, sw: 0, se: 4 })
+                                                        .show(ui, |ui| {
+                                                            egui_commonmark::CommonMarkViewer::new().show(ui, cache, &text);
+                                                        });
+                                                });
+                                            } else {
+                                                egui_commonmark::CommonMarkViewer::new().show(ui, cache, &text);
+                                            }
+                                            block.clear();
+                                        };
 
-                                                                                        // Process highlighting even for monologues
-                                                                                        let mut clean = line.replace('>', "").trim().to_string();
-                                                                                        if let Some(re) = &path_re {
-                                                                                            clean = re
-                                                                                                .replace_all(&clean, |caps: &regex::Captures| {
-                                                                                                    if caps.name("link").is_some() {
-                                                                                                        caps[0].to_string()
-                                                                                                    } else if let Some(c) =
-                                                                                                        caps.name("code_inner")
-                                                                                                    {
-                                                                                                        format!("[{}](code)", c.as_str())
-                                                                                                    } else {
-                                                                                                        format!("[{}](path)", &caps[0])
-                                                                                                    }
-                                                                                                })
-                                                                                                .to_string();
-                                                                                        }
+                                        for line in a.lines() {
+                                            let trimmed = line.trim();
+                                            let is_mono_line = trimmed.starts_with('>') || trimmed.starts_with("Step");
 
-                                                                                        if clean.starts_with("Step") {
-                                                                                            monologue_block
-                                                                                                .push_str(&format!("_{}_\n", clean));
-                                                                                        } else {
-                                                                                            monologue_block
-                                                                                                .push_str(&format!("│ {}\n", clean));
-                                                                                        }
-                                                                                    } else {
-                                                                                        if !monologue_block.is_empty() {
-                                                                                            ui.horizontal(|ui| {
-                                                                                                ui.spacing_mut().item_spacing.x = 0.0;
-                                                                                                // 2px Left border
-                                                                                                let (rect, _) = ui.allocate_at_least(
-                                                                                                    egui::vec2(2.0, 0.0),
-                                                                                                    egui::Sense::hover(),
-                                                                                                );
-                                                                                                ui.painter().rect_filled(
-                                                                                                    rect,
-                                                                                                    0.0,
-                                                                                                    terminal_text,
-                                                                                                );
-
-                                                                                                egui::Frame::new()
-                                                                                                    .fill(egui::Color32::from_gray(35))
-                                                                                                    .inner_margin(egui::Margin::symmetric(
-                                                                                                        12, 12,
-                                                                                                    ))
-                                                                                                    .corner_radius(egui::CornerRadius {
-                                                                                                        nw: 0,
-                                                                                                        ne: 4,
-                                                                                                        sw: 0,
-                                                                                                        se: 4,
-                                                                                                    })
-                                                                                                    .show(ui, |ui| {
-                                                                                                        egui_commonmark::CommonMarkViewer::new().show(ui, _cache, &monologue_block);
-                                                                                                    });
-                                                                                            });
-                                                                                            monologue_block.clear();
-                                                                                        }
-                                                                                        normal_text.push_str(line);
-                                                                                        normal_text.push('\n');
-                                                                                    }
-                                                                                }
-
-                                                                                if !monologue_block.is_empty() {
-                                                                                    ui.horizontal(|ui| {
-                                                                                        ui.spacing_mut().item_spacing.x = 0.0;
-                                                                                        let (rect, _) = ui.allocate_at_least(
-                                                                                            egui::vec2(2.0, 0.0),
-                                                                                            egui::Sense::hover(),
-                                                                                        );
-                                                                                        ui.painter().rect_filled(rect, 0.0, terminal_text);
-
-                                                                                        egui::Frame::new()
-                                                                                            .fill(egui::Color32::from_gray(35))
-                                                                                            .inner_margin(egui::Margin::symmetric(12, 12))
-                                                                                            .corner_radius(egui::CornerRadius {
-                                                                                                nw: 0,
-                                                                                                ne: 4,
-                                                                                                sw: 0,
-                                                                                                se: 4,
-                                                                                            })
-                                                                                            .show(ui, |ui| {
-                                                                                                egui_commonmark::CommonMarkViewer::new()
-                                                                                                    .show(ui, _cache, &monologue_block);
-                                                                                            });
-                                                                                    });
-                                                                                }
-                                                                                if !normal_text.is_empty() {
-                                                                                    let mut processed_normal = normal_text;
-                                                                                    if let Some(re) = &path_re {
-                                                                                        processed_normal = re
-                                                                                            .replace_all(
-                                                                                                &processed_normal,
-                                                                                                |caps: &regex::Captures| {
-                                                                                                    if caps.name("link").is_some() {
-                                                                                                        caps[0].to_string()
-                                                                                                    } else if let Some(c) =
-                                                                                                        caps.name("code_inner")
-                                                                                                    {
-                                                                                                        format!("[{}](code)", c.as_str())
-                                                                                                    } else {
-                                                                                                        format!("[{}](path)", &caps[0])
-                                                                                                    }
-                                                                                                },
-                                                                                            )
-                                                                                            .to_string();
-                                                                                    }
-                                                                                    egui_commonmark::CommonMarkViewer::new().show(
-                                                                                        ui,
-                                                                                        _cache,
-                                                                                        &processed_normal,
-                                                                                    );
-                                                                                }
-
+                                            if is_mono_line != is_monologue_mode && !current_block.is_empty() {
+                                                flush_block(ui, &mut current_block, is_monologue_mode, _cache);
+                                            }
+                                            
+                                            is_monologue_mode = is_mono_line;
+                                            if is_mono_line {
+                                                let clean = line.replace('>', "").trim().to_string();
+                                                if clean.starts_with("Step") {
+                                                    current_block.push_str(&format!("_{}_\n", clean));
+                                                } else {
+                                                    current_block.push_str(&format!("{}\n", clean));
+                                                }
+                                            } else {
+                                                current_block.push_str(line);
+                                                current_block.push('\n');
+                                            }
+                                        }
+                                        flush_block(ui, &mut current_block, is_monologue_mode, _cache);
                                     });
                                 }
                             }
@@ -533,15 +524,15 @@ impl StandardAI {
                             ui.add_space(8.0);
                             ui.horizontal(|ui| {
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if ui.button("📋 Copy Thread").on_hover_text("Copy this question and answer to clipboard").clicked() {
+                                    if ui.button("📋 Copy Thread").clicked() {
                                         let full_text = if q.is_empty() { a.clone() } else { format!(">>> {}\n\n{}", q, a) };
                                         ui.ctx().copy_text(full_text);
                                     }
                                 });
                             });
-                            ui.add_space(12.0);
+                            ui.add_space(8.0);
                             ui.separator();
-                            ui.add_space(12.0);
+                            ui.add_space(8.0);
                         }
                     });
             });

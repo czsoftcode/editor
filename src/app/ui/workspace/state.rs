@@ -13,6 +13,7 @@ use super::super::editor::Editor;
 use super::super::file_tree::FileTree;
 use super::super::terminal::Terminal;
 use super::super::widgets::command_palette::CommandPaletteState;
+use super::super::widgets::ai_cli::{AiExpertiseRole, AiReasoningDepth};
 use crate::app::lsp::LspClient;
 use crate::app::project_config::load_profiles;
 use crate::watcher::FileWatcher;
@@ -165,7 +166,10 @@ pub(crate) struct WorkspaceState {
     pub gemini_conversation: Vec<(String, String)>,
     pub gemini_system_prompt: String,
     pub gemini_language: String,
-    pub gemini_total_tokens: u32,
+    pub gemini_expertise: AiExpertiseRole,
+    pub gemini_reasoning_depth: AiReasoningDepth,
+    pub gemini_in_tokens: u32,
+    pub gemini_out_tokens: u32,
     pub gemini_inspector_open: bool,
     pub gemini_focus_requested: bool,
     pub gemini_last_payload: String,
@@ -254,6 +258,8 @@ pub(crate) fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
         ai_font_scale: ws.ai_font_scale,
         gemini_system_prompt: Some(ws.gemini_system_prompt.clone()),
         gemini_language: Some(ws.gemini_language.clone()),
+        gemini_expertise: Some(ws.gemini_expertise),
+        gemini_reasoning_depth: Some(ws.gemini_reasoning_depth),
     }
 }
 
@@ -574,20 +580,28 @@ pub(crate) fn init_workspace(
                     .get("gemini")
                     .and_then(|s| s.config.get("MODEL").cloned())
                     .unwrap_or_else(|| "gemini-1.5-flash".to_string()),
-                crate::config::CLI_TIER,
+                panel_state.gemini_expertise.unwrap_or_else(|| settings.plugins.get("gemini").map(|s| s.expertise).unwrap_or_default()),
+                panel_state.gemini_reasoning_depth.unwrap_or_else(|| settings.plugins.get("gemini").map(|s| s.reasoning_depth).unwrap_or_default()),
             ),
         )],
-        gemini_system_prompt: settings
-            .plugins
-            .get("gemini")
-            .and_then(|s| s.config.get("SYSTEM_PROMPT").cloned())
-            .unwrap_or_else(|| i18n.get("gemini-default-prompt")),
-        gemini_language: settings
-            .plugins
-            .get("gemini")
-            .and_then(|s| s.config.get("LANGUAGE").cloned())
-            .unwrap_or_else(|| i18n.lang().to_string()),
-        gemini_total_tokens: 0,
+        gemini_system_prompt: panel_state.gemini_system_prompt.clone().unwrap_or_else(|| {
+            settings
+                .plugins
+                .get("gemini")
+                .and_then(|s| s.config.get("SYSTEM_PROMPT").cloned())
+                .unwrap_or_else(|| i18n.get("gemini-default-prompt"))
+        }),
+        gemini_language: panel_state.gemini_language.clone().unwrap_or_else(|| {
+            settings
+                .plugins
+                .get("gemini")
+                .and_then(|s| s.config.get("LANGUAGE").cloned())
+                .unwrap_or_else(|| i18n.lang().to_string())
+        }),
+        gemini_expertise: panel_state.gemini_expertise.unwrap_or_else(|| settings.plugins.get("gemini").map(|s| s.expertise).unwrap_or_default()),
+        gemini_reasoning_depth: panel_state.gemini_reasoning_depth.unwrap_or_else(|| settings.plugins.get("gemini").map(|s| s.reasoning_depth).unwrap_or_default()),
+        gemini_in_tokens: 0,
+        gemini_out_tokens: 0,
         gemini_inspector_open: false,
         gemini_focus_requested: true,
         gemini_last_payload: String::new(),

@@ -1,3 +1,24 @@
+## [0.7.17] - 2026-02-25
+
+### Added
+- **AI Monologue UX Improvements**: Significant enhancements to the "thinking" process visualization.
+    - **Proper Word Wrapping**: Implemented strict width constraints for thought blocks, fixing the "single long line" issue prevalent with Gemini 1.5 Pro outputs.
+    - **Visual Hierarchy**: "Step" lines (tokens usage) are now rendered with a smaller font (80% size) and italicized to distinguish them from the AI's actual reasoning.
+    - **Rich Markdown Support**: Replaced restrictive blockquotes with a manual sidebar line, restoring full color and bold text support within the monologue.
+    - **Paragraph Preservation**: Monologues now correctly handle empty lines and multiple parts, rendering clear paragraph breaks instead of merging text.
+- **Advanced Code Review**: The `replace` tool approval dialog is now much more professional.
+    - **Smart Context**: Automatically extracts and displays 3 lines of code before and after the targeted block directly from the file.
+    - **Real Line Numbers**: Every line in the diff (including context) now displays its actual line number from the source file.
+    - **Color-Coded Diffs**: Added full-width background highlighting for added (green) and removed (red) lines, improving readability during surgical edits.
+- **Dynamic Language Enforcement**: 
+    - The AI agent is now strictly instructed using the human-readable language name (e.g., "Czech / Čeština") dynamically retrieved from the "Agent Settings".
+    - Removed hardcoded language lists, making the system future-proof for any new translations.
+    - Added a "STRICT LANGUAGE RULE" to the Gemini plugin to prevent the model from switching back to English during tool use.
+
+### Changed
+- **Clean UI**: Removed redundant gray backgrounds and separators in the chat history for a more transparent and modern look.
+- **Surgical Mandate**: Strengthened instructions against using `write_file` for existing source code, making `replace` the primary tool for modifications.
+
 ## [0.7.16] - 2026-02-25
 
 ### Added

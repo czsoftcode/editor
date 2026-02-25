@@ -441,9 +441,9 @@ impl EditorApp {
                         // Also append to the active conversation entry for permanence
                         if let Some(last) = ws.gemini_conversation.last_mut() {
                             if !last.1.is_empty() {
-                                last.1.push('\n');
+                                last.1.push_str("\n\n");
                             }
-                            last.1.push_str(&format!("> {}", message));
+                            last.1.push_str(&message);
                         }
                     }
                 }

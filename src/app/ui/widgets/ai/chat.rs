@@ -86,14 +86,14 @@ impl AiChatWidget {
         font_size: f32,
         cache: &mut egui_commonmark::CommonMarkCache,
     ) {
-        let poly_color = egui::Color32::from_rgb(70, 110, 160);
-        let credo_color = egui::Color32::from_rgb(70, 160, 110);
+        let poly_color = egui::Color32::from_rgb(100, 160, 220);
+        let credo_color = egui::Color32::from_rgb(100, 220, 160);
         let terminal_text = egui::Color32::from_rgb(175, 175, 175);
         let path_purple = egui::Color32::from_rgb(120, 80, 170);
 
         let path_re = regex::Regex::new(r"(?P<link>\[[^\]]+\]\([^\)]+\))|`(?P<code_inner>[^`]+)`|(?P<path>\b(?:src|locales|docs|app|ui|workspace|packaging|privacy|vendor|target)/[a-zA-Z0-9_\-./]+\.[a-z0-9]+\b|\b[a-zA-Z0-9_\-./]+\.(?:rs|toml|md|ftl|sh|json)\b)").ok();
 
-        for (q, a) in conversation {
+        for (i, (q, a)) in conversation.iter().enumerate() {
             // User Question (Styled to match the input prompt)
             if !q.is_empty() {
                 let prompt_bg = egui::Color32::from_rgb(50, 60, 75);
@@ -160,12 +160,14 @@ impl AiChatWidget {
             ui.add_space(4.0);
 
             // Visible separator
-            ui.scope(|ui| {
-                ui.visuals_mut().widgets.noninteractive.bg_stroke =
-                    egui::Stroke::new(1.0, egui::Color32::from_gray(60));
-                ui.separator();
-            });
-            ui.add_space(4.0);
+            if i + 1 < conversation.len() {
+                ui.scope(|ui| {
+                    ui.visuals_mut().widgets.noninteractive.bg_stroke =
+                        egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+                    ui.separator();
+                });
+                ui.add_space(4.0);
+            }
         }
     }
 
@@ -217,7 +219,7 @@ impl AiChatWidget {
                             );
                             ui.label(
                                 egui::RichText::new("CLI")
-                                    .color(egui::Color32::from_rgb(110, 90, 0))
+                                    .color(egui::Color32::from_rgb(210, 180, 50))
                                     .monospace()
                                     .size(font_size),
                             );
@@ -295,6 +297,7 @@ impl AiChatWidget {
         cache: &mut egui_commonmark::CommonMarkCache,
     ) {
         ui.scope(|ui| {
+            let avail_width = ui.available_width();
             let md_font_size = font_size * 1.2;
             let style = ui.style_mut();
             style.visuals.widgets.noninteractive.fg_stroke.color = terminal_text;
@@ -330,6 +333,7 @@ impl AiChatWidget {
                 |ui: &mut egui::Ui,
                  block: &mut String,
                  mono: bool,
+                 width: f32,
                  cache: &mut egui_commonmark::CommonMarkCache| {
                     if block.is_empty() {
                         return;
@@ -356,7 +360,7 @@ impl AiChatWidget {
                                 ui.allocate_at_least(egui::vec2(2.0, 0.0), egui::Sense::hover());
                             ui.painter().rect_filled(rect, 0.0, terminal_text);
                             egui::Frame::new()
-                                .fill(egui::Color32::from_gray(35))
+                                .fill(egui::Color32::TRANSPARENT)
                                 .inner_margin(egui::Margin::symmetric(12, 8))
                                 .corner_radius(egui::CornerRadius {
                                     nw: 0,
@@ -365,10 +369,12 @@ impl AiChatWidget {
                                     se: 4,
                                 })
                                 .show(ui, |ui| {
+                                    ui.set_width(width - 2.0);
                                     egui_commonmark::CommonMarkViewer::new().show(ui, cache, &text);
                                 });
                         });
                     } else {
+                        ui.set_width(width);
                         egui_commonmark::CommonMarkViewer::new().show(ui, cache, &text);
                     }
                     block.clear();
@@ -376,26 +382,57 @@ impl AiChatWidget {
 
             for line in text.lines() {
                 let trimmed = line.trim();
+                let is_step = trimmed.contains("Step")
+                    && (trimmed.starts_with("Step")
+                        || trimmed.starts_with('>')
+                        || trimmed.starts_with('_'));
                 let is_mono_line = trimmed.starts_with('>') || trimmed.starts_with("Step");
 
-                if is_mono_line != is_monologue_mode && !current_block.is_empty() {
-                    flush_block(ui, &mut current_block, is_monologue_mode, cache);
+                // If switching between mono/normal or encountering a Step, flush the block
+                if (is_mono_line != is_monologue_mode || is_step) && !current_block.is_empty() {
+                    flush_block(
+                        ui,
+                        &mut current_block,
+                        is_monologue_mode,
+                        avail_width,
+                        cache,
+                    );
                 }
 
-                is_monologue_mode = is_mono_line;
-                if is_mono_line {
-                    let clean = line.replace('>', "").trim().to_string();
-                    if clean.starts_with("Step") {
-                        current_block.push_str(&format!("_{}_\n", clean));
-                    } else {
-                        current_block.push_str(&format!("{}\n", clean));
-                    }
+                if is_step {
+                    let clean_step = trimmed.replace(['>', '_'], "").trim().to_string();
+                    ui.add_space(2.0);
+                    ui.label(
+                        egui::RichText::new(clean_step)
+                            .size(font_size * 0.8)
+                            .italics()
+                            .color(terminal_text.gamma_multiply(0.7)),
+                    );
+                    ui.add_space(2.0);
+                    is_monologue_mode = true; // Steps are always within the monologue flow
                 } else {
-                    current_block.push_str(line);
-                    current_block.push('\n');
+                    is_monologue_mode = is_mono_line;
+                    if is_mono_line {
+                        let clean = line.replace('>', "").trim().to_string();
+                        if clean.is_empty() {
+                            current_block.push('\n');
+                        } else {
+                            current_block.push_str(&clean);
+                            current_block.push('\n');
+                        }
+                    } else {
+                        current_block.push_str(line);
+                        current_block.push('\n');
+                    }
                 }
             }
-            flush_block(ui, &mut current_block, is_monologue_mode, cache);
+            flush_block(
+                ui,
+                &mut current_block,
+                is_monologue_mode,
+                avail_width,
+                cache,
+            );
         });
     }
 
@@ -408,7 +445,12 @@ impl AiChatWidget {
         let path_purple = egui::Color32::from_rgb(120, 80, 170);
         let terminal_text = egui::Color32::from_rgb(175, 175, 175);
 
+        if monologue.is_empty() {
+            return;
+        }
+
         ui.scope(|ui| {
+            let base_font_size = ui.style().text_styles[&egui::TextStyle::Body].size;
             let style = ui.style_mut();
             style.visuals.widgets.noninteractive.fg_stroke.color = terminal_text;
             style.visuals.widgets.inactive.fg_stroke.color = terminal_text;
@@ -418,52 +460,94 @@ impl AiChatWidget {
 
             let path_re = regex::Regex::new(r"(?P<link>\[[^\]]+\]\([^\)]+\))|`(?P<code_inner>[^`]+)`|(?P<path>\b(?:src|locales|docs|app|ui|workspace|packaging|privacy|vendor|target)/[a-zA-Z0-9_\-./]+\.[a-z0-9]+\b|\b[a-zA-Z0-9_\-./]+\.(?:rs|toml|md|ftl|sh|json)\b)").ok();
 
-            let mut full_text = String::new();
-            for line in monologue {
-                let mut processed = line.clone();
-                if let Some(re) = &path_re {
-                    processed = re
-                        .replace_all(&processed, |caps: &regex::Captures| {
-                            if caps.name("link").is_some() {
-                                caps[0].to_string()
-                            } else if let Some(c) = caps.name("code_inner") {
-                                format!("[{}](code)", c.as_str())
-                            } else {
-                                format!("[{}](path)", &caps[0])
+            let avail_width = ui.available_width();
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+
+                // 1. Sidebar line
+                let (rect, _) =
+                    ui.allocate_at_least(egui::vec2(2.0, 0.0), egui::Sense::hover());
+                ui.painter().rect_filled(rect, 0.0, terminal_text);
+
+                // 2. Content
+                egui::Frame::new()
+                    .fill(egui::Color32::TRANSPARENT)
+                    .inner_margin(egui::Margin::symmetric(12, 10))
+                    .corner_radius(egui::CornerRadius {
+                        nw: 0,
+                        ne: 4,
+                        sw: 0,
+                        se: 4,
+                    })
+                    .show(ui, |ui| {
+                        ui.set_width(avail_width - 10.0);
+                        ui.vertical(|ui| {
+                            let mut current_thought = String::new();
+
+                            let mut flush_thought = |ui: &mut egui::Ui, text: &mut String| {
+                                if !text.is_empty() {
+                                    egui_commonmark::CommonMarkViewer::new().show(
+                                        ui,
+                                        cache,
+                                        text.trim(),
+                                    );
+                                    text.clear();
+                                }
+                            };
+
+                            for entry in monologue {
+                                let mut processed = entry.clone();
+                                if let Some(re) = &path_re {
+                                    processed = re
+                                        .replace_all(&processed, |caps: &regex::Captures| {
+                                            if caps.name("link").is_some() {
+                                                caps[0].to_string()
+                                            } else if let Some(c) = caps.name("code_inner") {
+                                                format!("[{}](code)", c.as_str())
+                                            } else {
+                                                format!("[{}](path)", &caps[0])
+                                            }
+                                        })
+                                        .to_string();
+                                }
+
+                                for line in processed.lines() {
+                                    let trimmed = line.trim();
+                                    if trimmed.is_empty() {
+                                        current_thought.push('\n');
+                                        continue;
+                                    }
+
+                                    if trimmed.contains("Step")
+                                        && (trimmed.starts_with("Step")
+                                            || trimmed.starts_with('>')
+                                            || trimmed.starts_with('_'))
+                                    {
+                                        flush_thought(ui, &mut current_thought);
+                                        let clean_step =
+                                            trimmed.replace(['>', '_'], "").trim().to_string();
+                                        ui.add_space(2.0);
+                                        ui.label(
+                                            egui::RichText::new(clean_step)
+                                                .size(base_font_size * 0.8)
+                                                .italics()
+                                                .color(terminal_text.gamma_multiply(0.7)),
+                                        );
+                                        ui.add_space(2.0);
+                                    } else {
+                                        let content =
+                                            trimmed.strip_prefix('>').unwrap_or(trimmed).trim();
+                                        if !content.is_empty() {
+                                            current_thought.push_str(content);
+                                            current_thought.push('\n');
+                                        }
+                                    }
+                                }
                             }
-                        })
-                        .to_string();
-                }
-
-                let trimmed = processed.trim();
-                if trimmed.starts_with("Step") {
-                    full_text.push_str(&format!("_{}_\n", trimmed.replace('>', "").trim()));
-                } else {
-                    full_text.push_str(&format!("│ {}\n", trimmed.replace('>', "").trim()));
-                }
-            }
-
-            if !full_text.is_empty() {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    let (rect, _) =
-                        ui.allocate_at_least(egui::vec2(2.0, 0.0), egui::Sense::hover());
-                    ui.painter().rect_filled(rect, 0.0, terminal_text);
-
-                    egui::Frame::new()
-                        .fill(egui::Color32::from_gray(35))
-                        .inner_margin(egui::Margin::symmetric(12, 12))
-                        .corner_radius(egui::CornerRadius {
-                            nw: 0,
-                            ne: 4,
-                            sw: 0,
-                            se: 4,
-                        })
-                        .show(ui, |ui| {
-                            egui_commonmark::CommonMarkViewer::new().show(ui, cache, &full_text);
+                            flush_thought(ui, &mut current_thought);
                         });
-                });
-            }
+                    });
+            });
         });
     }
 

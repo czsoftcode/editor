@@ -32,7 +32,7 @@ pub fn get_standard_tools() -> Vec<AiToolDeclaration> {
         },
         AiToolDeclaration {
             name: "write_file".to_string(),
-            description: "Creates a NEW file or overwrites for REPORTS: Use this for new documentation, reports, or when creating a file from scratch. For editing existing code, use 'replace'.".to_string(),
+            description: "Creates a NEW file or generates documentation. FORBIDDEN for editing existing source code: You MUST use 'replace' for modifications. Use this only for new files, logs, or final reports.".to_string(),
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {

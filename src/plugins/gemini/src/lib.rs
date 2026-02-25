@@ -150,8 +150,10 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
     let language = config::get("LANGUAGE")?.unwrap_or_else(|| "en".to_string());
     let mut system_instruction = config::get("SYSTEM_PROMPT")?.unwrap_or_else(|| "Expert Rust Developer.".to_string());
 
-    system_instruction.push_str("\n\nCORE MANDATE: Use 'replace' for ALL code modifications. Use 'write_file' ONLY for NEW files or Reports. Use 'semantic_search' for discovery.");
-    system_instruction.push_str(&format!("\n\nLanguage: {}. Text thoughts must be separate from calls.", language));
+    system_instruction.push_str(&format!(
+        "\n\nSTRICT LANGUAGE RULE: You MUST speak ONLY in the following language: '{}'. NEVER use English for text responses or thoughts. ALL reasoning/thoughts MUST also be in '{}'. NEVER overwrite existing files with 'write_file'.", 
+        language, language
+    ));
 
     let user_prompt = format!("Context: {:?}\n\nQuestion: {}", input.context, input.prompt);
     messages.push(Content { role: "user".to_string(), parts: vec![Part { text: Some(user_prompt), function_call: None, function_response: None, extra: HashMap::new() }] });
@@ -262,7 +264,15 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
             messages.push(Content { role: "user".to_string(), parts: response_parts });
         } else {
             let _ = unsafe { log_usage(last_in_tokens, last_out_tokens) };
-            let ans = candidate.content.parts.iter().find_map(|p| p.text.clone()).unwrap_or_default();
+            
+            // Concatenate all text parts to ensure we don't miss anything
+            // and to allow proper Markdown rendering of the full response.
+            // Joining with \n\n ensures that separate parts are treated as paragraphs.
+            let ans = candidate.content.parts.iter()
+                .filter_map(|p| p.text.clone())
+                .collect::<Vec<String>>()
+                .join("\n\n");
+                
             // Trace log is best-effort, don't fail the whole request if it fails
             let _ = unsafe { 
                 let log_input = serde_json::json!({"path": ".gemini_trace.log", "content": trace_log});

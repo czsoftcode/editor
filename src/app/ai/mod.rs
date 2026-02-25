@@ -12,16 +12,25 @@ pub struct AiManager;
 
 impl AiManager {
     /// Returns the centralized system mandates for an agent based on its configuration.
-    pub fn get_system_mandates(role: AiExpertiseRole, depth: AiReasoningDepth) -> String {
+    pub fn get_system_mandates(
+        role: AiExpertiseRole,
+        depth: AiReasoningDepth,
+        language_name: &str,
+    ) -> String {
         format!(
             "{}
 {}
 
-CORE MANDATE: Use 'replace' for ALL code modifications in existing files. Use 'write_file' ONLY for new files or final reports. Ensure context in 'old_string' is sufficient (3+ lines) to avoid ambiguity.
+CORE MANDATE: 
+1. You MUST communicate EXCLUSIVELY in {}. This applies to both the final response AND your inner monologue/thoughts. NEVER switch to English unless explicitly asked.
+2. You MUST use the 'replace' tool for ALL code modifications in existing files. 
+3. DO NOT use 'write_file' to overwrite existing source code files.
+4. When using 'replace', ensure 'old_string' contains exactly 3-5 lines of context.
 
 Strictly adhere to these levels of expertise and reasoning depth.",
             role.get_persona_mandate(),
-            depth.get_reasoning_mandate()
+            depth.get_reasoning_mandate(),
+            language_name
         )
     }
 

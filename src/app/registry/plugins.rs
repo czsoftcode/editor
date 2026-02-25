@@ -1017,11 +1017,23 @@ fn host_replace_file(
     // Generate a professional unified diff for the approval dialog using 'similar'
     let mut diff_display = format!("### {}\n```diff\n", path_str);
 
-    // Find the starting line number for context
-    let start_line = current_content
-        .find(old_string)
-        .map(|byte_pos| current_content[..byte_pos].lines().count() + 1)
-        .unwrap_or(1);
+    // Find the starting line number and context
+    let byte_pos = current_content.find(old_string).unwrap_or(0);
+    let start_line = current_content[..byte_pos].lines().count() + 1;
+
+    // Extract surrounding context (3 lines before and after)
+    let lines_before: Vec<&str> = current_content[..byte_pos].lines().rev().take(3).collect();
+    let lines_after: Vec<&str> = current_content[byte_pos + old_string.len()..]
+        .lines()
+        .take(3)
+        .collect();
+
+    for (i, line) in lines_before.into_iter().rev().enumerate() {
+        let num = start_line.saturating_sub(3).saturating_add(i);
+        if num < start_line {
+            diff_display.push_str(&format!("{:4}   {}\n", num, line));
+        }
+    }
 
     let diff = similar::TextDiff::from_lines(old_string, new_string);
     for change in diff.iter_all_changes() {
@@ -1031,8 +1043,6 @@ fn host_replace_file(
             similar::ChangeTag::Equal => " ",
         };
 
-        // For Equal (context) lines, we use the line number from the original file
-        // For Delete, we use original. For Insert, we calculate what it would be.
         let line_num = match change.tag() {
             similar::ChangeTag::Delete | similar::ChangeTag::Equal => {
                 format!("{:4}", start_line + change.old_index().unwrap_or(0))
@@ -1047,6 +1057,12 @@ fn host_replace_file(
             diff_display.push('\n');
         }
     }
+
+    let final_start = start_line + old_string.lines().count();
+    for (i, line) in lines_after.into_iter().enumerate() {
+        diff_display.push_str(&format!("{:4}   {}\n", final_start + i, line));
+    }
+
     diff_display.push_str("```");
     match request_plugin_approval(
         &state,

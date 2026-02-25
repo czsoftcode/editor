@@ -80,15 +80,15 @@ pub(crate) fn render_workspace(
     };
     let i18n = &*i18n_arc;
 
-    // Lazy initialization of terminals
-    if ws.claude_tabs.is_empty() {
+    // Lazy initialization of terminals — only when the respective panel is visible
+    if ws.show_right_panel && ws.claude_tabs.is_empty() {
         let root = ws.sandbox.root.clone();
         let id = ws.next_claude_tab_id;
         ws.next_claude_tab_id += 1;
         ws.claude_tabs
             .push(super::terminal::Terminal::new(id, ctx, &root, None));
     }
-    if ws.build_terminal.is_none() {
+    if ws.show_build_terminal && ws.build_terminal.is_none() {
         ws.build_terminal = Some(super::terminal::Terminal::new(1, ctx, &ws.root_path, None));
     }
 
@@ -96,9 +96,23 @@ pub(crate) fn render_workspace(
     process_background_events(ws, shared, i18n, ctx);
     refresh_sandbox_staged_cache_if_due(ws);
 
-    ctx.request_repaint_after(std::time::Duration::from_millis(
-        config::REPAINT_INTERVAL_MS,
-    ));
+    // Podmíněný repaint — pouze pokud běží aktivní operace na pozadí.
+    // Pokud nic neběží, egui překreslí samo při uživatelské interakci.
+    let has_active_work = ws.gemini_loading
+        || ws.build_error_rx.is_some()
+        || ws.git_status_rx.is_some()
+        || ws.git_branch_rx.is_some()
+        || ws
+            .semantic_index
+            .lock()
+            .map(|si| si.is_indexing.load(std::sync::atomic::Ordering::SeqCst))
+            .unwrap_or(false);
+
+    if has_active_work {
+        ctx.request_repaint_after(std::time::Duration::from_millis(
+            config::REPAINT_INTERVAL_MS,
+        ));
+    }
 
     // Keyboard shortcuts
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {

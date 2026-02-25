@@ -1,3 +1,16 @@
+## [0.7.12] - 2026-02-25
+
+### Performance
+- **CPU Idle Optimizations**: Resolved the root cause of ~10% CPU usage and laptop heating in idle state. Combined effect of all changes is estimated at 70–80% reduction in idle CPU load.
+    - **egui_term Repaint Throttle**: Changed `request_repaint()` to `request_repaint_after(16ms)` in the PTY event loop. This was the dominant cause — each idle shell generated continuous PTY events triggering immediate full-UI repaints at near 60fps even without user activity.
+    - **Resize Guard**: `TerminalView::resize()` now compares the new layout size against the last known size before issuing a `BackendCommand::Resize`. Previously, `process_command` set `dirty = true` unconditionally every frame even when the terminal size had not changed.
+    - **Lazy Terminal Initialization**: Shell processes (AI CLI, build terminal) are now spawned only when their respective panels are first opened, not immediately on workspace load.
+    - **Terminals Hidden by Default**: `show_right_panel` and `show_build_terminal` now default to `false`. Terminals start on demand, reducing base resource usage from first launch.
+    - **Conditional Repaint**: The periodic `request_repaint_after(2s)` is now conditional — UI is only force-refreshed when an active background operation is in progress (AI loading, build, git fetch, semantic indexing).
+- **Semantic Indexer Throttle**: Inter-chunk sleep during BERT embedding increased from 2ms to 10ms, reducing thermal load during indexing. Added per-file debounce (30s cooldown) for re-indexation triggered by file watcher events, preventing the AI-agent write cycle from causing continuous CPU spikes.
+- **Git Polling Interval**: Background git status polling interval increased from 10s to 30s.
+- **File Watcher Deduplication**: Sandbox path is no longer added as a separate watcher root when it is already a subdirectory of the project root, eliminating duplicate filesystem events.
+
 ## [0.7.11] - 2026-02-25
 
 ### Changed

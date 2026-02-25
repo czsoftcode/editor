@@ -12,8 +12,8 @@ use super::super::dialogs::WizardState;
 use super::super::editor::Editor;
 use super::super::file_tree::FileTree;
 use super::super::terminal::Terminal;
-use super::super::widgets::command_palette::CommandPaletteState;
 use super::super::widgets::ai_cli::{AiExpertiseRole, AiReasoningDepth};
+use super::super::widgets::command_palette::CommandPaletteState;
 use crate::app::lsp::LspClient;
 use crate::app::project_config::load_profiles;
 use crate::watcher::FileWatcher;
@@ -488,7 +488,7 @@ pub(crate) fn init_workspace(
                     }
                     start += chunk_size - overlap;
                 }
-                std::thread::sleep(std::time::Duration::from_millis(2));
+                std::thread::sleep(std::time::Duration::from_millis(10));
             }
         }
 
@@ -580,8 +580,20 @@ pub(crate) fn init_workspace(
                     .get("gemini")
                     .and_then(|s| s.config.get("MODEL").cloned())
                     .unwrap_or_else(|| "gemini-1.5-flash".to_string()),
-                panel_state.gemini_expertise.unwrap_or_else(|| settings.plugins.get("gemini").map(|s| s.expertise).unwrap_or_default()),
-                panel_state.gemini_reasoning_depth.unwrap_or_else(|| settings.plugins.get("gemini").map(|s| s.reasoning_depth).unwrap_or_default()),
+                panel_state.gemini_expertise.unwrap_or_else(|| {
+                    settings
+                        .plugins
+                        .get("gemini")
+                        .map(|s| s.expertise)
+                        .unwrap_or_default()
+                }),
+                panel_state.gemini_reasoning_depth.unwrap_or_else(|| {
+                    settings
+                        .plugins
+                        .get("gemini")
+                        .map(|s| s.reasoning_depth)
+                        .unwrap_or_default()
+                }),
             ),
         )],
         gemini_system_prompt: panel_state.gemini_system_prompt.clone().unwrap_or_else(|| {
@@ -598,8 +610,20 @@ pub(crate) fn init_workspace(
                 .and_then(|s| s.config.get("LANGUAGE").cloned())
                 .unwrap_or_else(|| i18n.lang().to_string())
         }),
-        gemini_expertise: panel_state.gemini_expertise.unwrap_or_else(|| settings.plugins.get("gemini").map(|s| s.expertise).unwrap_or_default()),
-        gemini_reasoning_depth: panel_state.gemini_reasoning_depth.unwrap_or_else(|| settings.plugins.get("gemini").map(|s| s.reasoning_depth).unwrap_or_default()),
+        gemini_expertise: panel_state.gemini_expertise.unwrap_or_else(|| {
+            settings
+                .plugins
+                .get("gemini")
+                .map(|s| s.expertise)
+                .unwrap_or_default()
+        }),
+        gemini_reasoning_depth: panel_state.gemini_reasoning_depth.unwrap_or_else(|| {
+            settings
+                .plugins
+                .get("gemini")
+                .map(|s| s.reasoning_depth)
+                .unwrap_or_default()
+        }),
         gemini_in_tokens: 0,
         gemini_out_tokens: 0,
         gemini_inspector_open: false,

@@ -182,25 +182,37 @@ impl EditorApp {
 
         // Load WASM plugins from multiple locations (AI Sandbox -> Project -> Global)
         registry.plugins.set_blacklist(settings.blacklist.clone());
-        
+
         if let Some(project_root) = paths_to_open.first() {
             // 1. Plugins in AI Sandbox (AI agent can write here!)
-            let sandbox_plugins = project_root.join(".polycredo").join("sandbox").join("plugins");
+            let sandbox_plugins = project_root
+                .join(".polycredo")
+                .join("sandbox")
+                .join("plugins");
             if let Err(e) = registry.plugins.load_from_dir(&sandbox_plugins) {
-                eprintln!("Failed to load sandbox plugins from {:?}: {}", sandbox_plugins, e);
+                eprintln!(
+                    "Failed to load sandbox plugins from {:?}: {}",
+                    sandbox_plugins, e
+                );
             }
 
             // 2. Persistent Project Plugins
             let project_plugins = project_root.join(".polycredo").join("plugins");
             if let Err(e) = registry.plugins.load_from_dir(&project_plugins) {
-                eprintln!("Failed to load project plugins from {:?}: {}", project_plugins, e);
+                eprintln!(
+                    "Failed to load project plugins from {:?}: {}",
+                    project_plugins, e
+                );
             }
         }
 
         // 3. Global Fallback
         let global_plugins = ipc::plugins_dir();
         if let Err(e) = registry.plugins.load_from_dir(&global_plugins) {
-            eprintln!("Failed to load global plugins from {:?}: {}", global_plugins, e);
+            eprintln!(
+                "Failed to load global plugins from {:?}: {}",
+                global_plugins, e
+            );
         }
 
         // Auto-register "hello" plugin command if loaded

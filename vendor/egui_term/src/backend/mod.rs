@@ -193,7 +193,7 @@ impl TerminalBackend {
                         .unwrap_or_else(|_| {
                             panic!("pty_event_subscription_{}: sending PtyEvent is failed", id)
                         });
-                    app_context.clone().request_repaint();
+                    app_context.clone().request_repaint_after(std::time::Duration::from_millis(16));
                     if let Event::Exit = event {
                         break;
                     }

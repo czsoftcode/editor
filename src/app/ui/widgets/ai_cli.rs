@@ -24,9 +24,15 @@ impl AiExpertiseRole {
 
     pub fn get_persona_mandate(&self) -> &'static str {
         match self {
-            AiExpertiseRole::Junior => "ROLE: JUNIOR DEVELOPER. You are eager to help but cautious. Follow instructions literally. Use simple, readable code. If unsure, ask for clarification. Do not over-engineer.",
-            AiExpertiseRole::Senior => "ROLE: SENIOR DEVELOPER. You are an experienced engineer. Maintain high standards, follow project conventions, and ensure code is maintainable. Proactively suggest improvements for readability and performance.",
-            AiExpertiseRole::Master => "ROLE: MASTER ARCHITECT. You have a deep understanding of software systems. Prioritize security, scalability, and extreme optimization. Think about long-term architectural impacts and edge cases. Your code must be impeccable.",
+            AiExpertiseRole::Junior => {
+                "ROLE: JUNIOR DEVELOPER. You are eager to help but cautious. Follow instructions literally. Use simple, readable code. If unsure, ask for clarification. Do not over-engineer."
+            }
+            AiExpertiseRole::Senior => {
+                "ROLE: SENIOR DEVELOPER. You are an experienced engineer. Maintain high standards, follow project conventions, and ensure code is maintainable. Proactively suggest improvements for readability and performance."
+            }
+            AiExpertiseRole::Master => {
+                "ROLE: MASTER ARCHITECT. You have a deep understanding of software systems. Prioritize security, scalability, and extreme optimization. Think about long-term architectural impacts and edge cases. Your code must be impeccable."
+            }
         }
     }
 }
@@ -54,9 +60,15 @@ impl AiReasoningDepth {
 
     pub fn get_reasoning_mandate(&self) -> &'static str {
         match self {
-            AiReasoningDepth::Fast => "REASONING: FAST. Provide direct answers. Minimize file reading. Focus on the immediate prompt and currently open files.",
-            AiReasoningDepth::Balanced => "REASONING: BALANCED. Perform necessary research. Check 2-3 related files if needed to ensure consistency. Think before you act.",
-            AiReasoningDepth::Deep => "REASONING: DEEP. This is a complex task. You MUST perform exhaustive codebase research using semantic search and file reading. Map dependencies. Verify your logic through multi-step 'monologue' steps (> step). Do not rush.",
+            AiReasoningDepth::Fast => {
+                "REASONING: FAST. Provide direct answers. Minimize file reading. Focus on the immediate prompt and currently open files."
+            }
+            AiReasoningDepth::Balanced => {
+                "REASONING: BALANCED. Perform necessary research. Check 2-3 related files if needed to ensure consistency. Think before you act."
+            }
+            AiReasoningDepth::Deep => {
+                "REASONING: DEEP. This is a complex task. You MUST perform exhaustive codebase research using semantic search and file reading. Map dependencies. Verify your logic through multi-step 'monologue' steps (> step). Do not rush."
+            }
         }
     }
 }
@@ -198,7 +210,12 @@ impl StandardAI {
     }
 
     /// Returns the centralized ASCII logo with version and model info.
-    pub fn get_logo(version: &str, model: &str, role: AiExpertiseRole, depth: AiReasoningDepth) -> String {
+    pub fn get_logo(
+        version: &str,
+        model: &str,
+        role: AiExpertiseRole,
+        depth: AiReasoningDepth,
+    ) -> String {
         format!(
             r#"    ____        __       ______              __
    / __ \____  / /_  __ / ____/_______  ____/ /___
@@ -210,7 +227,10 @@ impl StandardAI {
  Version: {}
  Model:   {}
  Rank:    {} ({})"#,
-            version, model, role.as_str(), depth.as_str()
+            version,
+            model,
+            role.as_str(),
+            depth.as_str()
         )
     }
 
@@ -502,7 +522,8 @@ impl StandardAI {
                                             if is_mono_line != is_monologue_mode && !current_block.is_empty() {
                                                 flush_block(ui, &mut current_block, is_monologue_mode, _cache);
                                             }
-                                            
+
+
                                             is_monologue_mode = is_mono_line;
                                             if is_mono_line {
                                                 let clean = line.replace('>', "").trim().to_string();

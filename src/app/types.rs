@@ -97,8 +97,8 @@ impl Default for PersistentState {
     fn default() -> Self {
         Self {
             show_left_panel: true,
-            show_right_panel: true,
-            show_build_terminal: true,
+            show_right_panel: false,
+            show_build_terminal: false,
             claude_float: false,
             ai_font_scale: 100,
             gemini_system_prompt: None,

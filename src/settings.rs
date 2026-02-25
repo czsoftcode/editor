@@ -1,6 +1,6 @@
+use crate::app::ui::widgets::ai_cli::{AiExpertiseRole, AiReasoningDepth};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::app::ui::widgets::ai_cli::{AiExpertiseRole, AiReasoningDepth};
 
 const SETTINGS_FILE: &str = "settings.toml";
 const OLD_SETTINGS_FILE: &str = "settings.json";

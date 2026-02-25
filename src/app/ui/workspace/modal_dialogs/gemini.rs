@@ -267,8 +267,10 @@ pub fn show(
                         };
 
                         // Inject intelligence mandates into system prompt
-                        let intelligence_mandate = StandardAI::get_system_mandates(expertise, depth);
-                        let final_sys_prompt = format!("{}\n\n{}", intelligence_mandate, sys_prompt);
+                        let intelligence_mandate =
+                            StandardAI::get_system_mandates(expertise, depth);
+                        let final_sys_prompt =
+                            format!("{}\n\n{}", intelligence_mandate, sys_prompt);
 
                         // Override/Inject user-customized settings
                         config.insert("SYSTEM_PROMPT".to_string(), final_sys_prompt);
@@ -369,9 +371,21 @@ fn render_gemini_main_ui(
                     .selected_text(ws.gemini_expertise.as_str())
                     .show_ui(ui, |ui| {
                         use crate::app::ui::widgets::ai_cli::AiExpertiseRole;
-                        ui.selectable_value(&mut ws.gemini_expertise, AiExpertiseRole::Junior, "Junior");
-                        ui.selectable_value(&mut ws.gemini_expertise, AiExpertiseRole::Senior, "Senior");
-                        ui.selectable_value(&mut ws.gemini_expertise, AiExpertiseRole::Master, "Master");
+                        ui.selectable_value(
+                            &mut ws.gemini_expertise,
+                            AiExpertiseRole::Junior,
+                            "Junior",
+                        );
+                        ui.selectable_value(
+                            &mut ws.gemini_expertise,
+                            AiExpertiseRole::Senior,
+                            "Senior",
+                        );
+                        ui.selectable_value(
+                            &mut ws.gemini_expertise,
+                            AiExpertiseRole::Master,
+                            "Master",
+                        );
                     });
 
                 ui.add_space(8.0);
@@ -380,9 +394,21 @@ fn render_gemini_main_ui(
                     .selected_text(ws.gemini_reasoning_depth.as_str())
                     .show_ui(ui, |ui| {
                         use crate::app::ui::widgets::ai_cli::AiReasoningDepth;
-                        ui.selectable_value(&mut ws.gemini_reasoning_depth, AiReasoningDepth::Fast, "Fast");
-                        ui.selectable_value(&mut ws.gemini_reasoning_depth, AiReasoningDepth::Balanced, "Balanced");
-                        ui.selectable_value(&mut ws.gemini_reasoning_depth, AiReasoningDepth::Deep, "Deep");
+                        ui.selectable_value(
+                            &mut ws.gemini_reasoning_depth,
+                            AiReasoningDepth::Fast,
+                            "Fast",
+                        );
+                        ui.selectable_value(
+                            &mut ws.gemini_reasoning_depth,
+                            AiReasoningDepth::Balanced,
+                            "Balanced",
+                        );
+                        ui.selectable_value(
+                            &mut ws.gemini_reasoning_depth,
+                            AiReasoningDepth::Deep,
+                            "Deep",
+                        );
                     });
 
                 ui.add_space(16.0);
@@ -545,7 +571,13 @@ fn render_gemini_main_ui(
 
         ui.label(egui::RichText::new(display_path).weak());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(egui::RichText::new(format!("In: {} | Out: {}", ws.gemini_in_tokens, ws.gemini_out_tokens)).weak());
+            ui.label(
+                egui::RichText::new(format!(
+                    "In: {} | Out: {}",
+                    ws.gemini_in_tokens, ws.gemini_out_tokens
+                ))
+                .weak(),
+            );
         });
     });
 

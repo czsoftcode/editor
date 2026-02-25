@@ -83,7 +83,12 @@ impl StandardModal {
         egui::TopBottomPanel::bottom(self.id.with("footer"))
             .resizable(false)
             .show_inside(ui, |ui| {
-                ui.add_space(10.0);
+                ui.scope(|ui| {
+                    ui.visuals_mut().widgets.noninteractive.bg_stroke =
+                        egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+                    ui.separator();
+                });
+                ui.add_space(8.0);
                 ui.horizontal(|ui| {
                     if let Some(hint) = &self.footer_hint {
                         ui.label(egui::RichText::new(hint).weak().size(11.0));
@@ -95,7 +100,7 @@ impl StandardModal {
                         });
                     });
                 });
-                ui.add_space(10.0);
+                ui.add_space(8.0);
             });
         result
     }

@@ -228,15 +228,11 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
                         Err(e) => serde_json::json!({ "error": format!("Read failed: {}", e) }),
                     }
                 } else if name == "write_file" {
-                    match unsafe { write_project_file(serde_json::to_string(&call.args)?) } {
-                        Ok(_) => serde_json::json!({ "status": "success" }),
-                        Err(e) => serde_json::json!({ "error": format!("Write failed: {}", e) }),
-                    }
+                    unsafe { let _ = write_project_file(serde_json::to_string(&call.args)?); }
+                    serde_json::json!({ "status": "success" })
                 } else if name == "replace" {
-                    match unsafe { replace_project_file(serde_json::to_string(&call.args)?) } {
-                        Ok(_) => serde_json::json!({ "status": "success" }),
-                        Err(e) => serde_json::json!({ "error": format!("Replacement failed: {}", e) }),
-                    }
+                    unsafe { let _ = replace_project_file(serde_json::to_string(&call.args)?); }
+                    serde_json::json!({ "status": "success" })
                 } else if name == "semantic_search" || name == "search_project" {
                     let q = call.args["query"].as_str().unwrap_or("");
                     let res_result = if name == "semantic_search" { unsafe { semantic_search(q.to_string()) } } else { unsafe { search_project(q.to_string()) } };

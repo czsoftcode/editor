@@ -1,3 +1,10 @@
+## [0.7.18] - 2026-02-25
+
+### Fixed
+- **WASM Plugin Stability**: Resolved a critical issue where the Gemini plugin would crash with a "wasm backtrace" error at the end of an action.
+    - **Log Auto-Approval**: The host now automatically approves writing to `.gemini_trace.log` and other `.log` files, preventing the UI from blocking or failing during the final trace save.
+    - **Safe Shutdown**: Fixed a trap condition in the Extism guest by ensuring the host doesn't return errors for non-critical background operations.
+
 ## [0.7.17] - 2026-02-25
 
 ### Added

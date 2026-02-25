@@ -62,13 +62,9 @@ pub fn show(
                     .map(|p| {
                         let mut version = None;
                         let mut desc = None;
-                        if let crate::app::registry::plugins::PluginStatus::PendingAuthorization {
-                            metadata,
-                            ..
-                        } = &p.status
-                        {
-                            version = Some(metadata.version.clone());
-                            desc = metadata.description.clone();
+                        if let Some(meta) = &p.metadata {
+                            version = Some(meta.version.clone());
+                            desc = meta.description.clone();
                         }
                         (p.id.clone(), version, desc)
                     })

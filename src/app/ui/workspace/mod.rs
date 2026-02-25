@@ -232,9 +232,26 @@ pub(crate) fn render_workspace(
     }
 
     // --- 3. STATUS BARS ---
+    let should_render_info_separator =
+        !ws.sandbox_staged_files.is_empty() || ws.lsp_binary_missing || ws.lsp_install_rx.is_some();
+
+    if should_render_info_separator {
+        egui::TopBottomPanel::top("info_bar_separator")
+            .exact_height(1.0)
+            .show(ctx, |ui| {
+                ui.separator();
+            });
+    }
+
     render_sandbox_staged_bar(ctx, ws, i18n);
     render_lsp_setup_bar(ctx, ws, i18n);
     render_sandbox_deletion_sync_dialog(ctx, ws, i18n);
+
+    egui::TopBottomPanel::bottom("footer_separator")
+        .exact_height(1.0)
+        .show(ctx, |ui| {
+            ui.separator();
+        });
 
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)

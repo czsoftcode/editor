@@ -58,6 +58,13 @@ pub fn show(
             ws.gemini_focus_requested = true;
         }
 
+        // SEPARATOR
+        ui.scope(|ui| {
+            ui.visuals_mut().widgets.noninteractive.bg_stroke =
+                egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+            ui.separator();
+        });
+
         // FOOTER
         action = modal.ui_footer(ui, |ui| {
             if ui
@@ -154,7 +161,7 @@ fn check_agent_authorization(
     };
 
     if let Some((id, _meta)) = pending_auth {
-        let (plugin_manager, config) = {
+        let (plugin_manager, config): (Arc<crate::app::registry::plugins::PluginManager>, _) = {
             let sh = shared.lock().expect("lock");
             (
                 Arc::clone(&sh.registry.plugins),
@@ -232,6 +239,14 @@ fn render_chat_main_ui(
         if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
             render_approval_ui(ui, id, action_name, details, sender, ws);
         } else {
+            // SEPARATOR
+            ui.add_space(4.0);
+            ui.scope(|ui| {
+                ui.visuals_mut().widgets.noninteractive.bg_stroke =
+                    egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+                ui.separator();
+            });
+
             // INFO BAR
             egui::Frame::new()
                 .fill(viewer_bg)
@@ -434,6 +449,8 @@ fn render_approval_ui(
                 ui.add_space(20.0);
                 ui.horizontal(|ui| {
                     let btn_size = egui::vec2(150.0, 32.0);
+                    let mut handled = false;
+
                     if ui
                         .add_sized(
                             btn_size,
@@ -452,6 +469,7 @@ fn render_approval_ui(
                             last.1.push_str(&details);
                         }
                         let _ = sender.send(crate::app::types::PluginApprovalResponse::Approve);
+                        handled = true;
                     }
                     ui.add_space(12.0);
                     if ui
@@ -470,6 +488,7 @@ fn render_approval_ui(
                         }
                         let _ =
                             sender.send(crate::app::types::PluginApprovalResponse::ApproveAlways);
+                        handled = true;
                     }
                     ui.add_space(12.0);
                     if ui
@@ -482,8 +501,13 @@ fn render_approval_ui(
                         let _ = sender.send(crate::app::types::PluginApprovalResponse::Deny);
                         ws.gemini_cancellation_token
                             .store(true, std::sync::atomic::Ordering::Relaxed);
-                    } else {
+                        handled = true;
+                    }
+
+                    if !handled {
                         ws.pending_plugin_approval = Some((id, _action_name, details, sender));
+                    } else {
+                        ui.ctx().request_repaint();
                     }
                 });
             });
@@ -629,7 +653,14 @@ fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) 
     ws.gemini_history_index = None;
 
     let sh_arc = Arc::clone(shared);
-    let (plugin_manager, config, expertise, depth, sys_prompt, lang) = {
+    let (plugin_manager, config, expertise, depth, sys_prompt, lang): (
+        Arc<crate::app::registry::plugins::PluginManager>,
+        _,
+        _,
+        _,
+        _,
+        _,
+    ) = {
         let sh = sh_arc.lock().expect("lock");
         let config = sh
             .settings

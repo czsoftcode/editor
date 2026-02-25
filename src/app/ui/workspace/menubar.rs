@@ -359,7 +359,7 @@ pub(super) fn process_menu_actions(
         }
     }
     if let Some((plugin_id, func)) = actions.run_plugin {
-        let (plugin_manager, config) = {
+        let (plugin_manager, config): (Arc<crate::app::registry::plugins::PluginManager>, _) = {
             let sh = shared.lock().expect("lock");
             let cfg = sh
                 .settings

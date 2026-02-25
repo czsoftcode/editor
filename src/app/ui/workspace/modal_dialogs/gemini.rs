@@ -43,6 +43,15 @@ pub fn show(
         .with_size(modal_width, 700.0);
 
     modal.show(ctx, &mut show_flag, |ui| {
+        // Track focus: if user clicks or HOVERS inside this window, Gemini becomes the focused panel.
+        if (ui.input(|i| i.pointer.any_click()) || ui.ui_contains_pointer())
+            && ui.ui_contains_pointer()
+            && ws.focused_panel != crate::app::types::FocusedPanel::Gemini
+        {
+            ws.focused_panel = crate::app::types::FocusedPanel::Gemini;
+            ws.gemini_focus_requested = true;
+        }
+
         // FOOTER
         action = modal.ui_footer(ui, |ui| {
             if ui
@@ -538,6 +547,13 @@ fn render_gemini_main_ui(
             &mut ws.gemini_history_index,
         );
         edit_resp = Some(resp);
+
+        if ws.gemini_focus_requested
+            && let Some(r) = &edit_resp
+        {
+            r.request_focus();
+            ws.gemini_focus_requested = false;
+        }
 
         if send_via_kb && action.is_none() {
             *action = Some(GeminiModalAction::Send);

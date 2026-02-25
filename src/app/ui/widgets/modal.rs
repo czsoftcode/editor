@@ -64,6 +64,8 @@ impl StandardModal {
             .pivot(egui::Align2::CENTER_CENTER)
             .default_pos(ctx.screen_rect().center())
             .show(ctx, |ui| {
+                // If mouse enters the window, we report it to the caller indirectly
+                // via the fact that we are currently processing this UI.
                 ui.set_min_height(self.min_size.y - 20.0);
                 result = Some(content(ui));
             });

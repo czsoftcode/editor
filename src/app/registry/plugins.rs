@@ -206,6 +206,11 @@ impl PluginManager {
 
         let mut plugins = self.plugins.lock().expect("lock");
 
+        // Skip if already loaded (priority: Sandbox > Project > Global)
+        if plugins.iter().any(|p| p.id == id) {
+            return Ok(());
+        }
+
         if !metadata_path.exists() {
             plugins.push(LoadedPlugin {
                 id,

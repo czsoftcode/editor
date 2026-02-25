@@ -1,3 +1,24 @@
+## [0.7.13] - 2026-02-25
+
+### Added
+- **Global Focus Shortcuts**: Introduced system-wide keyboard shortcuts for rapid navigation:
+    - `Ctrl+Alt+E`: Focus Editor.
+    - `Ctrl+Alt+G`: Focus Gemini CLI Agent.
+    - `Ctrl+Alt+B`: Focus Build Terminal.
+    - `Ctrl+Alt+A`: Focus AI Terminal (Claude).
+- **Auto-Authorization for Plugins**: Plugins that require network access (like Gemini) are now automatically authorized upon startup if they are enabled in the user settings, streamlining the "First Run" experience.
+- **Smart Focus Tracking**: Implemented `FocusedPanel::Gemini` to explicitly track and manage keyboard focus for the CLI agent.
+
+### Changed
+- **Dialog-First Rendering**: Refactored the main workspace render loop to process floating dialogs and windows *before* the editor and side panels. This ensures that modals like Gemini correctly intercept input and maintain focus without flickering.
+- **"Focus Follows Mouse" for Agents**: Unified the focus behavior across the editor. Moving the mouse over the Gemini agent window now automatically activates it, matching the behavior of built-in terminals.
+- **Improved Plugin Loading**: Updated the loading logic to prioritize local `plugins/` directories relative to the project root, ensuring isolation between production and sandbox environments.
+
+### Fixed
+- **Plugin Duplication**: Resolved a bug where the Gemini plugin could be loaded multiple times from different directory levels. Added a robust ID-based duplicate check in the `PluginManager`.
+- **Terminal Visibility in Modals**: Fixed an issue where the Build and AI terminals would stop rendering or become unresponsive when the Gemini modal was open.
+- **Aggressive Focus Theft**: Corrected terminal focus logic to prevent "hover-based" focus stealing while a floating window is actively being used.
+
 ## [0.7.12] - 2026-02-25
 
 ### Performance

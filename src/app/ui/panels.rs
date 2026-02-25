@@ -315,10 +315,10 @@ fn render_build_panel(
     }
     ui.separator();
 
-    if !dialog_open && let Some(terminal) = &mut ws.build_terminal {
+    if let Some(terminal) = &mut ws.build_terminal {
         let terminal_action = terminal.ui(
             ui,
-            focused == FocusedPanel::Build,
+            focused == FocusedPanel::Build && !dialog_open,
             config::EDITOR_FONT_SIZE,
             i18n,
         );

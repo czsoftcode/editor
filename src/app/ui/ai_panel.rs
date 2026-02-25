@@ -379,8 +379,13 @@ pub(crate) fn render_ai_panel_content(
 
     ui.separator();
 
-    if !dialog_open && let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
-        let terminal_action = terminal.ui(ui, focused == FocusedPanel::Claude, font_size, i18n);
+    if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
+        let terminal_action = terminal.ui(
+            ui,
+            focused == FocusedPanel::Claude && !dialog_open,
+            font_size,
+            i18n,
+        );
         match terminal_action {
             Some(super::terminal::TerminalAction::Clicked)
             | Some(super::terminal::TerminalAction::Hovered) => {

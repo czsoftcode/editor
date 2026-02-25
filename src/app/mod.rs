@@ -180,24 +180,12 @@ impl EditorApp {
             context_aware: true,
         });
 
-        // Load WASM plugins from multiple locations (AI Sandbox -> Project -> Global)
+        // Load WASM plugins from relative 'plugins/' and Global fallback
         registry.plugins.set_blacklist(settings.blacklist.clone());
 
         if let Some(project_root) = paths_to_open.first() {
-            // 1. Plugins in AI Sandbox (AI agent can write here!)
-            let sandbox_plugins = project_root
-                .join(".polycredo")
-                .join("sandbox")
-                .join("plugins");
-            if let Err(e) = registry.plugins.load_from_dir(&sandbox_plugins) {
-                eprintln!(
-                    "Failed to load sandbox plugins from {:?}: {}",
-                    sandbox_plugins, e
-                );
-            }
-
-            // 2. Persistent Project Plugins
-            let project_plugins = project_root.join(".polycredo").join("plugins");
+            // Priority 1: Relative plugins directory in the project root
+            let project_plugins = project_root.join("plugins");
             if let Err(e) = registry.plugins.load_from_dir(&project_plugins) {
                 eprintln!(
                     "Failed to load project plugins from {:?}: {}",
@@ -206,13 +194,29 @@ impl EditorApp {
             }
         }
 
-        // 3. Global Fallback
+        // Priority 2: Global Fallback
         let global_plugins = ipc::plugins_dir();
         if let Err(e) = registry.plugins.load_from_dir(&global_plugins) {
             eprintln!(
                 "Failed to load global plugins from {:?}: {}",
                 global_plugins, e
             );
+        }
+
+        // Auto-authorize enabled plugins that require internet access (allowed_hosts)
+        let pending = registry.plugins.get_pending_authorizations();
+        for (id, _metadata) in pending {
+            let is_enabled = settings.plugins.get(&id).map(|s| s.enabled).unwrap_or(true);
+            if is_enabled {
+                let config = settings
+                    .plugins
+                    .get(&id)
+                    .map(|s| s.config.clone())
+                    .unwrap_or_default();
+                if let Err(e) = registry.plugins.authorize(&id, &config) {
+                    eprintln!("Failed to auto-authorize plugin {}: {}", id, e);
+                }
+            }
         }
 
         // Auto-register "hello" plugin command if loaded

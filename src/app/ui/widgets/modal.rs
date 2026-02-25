@@ -86,8 +86,11 @@ impl StandardModal {
                     if let Some(hint) = &self.footer_hint {
                         ui.label(egui::RichText::new(hint).weak().size(11.0));
                     }
+                    // Zarovnání doprava, ale uvnitř LTR, aby poslední tlačítko v kódu bylo vpravo na obrazovce.
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        result = buttons(ui);
+                        ui.horizontal(|ui| {
+                            result = buttons(ui);
+                        });
                     });
                 });
                 ui.add_space(10.0);

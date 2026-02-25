@@ -45,37 +45,30 @@ pub fn show(
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
         action = modal.ui_footer(ui, |ui| {
-            // Because StandardModal::ui_footer uses right_to_left layout:
+            if ui
+                .selectable_label(ws.gemini_show_settings, i18n.get("gemini-settings-title"))
+                .clicked()
+            {
+                ws.gemini_show_settings = !ws.gemini_show_settings;
+            }
 
-            // 1. This will be on the far RIGHT
+            if ui
+                .selectable_label(inspector_open, "\u{1F50D} Inspector".to_string())
+                .clicked()
+            {
+                return Some(GeminiModalAction::ToggleInspector);
+            }
+
+            if (response_text.is_some() || !ws.gemini_conversation.is_empty())
+                && ui.button(i18n.get("gemini-btn-new")).clicked()
+            {
+                return Some(GeminiModalAction::NewQuery);
+            }
+
             if ui.button(i18n.get("btn-close")).clicked() {
                 return Some(GeminiModalAction::Close);
             }
-
-            // 2. This layout will fill the rest from the LEFT
-            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                if ui
-                    .selectable_label(ws.gemini_show_settings, i18n.get("gemini-settings-title"))
-                    .clicked()
-                {
-                    ws.gemini_show_settings = !ws.gemini_show_settings;
-                }
-
-                if ui
-                    .selectable_label(inspector_open, "\u{1F50D} Inspector".to_string())
-                    .clicked()
-                {
-                    return Some(GeminiModalAction::ToggleInspector);
-                }
-
-                if (response_text.is_some() || !ws.gemini_conversation.is_empty())
-                    && ui.button(i18n.get("gemini-btn-new")).clicked()
-                {
-                    return Some(GeminiModalAction::NewQuery);
-                }
-                None
-            })
-            .inner
+            None
         });
 
         // BODY

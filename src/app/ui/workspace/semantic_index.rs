@@ -17,11 +17,19 @@ pub struct SemanticSnippet {
     pub mtime: u64,
 }
 
+/// Context needed for embedding calculation, detachable from the main index lock.
+#[derive(Clone)]
+pub struct IndexingContext {
+    pub model: Arc<BertModel>,
+    pub tokenizer: Arc<Tokenizer>,
+    pub device: Device,
+}
+
 /// Local semantic index using BERT embeddings.
 pub(crate) struct SemanticIndex {
     pub root: PathBuf,
-    pub model: Option<BertModel>,
-    pub tokenizer: Option<Tokenizer>,
+    pub model: Option<Arc<BertModel>>,
+    pub tokenizer: Option<Arc<Tokenizer>>,
     pub snippets: Arc<Mutex<Vec<SemanticSnippet>>>,
     pub device: Device,
     pub is_indexing: Arc<AtomicBool>,
@@ -105,8 +113,8 @@ impl SemanticIndex {
         };
         let model = BertModel::load(vb, &config)?;
 
-        self.model = Some(model);
-        self.tokenizer = Some(tokenizer);
+        self.model = Some(Arc::new(model));
+        self.tokenizer = Some(Arc::new(tokenizer));
 
         Ok(())
     }
@@ -117,21 +125,7 @@ impl SemanticIndex {
         model: &BertModel,
         tokenizer: &Tokenizer,
     ) -> anyhow::Result<Vec<f32>> {
-        let tokens = tokenizer
-            .encode(text, true)
-            .map_err(|e| anyhow::anyhow!(e))?;
-        let token_ids = tokens.get_ids();
-        let input_ids = Tensor::new(token_ids, &self.device)?.unsqueeze(0)?;
-        let token_type_ids = input_ids.zeros_like()?;
-        let attention_mask = input_ids.ones_like()?;
-
-        let ys = model.forward(&input_ids, &token_type_ids, Some(&attention_mask))?;
-
-        let (_n_batch, n_tokens, _hidden_size) = ys.dims3()?;
-        let embeddings = (ys.sum(1)? / (n_tokens as f64))?;
-        let result = embeddings.get(0)?.to_vec1::<f32>()?;
-
-        Ok(result)
+        vectorize_text(text, model, tokenizer, &self.device)
     }
 
     pub fn search(
@@ -172,4 +166,95 @@ impl SemanticIndex {
         }
         dot_product / (norm_a * norm_b)
     }
+
+    /// Removes all snippets for a given file path.
+    pub fn remove_file(&self, path: &PathBuf) {
+        let mut snippets = self.snippets.lock().unwrap();
+        snippets.retain(|s| &s.path != path);
+    }
+
+    /// Creates an indexing context that can be used to calculate embeddings without holding the main lock.
+    pub fn get_indexing_context(&self) -> Option<IndexingContext> {
+        if let (Some(model), Some(tokenizer)) = (&self.model, &self.tokenizer) {
+            Some(IndexingContext {
+                model: model.clone(),
+                tokenizer: tokenizer.clone(),
+                device: self.device.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Updates snippets for a specific file. Assumes snippets were calculated outside the lock.
+    pub fn update_snippets_for_file(&self, rel_path: &PathBuf, new_snippets: Vec<SemanticSnippet>) {
+        let mut snippets = self.snippets.lock().unwrap();
+        snippets.retain(|s| &s.path != rel_path);
+        snippets.extend(new_snippets);
+    }
+}
+
+/// Helper function to vectorize text. Can be used without SemanticIndex instance.
+pub fn vectorize_text(
+    text: &str,
+    model: &BertModel,
+    tokenizer: &Tokenizer,
+    device: &Device,
+) -> anyhow::Result<Vec<f32>> {
+    let tokens = tokenizer
+        .encode(text, true)
+        .map_err(|e| anyhow::anyhow!(e))?;
+    let token_ids = tokens.get_ids();
+    let input_ids = Tensor::new(token_ids, device)?.unsqueeze(0)?;
+    let token_type_ids = input_ids.zeros_like()?;
+    let attention_mask = input_ids.ones_like()?;
+
+    let ys = model.forward(&input_ids, &token_type_ids, Some(&attention_mask))?;
+
+    let (_n_batch, n_tokens, _hidden_size) = ys.dims3()?;
+    let embeddings = (ys.sum(1)? / (n_tokens as f64))?;
+    let result = embeddings.get(0)?.to_vec1::<f32>()?;
+
+    Ok(result)
+}
+
+/// Computes snippets for a file content. Designed to run in a background thread.
+pub fn compute_snippets_for_file(
+    ctx: &IndexingContext,
+    rel_path: PathBuf,
+    content: String,
+    mtime: u64,
+) -> Vec<SemanticSnippet> {
+    if content.len() > 100_000 || content.as_bytes().contains(&0) {
+        return Vec::new();
+    }
+
+    let lines: Vec<&str> = content.lines().collect();
+    let chunk_size = 30;
+    let overlap = 5;
+    let mut start = 0;
+    let mut new_snippets = Vec::new();
+
+    while start < lines.len() {
+        let end = (start + chunk_size).min(lines.len());
+        let chunk_text = lines[start..end].join("\n");
+
+        if !chunk_text.trim().is_empty()
+            && let Ok(embedding) =
+                vectorize_text(&chunk_text, &ctx.model, &ctx.tokenizer, &ctx.device)
+        {
+            new_snippets.push(SemanticSnippet {
+                path: rel_path.clone(),
+                line_start: start + 1,
+                content: chunk_text,
+                embedding,
+                mtime,
+            });
+        }
+        if end == lines.len() {
+            break;
+        }
+        start += chunk_size - overlap;
+    }
+    new_snippets
 }

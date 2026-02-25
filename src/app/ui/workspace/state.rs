@@ -385,6 +385,19 @@ pub(crate) fn init_workspace(
         {
             let si = si_clone.lock().unwrap();
             si.files_total.store(files.len(), Ordering::SeqCst);
+
+            // --- CLEANUP OBSOLETE FILES ---
+            // Remove snippets from the index that are no longer present on disk
+            let mut snippets = si.snippets.lock().unwrap();
+            let initial_count = snippets.len();
+            snippets.retain(|s| files.contains(&s.path));
+            let removed_count = initial_count - snippets.len();
+            if removed_count > 0 {
+                println!(
+                    "[SemanticIndex] Removed {} obsolete snippets from index.",
+                    removed_count
+                );
+            }
         }
         ctx_clone.request_repaint();
 

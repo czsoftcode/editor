@@ -1,0 +1,2 @@
+Oprava indexování souborů pro RAG dokončena. Nyní se soubory přeindexovávají okamžitě po změně.
+Report uložen v `fix_rag_indexing.md`.

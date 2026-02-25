@@ -214,21 +214,35 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
 
                 // MANDATORY: Function response MUST be an object {}, NOT an array []
                 let result = if name == "read_project_file" {
-                    serde_json::json!({ "content": unsafe { read_project_file(serde_json::to_string(&call.args)?)? } })
+                    match unsafe { read_project_file(serde_json::to_string(&call.args)?) } {
+                        Ok(res) => serde_json::json!({ "content": res }),
+                        Err(e) => serde_json::json!({ "error": format!("Read failed: {}", e) }),
+                    }
                 } else if name == "write_file" {
-                    unsafe { write_project_file(serde_json::to_string(&call.args)?)? };
-                    serde_json::json!({ "status": "success" })
+                    match unsafe { write_project_file(serde_json::to_string(&call.args)?) } {
+                        Ok(_) => serde_json::json!({ "status": "success" }),
+                        Err(e) => serde_json::json!({ "error": format!("Write failed: {}", e) }),
+                    }
                 } else if name == "semantic_search" || name == "search_project" {
                     let q = call.args["query"].as_str().unwrap_or("");
-                    let res_str = if name == "semantic_search" { unsafe { semantic_search(q.to_string())? } } else { unsafe { search_project(q.to_string())? } };
-                    let res_json: serde_json::Value = serde_json::from_str(&res_str).unwrap_or(serde_json::json!([]));
-                    serde_json::json!({ "results": res_json }) // Wrap array in object!
+                    let res_result = if name == "semantic_search" { unsafe { semantic_search(q.to_string()) } } else { unsafe { search_project(q.to_string()) } };
+                    match res_result {
+                        Ok(res_str) => {
+                            let res_json: serde_json::Value = serde_json::from_str(&res_str).unwrap_or(serde_json::json!([]));
+                            serde_json::json!({ "results": res_json }) // Wrap array in object!
+                        },
+                        Err(e) => serde_json::json!({ "error": format!("Search failed: {}", e) }),
+                    }
                 } else if name == "list_project_files" {
-                    let res_str = unsafe { list_project_files()? };
-                    let res_json: serde_json::Value = serde_json::from_str(&res_str).unwrap_or(serde_json::json!([]));
-                    res_json // This one is already an object from host
+                    match unsafe { list_project_files() } {
+                        Ok(res_str) => serde_json::from_str(&res_str).unwrap_or(serde_json::json!({"error": "invalid host response"})),
+                        Err(e) => serde_json::json!({ "error": format!("Listing failed: {}", e) }),
+                    }
                 } else if name == "exec_in_sandbox" {
-                    serde_json::json!({ "output": unsafe { exec_in_sandbox(call.args["command"].as_str().unwrap_or("").to_string())? } })
+                    match unsafe { exec_in_sandbox(call.args["command"].as_str().unwrap_or("").to_string()) } {
+                        Ok(res) => serde_json::json!({ "output": res }),
+                        Err(e) => serde_json::json!({ "error": format!("Execution failed: {}", e) }),
+                    }
                 } else { serde_json::json!({"error": "unknown function"}) };
 
                 response_parts.push(Part { text: None, function_call: None, function_response: Some(FunctionResponse { name: call.name.clone(), response: result }), extra: HashMap::new() });
@@ -237,7 +251,13 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
         } else {
             let _ = unsafe { log_usage(last_total_tokens) };
             let ans = candidate.content.parts.iter().find_map(|p| p.text.clone()).unwrap_or_default();
-            let _ = unsafe { write_project_file(serde_json::to_string(&serde_json::json!({"path": ".gemini_trace.log", "content": trace_log}))?) };
+            // Trace log is best-effort, don't fail the whole request if it fails
+            let _ = unsafe { 
+                let log_input = serde_json::json!({"path": ".gemini_trace.log", "content": trace_log});
+                if let Ok(json_str) = serde_json::to_string(&log_input) {
+                    let _ = write_project_file(json_str);
+                }
+            };
             return Ok(ans);
         }
     }

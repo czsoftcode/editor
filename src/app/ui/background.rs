@@ -29,6 +29,7 @@ pub(super) fn process_background_events(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
+    egui_ctx: &egui::Context,
 ) {
     // --- 1. Background I/O results ---
     if let Some(rx) = &ws.background_io_rx
@@ -94,6 +95,59 @@ pub(super) fn process_background_events(
                         if path.starts_with(sandbox_root) {
                             // Created in sandbox
                             if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
+                                // UPDATE SEMANTIC INDEX
+                                let si_clone = ws.semantic_index.clone();
+                                let abs_path = path.clone();
+                                let rel_path_buf = rel_path.to_path_buf();
+
+                                let ctx_opt = {
+                                    let si = si_clone.lock().unwrap();
+                                    si.get_indexing_context()
+                                };
+
+                                if let Some(ctx) = ctx_opt {
+                                    {
+                                        let si = si_clone.lock().unwrap();
+                                        si.is_indexing
+                                            .store(true, std::sync::atomic::Ordering::SeqCst);
+                                        if let Ok(mut cur) = si.current_file.lock() {
+                                            *cur = rel_path_buf.to_string_lossy().to_string();
+                                        }
+                                    }
+                                    let ui_ctx = egui_ctx.clone();
+                                    std::thread::spawn(move || {
+                                        let mtime = std::fs::metadata(&abs_path)
+                                            .and_then(|m| m.modified())
+                                            .ok()
+                                            .and_then(|t| {
+                                                t.duration_since(std::time::UNIX_EPOCH).ok()
+                                            })
+                                            .map(|d| d.as_secs())
+                                            .unwrap_or(0);
+
+                                        if let Ok(content) = std::fs::read_to_string(&abs_path) {
+                                            let snippets = crate::app::ui::workspace::semantic_index::compute_snippets_for_file(
+                                                &ctx,
+                                                rel_path_buf.clone(),
+                                                content,
+                                                mtime
+                                            );
+
+                                            let si = si_clone.lock().unwrap();
+                                            si.update_snippets_for_file(&rel_path_buf, snippets);
+                                            let _ = si.save();
+                                            si.is_indexing
+                                                .store(false, std::sync::atomic::Ordering::SeqCst);
+                                            ui_ctx.request_repaint();
+                                        } else {
+                                            let si = si_clone.lock().unwrap();
+                                            si.is_indexing
+                                                .store(false, std::sync::atomic::Ordering::SeqCst);
+                                            ui_ctx.request_repaint();
+                                        }
+                                    });
+                                }
+
                                 let real_path_str =
                                     ws.root_path.join(rel_path).to_string_lossy().to_string();
                                 let auto_show = shared
@@ -139,6 +193,15 @@ pub(super) fn process_background_events(
                     if path.starts_with(sandbox_root) {
                         // DELETED IN SANDBOX
                         if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
+                            // UPDATE SEMANTIC INDEX
+                            let si_clone = ws.semantic_index.clone();
+                            let rel_path_buf = rel_path.to_path_buf();
+                            std::thread::spawn(move || {
+                                let si = si_clone.lock().unwrap();
+                                si.remove_file(&rel_path_buf);
+                                let _ = si.save();
+                            });
+
                             let project_path = ws.root_path.join(rel_path);
                             if project_path.exists() && ws.sandbox_deletion_sync.is_none() {
                                 // File was deleted in sandbox but exists in project -> show modal
@@ -152,6 +215,57 @@ pub(super) fn process_background_events(
                     if path.starts_with(sandbox_root) {
                         // Modified in sandbox
                         if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
+                            // UPDATE SEMANTIC INDEX
+                            let si_clone = ws.semantic_index.clone();
+                            let abs_path = path.clone();
+                            let rel_path_buf = rel_path.to_path_buf();
+
+                            let ctx_opt = {
+                                let si = si_clone.lock().unwrap();
+                                si.get_indexing_context()
+                            };
+
+                            if let Some(ctx) = ctx_opt {
+                                {
+                                    let si = si_clone.lock().unwrap();
+                                    si.is_indexing
+                                        .store(true, std::sync::atomic::Ordering::SeqCst);
+                                    if let Ok(mut cur) = si.current_file.lock() {
+                                        *cur = rel_path_buf.to_string_lossy().to_string();
+                                    }
+                                }
+                                let ui_ctx = egui_ctx.clone();
+                                std::thread::spawn(move || {
+                                    let mtime = std::fs::metadata(&abs_path)
+                                        .and_then(|m| m.modified())
+                                        .ok()
+                                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                        .map(|d| d.as_secs())
+                                        .unwrap_or(0);
+
+                                    if let Ok(content) = std::fs::read_to_string(&abs_path) {
+                                        let snippets = crate::app::ui::workspace::semantic_index::compute_snippets_for_file(
+                                            &ctx,
+                                            rel_path_buf.clone(),
+                                            content,
+                                            mtime
+                                        );
+
+                                        let si = si_clone.lock().unwrap();
+                                        si.update_snippets_for_file(&rel_path_buf, snippets);
+                                        let _ = si.save();
+                                        si.is_indexing
+                                            .store(false, std::sync::atomic::Ordering::SeqCst);
+                                        ui_ctx.request_repaint();
+                                    } else {
+                                        let si = si_clone.lock().unwrap();
+                                        si.is_indexing
+                                            .store(false, std::sync::atomic::Ordering::SeqCst);
+                                        ui_ctx.request_repaint();
+                                    }
+                                });
+                            }
+
                             let auto_show = shared
                                 .lock()
                                 .expect("lock shared")

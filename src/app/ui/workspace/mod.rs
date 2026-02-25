@@ -93,7 +93,7 @@ pub(crate) fn render_workspace(
     }
 
     // Background events
-    process_background_events(ws, shared, i18n);
+    process_background_events(ws, shared, i18n, ctx);
     refresh_sandbox_staged_cache_if_due(ws);
 
     ctx.request_repaint_after(std::time::Duration::from_millis(

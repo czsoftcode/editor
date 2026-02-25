@@ -1,3 +1,22 @@
+## [0.7.11] - 2026-02-25
+
+### Changed
+- **Deep-Muted AI Theme**: Updated the AI Assistant's color palette to a more comfortable, professional deep-muted theme. Base text is now a soft gray (`rgb 175, 175, 175`), and accent colors (purple, blue, green) have been toned down for extended use.
+- **Polished Monologue UI**:
+    - **Clean Formatting**: Completely removed Markdown blockquote markers (`>`) from reasoning traces, replacing them with a single, clean vertical accent line (`│`).
+    - **Visual Structure**: Monologue steps are now grouped into subtle gray frames with **12px padding** and a **2px left border** in the text color, creating a clear logical separation from the main conversation.
+    - **Step Headers**: "Step X" markers are now rendered in discrete italics without redundant symbols.
+
+### Fixed
+- **Monologue Syntax Highlighting**: Resolved an issue where file paths and backticked code would lose their purple highlighting when inside reasoning blocks. Highlighting is now robustly preserved across all UI elements.
+
+## [0.7.10] - 2026-02-24
+
+### Fixed
+- **AI Modal Overflow**: Added a dedicated `ScrollArea` for agent action approval details. This prevents long code proposals or command outputs from pushing the approval buttons off-screen.
+- **Improved Approval Visibility**: Enhanced the "waiting for approval" state with a yellow border, warning icon, and clearer status messaging.
+- **Monologue Readability**: Increased the max height of the AI's internal reasoning monologue (thinking trace) and ensured it is properly scrollable and wrapped, resolving issues where tool outputs were hard to navigate.
+
 ## [0.7.9] - 2026-02-24
 
 ### Added

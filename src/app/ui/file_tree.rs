@@ -20,6 +20,7 @@ pub struct FileNode {
     pub children: Vec<FileNode>,
     pub expanded: bool,
     pub children_loaded: bool,
+    pub line_count: Option<usize>,
 }
 
 impl FileNode {
@@ -35,6 +36,7 @@ impl FileNode {
             children: Vec::new(),
             expanded: false,
             children_loaded: !is_dir,
+            line_count: None,
         }
     }
 
@@ -169,7 +171,12 @@ impl FileTree {
         self.root = Some(root);
     }
 
-    pub fn ui(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) -> FileTreeResult {
+    pub fn ui(
+        &mut self,
+        ui: &mut eframe::egui::Ui,
+        i18n: &crate::i18n::I18n,
+        is_sandbox: bool,
+    ) -> FileTreeResult {
         let mut result = FileTreeResult::default();
 
         if self.needs_reload {
@@ -197,6 +204,7 @@ impl FileTree {
                 &expand_to,
                 &self.git_colors,
                 i18n,
+                is_sandbox,
             );
         }
 
@@ -220,6 +228,7 @@ impl FileTree {
         expand_to: &Option<PathBuf>,
         git_colors: &HashMap<PathBuf, eframe::egui::Color32>,
         i18n: &crate::i18n::I18n,
+        is_sandbox: bool,
     ) {
         let dark_mode = ui.visuals().dark_mode;
         let text_color = ui.visuals().text_color();
@@ -263,6 +272,7 @@ impl FileTree {
                         expand_to,
                         git_colors,
                         i18n,
+                        is_sandbox,
                     );
                 }
             });
@@ -326,15 +336,71 @@ impl FileTree {
                 }
             });
         } else {
-            let file_color = git_colors
+            // Lazy calculate line count for files in sandbox
+            if is_sandbox && node.line_count.is_none() {
+                if let Ok(content) = std::fs::read_to_string(&node.path) {
+                    node.line_count = Some(content.lines().count());
+                } else {
+                    node.line_count = Some(0); // Mark as tried
+                }
+            }
+
+            let mut file_color = git_colors
                 .get(&node.path)
                 .copied()
                 .map(adapt_git_color)
                 .unwrap_or(text_color);
-            let file_text = eframe::egui::RichText::new(format!("\u{1F4C4} {}", &node.name))
-                .size(font_size)
-                .color(file_color);
-            let label = ui.selectable_label(false, file_text);
+
+            let mut is_large = false;
+            let mut is_very_large = false;
+            let mut rounded_count = 0;
+            if is_sandbox
+                && let Some(count) = node.line_count
+                && count >= 500
+            {
+                file_color = eframe::egui::Color32::WHITE;
+                is_large = true;
+                rounded_count = ((count as f32 / 10.0).round() * 10.0) as usize;
+                if count >= 1000 {
+                    is_very_large = true;
+                }
+            }
+
+            let label = if is_large {
+                let mut job = eframe::egui::text::LayoutJob::default();
+                let main_font = eframe::egui::FontId::proportional(font_size);
+
+                let stroke_width = if is_very_large { 2.0 } else { 1.0 };
+
+                job.append(
+                    &format!("\u{1F4C4} {}", &node.name),
+                    0.0,
+                    eframe::egui::TextFormat {
+                        font_id: main_font,
+                        color: file_color,
+                        underline: eframe::egui::Stroke::new(stroke_width, file_color),
+                        ..Default::default()
+                    },
+                );
+
+                job.append(
+                    &format!(" ({})", rounded_count),
+                    0.0,
+                    eframe::egui::TextFormat {
+                        font_id: eframe::egui::FontId::proportional(font_size * 0.9),
+                        color: file_color.linear_multiply(0.7),
+                        italics: true,
+                        ..Default::default()
+                    },
+                );
+                ui.selectable_label(false, job)
+            } else {
+                let file_text = eframe::egui::RichText::new(format!("\u{1F4C4} {}", &node.name))
+                    .size(font_size)
+                    .color(file_color);
+                ui.selectable_label(false, file_text)
+            };
+
             if label.clicked() {
                 *selected = Some(node.path.clone());
             }

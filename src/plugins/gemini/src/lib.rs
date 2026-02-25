@@ -117,6 +117,7 @@ pub struct AiBuildErrorContext {
 extern "ExtismHost" {
     fn read_project_file(path: String) -> String;
     fn write_project_file(input: String);
+    fn replace_project_file(input: String);
     fn list_project_files() -> String;
     fn search_project(query: String) -> String;
     fn semantic_search(query: String) -> String;
@@ -149,7 +150,7 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
     let language = config::get("LANGUAGE")?.unwrap_or_else(|| "en".to_string());
     let mut system_instruction = config::get("SYSTEM_PROMPT")?.unwrap_or_else(|| "Expert Rust Developer.".to_string());
 
-    system_instruction.push_str("\n\nCORE MANDATE: Use 'semantic_search' for code discovery. If truncated, use 'line_start' to read more. YOU MUST USE 'write_file' TO SAVE REPORTS.");
+    system_instruction.push_str("\n\nCORE MANDATE: Use 'replace' for ALL code modifications. Use 'write_file' ONLY for NEW files or Reports. Use 'semantic_search' for discovery.");
     system_instruction.push_str(&format!("\n\nLanguage: {}. Text thoughts must be separate from calls.", language));
 
     let user_prompt = format!("Context: {:?}\n\nQuestion: {}", input.context, input.prompt);
@@ -228,6 +229,11 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
                     match unsafe { write_project_file(serde_json::to_string(&call.args)?) } {
                         Ok(_) => serde_json::json!({ "status": "success" }),
                         Err(e) => serde_json::json!({ "error": format!("Write failed: {}", e) }),
+                    }
+                } else if name == "replace" {
+                    match unsafe { replace_project_file(serde_json::to_string(&call.args)?) } {
+                        Ok(_) => serde_json::json!({ "status": "success" }),
+                        Err(e) => serde_json::json!({ "error": format!("Replacement failed: {}", e) }),
                     }
                 } else if name == "semantic_search" || name == "search_project" {
                     let q = call.args["query"].as_str().unwrap_or("");

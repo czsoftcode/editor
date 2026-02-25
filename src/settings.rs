@@ -1,4 +1,4 @@
-use crate::app::ui::widgets::ai_cli::{AiExpertiseRole, AiReasoningDepth};
+use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
 use std::collections::HashMap;
 use std::path::PathBuf;
 

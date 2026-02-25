@@ -339,6 +339,13 @@ impl PluginManager {
                 host_write_file,
             ),
             Function::new(
+                "replace_project_file",
+                [ValType::I64],
+                [],
+                UserData::new(host_state.clone()),
+                host_replace_file,
+            ),
+            Function::new(
                 "list_project_files",
                 [],
                 [ValType::I64],
@@ -956,6 +963,105 @@ fn host_write_file(
     }
 
     fs::write(full_path, content)?;
+
+    if let Some(ctx) = &state.egui_ctx {
+        ctx.request_repaint();
+    }
+
+    Ok(())
+}
+
+fn host_replace_file(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    _outputs: &mut [Val],
+    user_data: UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let input_str: String = plugin.memory_get_val(&inputs[0])?;
+    let input: serde_json::Value =
+        serde_json::from_str(&input_str).map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
+
+    let path_str = input["path"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("Missing path"))?;
+    let old_string = input["old_string"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("Missing old_string"))?;
+    let new_string = input["new_string"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("Missing new_string"))?;
+    let rel_path = Path::new(&path_str);
+
+    if !state.is_allowed(rel_path) {
+        return Err(anyhow::anyhow!(
+            "Security violation: Access to '{}' is blocked",
+            path_str
+        ));
+    }
+
+    let full_path = state.sandbox_root.join(rel_path);
+    let current_content = fs::read_to_string(&full_path)?;
+
+    if !current_content.contains(old_string) {
+        return Err(anyhow::anyhow!(
+            "Replacement failed: 'old_string' not found in {}",
+            path_str
+        ));
+    }
+
+    // Generate a professional unified diff for the approval dialog using 'similar'
+    let mut diff_display = format!("### {}\n```diff\n", path_str);
+
+    // Find the starting line number for context
+    let start_line = current_content
+        .find(old_string)
+        .map(|byte_pos| current_content[..byte_pos].lines().count() + 1)
+        .unwrap_or(1);
+
+    let diff = similar::TextDiff::from_lines(old_string, new_string);
+    for change in diff.iter_all_changes() {
+        let sign = match change.tag() {
+            similar::ChangeTag::Delete => "-",
+            similar::ChangeTag::Insert => "+",
+            similar::ChangeTag::Equal => " ",
+        };
+
+        // For Equal (context) lines, we use the line number from the original file
+        // For Delete, we use original. For Insert, we calculate what it would be.
+        let line_num = match change.tag() {
+            similar::ChangeTag::Delete | similar::ChangeTag::Equal => {
+                format!("{:4}", start_line + change.old_index().unwrap_or(0))
+            }
+            similar::ChangeTag::Insert => {
+                format!("{:4}", start_line + change.new_index().unwrap_or(0))
+            }
+        };
+
+        diff_display.push_str(&format!("{} {} {}", line_num, sign, change));
+        if !change.value().ends_with('\n') {
+            diff_display.push('\n');
+        }
+    }
+    diff_display.push_str("```");
+    match request_plugin_approval(
+        &state,
+        "replace_file",
+        &format!("Upravit soubor: {}", path_str),
+        &diff_display,
+    ) {
+        Ok(true) => {}
+        Ok(false) => return Err(anyhow::anyhow!("USER CANCELLED ACTION")),
+        Err(e) => return Err(e),
+    }
+
+    // Surgical replacement (replace all occurrences of this exact block)
+    let new_content = current_content.replace(old_string, new_string);
+    fs::write(full_path, new_content)?;
 
     if let Some(ctx) = &state.egui_ctx {
         ctx.request_repaint();

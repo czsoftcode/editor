@@ -171,7 +171,8 @@ pub(crate) fn render_workspace(
     let dialog_open_base = ws.file_tree.has_open_dialog()
         || ws.command_palette.is_some()
         || ws.show_plugins
-        || ws.show_settings;
+        || ws.show_settings
+        || ws.show_gemini;
 
     render_dialogs(ctx, ws, shared, i18n);
     render_semantic_indexing_modal(ctx, ws, i18n);

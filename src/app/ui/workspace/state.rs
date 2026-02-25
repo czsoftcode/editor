@@ -12,8 +12,8 @@ use super::super::dialogs::WizardState;
 use super::super::editor::Editor;
 use super::super::file_tree::FileTree;
 use super::super::terminal::Terminal;
-use super::super::widgets::ai_cli::{AiExpertiseRole, AiReasoningDepth};
 use super::super::widgets::command_palette::CommandPaletteState;
+use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
 use crate::app::lsp::LspClient;
 use crate::app::project_config::load_profiles;
 use crate::watcher::FileWatcher;
@@ -573,7 +573,7 @@ pub(crate) fn init_workspace(
         gemini_monologue: Vec::new(),
         gemini_conversation: vec![(
             String::new(),
-            crate::app::ui::widgets::ai_cli::StandardAI::get_logo(
+            crate::app::ai::AiManager::get_logo(
                 crate::config::CLI_VERSION,
                 &settings
                     .plugins

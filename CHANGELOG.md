@@ -1,3 +1,30 @@
+## [0.7.15] - 2026-02-25
+
+### Added
+- **AI Subsystem Refactoring**: Complete modularization of AI logic.
+    - Centralized engine in `src/app/ai/` (manager, types, tools).
+    - Unified `AiChatWidget` for consistent terminal-like UI.
+    - Generic `AiChatModal` replacing the hardcoded Gemini modal.
+- **Large File Visualization**: Visual warnings in sandbox file tree.
+    - Highlighting for files > 500 lines (white underline + count).
+    - Extra emphasis for files > 1000 lines (thick underline).
+
+### Changed
+- Improved code modularity by separating UI widgets from AI core logic.
+- Increased visibility of internal editor types to allow unified context gathering.
+
+## [0.7.14] - 2026-02-25
+
+### Added
+- **Surgical Code Replacement Tool**: Introduced a new `replace` tool for AI agents that allows precise text replacement in existing files.
+    - **Reduced Token Usage**: Agents no longer need to rewrite entire files for small changes, significantly saving context window and API costs.
+    - **Ambiguity Protection**: The tool requires matching an exact block of code (with 3+ lines of context recommended) before applying changes, preventing accidental overwrites.
+    - **Host-Guest Protocol**: Implemented `replace_project_file` host function in Rust and exposed it to WASM plugins via the Extism PDK.
+- **Improved AI Mandates**: Updated system instructions for all agents to prioritize `replace` for code modifications, reserving `write_file` exclusively for new files and reports.
+
+### Fixed
+- **Gemini Plugin Reliability**: Enhanced error handling in the Gemini WASM plugin to gracefully report replacement failures (e.g., when a code block isn't found) back to the agent for self-correction.
+
 ## [0.7.13] - 2026-02-25
 
 ### Added

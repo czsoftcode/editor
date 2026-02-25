@@ -28,7 +28,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 ## AI Agenti a Autonomie (Nová vize)
 **Cíl:** Transformace editoru na platformu pro plně autonomní AI agenty.
 
-- [ ] **Pokročilý Tool Use (MCP)** — agent může aplikovat patche, spouštět testy v sandboxu a dotazovat se LSP na definice.
+- [x] **Pokročilý Tool Use (MCP)** — agent může aplikovat patche, spouštět testy v sandboxu a dotazovat se LSP na definice.
 - [x] **Sémantický kontext (StandardAI RAG)** — centrální implementace lokální vektorové indexace projektu. Sdílené vyhledávání v codebase dostupné pro všechny agenty (Gemini, Claude CLI atd.).
 - [x] **Human-in-the-loop 2.0** — side-by-side diff preview pro všechny AI změny a potvrzování "nebezpečných" operací.
 - [x] **Automatické zálohování (Safety Net)** — propojení `LocalHistory` s procesem schvalování změn (automatický snapshot původního souboru před přepsáním ze sandboxu).

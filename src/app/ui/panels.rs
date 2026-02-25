@@ -79,7 +79,7 @@ pub(super) fn render_left_panel(
                     .auto_shrink([false, false])
                     .id_salt("file_tree_scroll")
                     .show(ui, |ui| {
-                        let result = ws.file_tree.ui(ui, i18n);
+                        let result = ws.file_tree.ui(ui, i18n, ws.file_tree_in_sandbox);
                         if let Some(err) = ws.file_tree.take_error() {
                             ws.toasts.push(Toast::error(err));
                         }

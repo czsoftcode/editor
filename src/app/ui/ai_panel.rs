@@ -5,9 +5,9 @@ use eframe::egui;
 
 use super::super::types::{AppShared, FocusedPanel};
 use super::terminal::Terminal;
-use super::widgets::ai_cli::{AiContextPayload, StandardAI};
 use super::widgets::tab_bar::{TabBarAction, TabItem, render_compact_tab_bar};
 use super::workspace::{WorkspaceState, spawn_ai_tool_check};
+use crate::app::ai::{AiContextPayload, AiManager};
 use crate::app::registry::Agent;
 use crate::config;
 
@@ -43,7 +43,6 @@ pub(crate) fn format_context_for_terminal(ctx: &AiContextPayload) -> String {
 }
 
 fn ai_tool_is_available(available: &HashMap<String, bool>, id: &str) -> bool {
-    // ... rest of the file stays same but uses format_context_for_terminal(StandardAI::generate_context(ws))
     available.get(id).copied().unwrap_or(false)
 }
 
@@ -164,7 +163,7 @@ fn render_ai_tool_controls(
             // No sync needed, start immediately
             let cmd = agent.command.clone();
             let active = ws.claude_active_tab;
-            let context = format_context_for_terminal(&StandardAI::generate_context(ws));
+            let context = format_context_for_terminal(&AiManager::generate_context(ws));
             if let Some(terminal) = ws.claude_tabs.get_mut(active) {
                 terminal.send_command(&cmd);
                 if agent.context_aware {
@@ -189,7 +188,7 @@ fn render_ai_tool_controls(
         && let Some(agent) = current_agent
         && agent.context_aware
     {
-        let context = format_context_for_terminal(&StandardAI::generate_context(ws));
+        let context = format_context_for_terminal(&AiManager::generate_context(ws));
         if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
             terminal.send_command(&context);
         }

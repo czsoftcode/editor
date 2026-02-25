@@ -79,9 +79,9 @@ pub enum SaveStatus {
     Saved,
 }
 
-pub(super) struct Tab {
+pub(crate) struct Tab {
     pub(crate) content: String,
-    pub(super) path: PathBuf,
+    pub(crate) path: PathBuf,
     pub(crate) modified: bool,
     pub(super) deleted: bool,
     pub(super) last_edit: Option<Instant>,
@@ -119,8 +119,8 @@ pub(super) struct Tab {
 // ---------------------------------------------------------------------------
 
 pub struct Editor {
-    pub(super) tabs: Vec<Tab>,
-    pub(super) active_tab: Option<usize>,
+    pub(crate) tabs: Vec<Tab>,
+    pub(crate) active_tab: Option<usize>,
     pub(super) highlighter: Highlighter,
     pub(super) show_search: bool,
     pub(super) search_query: String,

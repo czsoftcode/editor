@@ -7,8 +7,8 @@ use super::state::WorkspaceState;
 
 mod about;
 mod ai;
+mod ai_chat;
 mod conflict;
-mod gemini;
 mod plugins;
 mod settings;
 mod terminal;
@@ -38,8 +38,8 @@ pub(super) fn render_dialogs(
     // 3. Plugins dialog
     plugins::show(ctx, ws, shared, i18n, &id_salt);
 
-    // 4. Gemini AI dialog
-    gemini::show(ctx, ws, shared, i18n, &id_salt);
+    // 4. AI Chat dialog
+    ai_chat::show(ctx, ws, shared, i18n, &id_salt);
 
     // 5. New project wizard (within workspace)
     if ws.show_new_project {

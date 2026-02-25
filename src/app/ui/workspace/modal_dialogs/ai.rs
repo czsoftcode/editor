@@ -185,7 +185,7 @@ pub fn show(
                 let cmd = agent.command.clone();
                 let active = ws.claude_active_tab;
                 let context = crate::app::ui::ai_panel::format_context_for_terminal(
-                    &crate::app::ui::widgets::ai_cli::StandardAI::generate_context(ws),
+                    &crate::app::ai::AiManager::generate_context(ws),
                 );
                 if let Some(terminal) = ws.claude_tabs.get_mut(active) {
                     terminal.send_command(&cmd);

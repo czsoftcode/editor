@@ -5,11 +5,10 @@ pub(crate) mod semantic_index;
 pub(crate) mod state;
 
 // Re-exports for external callers
-pub(crate) use index::ProjectIndex;
 pub(super) use state::spawn_ai_tool_check;
 pub(crate) use state::{
     FsChangeResult, SearchResult, SecondaryWorkspace, WorkspaceState, init_workspace,
-    open_and_jump, open_file_in_ws, ws_to_panel_state,
+    open_file_in_ws, ws_to_panel_state,
 };
 
 use std::path::PathBuf;
@@ -19,10 +18,10 @@ use eframe::egui;
 
 use super::super::build_runner::run_build_check;
 use super::super::types::{AppShared, FocusedPanel, Toast};
-use super::ai_panel::render_ai_panel;
 use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{render_file_picker, render_project_search_dialog};
+use super::terminal::right::render_ai_panel;
 use super::widgets::command_palette::{execute_command, render_command_palette};
 use super::widgets::modal::StandardModal;
 use crate::config;
@@ -85,11 +84,17 @@ pub(crate) fn render_workspace(
         let root = ws.sandbox.root.clone();
         let id = ws.next_claude_tab_id;
         ws.next_claude_tab_id += 1;
-        ws.claude_tabs
-            .push(super::terminal::Terminal::new(id, ctx, &root, None));
+        ws.claude_tabs.push(crate::app::ui::terminal::Terminal::new(
+            id, ctx, &root, None,
+        ));
     }
     if ws.show_build_terminal && ws.build_terminal.is_none() {
-        ws.build_terminal = Some(super::terminal::Terminal::new(1, ctx, &ws.root_path, None));
+        ws.build_terminal = Some(crate::app::ui::terminal::Terminal::new(
+            1,
+            ctx,
+            &ws.root_path,
+            None,
+        ));
     }
 
     // Background events
@@ -209,16 +214,15 @@ pub(crate) fn render_workspace(
                 .with_inner_size([600.0, 500.0]),
             |ctx, _| {
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    if crate::app::ui::ai_panel::render_ai_panel_content(
-                        ui,
-                        ws,
-                        shared,
-                        false,
-                        ws.focused_panel,
-                        config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0,
-                        i18n,
-                        false,
-                        true,
+                    let config = crate::app::ui::terminal::right::PanelDisplayConfig {
+                        dialog_open: false,
+                        focused: ws.focused_panel,
+                        font_size: config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0,
+                        is_float: false,
+                        is_viewport: true,
+                    };
+                    if crate::app::ui::terminal::right::render_ai_panel_content(
+                        ui, ws, shared, i18n, &config,
                     ) {
                         ai_viewport_clicked = true;
                         ws.focused_panel = FocusedPanel::Claude;
@@ -276,7 +280,8 @@ pub(crate) fn render_workspace(
             });
         });
 
-    // --- 4. PANELS (Side) ---
+    // --- 4. PANELS (Side & Bottom) ---
+    crate::app::ui::terminal::bottom::render_bottom_panel(ctx, ws, dialog_open_base, i18n);
     let ai_clicked = render_ai_panel(ctx, ws, shared, dialog_open_base, i18n);
     let left_clicked = render_left_panel(ctx, ws, dialog_open_base, i18n);
 

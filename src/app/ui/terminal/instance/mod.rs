@@ -1,12 +1,15 @@
-use std::path::PathBuf;
-use std::sync::mpsc::Receiver;
+pub mod backend;
+pub mod input;
+pub mod render;
 
+use self::input::terminal_key_bytes;
+use crate::config;
 use alacritty_terminal::grid::Dimensions;
 use eframe::egui;
-use egui_term::{BackendSettings, PtyEvent, TerminalBackend, TerminalView};
+use egui_term::{PtyEvent, TerminalBackend, TerminalView};
 use regex::Regex;
-
-use crate::config;
+use std::path::PathBuf;
+use std::sync::mpsc::Receiver;
 
 #[derive(Clone, Debug)]
 pub enum TerminalAction {
@@ -18,23 +21,22 @@ pub enum TerminalAction {
     Navigate(PathBuf, usize, usize),
 }
 
-#[cfg(unix)]
 pub struct Terminal {
-    id: u64,
-    working_dir: PathBuf,
-    init_command: Option<String>,
-    backend: Option<TerminalBackend>,
-    pty_receiver: Option<Receiver<(u64, PtyEvent)>>,
-    error: Option<String>,
-    exited: bool,
+    pub(crate) id: u64,
+    pub(crate) working_dir: PathBuf,
+    pub(crate) init_command: Option<String>,
+    pub(crate) backend: Option<TerminalBackend>,
+    pub(crate) pty_receiver: Option<Receiver<(u64, PtyEvent)>>,
+    pub(crate) error: Option<String>,
+    pub(crate) exited: bool,
     /// Accumulator for sub-pixel drag scrolling
-    scroll_drag_acc: f32,
+    pub(crate) scroll_drag_acc: f32,
     /// Regex for Rust error paths: "file.rs:line:col" or "file.rs:line"
-    path_regex: Regex,
+    pub(crate) path_regex: Regex,
     /// Cache for path detection to save CPU: (Point, Option<Action>)
-    path_cache: Option<((i32, usize), Option<TerminalAction>)>,
+    pub(crate) path_cache: Option<((i32, usize), Option<TerminalAction>)>,
     /// Whether the user is currently selecting text via mouse drag
-    is_selecting: bool,
+    pub(crate) is_selecting: bool,
 }
 
 impl Terminal {
@@ -44,8 +46,7 @@ impl Terminal {
         working_dir: &std::path::Path,
         init_command: Option<&str>,
     ) -> Self {
-        // Path regex: looks for something like src/main.rs:10:5 or src/main.rs:10
-        let path_regex = Regex::new(r"([a-zA-Z0-9._/\\-]+\.rs):(\d+)(?::(\d+))?").unwrap();
+        let path_regex = Regex::new(r"([a-zA-Z0-9._/\-]+\.rs):(\d+)(?::(\d+))?").unwrap();
 
         match Self::create_backend(id, ctx, working_dir, init_command) {
             Ok((backend, pty_receiver)) => Self {
@@ -77,67 +78,12 @@ impl Terminal {
         }
     }
 
-    fn create_backend(
-        id: u64,
-        ctx: &egui::Context,
-        working_dir: &std::path::Path,
-        init_command: Option<&str>,
-    ) -> Result<(TerminalBackend, Receiver<(u64, PtyEvent)>), String> {
-        let (sender, pty_receiver) = std::sync::mpsc::channel();
-
-        #[cfg(unix)]
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "bash".to_string());
-        #[cfg(windows)]
-        let shell = "cmd.exe".to_string();
-
-        let mut backend = TerminalBackend::new(
-            id,
-            ctx.clone(),
-            sender,
-            BackendSettings {
-                shell,
-                working_directory: Some(working_dir.to_path_buf()),
-                ..Default::default()
-            },
-        )
-        .map_err(|e| format!("Cannot create terminal backend: {e}"))?;
-
-        if let Some(cmd) = init_command {
-            let cmd_with_newline = format!("{}\n", cmd);
-            backend.process_command(egui_term::BackendCommand::Write(
-                cmd_with_newline.as_bytes().to_vec(),
-            ));
-        }
-
-        Ok((backend, pty_receiver))
-    }
-
-    fn restart(&mut self, ctx: &egui::Context) {
-        match Self::create_backend(
-            self.id,
-            ctx,
-            &self.working_dir,
-            self.init_command.as_deref(),
-        ) {
-            Ok((backend, pty_receiver)) => {
-                self.backend = Some(backend);
-                self.pty_receiver = Some(pty_receiver);
-                self.error = None;
-                self.exited = false;
-                self.scroll_drag_acc = 0.0;
-            }
-            Err(err) => {
-                self.backend = None;
-                self.pty_receiver = None;
-                self.error = Some(err);
-                self.exited = false;
-                self.scroll_drag_acc = 0.0;
-            }
-        }
-    }
-
     pub fn send_command(&mut self, command: &str) {
-        let cmd = format!("{}\n", command);
+        let cmd = format!(
+            "{}
+",
+            command
+        );
         if let Some(backend) = &mut self.backend {
             backend.process_command(egui_term::BackendCommand::Write(cmd.as_bytes().to_vec()));
         }
@@ -147,7 +93,6 @@ impl Terminal {
         self.exited
     }
 
-    /// Renders the terminal. Returns Some(TerminalAction) if the user clicked or requested navigation.
     pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
@@ -223,21 +168,18 @@ impl Terminal {
 
         let response = ui.add(terminal);
 
-        // --- SAFE AUTO-SCROLL AND SELECTION UPDATE ---
         if focused && !self.exited {
             let pointer = ui.input(|i| i.pointer.clone());
             if pointer.primary_down() {
                 if response.contains_pointer() || self.is_selecting {
                     self.is_selecting = true;
-
                     if let Some(pos) = pointer.interact_pos() {
                         let rel_y = pos.y - response.rect.min.y;
-
                         let mut scroll_amount = 0;
                         if rel_y < 0.0 {
-                            scroll_amount = 1; // Scroll up
+                            scroll_amount = 1;
                         } else if rel_y > response.rect.height() {
-                            scroll_amount = -1; // Scroll down
+                            scroll_amount = -1;
                         }
 
                         if let Some(backend) = &mut self.backend {
@@ -246,10 +188,6 @@ impl Terminal {
                                     scroll_amount,
                                 ));
                             }
-
-                            // Only update selection if we actually moved or scrolled
-                            // We MUST clamp the Y coordinate to be within the visible area (0 to height-1)
-                            // to avoid the "assertion failed: requested.0 < self.visible_lines" panic in Alacritty.
                             let clamped_x = (pos.x - response.rect.min.x)
                                 .clamp(0.0, response.rect.width() - 1.0);
                             let clamped_y = rel_y.clamp(0.0, response.rect.height() - 1.0);
@@ -270,7 +208,6 @@ impl Terminal {
             action = Some(TerminalAction::Hovered);
         }
 
-        // --- PATH DETECTION AND NAVIGATION ---
         if let Some(pos) = response.interact_pointer_pos() {
             if let Some(backend) = &self.backend {
                 let content = backend.last_content();
@@ -285,25 +222,14 @@ impl Terminal {
                     let grid_line_idx = line_idx - display_offset as i32;
 
                     let current_point = (grid_line_idx, col_idx);
-                    let cached_result = if let Some((point, res)) = &self.path_cache {
-                        if *point == current_point {
-                            Some(res.clone())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-
-                    let nav_action = if let Some(res) = cached_result {
-                        res
+                    let nav_action = if let Some((point, res)) = &self.path_cache
+                        && *point == current_point
+                    {
+                        res.clone()
                     } else {
                         let mut detected = None;
-                        // Use a safer line access method to avoid panics
                         let num_lines = content.grid.total_lines() as i32;
                         let history_size = content.grid.history_size() as i32;
-
-                        // Line index must be between -history_size and screen_lines
                         if grid_line_idx >= -history_size
                             && grid_line_idx < (num_lines - history_size)
                         {
@@ -315,7 +241,6 @@ impl Terminal {
                                 let cell = &row[alacritty_terminal::index::Column(col)];
                                 line_text.push(cell.c);
                             }
-
                             for cap in self.path_regex.captures_iter(&line_text) {
                                 let mat = cap.get(0).unwrap();
                                 if col_idx >= mat.start() && col_idx < mat.end() {
@@ -394,7 +319,6 @@ impl Terminal {
             };
             let cell_w = content.terminal_size.cell_width as f32;
             let cell_h = content.terminal_size.cell_height as f32;
-
             let cursor_rect = if cell_w > 0.0 && cell_h > 0.0 {
                 let col = content.grid.cursor.point.column.0 as f32;
                 let line = (content.grid.cursor.point.line.0 + content.grid.display_offset() as i32)
@@ -431,29 +355,23 @@ impl Terminal {
             }
         }
 
-        let menu_size = 15.0;
         response.context_menu(|ui| {
-            let selected = if let Some(backend) = self.backend.as_ref() {
+            let selected_text = if let Some(backend) = self.backend.as_ref() {
                 let content = backend.last_content();
                 let mut result = String::new();
                 if let Some(range) = content.selectable_range {
                     let mut last_line = None;
                     let mut current_line_buffer = String::new();
                     let mut was_wrapped = false;
-
                     let num_cols = content.grid.columns();
-                    // BEWARE: Alacritty line indexing is tricky.
-                    // Let's use a VERY safe iteration method to avoid panics.
                     let total_lines = content.grid.total_lines() as i32;
                     let history_size = content.grid.history_size() as i32;
-
                     for line_idx in -history_size..(total_lines - history_size) {
                         let line = alacritty_terminal::index::Line(line_idx);
                         let row = &content.grid[line];
                         for col_idx in 0..num_cols {
                             let col = alacritty_terminal::index::Column(col_idx);
                             let point = alacritty_terminal::index::Point::new(line, col);
-
                             if range.contains(point) {
                                 let cell = &row[col];
                                 if let Some(last) = last_line
@@ -486,7 +404,8 @@ impl Terminal {
                 String::new()
             };
 
-            let has_selection = !selected.trim().is_empty();
+            let has_selection = !selected_text.trim().is_empty();
+            let menu_size = 15.0;
             if ui
                 .add_enabled(
                     has_selection,
@@ -494,7 +413,7 @@ impl Terminal {
                 )
                 .clicked()
             {
-                ui.ctx().copy_text(selected);
+                ui.ctx().copy_text(selected_text);
                 ui.close_menu();
             }
             if ui
@@ -527,7 +446,7 @@ impl Terminal {
     }
 
     #[cfg(unix)]
-    fn kill_process_group(&self) {
+    pub(crate) fn kill_process_group(&self) {
         if self.exited {
             return;
         }
@@ -540,142 +459,6 @@ impl Terminal {
             }
         }
     }
-
-    fn draw_scrollbar(&mut self, ui: &mut egui::Ui, term_rect: egui::Rect, height: f32) {
-        let Some(backend) = self.backend.as_mut() else {
-            return;
-        };
-        let sb_rect = egui::Rect::from_min_size(
-            egui::Pos2::new(term_rect.max.x, term_rect.min.y),
-            egui::Vec2::new(config::TERMINAL_SCROLLBAR_WIDTH, height),
-        );
-        let painter = ui.painter_at(sb_rect);
-        painter.rect_filled(
-            sb_rect,
-            egui::CornerRadius::ZERO,
-            egui::Color32::from_rgb(0x18, 0x18, 0x18),
-        );
-
-        let content = backend.last_content();
-        let history_size = content.grid.history_size();
-        let screen_lines = content.grid.screen_lines();
-        let display_offset = content.grid.display_offset();
-
-        if history_size == 0 {
-            let thumb_rect = sb_rect.shrink2(egui::Vec2::new(2.0, 0.0));
-            painter.rect_filled(
-                thumb_rect,
-                egui::CornerRadius::same(3),
-                egui::Color32::from_gray(60),
-            );
-            ui.allocate_rect(sb_rect, egui::Sense::hover());
-            return;
-        }
-
-        let total_lines = screen_lines + history_size;
-        let track_h = sb_rect.height();
-        let thumb_ratio = screen_lines as f32 / total_lines as f32;
-        let thumb_h = (thumb_ratio * track_h).max(20.0);
-        let track_range = (track_h - thumb_h).max(1.0);
-        let scroll_frac = display_offset as f32 / history_size as f32;
-        let thumb_top = sb_rect.min.y + (1.0 - scroll_frac) * track_range;
-        let thumb_rect = egui::Rect::from_min_size(
-            egui::Pos2::new(sb_rect.min.x + 2.0, thumb_top),
-            egui::Vec2::new(config::TERMINAL_SCROLLBAR_WIDTH - 4.0, thumb_h),
-        );
-
-        let sb_id = ui.id().with("scrollbar");
-        let sb_response = ui.interact(sb_rect, sb_id, egui::Sense::drag());
-        let thumb_color = if sb_response.hovered() || sb_response.dragged() {
-            egui::Color32::from_gray(140)
-        } else {
-            egui::Color32::from_gray(90)
-        };
-        painter.rect_filled(thumb_rect, egui::CornerRadius::same(3), thumb_color);
-
-        if sb_response.dragged() {
-            let dy = sb_response.drag_delta().y;
-            self.scroll_drag_acc -= dy;
-            let lines_per_pixel = history_size as f32 / track_range;
-            let line_delta = (self.scroll_drag_acc * lines_per_pixel) as i32;
-            if line_delta != 0 {
-                self.scroll_drag_acc -= line_delta as f32 / lines_per_pixel;
-                backend.process_command(egui_term::BackendCommand::Scroll(line_delta));
-            }
-        } else {
-            self.scroll_drag_acc = 0.0;
-        }
-
-        if sb_response.clicked()
-            && let Some(pos) = sb_response.interact_pointer_pos()
-        {
-            let page = screen_lines as i32;
-            if pos.y < thumb_rect.min.y {
-                backend.process_command(egui_term::BackendCommand::Scroll(page));
-            } else if pos.y > thumb_rect.max.y {
-                backend.process_command(egui_term::BackendCommand::Scroll(-page));
-            }
-        }
-    }
-}
-
-fn terminal_key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<u8>> {
-    use egui::Key::*;
-    if modifiers.ctrl && !modifiers.shift && !modifiers.alt {
-        let b: u8 = match key {
-            A => 0x01,
-            B => 0x02,
-            C => 0x03,
-            D => 0x04,
-            E => 0x05,
-            F => 0x06,
-            G => 0x07,
-            H => 0x08,
-            I => 0x09,
-            J => 0x0a,
-            K => 0x0b,
-            L => 0x0c,
-            M => 0x0d,
-            N => 0x0e,
-            O => 0x0f,
-            P => 0x10,
-            Q => 0x11,
-            R => 0x12,
-            S => 0x13,
-            T => 0x14,
-            U => 0x15,
-            V => 0x16,
-            W => 0x17,
-            X => 0x18,
-            Y => 0x19,
-            Z => 0x1a,
-            _ => return None,
-        };
-        return Some(vec![b]);
-    }
-    if modifiers.is_none() {
-        return match key {
-            Enter => Some(vec![0x0d]),
-            Backspace => Some(vec![0x7f]),
-            Escape => Some(vec![0x1b]),
-            Tab => Some(vec![0x09]),
-            Delete => Some(b"\x1b[3~".to_vec()),
-            Insert => Some(b"\x1b[2~".to_vec()),
-            Home => Some(b"\x1b[H".to_vec()),
-            End => Some(b"\x1b[F".to_vec()),
-            PageUp => Some(b"\x1b[5~".to_vec()),
-            PageDown => Some(b"\x1b[6~".to_vec()),
-            ArrowUp => Some(b"\x1b[A".to_vec()),
-            ArrowDown => Some(b"\x1b[B".to_vec()),
-            ArrowLeft => Some(b"\x1b[D".to_vec()),
-            ArrowRight => Some(b"\x1b[C".to_vec()),
-            _ => None,
-        };
-    }
-    if modifiers == egui::Modifiers::SHIFT && key == Tab {
-        return Some(b"\x1b[Z".to_vec());
-    }
-    None
 }
 
 impl Drop for Terminal {
@@ -683,7 +466,11 @@ impl Drop for Terminal {
         if !self.exited
             && let Some(backend) = &mut self.backend
         {
-            backend.process_command(egui_term::BackendCommand::Write(b"exit\n".to_vec()));
+            backend.process_command(egui_term::BackendCommand::Write(
+                b"exit
+"
+                .to_vec(),
+            ));
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         #[cfg(unix)]

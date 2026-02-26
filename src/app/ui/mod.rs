@@ -5,7 +5,6 @@ pub(crate) mod terminal;
 pub(crate) mod widgets;
 pub(crate) mod workspace;
 
-pub(super) mod ai_panel;
 pub(super) mod background;
 pub(super) mod panels;
 pub(super) mod search_picker;

@@ -57,6 +57,7 @@ pub(crate) enum FocusedPanel {
     Claude,
     Editor,
     Gemini,
+    Files,
 }
 
 #[derive(PartialEq, Clone, Copy)]

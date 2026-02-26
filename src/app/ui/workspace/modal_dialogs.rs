@@ -6,8 +6,8 @@ use super::super::dialogs::show_project_wizard;
 use super::state::WorkspaceState;
 
 mod about;
-mod ai;
 mod ai_chat;
+mod ai_dialogs;
 mod conflict;
 mod plugins;
 mod settings;
@@ -68,5 +68,5 @@ pub(super) fn render_dialogs(
     terminal::show(ctx, ws, i18n, &id_salt);
 
     // 6. AI related dialogs (Promotion success, Sandbox staged files, Sync confirmation)
-    ai::show(ctx, ws, shared, i18n);
+    ai_dialogs::show(ctx, ws, shared, i18n);
 }

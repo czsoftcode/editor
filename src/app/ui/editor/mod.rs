@@ -1,5 +1,12 @@
+mod files;
 mod markdown;
 mod search;
+mod tabs;
+mod ui;
+
+pub mod diff_view;
+pub mod render;
+
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -7,35 +14,22 @@ use eframe::egui;
 
 use crate::highlighter::Highlighter;
 
-mod files;
-mod render_binary;
-mod render_context;
-mod render_helpers;
-use render_helpers::*;
-pub mod diff_view;
-mod render_lsp;
-mod render_markdown;
-mod render_normal;
-mod render_tabs;
-mod tabs;
-mod ui;
-
 const AUTOSAVE_DELAY_MS: u128 = 500;
 /// Hover debounce: wait this long after mouse stops before sending request.
-const LSP_HOVER_DEBOUNCE_MS: u128 = 600;
+pub const LSP_HOVER_DEBOUNCE_MS: u128 = 600;
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 /// Content of an active LSP hover popup.
-pub(super) struct LspHoverPopup {
+pub struct LspHoverPopup {
     pub content: String,
     pub screen_pos: egui::Pos2,
 }
 
 /// State of the active LSP completion dropdown.
-pub(super) struct LspCompletionState {
+pub struct LspCompletionState {
     pub items: Vec<async_lsp::lsp_types::CompletionItem>,
     pub selected: usize,
     /// Anchor position in screen coords (below the cursor).
@@ -43,7 +37,7 @@ pub(super) struct LspCompletionState {
 }
 
 /// A single reference location for the references picker.
-pub(super) struct LspReferenceItem {
+pub struct LspReferenceItem {
     pub path: PathBuf,
     pub line: usize,
     pub character: usize,
@@ -52,7 +46,7 @@ pub(super) struct LspReferenceItem {
 }
 
 /// State for the find-references result picker.
-pub(super) struct LspReferencesState {
+pub struct LspReferencesState {
     pub items: Vec<LspReferenceItem>,
     pub selected: usize,
     pub focus_requested: bool,
@@ -79,39 +73,39 @@ pub enum SaveStatus {
     Saved,
 }
 
-pub(crate) struct Tab {
-    pub(crate) content: String,
-    pub(crate) path: PathBuf,
-    pub(crate) modified: bool,
-    pub(super) deleted: bool,
-    pub(super) last_edit: Option<Instant>,
+pub struct Tab {
+    pub content: String,
+    pub path: PathBuf,
+    pub modified: bool,
+    pub(crate) deleted: bool,
+    pub(crate) last_edit: Option<Instant>,
     /// Timestamp of the last *autosave* attempt (successful or failed).
     /// Used to prevent infinite retry loops on save errors.
-    pub(super) last_autosave_attempt: Option<Instant>,
-    pub(crate) save_status: SaveStatus,
-    pub(super) last_saved_content: String,
-    scroll_offset: f32,
-    md_scroll_offset: f32,
-    last_cursor_range: Option<egui::text::CursorRange>,
+    pub(crate) last_autosave_attempt: Option<Instant>,
+    pub save_status: SaveStatus,
+    pub(crate) last_saved_content: String,
+    pub(crate) scroll_offset: f32,
+    pub(crate) md_scroll_offset: f32,
+    pub(crate) last_cursor_range: Option<egui::text::CursorRange>,
     /// Flag indicating if the file is binary (not text).
-    pub(super) is_binary: bool,
+    pub is_binary: bool,
     /// For images: generated texture handle for egui.
-    pub(super) image_texture: Option<egui::TextureHandle>,
+    pub image_texture: Option<egui::TextureHandle>,
     /// Raw data for binary files (if kept in memory).
-    pub(super) binary_data: Option<Vec<u8>>,
+    pub binary_data: Option<Vec<u8>>,
     /// Whether the SVG modal has already been shown (true = user made a choice, don't show again).
-    pub(super) svg_modal_shown: bool,
+    pub svg_modal_shown: bool,
     /// LSP document version — 0 = didOpen not yet sent, >0 = open with this version.
-    pub(super) lsp_version: i32,
+    pub lsp_version: i32,
     /// Last version successfully sent to the LSP server.
-    pub(super) lsp_synced_version: i32,
+    pub lsp_synced_version: i32,
     /// Flag indicating that there was an error reading the file (Audit Task 1.2).
     /// If true, saving should be disabled or redirected.
-    pub(super) read_error: bool,
+    pub read_error: bool,
     /// Pre-calculated canonical path to avoid repeated filesystem calls (Audit S-5).
-    pub(super) canonical_path: PathBuf,
+    pub canonical_path: PathBuf,
     /// Per-tab markdown cache to avoid re-parsing on every frame/tab switch (Audit S-1).
-    pub(super) md_cache: egui_commonmark::CommonMarkCache,
+    pub md_cache: egui_commonmark::CommonMarkCache,
 }
 
 // ---------------------------------------------------------------------------
@@ -119,55 +113,55 @@ pub(crate) struct Tab {
 // ---------------------------------------------------------------------------
 
 pub struct Editor {
-    pub(crate) tabs: Vec<Tab>,
-    pub(crate) active_tab: Option<usize>,
-    pub(super) highlighter: Highlighter,
-    pub(super) show_search: bool,
-    pub(super) search_query: String,
-    pub(super) replace_query: String,
-    pub(super) show_replace: bool,
-    pub(super) search_matches: Vec<(usize, usize)>,
-    pub(super) current_match: Option<usize>,
-    pub(super) search_focus_requested: bool,
-    pub(super) md_split_ratio: f32,
-    pub(super) tab_scroll_x: f32,
-    pub(super) scroll_to_active: bool,
+    pub tabs: Vec<Tab>,
+    pub active_tab: Option<usize>,
+    pub highlighter: Highlighter,
+    pub(crate) show_search: bool,
+    pub(crate) search_query: String,
+    pub(crate) replace_query: String,
+    pub(crate) show_replace: bool,
+    pub(crate) search_matches: Vec<(usize, usize)>,
+    pub(crate) current_match: Option<usize>,
+    pub(crate) search_focus_requested: bool,
+    pub(crate) md_split_ratio: f32,
+    pub(crate) tab_scroll_x: f32,
+    pub(crate) scroll_to_active: bool,
     /// Pending jump to (line, column) — 1-based
-    pub(super) pending_jump: Option<(usize, usize)>,
-    pub(super) show_goto_line: bool,
-    pub(super) goto_line_input: String,
-    pub(super) goto_line_focus_requested: bool,
-    pub(super) focus_editor_requested: bool,
+    pub pending_jump: Option<(usize, usize)>,
+    pub(crate) show_goto_line: bool,
+    pub(crate) goto_line_input: String,
+    pub(crate) goto_line_focus_requested: bool,
+    pub(crate) focus_editor_requested: bool,
     // --- LSP interaction state ---
     /// Pending hover request channel.
-    pub(super) lsp_hover_rx: Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::Hover>>>,
+    pub lsp_hover_rx: Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::Hover>>>,
     /// Active hover popup (Some = visible).
-    pub(super) lsp_hover_popup: Option<LspHoverPopup>,
+    pub lsp_hover_popup: Option<LspHoverPopup>,
     /// Screen position where the hover popup should appear.
-    pub(super) lsp_hover_screen_pos: Option<egui::Pos2>,
+    pub lsp_hover_screen_pos: Option<egui::Pos2>,
     /// LSP position that was last hovered (for debounce comparison).
-    pub(super) lsp_hover_last_pos: Option<async_lsp::lsp_types::Position>,
+    pub lsp_hover_last_pos: Option<async_lsp::lsp_types::Position>,
     /// Time when mouse stopped moving (for debounce).
-    pub(super) lsp_hover_timer: Option<std::time::Instant>,
+    pub lsp_hover_timer: Option<std::time::Instant>,
     /// Pending go-to-definition request channel.
-    pub(super) lsp_definition_rx:
+    pub lsp_definition_rx:
         Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::GotoDefinitionResponse>>>,
     /// Pending navigation from LSP result: (file path, 1-based line, 1-based column).
     pub pending_lsp_navigate: Option<(std::path::PathBuf, usize, usize)>,
     /// Pending completion request channel.
-    pub(super) lsp_completion_rx:
+    pub lsp_completion_rx:
         Option<std::sync::mpsc::Receiver<Option<async_lsp::lsp_types::CompletionResponse>>>,
     /// Active completion popup state.
-    pub(super) lsp_completion: Option<LspCompletionState>,
+    pub lsp_completion: Option<LspCompletionState>,
     /// Cursor screen position at the time completion was triggered.
-    pub(super) lsp_completion_cursor_pos: Option<egui::Pos2>,
+    pub lsp_completion_cursor_pos: Option<egui::Pos2>,
     /// Pending find-references request channel.
-    pub(super) lsp_references_rx:
+    pub lsp_references_rx:
         Option<std::sync::mpsc::Receiver<Option<Vec<async_lsp::lsp_types::Location>>>>,
     /// Active references picker state.
-    pub(super) lsp_references: Option<LspReferencesState>,
+    pub lsp_references: Option<LspReferencesState>,
     /// Temporary status message (text, timestamp).
-    pub(super) lsp_status: Option<(String, std::time::Instant)>,
+    pub lsp_status: Option<(String, std::time::Instant)>,
     /// Pending AI diff for approval: (file_path, original_content, new_content).
     pub pending_ai_diff: Option<(String, String, String)>,
 }
@@ -212,11 +206,11 @@ impl Editor {
 
     // --- Helpers ---
 
-    fn active(&self) -> Option<&Tab> {
+    pub(crate) fn active(&self) -> Option<&Tab> {
         self.active_tab.and_then(|i| self.tabs.get(i))
     }
 
-    fn active_mut(&mut self) -> Option<&mut Tab> {
+    pub(crate) fn active_mut(&mut self) -> Option<&mut Tab> {
         self.active_tab.and_then(|i| self.tabs.get_mut(i))
     }
 
@@ -224,7 +218,7 @@ impl Editor {
         self.active().map(|t| &t.path)
     }
 
-    pub(super) fn extension(&self) -> String {
+    pub fn extension(&self) -> String {
         self.active()
             .and_then(|t| t.path.extension())
             .map(|e| e.to_string_lossy().to_string())
@@ -239,28 +233,28 @@ impl Editor {
             .unwrap_or_default()
     }
 
-    pub(super) fn filename(&self) -> String {
+    pub fn filename(&self) -> String {
         self.active()
             .and_then(|t| t.path.file_name())
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default()
     }
 
-    pub(super) fn is_markdown(&self) -> bool {
+    pub fn is_markdown(&self) -> bool {
         let ext = self.extension();
         ext == "md" || ext == "markdown"
     }
 
-    pub(super) fn is_svg(&self) -> bool {
+    pub fn is_svg(&self) -> bool {
         self.extension() == "svg"
     }
 }
 
 // ---------------------------------------------------------------------------
-// Helper free functions
+// Helper free functions (keep here for internal use)
 // ---------------------------------------------------------------------------
 
-fn lang_id_from_path(path: &std::path::Path) -> &'static str {
+pub(crate) fn lang_id_from_path(path: &std::path::Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {
         Some("rs") => "rust",
         Some("php") => "php",
@@ -275,7 +269,7 @@ fn lang_id_from_path(path: &std::path::Path) -> &'static str {
     }
 }
 
-pub(super) fn ext_to_file_type(ext: &str) -> &'static str {
+pub fn ext_to_file_type(ext: &str) -> &'static str {
     match ext {
         "rs" => "Rust",
         "php" => "PHP",

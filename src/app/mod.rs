@@ -286,8 +286,10 @@ impl EditorApp {
             .join("MyProject")
             .to_string_lossy()
             .to_string();
-        let mut startup_wizard = WizardState::default();
-        startup_wizard.path = projects_dir;
+        let startup_wizard = WizardState {
+            path: projects_dir,
+            ..WizardState::default()
+        };
 
         Self {
             root_ws,

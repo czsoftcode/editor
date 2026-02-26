@@ -1,10 +1,20 @@
 ## [0.7.18] - 2026-02-26
 
 ### Refactored
-- **Plugin Registry Modularization**: The monolithic `src/app/registry/plugins.rs` (1200+ lines) was refactored into a structured module under `src/app/registry/plugins/`.
-    - `types.rs`: Clean separation of metadata, status, and context types.
-    - `security.rs`: Centralized security logic for blacklisting and path validation.
-    - `host.rs`: Implementation of host functions for WASM plugins.
+- **Massive Architectural Modularization**: Executed a comprehensive restructuring of the most complex UI and backend components to strictly adhere to the < 700 lines-per-file guideline, dramatically improving maintainability.
+    - **Plugin Registry (`plugins.rs`)**: Split 1200+ lines into `types.rs`, `security.rs`, and a dedicated `host/` module for WASM capabilities.
+    - **AI Chat Dialog (`ai_chat.rs`)**: Decomposed into `mod.rs`, `render.rs`, `approval.rs` (complex diff logic), `inspector.rs`, and `logic.rs`.
+    - **AI Chat Widget (`chat.rs`)**: Broken down into `input.rs`, `conversation.rs`, `render.rs`, and `settings.rs`.
+    - **Workspace State (`state.rs`)**: Separated into `types.rs`, `actions.rs`, and isolated `init.rs` containing complex semantic indexer background threads.
+    - **File Tree (`file_tree.rs`)**: Divided into `node.rs`, `render.rs`, `ops.rs` (I/O logic), and `dialogs.rs`.
+    - **LSP Renderer (`render_lsp.rs`)**: Split 860+ lines into `hover.rs`, `completion.rs`, `navigation.rs`, and `typing.rs` under a new `editor/render/` directory structure.
+    - **Global Dialogs (`dialogs.rs`)**: Categorized into `privacy.rs`, `wizard.rs`, `startup.rs`, and `confirm.rs`.
+- **Unified Terminal System**: Consolidated fragmented terminal logic (AI and Build) into a unified `src/app/ui/terminal/` architecture.
+    - **`instance/`**: Core PTY, rendering, and input handling.
+    - **`right/`**: AI agent panel with context-aware command bar.
+    - **`bottom/`**: Universal build and utility panel featuring segmented `build_bar`, `compile_bar` (OS specific), and `git_bar`.
+    - **Floating Terminals**: Added ability to undock the build terminal into a floating workspace window.
+    - **Focus Stability**: Improved egui pointer intersection logic to reliably maintain terminal focus on hover across all panel configurations.
 - **Search Performance Upgrade**: Replaced the standard `grep` with **ripgrep (`rg`)** for the `search_project` tool. This provides significantly faster search results and better integration with project structure (respecting `.gitignore`).
 - **Build System**: Added `ripgrep` as a mandatory dependency for the `.deb` package to ensure the search functionality works out of the box on Linux systems.
 

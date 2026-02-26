@@ -4,7 +4,7 @@ use std::sync::mpsc;
 use serde_json::Value;
 
 use super::types::{BuildProfile, path_env};
-use super::ui::terminal::Terminal;
+use crate::app::ui::terminal::Terminal;
 
 // ---------------------------------------------------------------------------
 // Build / Runner Execution

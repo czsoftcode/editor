@@ -73,7 +73,7 @@ compute_depends() {
 
     # Rust GUI stack část knihoven načítá dynamicky přes dlopen, takže přidáme
     # minimální runtime balíčky pro X11/Wayland/OpenGL a fonty s Unicode podporou.
-    manual_depends="libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libgl1, fonts-dejavu-core, fonts-noto-core, fonts-noto-ui-core, fonts-noto-mono, fonts-symbola, fonts-noto-color-emoji"
+    manual_depends="ripgrep, libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libgl1, fonts-dejavu-core, fonts-noto-core, fonts-noto-ui-core, fonts-noto-mono, fonts-symbola, fonts-noto-color-emoji"
     printf '%s\n' "${shlibs_depends}, ${manual_depends}" | normalize_dep_list
 }
 

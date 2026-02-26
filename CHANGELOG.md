@@ -1,4 +1,12 @@
-## [0.7.18] - 2026-02-25
+## [0.7.18] - 2026-02-26
+
+### Refactored
+- **Plugin Registry Modularization**: The monolithic `src/app/registry/plugins.rs` (1200+ lines) was refactored into a structured module under `src/app/registry/plugins/`.
+    - `types.rs`: Clean separation of metadata, status, and context types.
+    - `security.rs`: Centralized security logic for blacklisting and path validation.
+    - `host.rs`: Implementation of host functions for WASM plugins.
+- **Search Performance Upgrade**: Replaced the standard `grep` with **ripgrep (`rg`)** for the `search_project` tool. This provides significantly faster search results and better integration with project structure (respecting `.gitignore`).
+- **Build System**: Added `ripgrep` as a mandatory dependency for the `.deb` package to ensure the search functionality works out of the box on Linux systems.
 
 ### Fixed
 - **WASM Plugin Stability**: Resolved a critical issue where the Gemini plugin would crash with a "wasm backtrace" error at the end of an action.

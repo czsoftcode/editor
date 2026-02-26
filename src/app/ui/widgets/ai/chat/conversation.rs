@@ -41,7 +41,7 @@ pub fn ui_conversation(
                                 .frame(false) // No internal frame
                                 .lock_focus(false)
                                 .interactive(true)
-                                .desired_width(f32::INFINITY),
+                                .desired_width(ui.available_width()),
                         );
                     });
                 });

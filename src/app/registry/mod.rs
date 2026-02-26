@@ -35,6 +35,11 @@ impl AgentRegistry {
         self.by_id.insert(id, idx);
     }
 
+    pub fn clear(&mut self) {
+        self.agents.clear();
+        self.by_id.clear();
+    }
+
     pub fn get_all(&self) -> &[Agent] {
         &self.agents
     }

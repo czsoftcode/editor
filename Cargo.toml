@@ -1,6 +1,6 @@
 [package]
 name = "polycredo-editor"
-version = "0.7.18"
+version = "0.7.19"
 edition = "2024"
 
 [dependencies]
@@ -38,6 +38,7 @@ candle-nn = "0.8"
 candle-transformers = "0.8"
 tokenizers = "0.21"
 hf-hub = "0.4"
+url = "2.5.8"
 
 [patch.crates-io]
 egui_term = { path = "vendor/egui_term" }

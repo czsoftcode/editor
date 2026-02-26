@@ -6,7 +6,7 @@ panel-files-sandbox = Súbory (Sandbox)
 btn-tree-project = Projekt
 btn-tree-sandbox = Sandbox
 panel-runners = Spúšťače
-panel-build = Build
+panel-build = Zostavenie
 panel-git = Git
 panel-build-errors =
     { $count ->
@@ -104,8 +104,8 @@ command-palette-no-results = Žiadne výsledky
 
 command-name-open-file = Otvoriť súbor
 command-name-project-search = Hľadať v projekte
-command-name-build = Zostaviť (Build)
-command-name-run = Spustiť (Run)
+command-name-build = Zostaviť
+command-name-run = Spustiť
 command-name-save = Uložiť aktuálny súbor
 command-name-close-tab = Zatvoriť aktuálnu záložku
 command-name-new-project = Nový projekt
@@ -194,6 +194,20 @@ ai-promotion-success = Zmeny boli úspešne aplikované do projektu.
 ai-promotion-all-success = Úspešne prenesených { $count } súborov do projektu.
 ai-promotion-failed = Nepodarilo sa aplikovať zmeny: { $error }
 
+## AI Chat asistent
+ai-chat-title = AI Chat asistent
+ai-chat-label-response = Odpoveď:
+ai-chat-loading = AI premýšľa…
+ai-chat-label-prompt = Tvoj dotaz:
+ai-chat-placeholder-prompt = Napíš zadanie pre AI (napr. „Vysvetli tento kód“)...
+ai-chat-btn-send = Odoslať
+ai-chat-btn-new = Nové vlákno
+ai-chat-settings-title = Nastavenia AI
+ai-chat-label-language = Jazyk:
+ai-chat-btn-reset = Resetovať
+ai-chat-label-system-prompt = Systémový prompt:
+ai-chat-default-prompt = Expert na Rust.
+
 ## Synchronizácia pred spustením AI
 ai-sync-title = Synchronizácia pred spustením
 ai-sync-msg = Boli detegované rozdiely medzi projektom a sandboxom. Najnovšie verzie súborov by mali byť synchronizované.
@@ -211,6 +225,7 @@ plugin-auth-bar-deny = Zakázať
 settings-title = Nastavenia
 settings-category-general = Všeobecné
 settings-category-editor = Editor
+settings-category-ai = AI Agenti
 settings-language = Jazyk
 settings-language-restart = Zmena jazyka sa prejaví okamžite.
 settings-theme = Téma
@@ -226,6 +241,11 @@ settings-editor-font = Editor — veľkosť písma
 settings-ai-font = AI Terminál — veľkosť písma
 settings-default-path = Predvolená cesta projektov
 settings-creates-in = Bude vytvorené v:
+settings-ai-name = Názov asistenta
+settings-ai-command = Príkaz (binárka)
+settings-ai-args = Parametre (voliteľné)
+settings-ai-add = Pridať agenta
+settings-ai-hint = Tu si môžete nadefinovať vlastné CLI nástroje (napr. gemini, claude, aider). Ak zoznam necháte prázdny, použijú sa predvolené.
 settings-blacklist = Blacklist (zakázané súbory pre pluginy)
 settings-blacklist-hint = Podporuje vzory ako *.env, secret/*. Automaticky zakazuje súbory v .gitignore.
 settings-blacklist-add = Pridať vzor
@@ -251,15 +271,6 @@ plugins-settings-saved = Nastavenia pluginov uložené. Pri niektorých zmenách
 plugins-placeholder-api-key = API kľúč (napr. Gemini, Anthropic)
 plugins-placeholder-model = ID modelu (napr. gemini-1.5-flash)
 command-name-show-plugins = Pluginy
-
-## Gemini AI
-gemini-title = Gemini AI asistent
-gemini-label-response = Odpoveď:
-gemini-loading = Gemini premýšľa…
-gemini-label-prompt = Tvoj dotaz:
-gemini-placeholder-prompt = Napíš zadanie pre AI...
-gemini-btn-send = Odoslať
-gemini-btn-new = Nové vlákno
 
 ## Sémantická indexácia (RAG)
 semantic-indexing-title = Sémantická indexácia projektu
@@ -312,10 +323,6 @@ sandbox-delete-title = Súbor zmazaný v sandboxe
 sandbox-delete-msg = Súbor „{ $name }" bol zmazaný v AI sandboxe, ale v projekte stále existuje. Čo si želáte urobiť?
 sandbox-delete-keep-project = Ponechať v projekte (obnoviť do sandboxu)
 sandbox-delete-also-project = Zmazať aj v projekte
-panel-runners = Spúšťače
-btn-run-profile = Spustiť profil...
-btn-edit-profiles = Upraviť
-runner-none = Žiadne
 
 ## Find References (Shift+F12)
 lsp-references-heading = Referencie
@@ -330,7 +337,16 @@ lsp-references-found =
 lsp-references-error = LSP: Chyba pri hľadaní referencií.
 
 ## AI panel updates
-ai-btn-sync = ⟳ Synchr.
-ai-hover-sync = Poslať kontext (otvorené súbory, chyby kompilácie) AI agentovi
+ai-btn-sync = ⟳ Synchronizovať
+ai-hover-sync = Odoslať kontext (otvorené súbory, chyby kompilácie) AI agentovi
 ai-diff-heading = Kontrola zmien navrhnutých AI
-ai-diff-new-file = Nový súbor navrhnutý
+ai-diff-new-file = Navrhnutý nový súbor
+
+## Pluginy
+plugins-security-info = 🛡 Zabezpečenie: Blacklist súborov a adresárov môžete spravovať v hlavných Nastaveniach.
+plugins-settings-saved = Nastavenia pluginov uložené. Pri niektorých zmenách sa odporúča reštart.
+plugins-placeholder-api-key = API kľúč (napr. Gemini, Anthropic)
+plugins-placeholder-model = ID modelu (napr. gemini-1.5-flash)
+command-name-plugin-ollama = Plugin: Spýtať sa Ollama
+command-name-plugin-ai-chat = Plugin: Spýtať sa AI agenta
+command-name-show-plugins = Pluginy

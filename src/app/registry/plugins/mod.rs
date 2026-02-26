@@ -200,6 +200,15 @@ impl PluginManager {
         for host in &metadata.allowed_hosts {
             manifest = manifest.with_allowed_host(host);
         }
+
+        // Robustness: Automatically allow the host from API_URL if provided in config
+        if let Some(url_str) = plugin_config.get("API_URL")
+            && let Ok(url) = url::Url::parse(url_str)
+            && let Some(host) = url.host_str()
+        {
+            manifest = manifest.with_allowed_host(host);
+        }
+
         manifest = manifest.with_config(plugin_config.iter());
 
         let host_state = HostState {
@@ -377,6 +386,21 @@ impl PluginManager {
     pub fn get_loaded_ids(&self) -> Vec<String> {
         let plugins = self.plugins.lock().expect("lock");
         plugins.iter().map(|p| p.id.clone()).collect()
+    }
+
+    pub fn get_ai_agents(&self) -> Vec<(String, PluginMetadata)> {
+        let plugins = self.plugins.lock().expect("lock");
+        plugins
+            .iter()
+            .filter_map(|p| {
+                if let Some(meta) = &p.metadata
+                    && meta.plugin_type.as_deref() == Some("ai_agent")
+                {
+                    return Some((p.id.clone(), meta.clone()));
+                }
+                None
+            })
+            .collect()
     }
 }
 

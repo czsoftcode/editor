@@ -94,27 +94,39 @@ pub(super) fn render_menu_bar(
                     let plugins = {
                         let shared_lock = shared.lock().expect("lock");
                         let p_list = shared_lock.registry.plugins.plugins.lock().expect("lock");
-                        p_list.iter().map(|p| p.id.clone()).collect::<Vec<_>>()
+                        p_list
+                            .iter()
+                            .map(|p| {
+                                (
+                                    p.id.clone(),
+                                    p.metadata
+                                        .as_ref()
+                                        .map(|m| m.name.clone())
+                                        .unwrap_or_else(|| p.id.clone()),
+                                    p.metadata
+                                        .as_ref()
+                                        .and_then(|m| m.plugin_type.clone())
+                                        .unwrap_or_default(),
+                                )
+                            })
+                            .collect::<Vec<_>>()
                     };
 
                     ui.menu_button(i18n.get("plugins-category-ai"), |ui| {
-                        // Gemini is our special interactive agent
-                        if ui.button("Gemini").clicked() {
-                            actions.run_agent = Some("gemini".to_string());
-                            ui.close_menu();
-                        }
-                        // Other AI-related plugins
-                        for id in &plugins {
-                            if id.contains("gemini") && id != "gemini" && ui.button(id).clicked() {
-                                actions.run_plugin = Some((id.clone(), id.clone()));
+                        // List all loaded plugins of type "ai_agent"
+                        for (id, name, p_type) in &plugins {
+                            if p_type == "ai_agent" && ui.button(name).clicked() {
+                                // Set this as the selected provider and open the unified modal
+                                actions.run_agent = Some("ai_chat".to_string());
+                                actions.run_plugin = Some((id.clone(), "OPEN_AI_CHAT".to_string()));
                                 ui.close_menu();
                             }
                         }
                     });
 
                     ui.menu_button(i18n.get("plugins-category-general"), |ui| {
-                        for id in &plugins {
-                            if !id.contains("gemini") && ui.button(id).clicked() {
+                        for (id, name, p_type) in &plugins {
+                            if p_type != "ai_agent" && ui.button(name).clicked() {
                                 // For general plugins, we call the function named same as ID by default
                                 actions.run_plugin = Some((id.clone(), id.clone()));
                                 ui.close_menu();
@@ -289,6 +301,7 @@ pub(super) fn render_menu_bar(
 
 /// Applies menu actions to the workspace state. Returns the path for reinitialization (if a folder was selected).
 pub(super) fn process_menu_actions(
+    ctx: &egui::Context,
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     actions: MenuActions,
@@ -335,8 +348,8 @@ pub(super) fn process_menu_actions(
         ws.show_settings = true;
     }
     if let Some(agent_id) = actions.run_agent {
-        if agent_id == "gemini" {
-            ws.show_gemini = true;
+        if agent_id == "ai_chat" {
+            ws.show_ai_chat = true;
         } else {
             // Logic to start other agents in the terminal
             let agents = {
@@ -359,25 +372,39 @@ pub(super) fn process_menu_actions(
         }
     }
     if let Some((plugin_id, func)) = actions.run_plugin {
-        let (plugin_manager, config): (Arc<crate::app::registry::plugins::PluginManager>, _) = {
-            let sh = shared.lock().expect("lock");
-            let cfg = sh
-                .settings
-                .plugins
-                .get(&plugin_id)
-                .map(|s| s.config.clone())
-                .unwrap_or_default();
-            (Arc::clone(&sh.registry.plugins), cfg)
-        };
-        match plugin_manager.call(&plugin_id, &func, "menu", &config) {
-            Ok(res) => {
-                ws.toasts.push(crate::app::types::Toast::info(res));
-            }
-            Err(e) => {
-                ws.toasts.push(crate::app::types::Toast::error(format!(
-                    "Plugin failed: {}",
-                    e
-                )));
+        if func == "OPEN_AI_CHAT" {
+            ws.ai_selected_provider = plugin_id;
+            ws.show_ai_chat = true;
+            ws.ai_focus_requested = true;
+            // Initialize new conversation for the selected provider
+            super::modal_dialogs::ai_chat::handle_modal_action(
+                super::modal_dialogs::ai_chat::AiModalAction::NewQuery,
+                ws,
+                shared,
+                ctx,
+                i18n,
+            );
+        } else {
+            let (plugin_manager, config): (Arc<crate::app::registry::plugins::PluginManager>, _) = {
+                let sh = shared.lock().expect("lock");
+                let cfg = sh
+                    .settings
+                    .plugins
+                    .get(&plugin_id)
+                    .map(|s| s.config.clone())
+                    .unwrap_or_default();
+                (Arc::clone(&sh.registry.plugins), cfg)
+            };
+            match plugin_manager.call(&plugin_id, &func, "menu", &config) {
+                Ok(res) => {
+                    ws.toasts.push(crate::app::types::Toast::info(res));
+                }
+                Err(e) => {
+                    ws.toasts.push(crate::app::types::Toast::error(format!(
+                        "Plugin failed: {}",
+                        e
+                    )));
+                }
             }
         }
     }

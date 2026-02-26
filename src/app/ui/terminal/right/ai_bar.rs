@@ -1,9 +1,7 @@
 use crate::app::ai::{AiContextPayload, AiManager};
-use crate::app::registry::Agent;
 use crate::app::types::AppShared;
-use crate::app::ui::workspace::state::{WorkspaceState, spawn_ai_tool_check};
+use crate::app::ui::workspace::state::WorkspaceState;
 use eframe::egui;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub fn format_context_for_terminal(ctx: &AiContextPayload) -> String {
@@ -60,7 +58,6 @@ pub fn render_ai_bar(
     i18n: &crate::i18n::I18n,
 ) {
     ui.horizontal(|ui| {
-        let checking = ws.ai_tool_check_rx.is_some();
         let agents = {
             let sh = shared.lock().expect("lock");
             sh.registry.agents.get_all().to_vec()
@@ -71,7 +68,7 @@ pub fn render_ai_bar(
         // Picker
         let selected_agent = agents.iter().find(|a| a.id == ws.selected_agent_id);
         let label = if let Some(agent) = selected_agent {
-            ai_tool_status_label(agent, &ws.ai_tool_available, checking, i18n)
+            agent.label.clone()
         } else {
             i18n.get("plugins-unknown-agent")
         };
@@ -84,33 +81,12 @@ pub fn render_ai_bar(
                     ui.selectable_value(
                         &mut ws.selected_agent_id,
                         agent.id.clone(),
-                        ai_tool_status_label(agent, &ws.ai_tool_available, checking, i18n),
+                        agent.label.clone(),
                     );
                 }
             });
 
-        // Re-verify button
-        let hover_reverify = if checking {
-            i18n.get("ai-hover-checking")
-        } else {
-            i18n.get("ai-hover-reverify")
-        };
-        if ui.small_button("↻").on_hover_text(hover_reverify).clicked()
-            && ws.ai_tool_check_rx.is_none()
-        {
-            let check_list: Vec<(String, String)> = agents
-                .iter()
-                .map(|a| (a.id.clone(), a.command.clone()))
-                .collect();
-            ws.ai_tool_check_rx = Some(spawn_ai_tool_check(check_list));
-        }
-
-        let installed = ws
-            .ai_tool_available
-            .get(&ws.selected_agent_id)
-            .copied()
-            .unwrap_or(false);
-        let can_start = installed && !checking && selected_agent.is_some();
+        let can_start = selected_agent.is_some();
 
         // Start button
         let start_response = ui.add_enabled(can_start, egui::Button::new(i18n.get("ai-btn-start")));
@@ -150,21 +126,4 @@ pub fn render_ai_bar(
             }
         }
     });
-}
-
-fn ai_tool_status_label(
-    agent: &Agent,
-    available: &HashMap<String, bool>,
-    checking: bool,
-    i18n: &crate::i18n::I18n,
-) -> String {
-    let mut args = fluent_bundle::FluentArgs::new();
-    args.set("tool", agent.label.clone());
-    if checking {
-        i18n.get_args("ai-tool-status-checking", &args)
-    } else if *available.get(&agent.id).unwrap_or(&false) {
-        i18n.get_args("ai-tool-status-available", &args)
-    } else {
-        i18n.get_args("ai-tool-status-missing", &args)
-    }
 }

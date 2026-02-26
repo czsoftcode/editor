@@ -220,10 +220,10 @@ pub(crate) fn execute_command(
             plugin_id,
             func_name,
         } => {
-            if plugin_id == "gemini" {
-                // Special case for our interactive AI plugin
-                // We'll signal the UI to open the Gemini modal
-                return Some("OPEN_GEMINI_MODAL".to_string());
+            if plugin_id == "gemini" || plugin_id == "ollama" {
+                // Special case for our interactive AI plugins
+                // We'll signal the UI to open the unified AI chat modal
+                return Some("OPEN_AI_CHAT_MODAL".to_string());
             }
             let shared = shared
                 .lock()

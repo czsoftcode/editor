@@ -222,6 +222,7 @@ plugin-auth-bar-deny = Deny
 settings-title = Settings
 settings-category-general = General
 settings-category-editor = Editor
+settings-category-ai = AI Agents
 settings-language = Language
 settings-language-restart = Language changes take effect immediately.
 settings-theme = Theme
@@ -237,6 +238,11 @@ settings-editor-font = Editor — font size
 settings-ai-font = AI Terminal — font size
 settings-default-path = Default project path
 settings-creates-in = Will be created at:
+settings-ai-name = Assistant Name
+settings-ai-command = Command (binary)
+settings-ai-args = Arguments (optional)
+settings-ai-add = Add agent
+settings-ai-hint = Here you can define your own CLI tools (e.g., gemini, claude, aider). If the list is empty, defaults will be used.
 
 ## Plugins
 plugins-title = Plugin Manager
@@ -258,14 +264,22 @@ plugins-placeholder-api-key = API Key (e.g. Gemini, Anthropic)
 plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
 command-name-show-plugins = Plugins
 
-## Gemini AI
-gemini-title = Gemini AI Assistant
-gemini-label-response = Response:
-gemini-loading = Gemini is thinking…
-gemini-label-prompt = Your prompt:
-gemini-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
-gemini-btn-send = Send
-gemini-btn-new = New Thread
+## AI Chat
+ai-chat-title = AI Chat Assistant
+ai-chat-label-response = Response:
+ai-chat-loading = AI is thinking…
+ai-chat-label-prompt = Your prompt:
+ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
+ai-chat-btn-send = Send
+ai-chat-btn-new = New Thread
+ai-chat-settings-title = AI Settings
+ai-chat-label-language = Language:
+ai-chat-btn-reset = Reset
+ai-chat-label-system-prompt = System Prompt:
+ai-chat-default-prompt = Expert Rust Developer.
+command-name-plugin-gemini = Plugin: Ask Gemini
+command-name-plugin-ollama = Plugin: Ask Ollama
+command-name-plugin-ai-chat = Plugin: Ask AI Agent
 
 ## Semantic Indexing (RAG)
 semantic-indexing-title = Semantic Project Indexing

@@ -102,7 +102,7 @@ pub(crate) fn render_workspace(
     refresh_sandbox_staged_cache_if_due(ws);
 
     // Podmíněný repaint — pouze pokud běží aktivní operace na pozadí.
-    let has_active_work = ws.gemini_loading
+    let has_active_work = ws.ai_loading
         || ws.build_error_rx.is_some()
         || ws.git_status_rx.is_some()
         || ws.git_branch_rx.is_some()
@@ -132,9 +132,9 @@ pub(crate) fn render_workspace(
         ws.focused_panel = FocusedPanel::Claude;
     }
     if ctx.input(|i| i.modifiers.ctrl && i.modifiers.alt && i.key_pressed(egui::Key::G)) {
-        ws.show_gemini = true;
-        ws.gemini_focus_requested = true;
-        ws.focused_panel = FocusedPanel::Gemini;
+        ws.show_ai_chat = true;
+        ws.ai_focus_requested = true;
+        ws.focused_panel = FocusedPanel::AiChat;
     }
 
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
@@ -170,14 +170,14 @@ pub(crate) fn render_workspace(
 
     // --- 1. TOP UI (MenuBar) ---
     let actions = render_menu_bar(ctx, ws, shared, i18n);
-    let mut open_here_path = process_menu_actions(ws, shared, actions, i18n);
+    let mut open_here_path = process_menu_actions(ctx, ws, shared, actions, i18n);
 
     // --- 2. GLOBAL DIALOGS (Highest priority for input) ---
     let dialog_open_base = ws.file_tree.has_open_dialog()
         || ws.command_palette.is_some()
         || ws.show_plugins
         || ws.show_settings
-        || ws.show_gemini;
+        || ws.show_ai_chat;
 
     render_dialogs(ctx, ws, shared, i18n);
     render_semantic_indexing_modal(ctx, ws, i18n);
@@ -189,15 +189,15 @@ pub(crate) fn render_workspace(
     if let Some(cmd_id) = render_command_palette(ctx, ws, shared, i18n) {
         let mut actions = MenuActions::default();
         if let Some(plugin_res) = execute_command(cmd_id, &mut actions, shared) {
-            if plugin_res == "OPEN_GEMINI_MODAL" {
-                ws.show_gemini = true;
-                ws.gemini_focus_requested = true;
-                ws.gemini_response = None;
+            if plugin_res == "OPEN_AI_CHAT_MODAL" {
+                ws.show_ai_chat = true;
+                ws.ai_focus_requested = true;
+                ws.ai_response = None;
             } else {
                 ws.toasts.push(crate::app::types::Toast::info(plugin_res));
             }
         }
-        if let Some(path) = process_menu_actions(ws, shared, actions, i18n) {
+        if let Some(path) = process_menu_actions(ctx, ws, shared, actions, i18n) {
             open_here_path = Some(path);
         }
     }
@@ -345,11 +345,11 @@ pub(crate) fn render_workspace(
     }
 
     // Reset focus to editor if clicking outside any active panel/window
-    let any_panel_interacted = ai_clicked || left_clicked || ai_viewport_clicked || ws.show_gemini;
+    let any_panel_interacted = ai_clicked || left_clicked || ai_viewport_clicked || ws.show_ai_chat;
     if !any_panel_interacted {
         let in_terminal = ws.focused_panel == FocusedPanel::Claude
             || ws.focused_panel == FocusedPanel::Build
-            || ws.focused_panel == FocusedPanel::Gemini;
+            || ws.focused_panel == FocusedPanel::AiChat;
         if in_terminal {
             ws.focused_panel = FocusedPanel::Editor;
             ws.editor.request_editor_focus();

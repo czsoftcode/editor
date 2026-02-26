@@ -128,7 +128,7 @@ pub fn render_approval_ui(
                         || ui.input(|i| i.key_pressed(egui::Key::Num1))
                     {
                         // Add the approved change details to the conversation history for permanence
-                        if let Some(last) = ws.gemini_conversation.last_mut()
+                        if let Some(last) = ws.ai_conversation.last_mut()
                             && !last.1.contains(&details)
                         {
                             if !last.1.is_empty() {
@@ -150,7 +150,7 @@ pub fn render_approval_ui(
                         || ui.input(|i| i.key_pressed(egui::Key::Num2))
                     {
                         // Add to history as well
-                        if let Some(last) = ws.gemini_conversation.last_mut()
+                        if let Some(last) = ws.ai_conversation.last_mut()
                             && !last.1.contains(&details)
                         {
                             if !last.1.is_empty() {
@@ -175,7 +175,7 @@ pub fn render_approval_ui(
                         })
                     {
                         let _ = sender.send(crate::app::types::PluginApprovalResponse::Deny);
-                        ws.gemini_cancellation_token
+                        ws.ai_cancellation_token
                             .store(true, std::sync::atomic::Ordering::Relaxed);
                         handled = true;
                     }

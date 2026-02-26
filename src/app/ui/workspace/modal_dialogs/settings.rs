@@ -92,6 +92,15 @@ pub fn show(
                             {
                                 selected_cat = "editor".to_string();
                             }
+                            if ui
+                                .selectable_label(
+                                    selected_cat == "ai",
+                                    format!("🤖 {}", i18n.get("settings-category-ai")),
+                                )
+                                .clicked()
+                            {
+                                selected_cat = "ai".to_string();
+                            }
                         });
                 });
 
@@ -182,6 +191,73 @@ pub fn show(
                                     .step_by(1.0)
                                     .suffix(" px"),
                             );
+                        } else if selected_cat == "ai" {
+                            ui.strong(
+                                egui::RichText::new(i18n.get("settings-category-ai")).size(18.0),
+                            );
+                            ui.add_space(12.0);
+
+                            ui.label(i18n.get("settings-ai-hint"));
+                            ui.add_space(12.0);
+
+                            let mut to_remove = None;
+                            for (idx, agent) in draft.custom_agents.iter_mut().enumerate() {
+                                ui.group(|ui| {
+                                    ui.vertical(|ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.vertical(|ui| {
+                                                ui.label(i18n.get("settings-ai-name"));
+                                                ui.add(
+                                                    egui::TextEdit::singleline(&mut agent.name)
+                                                        .hint_text("Gemini"),
+                                                );
+                                            });
+                                            ui.vertical(|ui| {
+                                                ui.label(i18n.get("settings-ai-command"));
+                                                ui.add(
+                                                    egui::TextEdit::singleline(&mut agent.command)
+                                                        .hint_text("gemini"),
+                                                );
+                                            });
+                                            ui.with_layout(
+                                                egui::Layout::right_to_left(egui::Align::Center),
+                                                |ui| {
+                                                    if ui.button("🗑").clicked() {
+                                                        to_remove = Some(idx);
+                                                    }
+                                                },
+                                            );
+                                        });
+
+                                        ui.add_space(4.0);
+
+                                        ui.vertical(|ui| {
+                                            ui.label(i18n.get("settings-ai-args"));
+                                            ui.add(
+                                                egui::TextEdit::singleline(&mut agent.args)
+                                                    .hint_text("--chat")
+                                                    .desired_width(ui.available_width()),
+                                            );
+                                        });
+                                    });
+                                });
+                                ui.add_space(8.0);
+                            }
+
+                            if let Some(idx) = to_remove {
+                                draft.custom_agents.remove(idx);
+                            }
+
+                            if ui
+                                .button(format!("+ {}", i18n.get("settings-ai-add")))
+                                .clicked()
+                            {
+                                draft.custom_agents.push(crate::settings::CustomAgent {
+                                    name: "".to_string(),
+                                    command: "".to_string(),
+                                    args: "".to_string(),
+                                });
+                            }
                         }
                     });
             });
@@ -215,6 +291,23 @@ pub fn show(
                     ws.wizard.path = draft.default_project_path.clone();
                     let lang = draft.lang.clone();
                     let mut s = shared.lock().expect("lock");
+
+                    // Immediate agent registry update
+                    s.registry.agents.clear();
+                    for ca in &draft.custom_agents {
+                        let cmd = if ca.args.is_empty() {
+                            ca.command.clone()
+                        } else {
+                            format!("{} {}", ca.command, ca.args)
+                        };
+                        s.registry.agents.register(crate::app::registry::Agent {
+                            id: ca.name.to_lowercase().replace(' ', "_"),
+                            label: ca.name.clone(),
+                            command: cmd,
+                            context_aware: true,
+                        });
+                    }
+
                     s.settings = Arc::new(draft);
                     s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
                     s.settings_version

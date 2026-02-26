@@ -6,7 +6,7 @@ panel-files-sandbox = Soubory (Sandbox)
 btn-tree-project = Projekt
 btn-tree-sandbox = Sandbox
 panel-runners = Spouštěče
-panel-build = Build
+panel-build = Sestavit
 panel-git = Git
 panel-build-errors =
     { $count ->
@@ -16,12 +16,12 @@ panel-build-errors =
     }
 
 ## Build tlačítka
-btn-build = ▶ Build
+btn-build = ▶ Sestavit
 btn-build-sandbox-on = Sandbox ON
 btn-build-sandbox-off = Sandbox OFF
 hover-build-sandbox = Přepnout mezi spouštěním v projektu a v AI sandboxu
-btn-run = ▶ Run
-btn-run-new = ▶ Run+
+btn-run = ▶ Spustit
+btn-run-new = ▶ Spustit+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Vytvořit .deb
@@ -225,6 +225,7 @@ plugin-auth-bar-deny = Zakázat
 settings-title = Nastavení
 settings-category-general = Obecné
 settings-category-editor = Editor
+settings-category-ai = AI Agenti
 settings-language = Jazyk
 settings-language-restart = Jazyk se změní okamžitě.
 settings-theme = Téma
@@ -239,6 +240,11 @@ settings-diff-side-by-side = Vedle sebe
 settings-editor-font = Editor — velikost fontu
 settings-ai-font = AI terminál — velikost fontu
 settings-default-path = Výchozí cesta projektů
+settings-ai-name = Název asistenta
+settings-ai-command = Příkaz (binárka)
+settings-ai-args = Parametry (volitelné)
+settings-ai-add = Přidat agenta
+settings-ai-hint = Zde si můžete nadefinovat vlastní CLI nástroje (např. gemini, claude, aider). Pokud seznam necháte prázdný, použijí se výchozí.
 settings-creates-in = Vytvoří se v:
 settings-blacklist = Blacklist (zakázané soubory pro pluginy)
 settings-blacklist-hint = Podporuje vzory jako *.env, secret/* nebo konkrétní názvy souborů. Automaticky zakazuje soubory v .gitignore.
@@ -264,14 +270,22 @@ plugins-placeholder-api-key = API klíč (např. Gemini, Anthropic)
 plugins-placeholder-model = ID modelu (např. gemini-1.5-flash)
 command-name-show-plugins = Pluginy
 
-## Gemini AI
-gemini-title = Gemini AI asistent
-gemini-label-response = Odpověď:
-gemini-loading = Gemini přemýšlí…
-gemini-label-prompt = Tvůj dotaz:
-gemini-placeholder-prompt = Napiš zadání pro AI (např. „Vysvětli tento kód“ nebo „Navrhni refaktoring“)...
-gemini-btn-send = Odeslat
-gemini-btn-new = Nové vlákno
+## AI Chat
+ai-chat-title = AI Chat asistent
+ai-chat-label-response = Odpověď:
+ai-chat-loading = AI přemýšlí…
+ai-chat-label-prompt = Tvůj dotaz:
+ai-chat-placeholder-prompt = Napiš zadání pro AI (např. „Vysvětli tento kód“ nebo „Navrhni refaktoring“)...
+ai-chat-btn-send = Odeslat
+ai-chat-btn-new = Nové vlákno
+ai-chat-settings-title = Nastavení AI
+ai-chat-label-language = Jazyk:
+ai-chat-btn-reset = Reset
+ai-chat-label-system-prompt = Systémový prompt:
+ai-chat-default-prompt = Expert Rust Developer.
+command-name-plugin-gemini = Plugin: Zeptat se Gemini
+command-name-plugin-ollama = Plugin: Zeptat se Ollama
+command-name-plugin-ai-chat = Plugin: Zeptat se AI agenta
 
 ## Sémantická indexace (RAG)
 semantic-indexing-title = Sémantická indexace projektu

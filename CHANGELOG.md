@@ -1,3 +1,12 @@
+## [0.7.19] - 2026-02-26
+
+### Added
+- **Custom AI CLI Agents**: Users can now define their own AI assistants (Gemini, Claude, Aider, etc.) in Settings under a new "AI" category.
+- **Dynamic AI Bar**: The AI bar now dynamically loads agents from settings and supports custom launch commands with arguments.
+
+### Changed
+- **Simplified AI Bar**: Removed periodic status checks for AI tools to ensure a faster and cleaner UI.
+
 ## [0.7.18] - 2026-02-26
 
 ### Refactored

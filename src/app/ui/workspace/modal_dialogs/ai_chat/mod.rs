@@ -26,15 +26,15 @@ pub fn show(
     i18n: &I18n,
     id_salt: &impl std::hash::Hash,
 ) {
-    if !ws.show_gemini {
+    if !ws.show_ai_chat {
         return;
     }
 
-    let mut prompt = ws.gemini_prompt.clone();
-    let response_text = ws.gemini_response.clone();
-    let loading = ws.gemini_loading;
-    let mut show_flag = ws.show_gemini;
-    let inspector_open = ws.gemini_inspector_open;
+    let mut prompt = ws.ai_prompt.clone();
+    let response_text = ws.ai_response.clone();
+    let loading = ws.ai_loading;
+    let mut show_flag = ws.show_ai_chat;
+    let inspector_open = ws.ai_inspector_open;
     let font_size = {
         let sh = shared.lock().expect("lock");
         sh.settings.editor_font_size
@@ -43,7 +43,7 @@ pub fn show(
     let mut action = None;
 
     let modal_width = if inspector_open { 1200.0 } else { 900.0 };
-    let modal = StandardModal::new(i18n.get("gemini-title"), (id_salt, "ai_chat_modal"))
+    let modal = StandardModal::new(i18n.get("ai-chat-title"), (id_salt, "ai_chat_modal"))
         .with_size(modal_width, 700.0);
 
     let viewer_bg = egui::Color32::from_rgb(20, 20, 25);
@@ -56,10 +56,10 @@ pub fn show(
 
         if (ui.input(|i| i.pointer.any_click()) || ui.ui_contains_pointer())
             && ui.ui_contains_pointer()
-            && ws.focused_panel != crate::app::types::FocusedPanel::Gemini
+            && ws.focused_panel != crate::app::types::FocusedPanel::AiChat
         {
-            ws.focused_panel = crate::app::types::FocusedPanel::Gemini;
-            ws.gemini_focus_requested = true;
+            ws.focused_panel = crate::app::types::FocusedPanel::AiChat;
+            ws.ai_focus_requested = true;
         }
 
         // SEPARATOR
@@ -72,10 +72,10 @@ pub fn show(
         // FOOTER
         action = modal.ui_footer(ui, |ui| {
             if ui
-                .selectable_label(ws.gemini_show_settings, i18n.get("gemini-settings-title"))
+                .selectable_label(ws.ai_show_settings, i18n.get("ai-chat-settings-title"))
                 .clicked()
             {
-                ws.gemini_show_settings = !ws.gemini_show_settings;
+                ws.ai_show_settings = !ws.ai_show_settings;
             }
 
             if ui
@@ -85,8 +85,8 @@ pub fn show(
                 return Some(AiModalAction::ToggleInspector);
             }
 
-            if (response_text.is_some() || !ws.gemini_conversation.is_empty())
-                && ui.button(i18n.get("gemini-btn-new")).clicked()
+            if (response_text.is_some() || !ws.ai_conversation.is_empty())
+                && ui.button(i18n.get("ai-chat-btn-new")).clicked()
             {
                 return Some(AiModalAction::NewQuery);
             }
@@ -142,8 +142,8 @@ pub fn show(
         });
     });
 
-    ws.gemini_prompt = prompt;
-    ws.show_gemini = show_flag;
+    ws.ai_prompt = prompt;
+    ws.show_ai_chat = show_flag;
 
     if let Some(act) = action {
         handle_modal_action(act, ws, shared, ctx, i18n);
@@ -162,54 +162,63 @@ pub fn handle_modal_action(
             logic::send_query_to_agent(ws, shared);
         }
         AiModalAction::NewQuery => {
-            ws.gemini_response = None;
-            ws.gemini_prompt.clear();
-            ws.gemini_conversation.clear();
-            ws.gemini_monologue.clear();
-            ws.gemini_in_tokens = 0;
-            ws.gemini_out_tokens = 0;
+            ws.ai_response = None;
+            ws.ai_prompt.clear();
+            ws.ai_conversation.clear();
+            ws.ai_monologue.clear();
+            ws.ai_in_tokens = 0;
+            ws.ai_out_tokens = 0;
 
             let model = {
                 let sh = shared.lock().expect("lock");
                 sh.settings
                     .plugins
-                    .get("gemini")
+                    .get(&ws.ai_selected_provider)
                     .and_then(|s| s.config.get("MODEL").cloned())
-                    .unwrap_or_else(|| "gemini-1.5-flash".to_string())
+                    .unwrap_or_else(|| {
+                        if ws.ai_selected_provider == "ollama" {
+                            "llama3.1".to_string()
+                        } else {
+                            "gemini-1.5-flash".to_string()
+                        }
+                    })
             };
 
-            ws.gemini_conversation.push((
+            ws.ai_conversation.push((
                 String::new(),
                 AiManager::get_logo(
                     crate::config::CLI_VERSION,
                     &model,
-                    ws.gemini_expertise,
-                    ws.gemini_reasoning_depth,
+                    ws.ai_expertise,
+                    ws.ai_reasoning_depth,
                 ),
             ));
         }
         AiModalAction::ToggleInspector => {
-            ws.gemini_inspector_open = !ws.gemini_inspector_open;
+            ws.ai_inspector_open = !ws.ai_inspector_open;
         }
         AiModalAction::SaveSettings => {
             let mut sh = shared.lock().expect("lock");
             let mut settings = (*sh.settings).clone();
-            let g_settings = settings.plugins.entry("gemini".to_string()).or_default();
-            g_settings.expertise = ws.gemini_expertise;
-            g_settings.reasoning_depth = ws.gemini_reasoning_depth;
-            g_settings
+            let provider_settings = settings
+                .plugins
+                .entry(ws.ai_selected_provider.clone())
+                .or_default();
+            provider_settings.expertise = ws.ai_expertise;
+            provider_settings.reasoning_depth = ws.ai_reasoning_depth;
+            provider_settings
                 .config
-                .insert("SYSTEM_PROMPT".to_string(), ws.gemini_system_prompt.clone());
-            g_settings
+                .insert("SYSTEM_PROMPT".to_string(), ws.ai_system_prompt.clone());
+            provider_settings
                 .config
-                .insert("LANGUAGE".to_string(), ws.gemini_language.clone());
+                .insert("LANGUAGE".to_string(), ws.ai_language.clone());
             settings.save();
             sh.settings = Arc::new(settings);
             ws.toasts
                 .push(crate::app::types::Toast::info("AI settings saved."));
         }
         AiModalAction::Close => {
-            ws.show_gemini = false;
+            ws.show_ai_chat = false;
         }
     }
 }

@@ -18,7 +18,7 @@ pub fn check_agent_authorization(
             .plugins
             .get_pending_authorizations()
             .into_iter()
-            .find(|(id, _)| id == "gemini")
+            .find(|(id, _)| id == &ws.ai_selected_provider)
     };
 
     if let Some((id, _meta)) = pending_auth {
@@ -57,7 +57,7 @@ pub fn render_chat_main_ui(
 
         // Calculate reserved space for bottom elements to limit history growth
         let mut bottom_h = 110.0; // Base for Info + Prompt
-        if ws.gemini_show_settings {
+        if ws.ai_show_settings {
             bottom_h += 220.0;
         }
         if ws.pending_plugin_approval.is_some() {
@@ -74,10 +74,10 @@ pub fn render_chat_main_ui(
             .stick_to_bottom(true)
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 8.0;
-                if !ws.gemini_conversation.is_empty() {
+                if !ws.ai_conversation.is_empty() {
                     AiChatWidget::ui_conversation(
                         ui,
-                        &ws.gemini_conversation,
+                        &ws.ai_conversation,
                         font_size,
                         &mut ws.markdown_cache,
                     );
@@ -85,10 +85,10 @@ pub fn render_chat_main_ui(
                     ui.add_space(4.0);
                     ui.horizontal(|ui| {
                         ui.spinner();
-                        ui.label(egui::RichText::new(i18n.get("gemini-loading")).strong());
+                        ui.label(egui::RichText::new(i18n.get("ai-chat-loading")).strong());
                     });
                     ui.add_space(4.0);
-                    AiChatWidget::ui_monologue(ui, &ws.gemini_monologue, &mut ws.markdown_cache);
+                    AiChatWidget::ui_monologue(ui, &ws.ai_monologue, &mut ws.markdown_cache);
                 } else {
                     ui.centered_and_justified(|ui| {
                         ui.label(egui::RichText::new("PolyCredo AI").weak().size(24.0));
@@ -137,7 +137,7 @@ pub fn render_chat_main_ui(
                     visuals.widgets.active.expansion = 0.0;
 
                     if loading && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-                        ws.gemini_cancellation_token
+                        ws.ai_cancellation_token
                             .store(true, std::sync::atomic::Ordering::Relaxed);
                     }
 
@@ -145,13 +145,13 @@ pub fn render_chat_main_ui(
                         ui,
                         prompt,
                         font_size,
-                        &i18n.get("gemini-placeholder-prompt"),
-                        &ws.gemini_history,
-                        &mut ws.gemini_history_index,
+                        &i18n.get("ai-chat-placeholder-prompt"),
+                        &ws.ai_history,
+                        &mut ws.ai_history_index,
                     );
-                    if ws.gemini_focus_requested {
+                    if ws.ai_focus_requested {
                         resp.request_focus();
-                        ws.gemini_focus_requested = false;
+                        ws.ai_focus_requested = false;
                     }
                     if send_via_kb {
                         *action = Some(AiModalAction::Send);
@@ -160,7 +160,7 @@ pub fn render_chat_main_ui(
         }
 
         // 4. SETTINGS
-        if ws.gemini_show_settings {
+        if ws.ai_show_settings {
             ui.add_space(8.0);
             let settings_bg = egui::Color32::from_rgb(30, 35, 45);
             egui::Frame::new()
@@ -172,10 +172,10 @@ pub fn render_chat_main_ui(
                     ui.set_width(ui.available_width());
                     if AiChatWidget::ui_settings(
                         ui,
-                        &mut ws.gemini_expertise,
-                        &mut ws.gemini_reasoning_depth,
-                        &mut ws.gemini_language,
-                        &mut ws.gemini_system_prompt,
+                        &mut ws.ai_expertise,
+                        &mut ws.ai_reasoning_depth,
+                        &mut ws.ai_language,
+                        &mut ws.ai_system_prompt,
                         i18n,
                     ) {
                         // Settings changed
@@ -186,7 +186,7 @@ pub fn render_chat_main_ui(
                             *action = Some(AiModalAction::SaveSettings);
                         }
                         if ui.button(i18n.get("btn-close")).clicked() {
-                            ws.gemini_show_settings = false;
+                            ws.ai_show_settings = false;
                         }
                     });
                 });
@@ -194,7 +194,7 @@ pub fn render_chat_main_ui(
     });
 }
 
-pub fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool) {
+pub fn render_info_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, loading: bool) {
     ui.horizontal(|ui| {
         if loading {
             ui.spinner();
@@ -202,11 +202,12 @@ pub fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool) {
             ui.label("📁");
         }
         ui.label(egui::RichText::new(ws.sandbox.root.to_string_lossy()).weak());
+
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.label(
                 egui::RichText::new(format!(
                     "In: {} | Out: {}",
-                    ws.gemini_in_tokens, ws.gemini_out_tokens
+                    ws.ai_in_tokens, ws.ai_out_tokens
                 ))
                 .weak(),
             );

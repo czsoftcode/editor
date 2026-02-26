@@ -161,41 +161,25 @@ impl EditorApp {
         *registry.plugins.egui_ctx.lock().expect("lock") = Some(cc.egui_ctx.clone());
         registry.init_defaults();
 
-        // Register default agents
-        registry.agents.register(crate::app::registry::Agent {
-            id: "gemini".to_string(),
-            label: "Gemini CLI".to_string(),
-            command: "gemini".to_string(),
-            context_aware: true,
-        });
-        registry.agents.register(crate::app::registry::Agent {
-            id: "claude".to_string(),
-            label: "Claude Code".to_string(),
-            command: "claude".to_string(),
-            context_aware: true,
-        });
-        registry.agents.register(crate::app::registry::Agent {
-            id: "aider".to_string(),
-            label: "Aider".to_string(),
-            command: "aider".to_string(),
-            context_aware: true,
-        });
-
-        // Load WASM plugins from relative 'plugins/' and Global fallback
-        registry.plugins.set_blacklist(settings.blacklist.clone());
-
-        if let Some(project_root) = paths_to_open.first() {
-            // Priority 1: Relative plugins directory in the project root
-            let project_plugins = project_root.join("plugins");
-            if let Err(e) = registry.plugins.load_from_dir(&project_plugins) {
-                eprintln!(
-                    "Failed to load project plugins from {:?}: {}",
-                    project_plugins, e
-                );
-            }
+        // Register agents exclusively from settings
+        for ca in &settings.custom_agents {
+            let cmd = if ca.args.is_empty() {
+                ca.command.clone()
+            } else {
+                format!("{} {}", ca.command, ca.args)
+            };
+            registry.agents.register(crate::app::registry::Agent {
+                id: ca.name.to_lowercase().replace(' ', "_"),
+                label: ca.name.clone(),
+                command: cmd,
+                context_aware: true,
+            });
         }
 
-        // Priority 2: Global Fallback
+        // Load WASM plugins from Global fallback
+        registry.plugins.set_blacklist(settings.blacklist.clone());
+
+        // Priority: Global Fallback (~/.config/polycredo-editor/plugins)
         let global_plugins = ipc::plugins_dir();
         if let Err(e) = registry.plugins.load_from_dir(&global_plugins) {
             eprintln!(
@@ -237,19 +221,29 @@ impl EditorApp {
             });
         }
 
-        // Auto-register "gemini" plugin command if loaded
-        if registry
-            .plugins
-            .get_loaded_ids()
-            .contains(&"gemini".to_string())
-        {
+        // Dynamically register AI agent commands
+        let ai_agents = registry.plugins.get_ai_agents();
+        for (id, _meta) in ai_agents {
+            let cmd_id = format!("plugin.{}", id);
+            let func_name = format!("ask_{}", id);
+
+            // We use a generic i18n key or construct one if needed.
+            // For now, we'll try to find a specific one or fallback to a default.
+            let i18n_key = if id == "gemini" {
+                "command-name-plugin-gemini"
+            } else if id == "ollama" {
+                "command-name-plugin-ollama"
+            } else {
+                "command-name-plugin-ai-chat" // We should add this to locales
+            };
+
             registry.commands.register(crate::app::registry::Command {
-                id: "plugin.gemini".to_string(),
-                i18n_key: "command-name-plugin-gemini",
+                id: cmd_id,
+                i18n_key,
                 shortcut: None,
                 action: crate::app::registry::CommandAction::Plugin {
-                    plugin_id: "gemini".to_string(),
-                    func_name: "ask_gemini".to_string(),
+                    plugin_id: id.clone(),
+                    func_name,
                 },
             });
         }
@@ -417,14 +411,14 @@ impl EditorApp {
                 }
                 AppAction::PluginResponse(id, result) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == "gemini"
+                        && id == ws.ai_selected_provider
                     {
-                        ws.gemini_loading = false;
+                        ws.ai_loading = false;
                         match result {
                             Ok(text) => {
-                                ws.gemini_response = Some(text.clone());
+                                ws.ai_response = Some(text.clone());
                                 // Update conversation history - append AFTER monologue
-                                if let Some(last) = ws.gemini_conversation.last_mut() {
+                                if let Some(last) = ws.ai_conversation.last_mut() {
                                     if !last.1.is_empty() {
                                         last.1.push_str("\n\n");
                                     }
@@ -437,11 +431,11 @@ impl EditorApp {
                 }
                 AppAction::PluginMonologue(id, message) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == "gemini"
+                        && id == ws.ai_selected_provider
                     {
-                        ws.gemini_monologue.push(message.clone());
+                        ws.ai_monologue.push(message.clone());
                         // Also append to the active conversation entry for permanence
-                        if let Some(last) = ws.gemini_conversation.last_mut() {
+                        if let Some(last) = ws.ai_conversation.last_mut() {
                             if !last.1.is_empty() {
                                 last.1.push_str("\n\n");
                             }
@@ -451,26 +445,26 @@ impl EditorApp {
                 }
                 AppAction::PluginUsage(id, in_t, out_t) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == "gemini"
+                        && id == ws.ai_selected_provider
                     {
                         // Add the input and output tokens consumed by the last request to the session counter.
-                        ws.gemini_in_tokens = ws.gemini_in_tokens.saturating_add(in_t);
-                        ws.gemini_out_tokens = ws.gemini_out_tokens.saturating_add(out_t);
+                        ws.ai_in_tokens = ws.ai_in_tokens.saturating_add(in_t);
+                        ws.ai_out_tokens = ws.ai_out_tokens.saturating_add(out_t);
                     }
                 }
                 AppAction::PluginPayload(id, payload) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == "gemini"
+                        && id == ws.ai_selected_provider
                     {
-                        ws.gemini_last_payload = payload;
+                        ws.ai_last_payload = payload;
                     }
                 }
                 AppAction::PluginApprovalRequest(id, action, details, sender) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == "gemini"
+                        && id == ws.ai_selected_provider
                     {
                         ws.pending_plugin_approval = Some((id, action, details, sender));
-                        ws.gemini_focus_requested = true;
+                        ws.ai_focus_requested = true;
                     }
                 }
             }

@@ -106,7 +106,7 @@ fn flush_block(
     ui: &mut egui::Ui,
     block: &mut String,
     mono: bool,
-    width: f32,
+    _width: f32,
     terminal_text: egui::Color32,
     path_re: &Option<regex::Regex>,
     cache: &mut egui_commonmark::CommonMarkCache,
@@ -144,12 +144,12 @@ fn flush_block(
                     se: 4,
                 })
                 .show(ui, |ui| {
-                    ui.set_width(width - 2.0);
+                    ui.set_max_width(ui.available_width() - 4.0);
                     egui_commonmark::CommonMarkViewer::new().show(ui, cache, &text);
                 });
         });
     } else {
-        ui.set_width(width);
+        ui.set_max_width(ui.available_width());
         egui_commonmark::CommonMarkViewer::new().show(ui, cache, &text);
     }
     block.clear();
@@ -203,6 +203,7 @@ pub fn ui_monologue(
 
                         let mut flush_thought = |ui: &mut egui::Ui, text: &mut String| {
                             if !text.is_empty() {
+                                ui.set_max_width(ui.available_width());
                                 egui_commonmark::CommonMarkViewer::new().show(
                                     ui,
                                     cache,

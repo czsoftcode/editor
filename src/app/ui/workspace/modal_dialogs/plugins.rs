@@ -62,11 +62,13 @@ pub fn show(
                     .map(|p| {
                         let mut version = None;
                         let mut desc = None;
+                        let mut p_type = None;
                         if let Some(meta) = &p.metadata {
                             version = Some(meta.version.clone());
                             desc = meta.description.clone();
+                            p_type = meta.plugin_type.clone();
                         }
-                        (p.id.clone(), version, desc)
+                        (p.id.clone(), version, desc, p_type)
                     })
                     .collect::<Vec<_>>()
             };
@@ -110,8 +112,9 @@ pub fn show(
                                 {
                                     selected_id = "system:ai_settings".to_string();
                                 }
-                                for (id, _, _) in &plugin_info {
-                                    if id.contains("gemini") {
+                                for (id, _, _, p_type) in &plugin_info {
+                                    let is_ai = p_type.as_deref() == Some("ai_agent");
+                                    if is_ai {
                                         let enabled = draft
                                             .plugins
                                             .get(id)
@@ -132,8 +135,9 @@ pub fn show(
                             });
 
                             ui.collapsing(i18n.get("plugins-category-general"), |ui| {
-                                for (id, _, _) in &plugin_info {
-                                    if !id.contains("gemini") {
+                                for (id, _, _, p_type) in &plugin_info {
+                                    let is_ai = p_type.as_deref() == Some("ai_agent");
+                                    if !is_ai {
                                         let enabled = draft
                                             .plugins
                                             .get(id)
@@ -181,8 +185,8 @@ pub fn show(
                             });
                             ui.add_space(16.0);
                             render_system_ai_settings(ui, &mut draft, i18n);
-                        } else if let Some((id, v, d)) =
-                            plugin_info.iter().find(|(id, _, _)| *id == selected_id)
+                        } else if let Some((id, v, d, _)) =
+                            plugin_info.iter().find(|(id, _, _, _)| *id == selected_id)
                         {
                             render_plugin_details(
                                 ui,
@@ -373,6 +377,48 @@ fn render_plugin_details(
                     id,
                 );
                 ui.end_row();
+                render_config_field(
+                    ui,
+                    available_w,
+                    plugin_settings,
+                    "API_URL",
+                    "http://localhost:11434",
+                    id,
+                );
+                ui.end_row();
+                render_config_field(
+                    ui,
+                    available_w,
+                    plugin_settings,
+                    "LANGUAGE",
+                    i18n.lang(),
+                    id,
+                );
+                ui.end_row();
+                render_config_field(
+                    ui,
+                    available_w,
+                    plugin_settings,
+                    "SYSTEM_PROMPT",
+                    "Expert Developer",
+                    id,
+                );
+                ui.end_row();
+                if id.contains("ollama") {
+                    render_config_field(ui, available_w, plugin_settings, "NUM_CTX", "4096", id);
+                    ui.end_row();
+                    render_config_field(ui, available_w, plugin_settings, "TEMPERATURE", "0.2", id);
+                    ui.end_row();
+                    render_config_field(
+                        ui,
+                        available_w,
+                        plugin_settings,
+                        "MAX_ITERATIONS",
+                        "30",
+                        id,
+                    );
+                    ui.end_row();
+                }
             });
     }
 }

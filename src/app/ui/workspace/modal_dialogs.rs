@@ -6,7 +6,7 @@ use super::super::dialogs::show_project_wizard;
 use super::state::WorkspaceState;
 
 mod about;
-mod ai_chat;
+pub mod ai_chat;
 mod ai_dialogs;
 mod conflict;
 mod plugins;

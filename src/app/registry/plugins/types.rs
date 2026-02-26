@@ -9,6 +9,8 @@ pub struct PluginMetadata {
     pub version: String,
     pub description: Option<String>,
     pub author: Option<String>,
+    #[serde(rename = "type")]
+    pub plugin_type: Option<String>,
     #[serde(default)]
     pub allowed_hosts: Vec<String>,
 }

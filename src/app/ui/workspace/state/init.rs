@@ -55,6 +55,12 @@ pub fn init_workspace(
     let i18n = crate::i18n::I18n::new(&settings.lang);
     let profiles = load_profiles(&root_path);
 
+    let selected_provider = panel_state
+        .ai_selected_provider
+        .clone()
+        .unwrap_or_else(|| "gemini".to_string());
+    let ai_settings = settings.plugins.get(&selected_provider);
+
     WorkspaceState {
         file_tree,
         editor: Editor::new(),
@@ -75,16 +81,21 @@ pub fn init_workspace(
         show_about: false,
         show_settings: false,
         show_plugins: false,
-        show_gemini: false,
+        show_ai_chat: false,
         show_semantic_indexing_modal: true,
-        gemini_show_settings: false,
+        ai_show_settings: false,
         selected_plugin_id: None,
         selected_settings_category: None,
         ai_font_scale: panel_state.ai_font_scale,
         profiles,
         build_errors: Vec::new(),
         build_error_rx: None,
-        selected_agent_id: "gemini".to_string(),
+        selected_agent_id: settings
+            .custom_agents
+            .first()
+            .map(|a| a.name.to_lowercase().replace(' ', "_"))
+            .unwrap_or_default(),
+        ai_selected_provider: selected_provider.clone(),
         claude_float: panel_state.claude_float,
         show_new_project: false,
         wizard: crate::app::ui::dialogs::WizardState::default(),
@@ -116,70 +127,54 @@ pub fn init_workspace(
         promotion_success: None,
         show_sandbox_staged: false,
         plugin_error: None,
-        gemini_prompt: String::new(),
-        gemini_history: Vec::new(),
-        gemini_history_index: None,
-        gemini_monologue: Vec::new(),
-        gemini_conversation: vec![(
+        ai_prompt: String::new(),
+        ai_history: Vec::new(),
+        ai_history_index: None,
+        ai_monologue: Vec::new(),
+        ai_conversation: vec![(
             String::new(),
             crate::app::ai::AiManager::get_logo(
                 crate::config::CLI_VERSION,
-                &settings
-                    .plugins
-                    .get("gemini")
+                &ai_settings
                     .and_then(|s| s.config.get("MODEL").cloned())
-                    .unwrap_or_else(|| "gemini-1.5-flash".to_string()),
-                panel_state.gemini_expertise.unwrap_or_else(|| {
-                    settings
-                        .plugins
-                        .get("gemini")
-                        .map(|s| s.expertise)
-                        .unwrap_or_default()
-                }),
-                panel_state.gemini_reasoning_depth.unwrap_or_else(|| {
-                    settings
-                        .plugins
-                        .get("gemini")
-                        .map(|s| s.reasoning_depth)
-                        .unwrap_or_default()
-                }),
+                    .unwrap_or_else(|| {
+                        if selected_provider == "ollama" {
+                            "llama3.1".to_string()
+                        } else {
+                            "gemini-1.5-flash".to_string()
+                        }
+                    }),
+                panel_state
+                    .ai_expertise
+                    .unwrap_or_else(|| ai_settings.map(|s| s.expertise).unwrap_or_default()),
+                panel_state
+                    .ai_reasoning_depth
+                    .unwrap_or_else(|| ai_settings.map(|s| s.reasoning_depth).unwrap_or_default()),
             ),
         )],
-        gemini_system_prompt: panel_state.gemini_system_prompt.clone().unwrap_or_else(|| {
-            settings
-                .plugins
-                .get("gemini")
+        ai_system_prompt: panel_state.ai_system_prompt.clone().unwrap_or_else(|| {
+            ai_settings
                 .and_then(|s| s.config.get("SYSTEM_PROMPT").cloned())
-                .unwrap_or_else(|| i18n.get("gemini-default-prompt"))
+                .unwrap_or_else(|| i18n.get("ai-chat-default-prompt"))
         }),
-        gemini_language: panel_state.gemini_language.clone().unwrap_or_else(|| {
-            settings
-                .plugins
-                .get("gemini")
+        ai_language: panel_state.ai_language.clone().unwrap_or_else(|| {
+            ai_settings
                 .and_then(|s| s.config.get("LANGUAGE").cloned())
                 .unwrap_or_else(|| i18n.lang().to_string())
         }),
-        gemini_expertise: panel_state.gemini_expertise.unwrap_or_else(|| {
-            settings
-                .plugins
-                .get("gemini")
-                .map(|s| s.expertise)
-                .unwrap_or_default()
-        }),
-        gemini_reasoning_depth: panel_state.gemini_reasoning_depth.unwrap_or_else(|| {
-            settings
-                .plugins
-                .get("gemini")
-                .map(|s| s.reasoning_depth)
-                .unwrap_or_default()
-        }),
-        gemini_in_tokens: 0,
-        gemini_out_tokens: 0,
-        gemini_inspector_open: false,
-        gemini_focus_requested: true,
-        gemini_last_payload: String::new(),
-        gemini_response: None,
-        gemini_loading: false,
+        ai_expertise: panel_state
+            .ai_expertise
+            .unwrap_or_else(|| ai_settings.map(|s| s.expertise).unwrap_or_default()),
+        ai_reasoning_depth: panel_state
+            .ai_reasoning_depth
+            .unwrap_or_else(|| ai_settings.map(|s| s.reasoning_depth).unwrap_or_default()),
+        ai_in_tokens: 0,
+        ai_out_tokens: 0,
+        ai_inspector_open: false,
+        ai_focus_requested: true,
+        ai_last_payload: String::new(),
+        ai_response: None,
+        ai_loading: false,
         markdown_cache: egui_commonmark::CommonMarkCache::default(),
         sync_confirmation: None,
         pending_agent_id: None,
@@ -196,7 +191,7 @@ pub fn init_workspace(
         background_io_rx: None,
         applied_settings_version: 0,
         pending_plugin_approval: None,
-        gemini_cancellation_token: Arc::new(AtomicBool::new(false)),
+        ai_cancellation_token: Arc::new(AtomicBool::new(false)),
     }
 }
 

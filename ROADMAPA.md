@@ -33,6 +33,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - [x] **Human-in-the-loop 2.0** — side-by-side diff preview pro všechny AI změny a potvrzování "nebezpečných" operací.
 - [x] **Automatické zálohování (Safety Net)** — propojení `LocalHistory` s procesem schvalování změn (automatický snapshot původního souboru před přepsáním ze sandboxu).
 - [x] **Reasoning Loop** — podpora pro cyklus Plán -> Akce -> Observace -> Korekce přímo v UI (interní monolog).
+- [x] **Vlastní CLI Agenti** — možnost definice vlastních AI nástrojů (Claude, Gemini, Aider) přímo v nastavení aplikace s dynamickým UI.
 - [ ] **Git & Historie** — integrace s Gitem pro automatické commity a analýzu historie kódu agentem.
 
 ## Q3 2026 — Rozšíření platformy

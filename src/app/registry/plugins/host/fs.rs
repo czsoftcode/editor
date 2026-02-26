@@ -48,11 +48,13 @@ pub fn host_read_file(
 
     let max_chars = 10000;
     if content.len() > max_chars {
-        content.truncate(max_chars);
+        let mut new_len = max_chars;
+        while new_len > 0 && !content.is_char_boundary(new_len) {
+            new_len -= 1;
+        }
+        content.truncate(new_len);
         content.push_str(&format!(
-            "
-
-[FILE TRUNCATED: Showing 10k chars from line {}. Total lines in file: {}. Use 'line_start' to read the next segment!]",
+            "\n\n[FILE TRUNCATED: Showing 10k chars from line {}. Total lines in file: {}. Use 'line_start' to read the next segment!]",
             line_start, total_lines
         ));
     }
@@ -88,12 +90,17 @@ pub fn host_write_file(
         .ok_or(anyhow::anyhow!("Missing content"))?;
     let rel_path = Path::new(&path_str);
 
-    if !state.is_allowed(rel_path) {
+    let is_trace_log = path_str == ".gemini_trace.log"
+        || path_str == ".ollama_trace.log"
+        || path_str == "ollama_trace.log"
+        || path_str == ".ai_trace.log";
+
+    if !is_trace_log && !state.is_allowed(rel_path) {
         eprintln!("SECURITY VIOLATION in plugin: {}", path_str);
         return Ok(());
     }
 
-    let needs_approval = path_str != ".gemini_trace.log" && !path_str.ends_with(".log");
+    let needs_approval = !is_trace_log && !path_str.ends_with(".log");
 
     if needs_approval {
         match request_plugin_approval(
@@ -164,10 +171,22 @@ pub fn host_replace_file(
         }
     };
 
-    if !current_content.contains(old_string) {
-        eprintln!("Replace failed: 'old_string' not found in {}", path_str);
+    // 1. Try exact match, then fuzzy match (whitespace tolerant)
+    let match_range = if let Some(pos) = current_content.find(old_string) {
+        Some(pos..pos + old_string.len())
+    } else {
+        find_fuzzy_match(&current_content, old_string)
+    };
+
+    let Some(range) = match_range else {
+        eprintln!(
+            "Replace failed: 'old_string' not found (even with fuzzy matching) in {}",
+            path_str
+        );
         return Ok(());
-    }
+    };
+
+    let matched_text = &current_content[range.clone()];
 
     let mut diff_display = format!(
         "### {}
@@ -175,14 +194,14 @@ pub fn host_replace_file(
 ",
         path_str
     );
-    let byte_pos = current_content.find(old_string).unwrap_or(0);
-    let start_line = current_content[..byte_pos].lines().count() + 1;
+    let start_line = current_content[..range.start].lines().count() + 1;
 
-    let lines_before: Vec<&str> = current_content[..byte_pos].lines().rev().take(3).collect();
-    let lines_after: Vec<&str> = current_content[byte_pos + old_string.len()..]
+    let lines_before: Vec<&str> = current_content[..range.start]
         .lines()
+        .rev()
         .take(3)
         .collect();
+    let lines_after: Vec<&str> = current_content[range.end..].lines().take(3).collect();
 
     for (i, line) in lines_before.into_iter().rev().enumerate() {
         let num = start_line.saturating_sub(3).saturating_add(i);
@@ -195,7 +214,7 @@ pub fn host_replace_file(
         }
     }
 
-    let diff = similar::TextDiff::from_lines(old_string, new_string);
+    let diff = similar::TextDiff::from_lines(matched_text, new_string);
     for change in diff.iter_all_changes() {
         let sign = match change.tag() {
             similar::ChangeTag::Delete => "-",
@@ -218,7 +237,7 @@ pub fn host_replace_file(
         }
     }
 
-    let final_start = start_line + old_string.lines().count();
+    let final_start = start_line + matched_text.lines().count();
     for (i, line) in lines_after.into_iter().enumerate() {
         diff_display.push_str(&format!("{:4}   {}\n", final_start + i, line));
     }
@@ -234,7 +253,10 @@ pub fn host_replace_file(
         Ok(false) | Err(_) => return Ok(()),
     }
 
-    let new_content = current_content.replace(old_string, new_string);
+    let mut new_content = current_content[..range.start].to_string();
+    new_content.push_str(new_string);
+    new_content.push_str(&current_content[range.end..]);
+
     if let Err(e) = fs::write(full_path, new_content) {
         eprintln!("Failed to write replacement to {}: {}", path_str, e);
     }
@@ -302,4 +324,72 @@ pub fn host_list_files(
         .copy_from_slice(result_json.as_bytes());
     outputs[0] = Val::I64(h.offset() as i64);
     Ok(())
+}
+
+/// Normalizes a string for fuzzy comparison (removes all non-essential whitespace and empty lines)
+fn normalize_for_fuzzy(s: &str) -> String {
+    s.lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Attempts to find a block in content that matches old_string sémantically.
+/// This version is even more robust, ignoring empty lines in the search.
+fn find_fuzzy_match(content: &str, old_string: &str) -> Option<std::ops::Range<usize>> {
+    let normalized_old = normalize_for_fuzzy(old_string);
+    if normalized_old.is_empty() {
+        return None;
+    }
+
+    let old_lines: Vec<&str> = normalized_old.lines().collect();
+
+    // We search through the content lines, but we must skip empty lines
+    // while keeping track of original byte positions.
+    let content_lines: Vec<(usize, &str)> = content
+        .lines()
+        .enumerate()
+        .filter(|(_, l)| !l.trim().is_empty())
+        .map(|(i, l)| (i, l.trim()))
+        .collect();
+
+    if content_lines.len() < old_lines.len() {
+        return None;
+    }
+
+    for i in 0..=content_lines.len() - old_lines.len() {
+        let mut match_found = true;
+        for j in 0..old_lines.len() {
+            if content_lines[i + j].1 != old_lines[j] {
+                match_found = false;
+                break;
+            }
+        }
+
+        if match_found {
+            // Found a match! Map back to byte offsets.
+            let mut line_byte_offsets = Vec::new();
+            let mut offset = 0;
+            for line in content.lines() {
+                line_byte_offsets.push(offset);
+                offset += line.len() + 1;
+            }
+
+            let start_line_idx = content_lines[i].0;
+            let end_line_idx = content_lines[i + old_lines.len() - 1].0;
+
+            if start_line_idx < line_byte_offsets.len() {
+                let start_byte = line_byte_offsets[start_line_idx];
+                let end_byte = if end_line_idx + 1 < line_byte_offsets.len() {
+                    line_byte_offsets[end_line_idx + 1]
+                } else {
+                    content.len()
+                };
+                return Some(start_byte..end_byte);
+            }
+        }
+    }
+
+    None
 }

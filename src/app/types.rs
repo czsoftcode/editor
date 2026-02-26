@@ -56,7 +56,7 @@ pub(crate) enum FocusedPanel {
     Build,
     Claude,
     Editor,
-    Gemini,
+    AiChat,
     Files,
 }
 
@@ -89,10 +89,11 @@ pub(crate) struct PersistentState {
     pub claude_float: bool,
     #[serde(default = "default_font_scale")]
     pub ai_font_scale: u32,
-    pub gemini_system_prompt: Option<String>,
-    pub gemini_language: Option<String>,
-    pub gemini_expertise: Option<AiExpertiseRole>,
-    pub gemini_reasoning_depth: Option<AiReasoningDepth>,
+    pub ai_selected_provider: Option<String>,
+    pub ai_system_prompt: Option<String>,
+    pub ai_language: Option<String>,
+    pub ai_expertise: Option<AiExpertiseRole>,
+    pub ai_reasoning_depth: Option<AiReasoningDepth>,
 }
 
 impl Default for PersistentState {
@@ -103,10 +104,11 @@ impl Default for PersistentState {
             show_build_terminal: false,
             claude_float: false,
             ai_font_scale: 100,
-            gemini_system_prompt: None,
-            gemini_language: None,
-            gemini_expertise: None,
-            gemini_reasoning_depth: None,
+            ai_selected_provider: Some("gemini".to_string()),
+            ai_system_prompt: None,
+            ai_language: None,
+            ai_expertise: None,
+            ai_reasoning_depth: None,
         }
     }
 }

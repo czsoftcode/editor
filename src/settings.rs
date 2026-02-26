@@ -62,6 +62,13 @@ pub fn default_project_path() -> String {
         .to_string()
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default, PartialEq)]
+pub struct CustomAgent {
+    pub name: String,
+    pub command: String,
+    pub args: String,
+}
+
 // ---------------------------------------------------------------------------
 // Settings — persistent application configuration
 // ---------------------------------------------------------------------------
@@ -109,6 +116,10 @@ pub struct Settings {
     /// Global blacklist for plugins (glob patterns, e.g. ["*.env", "secret/*"]).
     #[serde(default)]
     pub blacklist: Vec<String>,
+
+    /// User-defined CLI AI agents.
+    #[serde(default)]
+    pub custom_agents: Vec<CustomAgent>,
 }
 
 impl Default for Settings {
@@ -128,6 +139,23 @@ impl Default for Settings {
                 "*.key".to_string(),
                 "id_rsa*".to_string(),
                 "Cargo.lock".to_string(),
+            ],
+            custom_agents: vec![
+                CustomAgent {
+                    name: "Gemini CLI".to_string(),
+                    command: "gemini".to_string(),
+                    args: "".to_string(),
+                },
+                CustomAgent {
+                    name: "Claude Code".to_string(),
+                    command: "claude".to_string(),
+                    args: "".to_string(),
+                },
+                CustomAgent {
+                    name: "Aider".to_string(),
+                    command: "aider".to_string(),
+                    args: "".to_string(),
+                },
             ],
         }
     }

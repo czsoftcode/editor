@@ -48,9 +48,10 @@ pub fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
         show_build_terminal: ws.show_build_terminal,
         claude_float: ws.claude_float,
         ai_font_scale: ws.ai_font_scale,
-        gemini_system_prompt: Some(ws.gemini_system_prompt.clone()),
-        gemini_language: Some(ws.gemini_language.clone()),
-        gemini_expertise: Some(ws.gemini_expertise),
-        gemini_reasoning_depth: Some(ws.gemini_reasoning_depth),
+        ai_selected_provider: Some(ws.ai_selected_provider.clone()),
+        ai_system_prompt: Some(ws.ai_system_prompt.clone()),
+        ai_language: Some(ws.ai_language.clone()),
+        ai_expertise: Some(ws.ai_expertise),
+        ai_reasoning_depth: Some(ws.ai_reasoning_depth),
     }
 }

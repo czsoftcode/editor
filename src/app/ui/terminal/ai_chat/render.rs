@@ -84,7 +84,8 @@ pub fn render_body(
     }
 }
 
-/// Renders the chat column: conversation history, prompt input and settings panel.
+/// Renders the chat column: conversation history (top) + prompt input (bottom).
+/// The prompt grows upward — each new line shrinks the history area.
 fn render_chat_content(
     ui: &mut egui::Ui,
     ws: &mut WorkspaceState,
@@ -95,19 +96,25 @@ fn render_chat_content(
     body_h: f32,
 ) -> Option<AiChatAction> {
     let viewer_bg = egui::Color32::from_rgb(20, 20, 25);
+    let prompt_bg = egui::Color32::from_rgb(45, 55, 65);
     let mut action = None;
+
+    // Read prompt height measured in the previous frame (default: one row).
+    let prompt_mem_id = egui::Id::new("ai_prompt_frame_h");
+    let prompt_h_prev = ui
+        .memory(|m| m.data.get_temp::<f32>(prompt_mem_id))
+        .unwrap_or(font_size * 2.0 + 16.0);
+
+    let info_bar_h = 30.0;
+    let sep_h = 14.0; // separator + spacing around it
+    let settings_h = if ws.ai_show_settings { 280.0 } else { 0.0 };
+    let reserved_h = prompt_h_prev + info_bar_h + sep_h + settings_h;
+    let history_h = (body_h - reserved_h).max(60.0);
 
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 0.0;
 
-        // Reserve height for info-bar + prompt (+ settings panel when open)
-        let mut reserved_h = 110.0;
-        if ws.ai_show_settings {
-            reserved_h += 240.0;
-        }
-        let history_h = (body_h - reserved_h).max(100.0);
-
-        // ── CONVERSATION HISTORY ──────────────────────────────────────────────
+        // ── CONVERSATION HISTORY (top, shrinks when prompt grows) ─────────────
         egui::ScrollArea::vertical()
             .id_salt("ai_chat_terminal_history")
             .auto_shrink([false, false])
@@ -175,9 +182,8 @@ fn render_chat_content(
 
             ui.add_space(4.0);
 
-            // Prompt input
-            let prompt_bg = egui::Color32::from_rgb(45, 55, 65);
-            egui::Frame::new()
+            // Prompt input — measure actual height and store for next frame
+            let prompt_resp = egui::Frame::new()
                 .fill(prompt_bg)
                 .inner_margin(egui::Margin::symmetric(8, 2))
                 .corner_radius(4.0)
@@ -195,27 +201,41 @@ fn render_chat_content(
                             .store(true, std::sync::atomic::Ordering::Relaxed);
                     }
 
-                    let (send_via_kb, resp) = AiChatWidget::ui_input(
-                        ui,
-                        prompt,
-                        font_size,
-                        &i18n.get("ai-chat-placeholder-prompt"),
-                        &ws.ai_history,
-                        &mut ws.ai_history_index,
-                    );
-
-                    if ws.ai_focus_requested {
-                        resp.request_focus();
-                        ws.ai_focus_requested = false;
-                    }
-
-                    if send_via_kb {
-                        action = Some(AiChatAction::Send);
-                    }
+                    // Limit prompt to 10 visible rows; beyond that a scrollbar appears.
+                    let max_prompt_h = font_size * 1.6 * 5.0 + font_size;
+                    egui::ScrollArea::vertical()
+                        .id_salt("ai_prompt_scroll")
+                        .max_height(max_prompt_h)
+                        .auto_shrink([false, true])
+                        .stick_to_bottom(true)
+                        .show(ui, |ui| {
+                            AiChatWidget::ui_input(
+                                ui,
+                                prompt,
+                                font_size,
+                                &i18n.get("ai-chat-placeholder-prompt"),
+                                &ws.ai_history,
+                                &mut ws.ai_history_index,
+                            )
+                        })
+                        .inner
                 });
+
+            // Store measured prompt height for the next frame
+            let measured_h = prompt_resp.response.rect.height();
+            ui.memory_mut(|m| m.data.insert_temp(prompt_mem_id, measured_h));
+
+            let (send_via_kb, resp) = prompt_resp.inner;
+            if ws.ai_focus_requested {
+                resp.request_focus();
+                ws.ai_focus_requested = false;
+            }
+            if send_via_kb {
+                action = Some(AiChatAction::Send);
+            }
         }
 
-        // ── SETTINGS PANEL ────────────────────────────────────────────────────
+        // ── SETTINGS PANEL (below prompt, above footer) ───────────────────────
         if ws.ai_show_settings {
             ui.add_space(8.0);
             egui::Frame::new()

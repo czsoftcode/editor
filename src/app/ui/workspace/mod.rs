@@ -288,7 +288,7 @@ pub(crate) fn render_workspace(
     let ai_chat_clicked = crate::app::ui::terminal::ai_chat::show(ctx, ws, shared, i18n);
     let bottom_clicked = crate::app::ui::terminal::bottom::render_bottom_panel(ctx, ws, dialog_open_base, i18n);
     let ai_clicked = render_ai_panel(ctx, ws, shared, dialog_open_base, i18n);
-    let left_clicked = render_left_panel(ctx, ws, dialog_open_base, i18n);
+    let left_clicked = render_left_panel(ctx, ws, shared, dialog_open_base, i18n);
 
     // --- 5. CENTRAL PANEL (Editor) ---
     let prev_active_path = ws.editor.active_path().cloned();

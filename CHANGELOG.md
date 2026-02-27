@@ -1,3 +1,11 @@
+## [0.7.24] - 2026-02-27
+
+### Added
+- **AI Plugin Quick-Launch Bar**: Added a compact toolbar at the bottom of the file tree panel (left sidebar). The bar contains a ComboBox listing all enabled AI plugins (`ai_agent` type), a **▶ Spustit** button to instantly launch a new chat session with the selected plugin, and a **⚙** button to jump directly to that plugin's settings in the Plugin Manager. The bar is hidden automatically when no AI plugins are registered.
+
+### Fixed
+- **Plugin Bar — Provider Switch**: The **▶ Spustit** button now correctly resets the conversation and initializes a new session for the plugin selected in the ComboBox. Previously it would reopen the last-used provider instead of the one chosen in the dropdown (missing `NewQuery` reset and `ai_focus_requested` flag, matching the behaviour of the Plugins menu).
+
 ## [0.7.23] - 2026-02-27
 
 ### Added

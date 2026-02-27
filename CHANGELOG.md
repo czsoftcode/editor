@@ -3,6 +3,7 @@
 ### Changed
 - **AI Chat Prompt — grows upward**: The prompt input now expands upward (shrinking the conversation history) instead of pushing content downward. Height is measured each frame via `ui.memory` so the history area adjusts dynamically with no fixed reservation.
 - **AI Chat Prompt — scrollbar after 5 lines**: The prompt is capped at 5 visible rows. Beyond that a vertical scrollbar appears inside the input box and the history area stops shrinking. `stick_to_bottom` keeps the cursor row always visible while typing.
+- **AI Chat — terminal-style layout**: The window now behaves like a terminal. History starts at the top and grows downward; the prompt is pinned immediately below the last message. The remaining space below the prompt is an explicit gap (`ui.add_space`) that shrinks as history grows. Once history fills the available height the scrollbar appears and the gap disappears. The gap is computed each frame from `scroll_out.content_size.y` stored in `ui.memory` (one-frame lag, imperceptible). The window always fills its full height.
 
 ## [0.7.24] - 2026-02-27
 

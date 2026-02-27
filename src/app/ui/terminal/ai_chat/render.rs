@@ -84,8 +84,16 @@ pub fn render_body(
     }
 }
 
-/// Renders the chat column: conversation history (top) + prompt input (bottom).
-/// The prompt grows upward — each new line shrinks the history area.
+/// Renders the chat column.
+///
+/// Terminal-style layout:
+///   [history — grows with content, max = body_h - prompt_reserved]
+///   [separator + info bar + prompt — pinned just below history]
+///   [gap — fills remaining body_h; shrinks as history grows]
+///
+/// The gap is computed from the history content height stored in ui.memory
+/// from the previous frame (one-frame lag, imperceptible).  When content
+/// exceeds history_h_max the scrollbar appears and the gap is zero.
 fn render_chat_content(
     ui: &mut egui::Ui,
     ws: &mut WorkspaceState,
@@ -99,172 +107,184 @@ fn render_chat_content(
     let prompt_bg = egui::Color32::from_rgb(45, 55, 65);
     let mut action = None;
 
-    // Read prompt height measured in the previous frame (default: one row).
-    let prompt_mem_id = egui::Id::new("ai_prompt_frame_h");
+    ui.spacing_mut().item_spacing.y = 0.0;
+
+    // Heights from previous frame stored in ui.memory
+    let prompt_mem_id  = egui::Id::new("ai_prompt_frame_h");
+    let history_mem_id = egui::Id::new("ai_history_content_h");
+
     let prompt_h_prev = ui
         .memory(|m| m.data.get_temp::<f32>(prompt_mem_id))
         .unwrap_or(font_size * 2.0 + 16.0);
+    let history_content_h_prev = ui
+        .memory(|m| m.data.get_temp::<f32>(history_mem_id))
+        .unwrap_or(0.0);
 
     let info_bar_h = 30.0;
-    let sep_h = 14.0; // separator + spacing around it
+    let sep_h      = 14.0;
     let settings_h = if ws.ai_show_settings { 280.0 } else { 0.0 };
     let reserved_h = prompt_h_prev + info_bar_h + sep_h + settings_h;
-    let history_h = (body_h - reserved_h).max(60.0);
 
-    ui.vertical(|ui| {
-        ui.spacing_mut().item_spacing.y = 0.0;
+    // Maximum height before a scrollbar is needed
+    let history_h_max = (body_h - reserved_h).max(60.0);
+    // Actual rendered height of the history area (capped at max)
+    let history_display_h = history_content_h_prev.min(history_h_max).max(0.0);
+    // Gap between prompt bottom and footer
+    let gap_h = (body_h - history_display_h - reserved_h).max(0.0);
 
-        // ── CONVERSATION HISTORY (top, shrinks when prompt grows) ─────────────
-        egui::ScrollArea::vertical()
-            .id_salt("ai_chat_terminal_history")
-            .auto_shrink([false, false])
-            .max_height(history_h)
-            .stick_to_bottom(true)
-            .show(ui, |ui| {
-                ui.spacing_mut().item_spacing.y = 8.0;
+    // ── CONVERSATION HISTORY ──────────────────────────────────────────────────
+    let scroll_out = egui::ScrollArea::vertical()
+        .id_salt("ai_chat_terminal_history")
+        .auto_shrink([false, false])
+        .max_height(history_display_h.max(1.0))
+        .stick_to_bottom(true)
+        .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 8.0;
 
-                if !ws.ai_conversation.is_empty() {
-                    AiChatWidget::ui_conversation(
-                        ui,
-                        &ws.ai_conversation,
-                        font_size,
-                        &mut ws.markdown_cache,
-                    );
-                    if !ws.ai_monologue.is_empty() {
-                        ui.add_space(8.0);
-                        AiChatWidget::ui_monologue(
-                            ui,
-                            &ws.ai_monologue,
-                            font_size,
-                            &mut ws.markdown_cache,
-                        );
-                    }
-                } else if loading {
-                    ui.add_space(4.0);
-                    ui.horizontal(|ui| {
-                        ui.spinner();
-                        ui.label(egui::RichText::new(i18n.get("ai-chat-loading")).strong());
-                    });
-                    ui.add_space(4.0);
+            if !ws.ai_conversation.is_empty() {
+                AiChatWidget::ui_conversation(
+                    ui,
+                    &ws.ai_conversation,
+                    font_size,
+                    &mut ws.markdown_cache,
+                );
+                if !ws.ai_monologue.is_empty() {
+                    ui.add_space(8.0);
                     AiChatWidget::ui_monologue(
                         ui,
                         &ws.ai_monologue,
                         font_size,
                         &mut ws.markdown_cache,
                     );
-                } else {
-                    ui.centered_and_justified(|ui| {
-                        ui.label(egui::RichText::new("PolyCredo AI").weak().size(24.0));
-                    });
                 }
-            });
-
-        // ── APPROVAL UI  OR  PROMPT ───────────────────────────────────────────
-        if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
-            render_approval_ui(ui, id, action_name, details, sender, ws);
-        } else {
-            ui.add_space(4.0);
-            ui.scope(|ui| {
-                ui.visuals_mut().widgets.noninteractive.bg_stroke =
-                    egui::Stroke::new(1.0, egui::Color32::from_gray(60));
-                ui.separator();
-            });
-
-            // Info bar
-            ui.add_space(4.0);
-            egui::Frame::new()
-                .fill(viewer_bg)
-                .inner_margin(egui::Margin::symmetric(8, 2))
-                .show(ui, |ui| {
-                    ui.set_width(ui.available_width());
-                    render_info_bar(ui, ws, loading);
+            } else if loading {
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(egui::RichText::new(i18n.get("ai-chat-loading")).strong());
                 });
+                ui.add_space(4.0);
+                AiChatWidget::ui_monologue(
+                    ui,
+                    &ws.ai_monologue,
+                    font_size,
+                    &mut ws.markdown_cache,
+                );
+            }
+        });
 
-            ui.add_space(4.0);
+    // Store actual content height for the next frame
+    ui.memory_mut(|m| m.data.insert_temp(history_mem_id, scroll_out.content_size.y));
 
-            // Prompt input — measure actual height and store for next frame
-            let prompt_resp = egui::Frame::new()
-                .fill(prompt_bg)
-                .inner_margin(egui::Margin::symmetric(8, 2))
-                .corner_radius(4.0)
-                .show(ui, |ui| {
-                    ui.set_width(ui.available_width());
-                    let visuals = ui.visuals_mut();
-                    visuals.override_text_color = Some(egui::Color32::from_rgb(200, 200, 200));
-                    visuals.extreme_bg_color = prompt_bg;
-                    visuals.selection.stroke = egui::Stroke::NONE;
-                    visuals.widgets.hovered.expansion = 0.0;
-                    visuals.widgets.active.expansion = 0.0;
+    // ── APPROVAL UI  OR  PROMPT ───────────────────────────────────────────────
+    if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
+        render_approval_ui(ui, id, action_name, details, sender, ws);
+    } else {
+        ui.add_space(4.0);
+        ui.scope(|ui| {
+            ui.visuals_mut().widgets.noninteractive.bg_stroke =
+                egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+            ui.separator();
+        });
 
-                    if loading && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-                        ws.ai_cancellation_token
-                            .store(true, std::sync::atomic::Ordering::Relaxed);
+        // Info bar
+        ui.add_space(4.0);
+        egui::Frame::new()
+            .fill(viewer_bg)
+            .inner_margin(egui::Margin::symmetric(8, 2))
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                render_info_bar(ui, ws, loading);
+            });
+
+        ui.add_space(4.0);
+
+        // Prompt — measure height, store for next frame
+        let prompt_resp = egui::Frame::new()
+            .fill(prompt_bg)
+            .inner_margin(egui::Margin::symmetric(8, 2))
+            .corner_radius(4.0)
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                let visuals = ui.visuals_mut();
+                visuals.override_text_color = Some(egui::Color32::from_rgb(200, 200, 200));
+                visuals.extreme_bg_color = prompt_bg;
+                visuals.selection.stroke = egui::Stroke::NONE;
+                visuals.widgets.hovered.expansion = 0.0;
+                visuals.widgets.active.expansion = 0.0;
+
+                if loading && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                    ws.ai_cancellation_token
+                        .store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+
+                let max_prompt_h = font_size * 1.6 * 5.0 + font_size;
+                egui::ScrollArea::vertical()
+                    .id_salt("ai_prompt_scroll")
+                    .max_height(max_prompt_h)
+                    .auto_shrink([false, true])
+                    .stick_to_bottom(true)
+                    .show(ui, |ui| {
+                        AiChatWidget::ui_input(
+                            ui,
+                            prompt,
+                            font_size,
+                            &i18n.get("ai-chat-placeholder-prompt"),
+                            &ws.ai_history,
+                            &mut ws.ai_history_index,
+                        )
+                    })
+                    .inner
+            });
+
+        ui.memory_mut(|m| {
+            m.data.insert_temp(prompt_mem_id, prompt_resp.response.rect.height())
+        });
+
+        let (send_via_kb, resp) = prompt_resp.inner;
+        if ws.ai_focus_requested {
+            resp.request_focus();
+            ws.ai_focus_requested = false;
+        }
+        if send_via_kb {
+            action = Some(AiChatAction::Send);
+        }
+    }
+
+    // ── SETTINGS PANEL ────────────────────────────────────────────────────────
+    if ws.ai_show_settings {
+        ui.add_space(8.0);
+        egui::Frame::new()
+            .fill(egui::Color32::from_rgb(30, 35, 45))
+            .inner_margin(12.0)
+            .corner_radius(4.0)
+            .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(60)))
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                AiChatWidget::ui_settings(
+                    ui,
+                    &mut ws.ai_expertise,
+                    &mut ws.ai_reasoning_depth,
+                    &mut ws.ai_language,
+                    &mut ws.ai_system_prompt,
+                    i18n,
+                );
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    if ui.button(format!("✔ {}", i18n.get("btn-save"))).clicked() {
+                        action = Some(AiChatAction::SaveSettings);
                     }
-
-                    // Limit prompt to 10 visible rows; beyond that a scrollbar appears.
-                    let max_prompt_h = font_size * 1.6 * 5.0 + font_size;
-                    egui::ScrollArea::vertical()
-                        .id_salt("ai_prompt_scroll")
-                        .max_height(max_prompt_h)
-                        .auto_shrink([false, true])
-                        .stick_to_bottom(true)
-                        .show(ui, |ui| {
-                            AiChatWidget::ui_input(
-                                ui,
-                                prompt,
-                                font_size,
-                                &i18n.get("ai-chat-placeholder-prompt"),
-                                &ws.ai_history,
-                                &mut ws.ai_history_index,
-                            )
-                        })
-                        .inner
+                    if ui.button(i18n.get("btn-close")).clicked() {
+                        ws.ai_show_settings = false;
+                    }
                 });
+            });
+    }
 
-            // Store measured prompt height for the next frame
-            let measured_h = prompt_resp.response.rect.height();
-            ui.memory_mut(|m| m.data.insert_temp(prompt_mem_id, measured_h));
-
-            let (send_via_kb, resp) = prompt_resp.inner;
-            if ws.ai_focus_requested {
-                resp.request_focus();
-                ws.ai_focus_requested = false;
-            }
-            if send_via_kb {
-                action = Some(AiChatAction::Send);
-            }
-        }
-
-        // ── SETTINGS PANEL (below prompt, above footer) ───────────────────────
-        if ws.ai_show_settings {
-            ui.add_space(8.0);
-            egui::Frame::new()
-                .fill(egui::Color32::from_rgb(30, 35, 45))
-                .inner_margin(12.0)
-                .corner_radius(4.0)
-                .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(60)))
-                .show(ui, |ui| {
-                    ui.set_width(ui.available_width());
-                    AiChatWidget::ui_settings(
-                        ui,
-                        &mut ws.ai_expertise,
-                        &mut ws.ai_reasoning_depth,
-                        &mut ws.ai_language,
-                        &mut ws.ai_system_prompt,
-                        i18n,
-                    );
-                    ui.add_space(8.0);
-                    ui.horizontal(|ui| {
-                        if ui.button(format!("✔ {}", i18n.get("btn-save"))).clicked() {
-                            action = Some(AiChatAction::SaveSettings);
-                        }
-                        if ui.button(i18n.get("btn-close")).clicked() {
-                            ws.ai_show_settings = false;
-                        }
-                    });
-                });
-        }
-    });
+    // ── GAP — fills remaining space so the window stays full-height ───────────
+    if gap_h > 0.0 {
+        ui.add_space(gap_h);
+    }
 
     action
 }

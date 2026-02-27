@@ -6,7 +6,6 @@ use super::super::dialogs::show_project_wizard;
 use super::state::WorkspaceState;
 
 mod about;
-pub mod ai_chat;
 mod ai_dialogs;
 mod conflict;
 mod plugins;
@@ -17,13 +16,14 @@ mod terminal;
 // render_dialogs
 // ---------------------------------------------------------------------------
 
-/// Renders modal dialogs (About, Settings, New project, Conflict).
+/// Renders modal dialogs (About, Settings, New project, Conflict). Returns true if interacted with.
 pub(super) fn render_dialogs(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
-) {
+) -> bool {
+    let any_interacted = false;
     // Salt ensures uniqueness of modal ID within the egui Context, which is shared
     // between all windows (viewports). Without salt, two windows with the same dialog
     // would share state (open/closed, form values).
@@ -38,10 +38,7 @@ pub(super) fn render_dialogs(
     // 3. Plugins dialog
     plugins::show(ctx, ws, shared, i18n, &id_salt);
 
-    // 4. AI Chat dialog
-    ai_chat::show(ctx, ws, shared, i18n, &id_salt);
-
-    // 5. New project wizard (within workspace)
+    // 4. New project wizard (within workspace)
     if ws.show_new_project {
         let wizard_modal_id = format!("ws_new_project_modal_{}", ws.root_path.display());
         show_project_wizard(
@@ -69,4 +66,6 @@ pub(super) fn render_dialogs(
 
     // 6. AI related dialogs (Promotion success, Sandbox staged files, Sync confirmation)
     ai_dialogs::show(ctx, ws, shared, i18n);
+
+    any_interacted
 }

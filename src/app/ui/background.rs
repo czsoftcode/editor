@@ -101,17 +101,21 @@ pub(super) fn process_background_events(
                                 let rel_path_buf = rel_path.to_path_buf();
 
                                 let ctx_opt = {
-                                    let si = si_clone.lock().unwrap();
-                                    si.get_indexing_context()
+                                    if let Ok(si) = si_clone.try_lock() {
+                                        si.get_indexing_context()
+                                    } else {
+                                        None
+                                    }
                                 };
 
                                 if let Some(ctx) = ctx_opt {
                                     {
-                                        let si = si_clone.lock().unwrap();
-                                        si.is_indexing
-                                            .store(true, std::sync::atomic::Ordering::SeqCst);
-                                        if let Ok(mut cur) = si.current_file.lock() {
-                                            *cur = rel_path_buf.to_string_lossy().to_string();
+                                        if let Ok(si) = si_clone.try_lock() {
+                                            si.is_indexing
+                                                .store(true, std::sync::atomic::Ordering::SeqCst);
+                                            if let Ok(mut cur) = si.current_file.lock() {
+                                                *cur = rel_path_buf.to_string_lossy().to_string();
+                                            }
                                         }
                                     }
                                     let ui_ctx = egui_ctx.clone();
@@ -125,19 +129,43 @@ pub(super) fn process_background_events(
                                             .map(|d| d.as_secs())
                                             .unwrap_or(0);
 
-                                        if let Ok(content) = std::fs::read_to_string(&abs_path) {
-                                            let snippets = crate::app::ui::workspace::semantic_index::compute_snippets_for_file(
-                                                &ctx,
-                                                rel_path_buf.clone(),
-                                                content,
-                                                mtime
-                                            );
-
+                                        // Compute file hash for incremental indexing
+                                        let file_hash = match crate::app::ui::workspace::semantic_index::compute_file_hash(&abs_path) {
+                                        Ok(h) => h,
+                                        Err(e) => {
+                                            eprintln!("[SemanticIndex] Failed to compute hash for {:?}: {}", abs_path, e);
                                             let si = si_clone.lock().unwrap();
-                                            si.update_snippets_for_file(&rel_path_buf, snippets);
-                                            let _ = si.save();
                                             si.is_indexing
                                                 .store(false, std::sync::atomic::Ordering::SeqCst);
+                                            ui_ctx.request_repaint();
+                                            return;
+                                        }
+                                    };
+
+                                        if let Ok(content) = std::fs::read_to_string(&abs_path) {
+                                            let snippets = crate::app::ui::workspace::semantic_index::compute_snippets_for_file(
+                                            &ctx,
+                                            rel_path_buf.clone(),
+                                            content,
+                                            mtime,
+                                            file_hash
+                                        );
+
+                                            {
+                                                let si = si_clone.lock().unwrap();
+                                                si.update_snippets_for_file(
+                                                    &rel_path_buf,
+                                                    snippets,
+                                                );
+                                            }
+                                            {
+                                                let si = si_clone.lock().unwrap();
+                                                let _ = si.save();
+                                                si.is_indexing.store(
+                                                    false,
+                                                    std::sync::atomic::Ordering::SeqCst,
+                                                );
+                                            }
                                             ui_ctx.request_repaint();
                                         } else {
                                             let si = si_clone.lock().unwrap();
@@ -221,17 +249,21 @@ pub(super) fn process_background_events(
                             let rel_path_buf = rel_path.to_path_buf();
 
                             let ctx_opt = {
-                                let si = si_clone.lock().unwrap();
-                                si.get_indexing_context()
+                                if let Ok(si) = si_clone.try_lock() {
+                                    si.get_indexing_context()
+                                } else {
+                                    None
+                                }
                             };
 
                             if let Some(ctx) = ctx_opt {
                                 {
-                                    let si = si_clone.lock().unwrap();
-                                    si.is_indexing
-                                        .store(true, std::sync::atomic::Ordering::SeqCst);
-                                    if let Ok(mut cur) = si.current_file.lock() {
-                                        *cur = rel_path_buf.to_string_lossy().to_string();
+                                    if let Ok(si) = si_clone.try_lock() {
+                                        si.is_indexing
+                                            .store(true, std::sync::atomic::Ordering::SeqCst);
+                                        if let Ok(mut cur) = si.current_file.lock() {
+                                            *cur = rel_path_buf.to_string_lossy().to_string();
+                                        }
                                     }
                                 }
                                 let ui_ctx = egui_ctx.clone();
@@ -243,19 +275,38 @@ pub(super) fn process_background_events(
                                         .map(|d| d.as_secs())
                                         .unwrap_or(0);
 
+                                    // Compute file hash for incremental indexing
+                                    let file_hash = match crate::app::ui::workspace::semantic_index::compute_file_hash(&abs_path) {
+                                        Ok(h) => h,
+                                        Err(e) => {
+                                            eprintln!("[SemanticIndex] Failed to compute hash for {:?}: {}", abs_path, e);
+                                            let si = si_clone.lock().unwrap();
+                                            si.is_indexing
+                                                .store(false, std::sync::atomic::Ordering::SeqCst);
+                                            ui_ctx.request_repaint();
+                                            return;
+                                        }
+                                    };
+
                                     if let Ok(content) = std::fs::read_to_string(&abs_path) {
                                         let snippets = crate::app::ui::workspace::semantic_index::compute_snippets_for_file(
                                             &ctx,
                                             rel_path_buf.clone(),
                                             content,
-                                            mtime
+                                            mtime,
+                                            file_hash
                                         );
 
-                                        let si = si_clone.lock().unwrap();
-                                        si.update_snippets_for_file(&rel_path_buf, snippets);
-                                        let _ = si.save();
-                                        si.is_indexing
-                                            .store(false, std::sync::atomic::Ordering::SeqCst);
+                                        {
+                                            let si = si_clone.lock().unwrap();
+                                            si.update_snippets_for_file(&rel_path_buf, snippets);
+                                        }
+                                        {
+                                            let si = si_clone.lock().unwrap();
+                                            let _ = si.save();
+                                            si.is_indexing
+                                                .store(false, std::sync::atomic::Ordering::SeqCst);
+                                        }
                                         ui_ctx.request_repaint();
                                     } else {
                                         let si = si_clone.lock().unwrap();

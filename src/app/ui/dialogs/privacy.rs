@@ -47,6 +47,9 @@ pub(crate) fn show_privacy_dialog(
 
         // FOOTER
         if let Some(r) = modal.ui_footer(ui, |ui| {
+            if ui.button(i18n.get("btn-close")).clicked() {
+                return Some(PrivacyResult::None);
+            }
             if ui
                 .button(egui::RichText::new(i18n.get("btn-accept-privacy")).strong())
                 .clicked()

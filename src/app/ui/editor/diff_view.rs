@@ -20,11 +20,14 @@ pub fn render_diff_modal(
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
         if let Some(r) = modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-confirm")).clicked() {
-                return Some(super::DiffAction::Accepted);
+            if ui.button(i18n.get("btn-close")).clicked() {
+                return Some(super::DiffAction::Rejected);
             }
             if ui.button(i18n.get("btn-cancel")).clicked() {
                 return Some(super::DiffAction::Rejected);
+            }
+            if ui.button(i18n.get("btn-confirm")).clicked() {
+                return Some(super::DiffAction::Accepted);
             }
             None
         }) {

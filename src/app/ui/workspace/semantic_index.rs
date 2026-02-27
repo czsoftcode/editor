@@ -1,10 +1,22 @@
 use candle_core::{Device, Tensor};
 use candle_transformers::models::bert::{BertModel, Config};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
+use std::fs;
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::{Arc, Mutex};
 use tokenizers::Tokenizer;
+
+/// Computes xxh3 hash of a file content.
+pub fn compute_file_hash(path: &PathBuf) -> anyhow::Result<String> {
+    let mut file = fs::File::open(path)?;
+    let mut contents = Vec::new();
+    file.read_to_end(&mut contents)?;
+    let hash = xxhash_rust::xxh3::xxh3_64(&contents);
+    Ok(format!("{:016x}", hash))
+}
 
 /// A single piece of indexed code with its vector embedding.
 #[derive(Serialize, Deserialize, Clone)]
@@ -12,9 +24,11 @@ pub struct SemanticSnippet {
     pub path: PathBuf,
     pub line_start: usize,
     pub content: String,
-    pub embedding: Vec<f32>,
+    pub embedding: SmallVec<[f32; 384]>,
     /// Last modification time of the file when indexed
     pub mtime: u64,
+    /// Hash of the file content (xxh3) for incremental indexing
+    pub file_hash: String,
 }
 
 /// Context needed for embedding calculation, detachable from the main index lock.
@@ -124,7 +138,7 @@ impl SemanticIndex {
         text: &str,
         model: &BertModel,
         tokenizer: &Tokenizer,
-    ) -> anyhow::Result<Vec<f32>> {
+    ) -> anyhow::Result<SmallVec<[f32; 384]>> {
         vectorize_text(text, model, tokenizer, &self.device)
     }
 
@@ -200,7 +214,7 @@ pub fn vectorize_text(
     model: &BertModel,
     tokenizer: &Tokenizer,
     device: &Device,
-) -> anyhow::Result<Vec<f32>> {
+) -> anyhow::Result<SmallVec<[f32; 384]>> {
     let tokens = tokenizer
         .encode(text, true)
         .map_err(|e| anyhow::anyhow!(e))?;
@@ -213,9 +227,9 @@ pub fn vectorize_text(
 
     let (_n_batch, n_tokens, _hidden_size) = ys.dims3()?;
     let embeddings = (ys.sum(1)? / (n_tokens as f64))?;
-    let result = embeddings.get(0)?.to_vec1::<f32>()?;
+    let result_vec: Vec<f32> = embeddings.get(0)?.to_vec1::<f32>()?;
 
-    Ok(result)
+    Ok(SmallVec::from_vec(result_vec))
 }
 
 /// Computes snippets for a file content. Designed to run in a background thread.
@@ -224,8 +238,10 @@ pub fn compute_snippets_for_file(
     rel_path: PathBuf,
     content: String,
     mtime: u64,
+    file_hash: String,
 ) -> Vec<SemanticSnippet> {
-    if content.len() > 100_000 || content.as_bytes().contains(&0) {
+    // Skip binary files (null bytes)
+    if content.as_bytes().contains(&0) {
         return Vec::new();
     }
 
@@ -249,6 +265,7 @@ pub fn compute_snippets_for_file(
                 content: chunk_text,
                 embedding,
                 mtime,
+                file_hash: file_hash.clone(),
             });
         }
         if end == lines.len() {

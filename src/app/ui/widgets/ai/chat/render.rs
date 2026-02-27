@@ -158,6 +158,7 @@ fn flush_block(
 pub fn ui_monologue(
     ui: &mut egui::Ui,
     monologue: &[String],
+    font_size: f32,
     cache: &mut egui_commonmark::CommonMarkCache,
 ) {
     let path_purple = egui::Color32::from_rgb(120, 80, 170);
@@ -168,8 +169,15 @@ pub fn ui_monologue(
     }
 
     ui.scope(|ui| {
-        let base_font_size = ui.style().text_styles[&egui::TextStyle::Body].size;
         let style = ui.style_mut();
+        style.text_styles.insert(
+            egui::TextStyle::Body,
+            egui::FontId::proportional(font_size),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Monospace,
+            egui::FontId::monospace(font_size),
+        );
         style.visuals.widgets.noninteractive.fg_stroke.color = terminal_text;
         style.visuals.widgets.inactive.fg_stroke.color = terminal_text;
         style.visuals.widgets.active.fg_stroke.color = path_purple;
@@ -247,7 +255,7 @@ pub fn ui_monologue(
                                                                 ui.add_space(2.0);
                                                                 ui.label(
                                                                     egui::RichText::new(clean_step)
-                                                                        .size(base_font_size * 0.8)
+                                                                        .size(font_size * 0.85)
                                                                         .italics()
                                                                         .color(terminal_text.gamma_multiply(0.7)),
                                                                 );

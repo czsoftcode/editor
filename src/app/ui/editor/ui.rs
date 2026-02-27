@@ -125,6 +125,9 @@ impl Editor {
                     modal.show(ui.ctx(), &mut show_flag, |ui| {
                         // FOOTER
                         if let Some((ext, edit)) = modal.ui_footer(ui, |ui| {
+                            if ui.button(i18n.get("btn-close")).clicked() {
+                                return Some((false, false));
+                            }
                             let mut local_ext = false;
                             let mut local_edit = false;
                             if ui.button(i18n.get("svg-open-external")).clicked() {

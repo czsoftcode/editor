@@ -20,11 +20,14 @@ pub(crate) fn show_quit_confirm_dialog(
 
     modal.show(ctx, &mut show_flag, |ui| {
         modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("quit-confirm")).clicked() {
-                confirmed = true;
+            if ui.button(i18n.get("btn-close")).clicked() {
+                cancelled = true;
             }
             if ui.button(i18n.get("quit-cancel")).clicked() {
                 cancelled = true;
+            }
+            if ui.button(i18n.get("quit-confirm")).clicked() {
+                confirmed = true;
             }
             None::<()>
         });
@@ -60,11 +63,14 @@ pub(crate) fn show_close_project_confirm_dialog(
 
     modal.show(ctx, &mut show_flag, |ui| {
         modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("close-project-confirm")).clicked() {
-                confirmed = true;
+            if ui.button(i18n.get("btn-close")).clicked() {
+                cancelled = true;
             }
             if ui.button(i18n.get("close-project-cancel")).clicked() {
                 cancelled = true;
+            }
+            if ui.button(i18n.get("close-project-confirm")).clicked() {
+                confirmed = true;
             }
             None::<()>
         });

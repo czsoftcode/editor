@@ -18,11 +18,14 @@ pub fn show(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n, _id_salt:
         modal.show(ctx, &mut show_flag, |ui| {
             // FOOTER
             modal.ui_footer(ui, |ui| {
-                if ui.button(i18n.get("btn-confirm")).clicked() {
-                    close_confirmed = true;
+                if ui.button(i18n.get("btn-close")).clicked() {
+                    cancel_requested = true;
                 }
                 if ui.button(i18n.get("btn-cancel")).clicked() {
                     cancel_requested = true;
+                }
+                if ui.button(i18n.get("btn-confirm")).clicked() {
+                    close_confirmed = true;
                 }
                 None::<()>
             });

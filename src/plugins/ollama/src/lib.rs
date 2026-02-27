@@ -98,6 +98,7 @@ struct OllamaErrorResponse {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
 struct PluginInput {
     prompt: String,
     history: Vec<(String, String)>,
@@ -110,12 +111,16 @@ pub struct AiContextPayload {
     pub open_files: Vec<AiFileContext>,
     pub build_errors: Vec<AiBuildErrorContext>,
     pub active_file: Option<AiFileContext>,
+    #[serde(default)]
+    pub memory_keys: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct AiFileContext {
     pub path: String,
     pub content: Option<String>,
+    #[serde(default)]
+    pub is_active: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -135,6 +140,10 @@ extern "ExtismHost" {
     fn search_project(query: String) -> String;
     fn semantic_search(query: String) -> String;
     fn exec_in_sandbox(command: String) -> String;
+    fn store_scratch(input: String);
+    fn retrieve_scratch(key: String) -> String;
+    fn store_fact(input: String);
+    fn retrieve_fact(key: String) -> String;
     fn log_monologue(message: String);
     fn log_usage(in_tokens: u64, out_tokens: u64);
     fn log_payload(payload: String);
@@ -168,10 +177,10 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
         .unwrap_or(0.2);
     options.insert("temperature".to_string(), serde_json::json!(temp_val));
 
-    // Set stable Context Window (default 4096 if not set)
+    // Set stable Context Window (default 8192 if not set)
     let ctx_val = config::get("NUM_CTX")?
         .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(4096);
+        .unwrap_or(8192);
     options.insert("num_ctx".to_string(), serde_json::json!(ctx_val));
 
     let mut messages = Vec::new();
@@ -193,7 +202,9 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
             language_name
         ));
     }
-    system_prompt.push_str("\nNEVER overwrite existing files with 'write_file'. Use 'replace' for modifications.");
+    system_prompt.push_str("\nMANDATE: LONG-TERM MEMORY: The context payload contains `memory_keys`, which is a LIST of fact names you have stored. It is NOT a key itself. At the START of a new task, you MUST review this list. If you see relevant keys, use `retrieve_fact` on EACH of them to recall your memory before proceeding.");
+    system_prompt.push_str("\nUse 'rg' (ripgrep) via 'search_project' for fast searching. For complex architectural questions or when you need to find relevant logic across the entire codebase, use 'semantic_search'.");
+    system_prompt.push_str("\nIf you feel the context is getting full or you're missing information, proactively use 'semantic_search' to find the most relevant snippets.");
 
     messages.push(Message {
         role: "system".to_string(),
@@ -201,16 +212,31 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
         ..Default::default()
     });
 
-    // History (Cleaned)
+    // History (Cleaned with Sliding Window)
+    let mut history_messages = Vec::new();
     for (q, a) in &input.history {
         if q.is_empty() || a.contains("____") { continue; }
-        messages.push(Message { role: "user".to_string(), content: q.clone(), ..Default::default() });
-        messages.push(Message { role: "assistant".to_string(), content: a.clone(), ..Default::default() });
+        history_messages.push(Message { role: "user".to_string(), content: q.clone(), ..Default::default() });
+        history_messages.push(Message { role: "assistant".to_string(), content: a.clone(), ..Default::default() });
+    }
+
+    // Keep only last 20 messages of history to avoid context overflow
+    if history_messages.len() > 20 {
+        let start = history_messages.len() - 20;
+        messages.extend(history_messages[start..].to_vec());
+    } else {
+        messages.extend(history_messages);
     }
 
     // Context formatting
     let mut context_str = String::new();
     if let Some(ctx) = input.context {
+        if !ctx.memory_keys.is_empty() {
+            context_str.push_str(&format!(
+                "Long-term memory keys available: {}\nIMPORTANT: Before you begin, use 'retrieve_fact' on ANY relevant key to recall your memory.\n",
+                ctx.memory_keys.join(", ")
+            ));
+        }
         if let Some(active) = ctx.active_file {
             context_str.push_str(&format!("Active file: {}\n", active.path));
         }
@@ -224,6 +250,14 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
             context_str.push_str(&format!("Build errors found: {}\n", ctx.build_errors.len()));
         }
     }
+
+    let user_prompt = if context_str.is_empty() {
+        input.prompt.clone()
+    } else {
+        format!("Context:\n{}\nQuestion: {}", context_str, input.prompt)
+    };
+
+    messages.push(Message { role: "user".to_string(), content: user_prompt, ..Default::default() });
 
     let user_prompt = if context_str.is_empty() {
         input.prompt.clone()
@@ -338,14 +372,14 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
         }
         // ------------------------------------------------------------------
 
-        if !content.is_empty() {
-            let _ = unsafe { log_monologue(content.clone()) };
-            trace_log.push_str(&content);
-            trace_log.push_str("\n");
-        }
-
         if let Some(tool_calls) = &msg.tool_calls {
             if !tool_calls.is_empty() {
+                // Mezikrok — obsah modelu je myšlenka/analýza, logujeme jako monolog
+                if !content.is_empty() {
+                    let _ = unsafe { log_monologue(content.clone()) };
+                    trace_log.push_str(&content);
+                    trace_log.push_str("\n");
+                }
                 messages.push(msg.clone());
 
                 for call in tool_calls {
@@ -354,7 +388,15 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
                     trace_log.push_str(&format!("\nCall: {} {:?}\n", name, call.function.arguments));
 
                     let result = if name == "read_project_file" {
-                        match unsafe { read_project_file(serde_json::to_string(&call.function.arguments)?) } {
+                        let mut args = call.function.arguments.clone();
+                        if let Ok(Some(limit_str)) = config::get("MAX_READ_CHARS") {
+                            if let Ok(limit) = limit_str.parse::<u64>() {
+                                if let Some(obj) = args.as_object_mut() {
+                                    obj.insert("max_chars_limit".to_string(), serde_json::json!(limit));
+                                }
+                            }
+                        }
+                        match unsafe { read_project_file(serde_json::to_string(&args)?) } {
                             Ok(res) => serde_json::json!({ "content": res }),
                             Err(e) => serde_json::json!({ "error": format!("Read failed: {}", e) }),
                         }
@@ -384,11 +426,35 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
                             Ok(res) => serde_json::json!({ "output": res }),
                             Err(e) => serde_json::json!({ "error": format!("Execution failed: {}", e) }),
                         }
+                    } else if name == "store_scratch" {
+                        unsafe { let _ = store_scratch(serde_json::to_string(&call.function.arguments)?); }
+                        serde_json::json!({ "status": "success" })
+                    } else if name == "retrieve_scratch" {
+                        let key = call.function.arguments["key"].as_str().unwrap_or("").to_string();
+                        match unsafe { retrieve_scratch(key) } {
+                            Ok(res) => serde_json::json!({ "value": res }),
+                            Err(e) => serde_json::json!({ "error": format!("Scratch retrieval failed: {}", e) }),
+                        }
+                    } else if name == "store_fact" {
+                        unsafe { let _ = store_fact(serde_json::to_string(&call.function.arguments)?); }
+                        serde_json::json!({ "status": "success" })
+                    } else if name == "retrieve_fact" {
+                        let key = call.function.arguments["key"].as_str().unwrap_or("").to_string();
+                        match unsafe { retrieve_fact(key) } {
+                            Ok(res) => serde_json::json!({ "value": res }),
+                            Err(e) => serde_json::json!({ "error": format!("Retrieval failed: {}", e) }),
+                        }
                     } else { serde_json::json!({"error": "unknown function"}) };
+
+                    let mut content = serde_json::to_string(&result)?;
+                    // SAFETY: Truncate tool output if it's too long to prevent Ollama server crash/OOM
+                    if content.len() > 16384 {
+                        content = format!("{}... [TRUNCATED due to length]", &content[..16384]);
+                    }
 
                     messages.push(Message {
                         role: "tool".to_string(),
-                        content: serde_json::to_string(&result)?,
+                        content,
                         tool_calls: None,
                         tool_call_id: if call.id.is_empty() { None } else { Some(call.id.clone()) },
                         tool_name: Some(call.function.name.clone()),

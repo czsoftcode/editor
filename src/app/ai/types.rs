@@ -78,6 +78,8 @@ pub struct AiContextPayload {
     pub open_files: Vec<AiFileContext>,
     pub build_errors: Vec<AiBuildErrorContext>,
     pub active_file: Option<AiFileContext>,
+    #[serde(default)]
+    pub memory_keys: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -37,27 +37,31 @@ pub fn host_read_file(
 
     let lines: Vec<&str> = full_content.lines().collect();
     let total_lines = lines.len();
-    let mut content = if line_start > 1 && line_start <= total_lines {
-        lines[line_start - 1..].join(
-            "
-",
-        )
+    let content = if line_start > 1 && line_start <= total_lines {
+        lines[line_start - 1..].join("\n")
     } else {
         full_content
     };
 
-    let max_chars = 10000;
-    if content.len() > max_chars {
+    let max_chars = input["max_chars_limit"]
+        .as_u64()
+        .map(|v| v as usize)
+        .unwrap_or(10000);
+
+    let content = if content.len() > max_chars {
         let mut new_len = max_chars;
         while new_len > 0 && !content.is_char_boundary(new_len) {
             new_len -= 1;
         }
-        content.truncate(new_len);
-        content.push_str(&format!(
-            "\n\n[FILE TRUNCATED: Showing 10k chars from line {}. Total lines in file: {}. Use 'line_start' to read the next segment!]",
-            line_start, total_lines
+        let mut truncated = content[..new_len].to_string();
+        truncated.push_str(&format!(
+            "\n\n[FILE TRUNCATED: Showing {} chars from line {}. Total lines in file: {}. Use 'line_start' to read the next segment!]",
+            max_chars, line_start, total_lines
         ));
-    }
+        truncated
+    } else {
+        content.to_string()
+    };
 
     let h = plugin.memory_alloc(content.len() as u64)?;
     plugin
@@ -120,7 +124,7 @@ pub fn host_write_file(
         let _ = fs::create_dir_all(parent);
     }
 
-    if let Err(e) = fs::write(full_path, content) {
+    if let Err(e) = fs::write(&full_path, content) {
         eprintln!("Failed to write file from plugin: {}", e);
     }
 
@@ -257,7 +261,7 @@ pub fn host_replace_file(
     new_content.push_str(new_string);
     new_content.push_str(&current_content[range.end..]);
 
-    if let Err(e) = fs::write(full_path, new_content) {
+    if let Err(e) = fs::write(&full_path, new_content) {
         eprintln!("Failed to write replacement to {}: {}", path_str, e);
     }
 
@@ -265,6 +269,153 @@ pub fn host_replace_file(
         ctx.request_repaint();
     }
 
+    Ok(())
+}
+
+pub fn host_store_scratch(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    _outputs: &mut [Val],
+    user_data: extism::UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let input_str: String = plugin.memory_get_val(&inputs[0])?;
+    let input: serde_json::Value =
+        serde_json::from_str(&input_str).map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
+
+    let key = input["key"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("Missing key"))?;
+    let value = input["value"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("Missing value"))?;
+
+    let ctx = state
+        .context
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Context lock poisoned"))?;
+    let mut scratch = ctx
+        .scratch
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Scratch lock poisoned"))?;
+
+    scratch.insert(key.to_string(), value.to_string());
+
+    Ok(())
+}
+
+pub fn host_retrieve_scratch(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    outputs: &mut [Val],
+    user_data: extism::UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let key: String = plugin.memory_get_val(&inputs[0])?;
+
+    let ctx = state
+        .context
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Context lock poisoned"))?;
+    let scratch = ctx
+        .scratch
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Scratch lock poisoned"))?;
+
+    let value = scratch.get(&key).cloned().unwrap_or_default();
+
+    let h = plugin.memory_alloc(value.len() as u64)?;
+    plugin
+        .memory_bytes_mut(h)?
+        .copy_from_slice(value.as_bytes());
+    outputs[0] = Val::I64(h.offset() as i64);
+    Ok(())
+}
+
+pub fn host_store_fact(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    _outputs: &mut [Val],
+    user_data: extism::UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let input_str: String = plugin.memory_get_val(&inputs[0])?;
+    let input: serde_json::Value =
+        serde_json::from_str(&input_str).map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
+
+    let key = input["key"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("Missing key"))?;
+    let value = input["value"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("Missing value"))?;
+
+    let ctx = state
+        .context
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Context lock poisoned"))?;
+    let mut memory = ctx
+        .agent_memory
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Memory lock poisoned"))?;
+
+    memory.facts.insert(key.to_string(), value.to_string());
+    if let Err(e) = memory.save() {
+        eprintln!("Failed to save agent memory to disk: {}", e);
+    } else {
+        // Log to agent monologue so the user sees progress
+        if let Some(sender) = &state.action_sender {
+            let _ = sender.send(crate::app::types::AppAction::PluginMonologue(
+                state.plugin_id.clone(),
+                format!("💾 Fact stored in long-term memory: {} = {}", key, value),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+pub fn host_retrieve_fact(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    outputs: &mut [Val],
+    user_data: extism::UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let key: String = plugin.memory_get_val(&inputs[0])?;
+
+    let ctx = state
+        .context
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Context lock poisoned"))?;
+    let memory = ctx
+        .agent_memory
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Memory lock poisoned"))?;
+
+    let value = memory.facts.get(&key).cloned().unwrap_or_default();
+
+    let h = plugin.memory_alloc(value.len() as u64)?;
+    plugin
+        .memory_bytes_mut(h)?
+        .copy_from_slice(value.as_bytes());
+    outputs[0] = Val::I64(h.offset() as i64);
     Ok(())
 }
 

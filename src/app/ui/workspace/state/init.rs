@@ -325,16 +325,31 @@ fn spawn_semantic_indexer(
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
 
+            // Compute file hash for incremental indexing
+            let file_hash =
+                match crate::app::ui::workspace::semantic_index::compute_file_hash(&abs_path) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        eprintln!(
+                            "[SemanticIndex] Failed to compute hash for {:?}: {}",
+                            abs_path, e
+                        );
+                        continue;
+                    }
+                };
+
+            // Check if file needs re-indexing by comparing hash
             let needs_indexing = {
                 let si = si_arc.lock().unwrap();
                 let snippets = si.snippets.lock().unwrap();
                 !snippets
                     .iter()
-                    .any(|s| s.mtime == mtime && &s.path == rel_path)
+                    .any(|s| s.file_hash == file_hash && &s.path == rel_path)
             };
 
             if needs_indexing && let Ok(content) = std::fs::read_to_string(&abs_path) {
-                if content.len() > 100_000 || content.as_bytes().contains(&0) {
+                // Skip binary files (null bytes)
+                if content.as_bytes().contains(&0) {
                     continue;
                 }
                 {
@@ -364,6 +379,7 @@ fn spawn_semantic_indexer(
                                 content: chunk_text,
                                 embedding,
                                 mtime,
+                                file_hash: file_hash.clone(),
                             },
                         );
                     }

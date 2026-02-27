@@ -35,8 +35,19 @@ Strictly adhere to these levels of expertise and reasoning depth.",
     }
 
     /// Generates a unified context payload from the current workspace state.
-    pub fn generate_context(ws: &WorkspaceState) -> AiContextPayload {
+    pub fn generate_context(
+        ws: &WorkspaceState,
+        shared: &std::sync::Arc<std::sync::Mutex<crate::app::types::AppShared>>,
+    ) -> AiContextPayload {
         let mut payload = AiContextPayload::default();
+
+        // 0. Get memory keys
+        if let Ok(sh) = shared.try_lock()
+            && let Ok(ctx) = sh.registry.plugins.current_context.try_lock()
+            && let Ok(memory) = ctx.agent_memory.try_lock()
+        {
+            payload.memory_keys = memory.facts.keys().cloned().collect();
+        }
 
         // 1. Gather Open Files
         for (i, tab) in ws.editor.tabs.iter().enumerate() {

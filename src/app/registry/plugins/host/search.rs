@@ -27,6 +27,12 @@ pub fn host_search_project(
             .arg("2")
             .arg("--max-columns=512")
             .arg("--max-columns-preview")
+            .arg("--glob")
+            .arg("!*.gguf")
+            .arg("--glob")
+            .arg("!*.bin")
+            .arg("--glob")
+            .arg("!*.model")
             .arg(&query)
             .current_dir(root)
             .output();
@@ -35,7 +41,7 @@ pub fn host_search_project(
             Ok(out) if out.status.success() || !out.stdout.is_empty() => {
                 let text = String::from_utf8_lossy(&out.stdout);
                 let mut results = Vec::new();
-                for line in text.lines().take(60) {
+                for line in text.lines().take(30) {
                     // rg format: path:line:col:content
                     let parts: Vec<&str> = line.splitn(4, ':').collect();
                     if parts.len() >= 4 {
@@ -60,6 +66,9 @@ pub fn host_search_project(
                     .arg("2")
                     .arg("--exclude-dir=target")
                     .arg("--exclude-dir=.git")
+                    .arg("--exclude=*.gguf")
+                    .arg("--exclude=*.bin")
+                    .arg("--exclude=*.model")
                     .arg(&query)
                     .current_dir(root)
                     .output();
@@ -68,7 +77,7 @@ pub fn host_search_project(
                     Ok(out) => {
                         let text = String::from_utf8_lossy(&out.stdout);
                         let mut results = Vec::new();
-                        for line in text.lines().take(60) {
+                        for line in text.lines().take(30) {
                             if let Some((path_and_line, content)) = line.split_once(":")
                                 && let Some((path, line_num)) = path_and_line.split_once(":")
                             {

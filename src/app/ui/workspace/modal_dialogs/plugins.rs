@@ -43,6 +43,9 @@ pub fn show(
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
         action = modal.ui_footer(ui, |ui| {
+            if ui.button(i18n.get("btn-close")).clicked() {
+                return Some(PluginModalAction::Cancel);
+            }
             if ui.button(i18n.get("btn-cancel")).clicked() {
                 return Some(PluginModalAction::Cancel);
             }
@@ -415,6 +418,15 @@ fn render_plugin_details(
                         plugin_settings,
                         "MAX_ITERATIONS",
                         "30",
+                        id,
+                    );
+                    ui.end_row();
+                    render_config_field(
+                        ui,
+                        available_w,
+                        plugin_settings,
+                        "MAX_READ_CHARS",
+                        "10000",
                         id,
                     );
                     ui.end_row();

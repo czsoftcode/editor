@@ -34,6 +34,38 @@ pub enum PluginStatus {
     Error(String),
 }
 
+#[derive(Deserialize, Serialize, Clone, Default)]
+pub struct AgentMemory {
+    pub facts: std::collections::HashMap<String, String>,
+}
+
+impl AgentMemory {
+    pub fn memory_path() -> PathBuf {
+        crate::ipc::plugins_dir()
+            .parent()
+            .unwrap()
+            .join("agent_memory.json")
+    }
+
+    pub fn load() -> Self {
+        let path = Self::memory_path();
+        if path.exists()
+            && let Ok(content) = std::fs::read_to_string(path)
+            && let Ok(mem) = serde_json::from_str::<AgentMemory>(&content)
+        {
+            return mem;
+        }
+        Self::default()
+    }
+
+    pub fn save(&self) -> anyhow::Result<()> {
+        let path = Self::memory_path();
+        let content = serde_json::to_string_pretty(self)?;
+        std::fs::write(path, content)?;
+        Ok(())
+    }
+}
+
 /// State passed to host functions
 #[derive(Clone)]
 pub struct HostContext {
@@ -45,6 +77,9 @@ pub struct HostContext {
     pub root_path: Option<PathBuf>,
     pub auto_approved_actions: std::collections::HashSet<String>,
     pub is_cancelled: Arc<std::sync::atomic::AtomicBool>,
+    pub agent_memory: Arc<Mutex<AgentMemory>>,
+    /// Dočasný scratchpad — vymazán při každém novém dotazu, nikdy neperzistován.
+    pub scratch: Arc<Mutex<std::collections::HashMap<String, String>>>,
 }
 
 impl Default for HostContext {
@@ -57,6 +92,8 @@ impl Default for HostContext {
             root_path: None,
             auto_approved_actions: std::collections::HashSet::new(),
             is_cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            agent_memory: Arc::new(Mutex::new(AgentMemory::default())),
+            scratch: Arc::new(Mutex::new(std::collections::HashMap::new())),
         }
     }
 }

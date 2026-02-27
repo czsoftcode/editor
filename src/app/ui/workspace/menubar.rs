@@ -301,7 +301,7 @@ pub(super) fn render_menu_bar(
 
 /// Applies menu actions to the workspace state. Returns the path for reinitialization (if a folder was selected).
 pub(super) fn process_menu_actions(
-    ctx: &egui::Context,
+    _ctx: &egui::Context,
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     actions: MenuActions,
@@ -360,7 +360,7 @@ pub(super) fn process_menu_actions(
                 let cmd = agent.command.clone();
                 let active = ws.claude_active_tab;
                 let context = crate::app::ui::terminal::right::format_context_for_terminal(
-                    &crate::app::ai::AiManager::generate_context(ws),
+                    &crate::app::ai::AiManager::generate_context(ws, shared),
                 );
                 if let Some(terminal) = ws.claude_tabs.get_mut(active) {
                     terminal.send_command(&cmd);
@@ -377,12 +377,10 @@ pub(super) fn process_menu_actions(
             ws.show_ai_chat = true;
             ws.ai_focus_requested = true;
             // Initialize new conversation for the selected provider
-            super::modal_dialogs::ai_chat::handle_modal_action(
-                super::modal_dialogs::ai_chat::AiModalAction::NewQuery,
+            crate::app::ui::terminal::ai_chat::handle_action(
+                crate::app::ui::terminal::ai_chat::AiChatAction::NewQuery,
                 ws,
                 shared,
-                ctx,
-                i18n,
             );
         } else {
             let (plugin_manager, config): (Arc<crate::app::registry::plugins::PluginManager>, _) = {

@@ -434,13 +434,6 @@ impl EditorApp {
                         && id == ws.ai_selected_provider
                     {
                         ws.ai_monologue.push(message.clone());
-                        // Also append to the active conversation entry for permanence
-                        if let Some(last) = ws.ai_conversation.last_mut() {
-                            if !last.1.is_empty() {
-                                last.1.push_str("\n\n");
-                            }
-                            last.1.push_str(&message);
-                        }
                     }
                 }
                 AppAction::PluginUsage(id, in_t, out_t) => {

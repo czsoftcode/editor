@@ -177,9 +177,13 @@ pub(crate) fn render_workspace(
         || ws.command_palette.is_some()
         || ws.show_plugins
         || ws.show_settings
-        || ws.show_ai_chat;
+        || ws.show_new_project
+        || ws.show_about
+        || ws.show_semantic_indexing_modal
+        || ws.sync_confirmation.is_some()
+        || ws.show_sandbox_staged;
 
-    render_dialogs(ctx, ws, shared, i18n);
+    let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
     render_semantic_indexing_modal(ctx, ws, i18n);
     if let Some(path) = render_file_picker(ctx, ws, i18n) {
         open_file_in_ws(ws, path);
@@ -281,7 +285,8 @@ pub(crate) fn render_workspace(
         });
 
     // --- 4. PANELS (Side & Bottom) ---
-    crate::app::ui::terminal::bottom::render_bottom_panel(ctx, ws, dialog_open_base, i18n);
+    let ai_chat_clicked = crate::app::ui::terminal::ai_chat::show(ctx, ws, shared, i18n);
+    let bottom_clicked = crate::app::ui::terminal::bottom::render_bottom_panel(ctx, ws, dialog_open_base, i18n);
     let ai_clicked = render_ai_panel(ctx, ws, shared, dialog_open_base, i18n);
     let left_clicked = render_left_panel(ctx, ws, dialog_open_base, i18n);
 
@@ -344,13 +349,16 @@ pub(crate) fn render_workspace(
         }
     }
 
-    // Reset focus to editor if clicking outside any active panel/window
-    let any_panel_interacted = ai_clicked || left_clicked || ai_viewport_clicked || ws.show_ai_chat;
+    // Reset focus to editor only when the user explicitly clicks outside all panels.
+    // Do NOT reset just because the mouse drifted away from the terminal area —
+    // that would make keyboard input impossible after clicking the terminal.
+    let any_panel_interacted = ai_chat_clicked || ai_clicked || left_clicked || ai_viewport_clicked || ws.show_ai_chat || bottom_clicked || dialogs_interacted;
     if !any_panel_interacted {
         let in_terminal = ws.focused_panel == FocusedPanel::Claude
             || ws.focused_panel == FocusedPanel::Build
             || ws.focused_panel == FocusedPanel::AiChat;
-        if in_terminal {
+        let explicit_click_elsewhere = ctx.input(|i| i.pointer.any_click());
+        if in_terminal && explicit_click_elsewhere {
             ws.focused_panel = FocusedPanel::Editor;
             ws.editor.request_editor_focus();
         }
@@ -430,15 +438,23 @@ fn render_semantic_indexing_modal(
     if !ws.show_semantic_indexing_modal {
         return;
     }
-    let (is_indexing, processed, total, current_file, error) = {
-        let si = ws.semantic_index.lock().unwrap();
-        (
-            si.is_indexing.load(std::sync::atomic::Ordering::SeqCst),
-            si.files_processed.load(std::sync::atomic::Ordering::SeqCst),
-            si.files_total.load(std::sync::atomic::Ordering::SeqCst),
-            si.current_file.lock().unwrap().clone(),
-            si.error.lock().unwrap().clone(),
-        )
+    let res = {
+        if let Ok(si) = ws.semantic_index.try_lock() {
+            Some((
+                si.is_indexing.load(std::sync::atomic::Ordering::SeqCst),
+                si.files_processed.load(std::sync::atomic::Ordering::SeqCst),
+                si.files_total.load(std::sync::atomic::Ordering::SeqCst),
+                si.current_file.lock().unwrap().clone(),
+                si.error.lock().unwrap().clone(),
+            ))
+        } else {
+            None
+        }
+    };
+
+    let Some((is_indexing, processed, total, current_file, error)) = res else {
+        // If locked, we don't render the modal content this frame to keep UI responsive
+        return;
     };
     if !is_indexing && error.is_none() && (processed >= total || total == 0) {
         ws.show_semantic_indexing_modal = false;

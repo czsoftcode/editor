@@ -22,6 +22,8 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - [x] **AI diff náhled** — vizuální porovnání navržených změn před aplikací na disk.
 - [x] **Klikatelné cesty v terminálu** — výstup cargo s přímým skokem na řádek v editoru.
 - [x] **Branding & UX (Gemini CLI)** — barevné logo, metadata a přehledná typografie (120% font, MD syntax).
+- [x] **Non-blocking AI Chat** — AI chat asistent již neblokuje editaci souborů a interakci s panely na pozadí.
+- [x] **Ollama Stability Fix** — Opraven "Internal Server Error" při prohledávání velkých projektů skrze AI agenty.
 - [x] **AI Inspector & Trace** — centrální nástroj pro sledování odesílaného kontextu a JSON payloadů.
 - [x] **Conversational Threads** — podpora historie a "vláken" konverzace s AI agenty.
 
@@ -34,6 +36,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - [x] **Automatické zálohování (Safety Net)** — propojení `LocalHistory` s procesem schvalování změn (automatický snapshot původního souboru před přepsáním ze sandboxu).
 - [x] **Reasoning Loop** — podpora pro cyklus Plán -> Akce -> Observace -> Korekce přímo v UI (interní monolog).
 - [x] **Vlastní CLI Agenti** — možnost definice vlastních AI nástrojů (Claude, Gemini, Aider) přímo v nastavení aplikace s dynamickým UI.
+- [x] **Dlouhodobá paměť agenta** — ukládání faktů a kontextu do perzistentního JSON souboru, který přežije restart editoru.
 - [ ] **Git & Historie** — integrace s Gitem pro automatické commity a analýzu historie kódu agentem.
 
 ## Q3 2026 — Rozšíření platformy

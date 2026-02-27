@@ -24,11 +24,15 @@ pub struct PluginManager {
 
 impl PluginManager {
     pub fn new(sandbox_root: PathBuf) -> Self {
+        let initial_context = HostContext {
+            agent_memory: Arc::new(Mutex::new(types::AgentMemory::load())),
+            ..Default::default()
+        };
         Self {
             plugins: Arc::new(Mutex::new(Vec::new())),
             sandbox_root,
             blacklist: Arc::new(Mutex::new(Blacklist::default())),
-            current_context: Arc::new(Mutex::new(HostContext::default())),
+            current_context: Arc::new(Mutex::new(initial_context)),
             action_sender: Arc::new(Mutex::new(None)),
             egui_ctx: Arc::new(Mutex::new(None)),
         }
@@ -241,6 +245,34 @@ impl PluginManager {
                 [],
                 UserData::new(host_state.clone()),
                 host_replace_file,
+            ),
+            Function::new(
+                "store_scratch",
+                [ValType::I64],
+                [],
+                UserData::new(host_state.clone()),
+                host_store_scratch,
+            ),
+            Function::new(
+                "retrieve_scratch",
+                [ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_retrieve_scratch,
+            ),
+            Function::new(
+                "store_fact",
+                [ValType::I64],
+                [],
+                UserData::new(host_state.clone()),
+                host_store_fact,
+            ),
+            Function::new(
+                "retrieve_fact",
+                [ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_retrieve_fact,
             ),
             Function::new(
                 "list_project_files",

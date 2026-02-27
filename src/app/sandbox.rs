@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-use xxhash_rust::xxh64::xxh64;
+use xxhash_rust::xxh3::xxh3_64;
 
 pub struct Sandbox {
     pub root: PathBuf,
@@ -38,8 +38,7 @@ impl Sandbox {
 
     fn calculate_file_hash(path: &Path) -> Option<u64> {
         let bytes = fs::read(path).ok()?;
-        // Seed 0 for consistency
-        Some(xxh64(&bytes, 0))
+        Some(xxh3_64(&bytes))
     }
 
     /// Analyzes differences and returns a plan for bidirectional sync.
@@ -259,7 +258,7 @@ impl Sandbox {
                     if m_sandbox.len() != m_project.len() {
                         true
                     } else {
-                        // For identical sizes, use fast xxh64 hashing for 100% accuracy.
+                        // For identical sizes, use fast xxh3 hashing for 100% accuracy.
                         let h_sandbox = Self::calculate_file_hash(abs_sandbox_path);
                         let h_project = Self::calculate_file_hash(&abs_project_path);
                         h_sandbox != h_project

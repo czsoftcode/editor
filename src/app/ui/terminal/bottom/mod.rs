@@ -9,33 +9,85 @@ use crate::config;
 use eframe::egui;
 use std::path::PathBuf;
 
-/// Renders the bottom panel (or its floating window version).
+use crate::app::ui::terminal::StandardTerminalWindow;
+
+/// Renders the bottom panel (or its floating window version). Returns true if interacted.
 pub fn render_bottom_panel(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
-    dialog_open: bool,
+    _dialog_open: bool,
     i18n: &crate::i18n::I18n,
-) {
+) -> bool {
     if !ws.show_build_terminal {
-        return;
+        return false;
     }
+    let mut interacted = false;
 
     if ws.build_terminal_float {
         let mut is_open = true;
-        egui::Window::new(i18n.get("build-terminal-title"))
-            .id(egui::Id::new("build_terminal_float_win"))
-            .default_size([600.0, 400.0])
-            .min_size([300.0, 200.0])
-            .resizable(true)
-            .collapsible(false)
-            .open(&mut is_open)
-            .show(ctx, |ui| {
-                render_bottom_content(ui, ws, dialog_open, i18n);
-            });
+        let win = StandardTerminalWindow::new(i18n.get("build-terminal-title"), "build_terminal_float_win", FocusedPanel::Build);
+        
+        let (inter_res, res) = win.show(
+            ctx,
+            ws,
+            &mut is_open,
+            |ui, ws_arg| {
+                // HEAD: Control Bars
+                build_bar::render_build_bar(ui, ws_arg, i18n);
+                compile_bar::render_compile_bar(ui, ws_arg, i18n);
+                if !ws_arg.build_in_sandbox {
+                    git_bar::render_git_bar(ui, ws_arg, i18n);
+                }
+            },
+            |ui, ws_arg, _body_h| {
+                // BODY: Terminal + Errors
+                let font_size = config::EDITOR_FONT_SIZE * ws_arg.ai_font_scale as f32 / 100.0;
+                if let Some(terminal) = &mut ws_arg.build_terminal {
+                    let is_focused = ws_arg.focused_panel == FocusedPanel::Build;
+                    let action = terminal.ui(ui, is_focused, font_size, i18n);
+
+                    if let Some(act) = action {
+                        match act {
+                            TerminalAction::Clicked | TerminalAction::Hovered => {
+                                ws_arg.focused_panel = FocusedPanel::Build;
+                            }
+                            TerminalAction::Navigate(path, line, col) => {
+                                let abs_path = if path.is_absolute() { path } else { ws_arg.root_path.join(path) };
+                                open_file_in_ws(ws_arg, abs_path);
+                                ws_arg.editor.jump_to_location(line, col);
+                                ws_arg.focused_panel = FocusedPanel::Editor;
+                            }
+                        }
+                    }
+                }
+
+                if !ws_arg.build_errors.is_empty() {
+                    ui.separator();
+                    render_error_list(ui, ws_arg, i18n);
+                }
+                None
+            },
+            |ui, _ws_arg| {
+                // FOOTER: Small dock button for consistency
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("📥").on_hover_text(i18n.get("ai-float-dock")).clicked() {
+                        return Some(true);
+                    }
+                    None
+                }).inner
+            }
+        );
+
+        interacted = inter_res;
+        if let Some(true) = res {
+            ws.build_terminal_float = false;
+        }
+
         if !is_open {
             ws.show_build_terminal = false;
         }
     }
+    interacted
 }
 
 /// Renders ONLY the content of the bottom panel (to be used inside another panel).
@@ -68,8 +120,14 @@ pub fn render_bottom_content(
             let action = terminal.ui(ui, is_focused, font_size, i18n);
 
             match action {
-                Some(TerminalAction::Clicked) | Some(TerminalAction::Hovered) => {
+                Some(TerminalAction::Clicked) => {
                     ws.focused_panel = FocusedPanel::Build;
+                    interacted = true;
+                }
+                Some(TerminalAction::Hovered) => {
+                    if !dialog_open {
+                        ws.focused_panel = FocusedPanel::Build;
+                    }
                     interacted = true;
                 }
                 Some(TerminalAction::Navigate(path, line, col)) => {

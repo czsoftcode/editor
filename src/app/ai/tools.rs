@@ -112,5 +112,69 @@ pub fn get_standard_tools() -> Vec<AiToolDeclaration> {
                 "required": ["command"]
             }),
         },
+        AiToolDeclaration {
+            name: "store_scratch".to_string(),
+            description: "Stores a key-value note in the agent's temporary RAM scratchpad. Use this during a long task to remember intermediate findings (e.g. what a file does, what you've already explored). This scratchpad is cleared at the start of every new query — it is NOT persisted. For permanent memory, use 'store_fact'.".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "A short identifier for the note (e.g. 'auth_flow', 'files_read')."
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "The content to remember for the duration of this task."
+                    }
+                },
+                "required": ["key", "value"]
+            }),
+        },
+        AiToolDeclaration {
+            name: "retrieve_scratch".to_string(),
+            description: "Retrieves a note from the temporary RAM scratchpad by key. Use this when context is getting full and you need to recall something you noted earlier in this task. Returns an empty string if the key does not exist.".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "The key of the note to retrieve."
+                    }
+                },
+                "required": ["key"]
+            }),
+        },
+        AiToolDeclaration {
+            name: "store_fact".to_string(),
+            description: "Stores a key-value fact in the agent's long-term memory. This fact survives session restarts and is shared across projects. Use it to remember user preferences, architectural decisions, or important project state.".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "Unique identifier for the fact."
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "The information to remember."
+                    }
+                },
+                "required": ["key", "value"]
+            }),
+        },
+        AiToolDeclaration {
+            name: "retrieve_fact".to_string(),
+            description: "Retrieves a previously stored fact from long-term memory by its key. Returns an empty string if not found.".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "The key of the fact to retrieve."
+                    }
+                },
+                "required": ["key"]
+            }),
+        },
     ]
 }

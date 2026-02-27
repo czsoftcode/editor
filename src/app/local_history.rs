@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use xxhash_rust::xxh64::xxh64;
+use xxhash_rust::xxh3::xxh3_64;
 
 type HistoryIndex = HashMap<String, String>;
 
@@ -51,13 +51,13 @@ impl LocalHistory {
 
     /// Generates a safe folder name based on the hash of the original file path.
     fn encode_path(project_path: &Path) -> String {
-        let hash = xxh64(project_path.to_string_lossy().as_bytes(), 0);
+        let hash = xxh3_64(project_path.to_string_lossy().as_bytes());
         format!("{:x}", hash)
     }
 
     /// Computes a fast xxHash64 of a string.
     fn compute_hash(content: &str) -> u64 {
-        xxh64(content.as_bytes(), 0)
+        xxh3_64(content.as_bytes())
     }
 
     /// Takes a snapshot of the current content if it differs from the last saved snapshot.

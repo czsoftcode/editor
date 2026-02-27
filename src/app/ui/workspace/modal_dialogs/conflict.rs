@@ -36,6 +36,9 @@ pub fn show(
         modal.show(ctx, &mut show_flag, |ui| {
             // FOOTER
             action = modal.ui_footer(ui, |ui: &mut egui::Ui| {
+                if ui.button(i18n.get("btn-close")).clicked() {
+                    return Some(ExternalConflictAction::Dismiss);
+                }
                 if ui
                     .button(i18n.get("conflict-load-disk"))
                     .on_hover_text(i18n.get("conflict-hover-disk"))

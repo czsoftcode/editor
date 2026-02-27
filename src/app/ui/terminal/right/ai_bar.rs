@@ -11,6 +11,12 @@ pub fn format_context_for_terminal(ctx: &AiContextPayload) -> String {
 ",
     );
 
+    if !ctx.memory_keys.is_empty() {
+        s.push_str("Long-term memory keys: ");
+        s.push_str(&ctx.memory_keys.join(", "));
+        s.push('\n');
+    }
+
     if !ctx.open_files.is_empty() {
         s.push_str(
             "Open files:
@@ -97,7 +103,7 @@ pub fn render_ai_bar(
             if plan.is_empty() {
                 let cmd = agent.command.clone();
                 let active = ws.claude_active_tab;
-                let context = format_context_for_terminal(&AiManager::generate_context(ws));
+                let context = format_context_for_terminal(&AiManager::generate_context(ws, shared));
                 if let Some(terminal) = ws.claude_tabs.get_mut(active) {
                     terminal.send_command(&cmd);
                     if agent.context_aware {
@@ -120,7 +126,7 @@ pub fn render_ai_bar(
             && let Some(agent) = selected_agent
             && agent.context_aware
         {
-            let context = format_context_for_terminal(&AiManager::generate_context(ws));
+            let context = format_context_for_terminal(&AiManager::generate_context(ws, shared));
             if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
                 terminal.send_command(&context);
             }

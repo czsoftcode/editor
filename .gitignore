@@ -12,3 +12,8 @@ check.sh
 .build_number
 test-docs/
 *.log
+*.gguf
+*.bin
+*.model
+semantic_index.bin
+all-minilm-l6-v2-q4_k_m.gguf

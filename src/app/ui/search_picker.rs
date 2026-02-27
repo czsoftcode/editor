@@ -299,6 +299,9 @@ pub(super) fn render_project_search_dialog(
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
         if let Some((start, cl)) = modal.ui_footer(ui, |ui| {
+            if ui.button(i18n.get("btn-close")).clicked() {
+                return Some((false, true));
+            }
             if ui.button(i18n.get("project-search-btn")).clicked() {
                 return Some((true, false));
             }

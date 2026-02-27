@@ -137,7 +137,7 @@ impl Editor {
                                     .id(edit_id)
                                     .font(egui::TextStyle::Monospace)
                                     .code_editor()
-                                    .interactive(!dialog_open)
+                                    .interactive(true)
                                     .desired_width(f32::INFINITY)
                                     .layouter(&mut layouter)
                                     .show(ui);
@@ -150,7 +150,11 @@ impl Editor {
                                 );
                                 Self::paint_squiggles(ui, &response, diagnostics_for_file);
 
-                                if response.response.clicked() || response.response.has_focus() {
+                                if dialog_open {
+                                    if response.response.clicked() {
+                                        clicked = true;
+                                    }
+                                } else if response.response.clicked() || response.response.has_focus() {
                                     clicked = true;
                                 }
                                 if response.response.changed() && !is_readonly {

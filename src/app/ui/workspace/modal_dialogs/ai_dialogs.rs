@@ -69,6 +69,9 @@ pub fn show(
 
         modal.show(ctx, &mut local_show, |ui| {
             if let Some(c) = modal.ui_footer(ui, |ui| {
+                if ui.button(i18n.get("btn-close")).clicked() {
+                    return Some(true);
+                }
                 if ui.button(i18n.get("btn-ok")).clicked() {
                     return Some(true);
                 }
@@ -109,6 +112,9 @@ pub fn show(
 
         modal.show(ctx, &mut local_show, |ui| {
             if let Some((sync, skip, close)) = modal.ui_footer(ui, |ui| {
+                if ui.button(i18n.get("btn-close")).clicked() {
+                    return Some((false, false, true));
+                }
                 if ui
                     .button(egui::RichText::new(i18n.get("ai-sync-btn-sync")).strong())
                     .clicked()
@@ -185,7 +191,7 @@ pub fn show(
                 let cmd = agent.command.clone();
                 let active = ws.claude_active_tab;
                 let context = crate::app::ui::terminal::right::format_context_for_terminal(
-                    &crate::app::ai::AiManager::generate_context(ws),
+                    &crate::app::ai::AiManager::generate_context(ws, shared),
                 );
                 if let Some(terminal) = ws.claude_tabs.get_mut(active) {
                     terminal.send_command(&cmd);

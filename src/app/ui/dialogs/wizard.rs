@@ -94,6 +94,12 @@ pub(crate) fn show_project_wizard(
     if let Some(true) = modal.show(ctx, show, |ui| {
         // FOOTER
         if let Some(close) = modal.ui_footer(ui, |ui| {
+            if ui.button(i18n.get("btn-close")).clicked() {
+                return Some(true);
+            }
+            if ui.button(i18n.get("btn-cancel")).clicked() {
+                return Some(true);
+            }
             let raw_name = state.name.trim();
             let name_valid = is_valid_project_name(raw_name);
             let can_create = name_valid && !state.path.trim().is_empty() && !state.creating;
@@ -106,9 +112,6 @@ pub(crate) fn show_project_wizard(
                     state.name.trim().to_string(),
                     state.path.trim().to_string(),
                 ));
-            }
-            if ui.button(i18n.get("btn-cancel")).clicked() {
-                return Some(true);
             }
             None
         }) && close

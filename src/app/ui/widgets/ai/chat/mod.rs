@@ -36,9 +36,10 @@ impl AiChatWidget {
     pub fn ui_monologue(
         ui: &mut egui::Ui,
         monologue: &[String],
+        font_size: f32,
         cache: &mut egui_commonmark::CommonMarkCache,
     ) {
-        render::ui_monologue(ui, monologue, cache)
+        render::ui_monologue(ui, monologue, font_size, cache)
     }
 
     /// Renders settings for an AI agent (Rank, Depth, Language).

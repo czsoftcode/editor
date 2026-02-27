@@ -1,3 +1,36 @@
+## [0.7.23] - 2026-02-27
+
+### Added
+- **AI Chat Assistant Terminal**: Implemented a new, fully independent AI Chat module (`ui/terminal/ai_chat/`) built on `StandardTerminalWindow`. The assistant now opens as a non-blocking floating window alongside the editor, replacing the old modal dialog. Includes conversation history, monologue view, prompt input with history navigation, settings panel, tool approval UI, and an AI Inspector panel (raw payload viewer).
+
+### Fixed
+- **Terminal Keyboard Focus (Left Click)**: Bottom build terminal and other docked terminals now correctly receive keyboard focus on a left-click, not just right-click. The focus reset logic was too aggressive — it now only transfers focus back to the editor on an explicit click elsewhere.
+- **Floating Window Focus Stealing**: Fixed a critical bug in `StandardTerminalWindow` where multiple open floating windows (e.g., AI Chat + Claude Float + Build Float) would steal focus from each other. The root cause was `ui.ui_contains_pointer()` inside the render closure, which does not account for egui's z-ordering. Replaced with `inner.response.rect.contains(pos)` + `ctx.layer_id_at(pos)` to correctly identify the topmost window under the pointer.
+
+### Removed
+- **Old AI Chat Modal**: Deleted the legacy `modal_dialogs/ai_chat/` module, which has been fully superseded by the new `terminal/ai_chat/` implementation.
+
+## [0.7.22] - 2026-02-27
+
+### Fixed
+- **Ollama Stability**: Fixed "Internal Server Error" crashes in Ollama caused by context overflow and RAM exhaustion during large project searches.
+    - **Search Result Limiting**: Reduced the number of search snippets returned to the AI to prevent massive prompt growth.
+    - **Binary File Exclusion**: Updated `search_project` to strictly ignore large binary files (`.gguf`, `.bin`, `.model`) even if they are untracked.
+    - **Plugin-side Truncation**: Added a safety truncation buffer in the Ollama WASM plugin to ensure tool outputs never exceed safe communication limits.
+    - **Improved .gitignore**: Added AI model files to the project's ignore list to prevent them from being indexed or searched by mistake.
+
+## [0.7.21] - 2026-02-27
+
+### Changed
+- **AI Chat UX**: AI Chat Assistant no longer blocks the background editor and panels. It now functions as a non-blocking floating window, allowing simultaneous code editing and chatting.
+
+## [0.7.20] - 2026-02-27
+
+### Fixed
+- **Dependency Resolution**: Fixed a compilation error caused by a non-existent `quantized` feature in `candle-core` version 0.8.
+- **Code Quality**: Resolved a Clippy warning in `src/app/ui/terminal/right/ai_bar.rs` regarding inefficient single-character `push_str` usage.
+- **Formatting**: Unified codebase formatting across all modules to satisfy the project's quality gate.
+
 ## [0.7.19] - 2026-02-26
 
 ### Added

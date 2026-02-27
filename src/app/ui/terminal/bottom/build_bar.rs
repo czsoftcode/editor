@@ -109,7 +109,7 @@ pub fn render_build_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate
                     ws.build_terminal_float = false;
                 }
             } else if ui
-                .small_button("⧉")
+                .small_button("🗖")
                 .on_hover_text(i18n.get("ai-float-undock"))
                 .clicked()
             {

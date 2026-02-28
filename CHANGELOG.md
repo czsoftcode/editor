@@ -10,7 +10,9 @@
 - **Icon Generation**: Automated generation of vibrant, high-contrast PNG icons (16px to 256px).
 
 ### Changed
-- **UI/UX**: Completely reorganized the Build menu into platform-specific submenus for better clarity.
+- **Modular Menubar**: Refactored the monolithic `menubar.rs` (900+ lines) into a clean, modular directory structure under `src/app/ui/workspace/menubar/`, improving maintainability and code clarity.
+- **UI/UX**: Completely reorganized the Build menu into platform-specific submenus for each platform (Debian, Arch, Fedora, AppImage, Flatpak, Snap, Windows, Archive).
+- **Tool Availability Check**: Implemented automatic startup and periodic background checks for all packaging tools, showing real-time status (✅/❌) in submenus.
 - **Windows IPC**: Switched to local TCP sockets (127.0.0.1) for enhanced reliability on Windows.
 - **Localization**: Synchronized all localization keys across Czech, English, German, Russian, and Slovak.
 - **RPM/AUR Packaging**: Optimized configuration for native package generation.

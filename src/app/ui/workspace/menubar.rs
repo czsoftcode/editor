@@ -37,6 +37,9 @@ pub(crate) struct MenuActions {
     pub install_rpm: bool,
     pub install_generate_rpm: bool,
     pub install_deb_tools: bool,
+    pub install_aur: bool,
+    pub install_flatpak: bool,
+    pub install_snap: bool,
     pub install_tar: bool,
     pub install_xwin: bool,
     pub install_clang: bool,
@@ -49,6 +52,9 @@ pub(crate) struct MenuActions {
     pub run: bool,
     pub build_deb: bool,
     pub build_rpm: bool,
+    pub build_aur: bool,
+    pub build_flatpak: bool,
+    pub build_snap: bool,
     pub build_appimage: bool,
     pub build_tar_gz: bool,
     pub build_exe: bool,
@@ -301,213 +307,293 @@ pub(super) fn render_menu_bar(
             });
 
             let can_build = !ws.build_in_sandbox && ws.sandbox_staged_files.is_empty();
-            let build_resp = ui.add_enabled_ui(can_build, |ui| {
-                ui.menu_button(i18n.get("menu-build"), |ui| {
-                let get_icon = |id: &str| {
-                    if *ws.win_tool_available.get(id).unwrap_or(&false) {
-                        "✅"
-                    } else {
-                        "❌"
-                    }
-                };
+            let build_resp = ui
+                .add_enabled_ui(can_build, |ui| {
+                    ui.menu_button(i18n.get("menu-build"), |ui| {
+                        let get_icon = |id: &str| {
+                            if *ws.win_tool_available.get(id).unwrap_or(&false) {
+                                "✅"
+                            } else {
+                                "❌"
+                            }
+                        };
 
-                ui.menu_button(i18n.get("menu-build-debian"), |ui| {
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("deb"),
-                            i18n.get("menu-build-deb")
-                        ))
-                        .clicked()
-                    {
-                        actions.build_deb = true;
-                        ui.close_menu();
-                    }
-                    ui.separator();
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("deb"),
-                            i18n.get("command-name-install-deb-tools")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_deb_tools = true;
-                        ui.close_menu();
-                    }
-                });
+                        ui.menu_button(i18n.get("menu-build-debian"), |ui| {
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("deb"),
+                                    i18n.get("menu-build-deb")
+                                ))
+                                .clicked()
+                            {
+                                actions.build_deb = true;
+                                ui.close_menu();
+                            }
+                            ui.separator();
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("deb"),
+                                    i18n.get("command-name-install-deb-tools")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_deb_tools = true;
+                                ui.close_menu();
+                            }
+                        });
 
-                ui.menu_button(i18n.get("menu-build-archive"), |ui| {
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("tar"),
-                            i18n.get("menu-build-tar-gz")
-                        ))
-                        .clicked()
-                    {
-                        actions.build_tar_gz = true;
-                        ui.close_menu();
-                    }
-                    ui.separator();
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("tar"),
-                            i18n.get("command-name-install-tar")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_tar = true;
-                        ui.close_menu();
-                    }
-                });
+                        ui.menu_button(i18n.get("menu-build-arch"), |ui| {
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("aur"),
+                                    i18n.get("menu-build-aur")
+                                ))
+                                .clicked()
+                            {
+                                actions.build_aur = true;
+                                ui.close_menu();
+                            }
+                            ui.separator();
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("aur"),
+                                    i18n.get("command-name-install-aur")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_aur = true;
+                                ui.close_menu();
+                            }
+                        });
 
-                ui.menu_button(i18n.get("menu-build-fedora"), |ui| {
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("generate-rpm"),
-                            i18n.get("menu-build-rpm")
-                        ))
-                        .clicked()
-                    {
-                        actions.build_rpm = true;
-                        ui.close_menu();
-                    }
-                    ui.separator();
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("generate-rpm"),
-                            i18n.get("command-name-install-generate-rpm")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_generate_rpm = true;
-                        ui.close_menu();
-                    }
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("rpm"),
-                            i18n.get("command-name-install-rpm")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_rpm = true;
-                        ui.close_menu();
-                    }
-                });
+                        ui.menu_button(i18n.get("menu-build-flatpak-sub"), |ui| {
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("flatpak"),
+                                    i18n.get("menu-build-flatpak")
+                                ))
+                                .clicked()
+                            {
+                                actions.build_flatpak = true;
+                                ui.close_menu();
+                            }
+                            ui.separator();
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("flatpak"),
+                                    i18n.get("command-name-install-flatpak")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_flatpak = true;
+                                ui.close_menu();
+                            }
+                        });
 
-                ui.menu_button(i18n.get("menu-build-appimage-sub"), |ui| {
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("appimage"),
-                            i18n.get("menu-build-appimage")
-                        ))
-                        .clicked()
-                    {
-                        actions.build_appimage = true;
-                        ui.close_menu();
-                    }
-                    ui.separator();
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("appimage"),
-                            i18n.get("command-name-install-appimage")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_appimage = true;
-                        ui.close_menu();
-                    }
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("appimagetool"),
-                            i18n.get("command-name-install-appimagetool")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_appimagetool = true;
-                        ui.close_menu();
-                    }
-                });
+                        ui.menu_button(i18n.get("menu-build-snap-sub"), |ui| {
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("snap"),
+                                    i18n.get("menu-build-snap")
+                                ))
+                                .clicked()
+                            {
+                                actions.build_snap = true;
+                                ui.close_menu();
+                            }
+                            ui.separator();
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("snap"),
+                                    i18n.get("command-name-install-snap")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_snap = true;
+                                ui.close_menu();
+                            }
+                        });
 
-                ui.menu_button(i18n.get("menu-build-windows"), |ui| {
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("xwin"),
-                            i18n.get("menu-build-exe")
-                        ))
-                        .clicked()
-                    {
-                        actions.build_exe = true;
-                        ui.close_menu();
-                    }
-                    ui.separator();
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("windows-target"),
-                            i18n.get("command-name-install-windows-target")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_windows_target = true;
-                        ui.close_menu();
-                    }
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("xwin"),
-                            i18n.get("command-name-install-xwin")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_xwin = true;
-                        ui.close_menu();
-                    }
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("clang"),
-                            i18n.get("command-name-install-clang")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_clang = true;
-                        ui.close_menu();
-                    }
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("lld"),
-                            i18n.get("command-name-install-lld")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_lld = true;
-                        ui.close_menu();
-                    }
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("nsis"),
-                            i18n.get("command-name-install-nsis")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_nsis = true;
-                        ui.close_menu();
-                    }
-                });
-            });
-        }).response;
+                        ui.menu_button(i18n.get("menu-build-archive"), |ui| {
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("tar"),
+                                    i18n.get("menu-build-tar-gz")
+                                ))
+                                .clicked()
+                            {
+                                actions.build_tar_gz = true;
+                                ui.close_menu();
+                            }
+                            ui.separator();
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("tar"),
+                                    i18n.get("command-name-install-tar")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_tar = true;
+                                ui.close_menu();
+                            }
+                        });
+
+                        ui.menu_button(i18n.get("menu-build-fedora"), |ui| {
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("generate-rpm"),
+                                    i18n.get("menu-build-rpm")
+                                ))
+                                .clicked()
+                            {
+                                actions.build_rpm = true;
+                                ui.close_menu();
+                            }
+                            ui.separator();
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("generate-rpm"),
+                                    i18n.get("command-name-install-generate-rpm")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_generate_rpm = true;
+                                ui.close_menu();
+                            }
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("rpm"),
+                                    i18n.get("command-name-install-rpm")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_rpm = true;
+                                ui.close_menu();
+                            }
+                        });
+
+                        ui.menu_button(i18n.get("menu-build-appimage-sub"), |ui| {
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("appimage"),
+                                    i18n.get("menu-build-appimage")
+                                ))
+                                .clicked()
+                            {
+                                actions.build_appimage = true;
+                                ui.close_menu();
+                            }
+                            ui.separator();
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("appimage"),
+                                    i18n.get("command-name-install-appimage")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_appimage = true;
+                                ui.close_menu();
+                            }
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("appimagetool"),
+                                    i18n.get("command-name-install-appimagetool")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_appimagetool = true;
+                                ui.close_menu();
+                            }
+                        });
+
+                        ui.menu_button(i18n.get("menu-build-windows"), |ui| {
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("xwin"),
+                                    i18n.get("menu-build-exe")
+                                ))
+                                .clicked()
+                            {
+                                actions.build_exe = true;
+                                ui.close_menu();
+                            }
+                            ui.separator();
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("windows-target"),
+                                    i18n.get("command-name-install-windows-target")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_windows_target = true;
+                                ui.close_menu();
+                            }
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("xwin"),
+                                    i18n.get("command-name-install-xwin")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_xwin = true;
+                                ui.close_menu();
+                            }
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("clang"),
+                                    i18n.get("command-name-install-clang")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_clang = true;
+                                ui.close_menu();
+                            }
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("lld"),
+                                    i18n.get("command-name-install-lld")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_lld = true;
+                                ui.close_menu();
+                            }
+                            if ui
+                                .button(format!(
+                                    "{} {}",
+                                    get_icon("nsis"),
+                                    i18n.get("command-name-install-nsis")
+                                ))
+                                .clicked()
+                            {
+                                actions.install_nsis = true;
+                                ui.close_menu();
+                            }
+                        });
+                    });
+                })
+                .response;
             if !can_build {
                 build_resp.on_hover_text(i18n.get("hover-build-menu-disabled"));
             }
@@ -672,6 +758,15 @@ pub(super) fn process_menu_actions(
     if actions.install_generate_rpm {
         ws.dep_wizard.open_for_generate_rpm();
     }
+    if actions.install_aur {
+        ws.dep_wizard.open_for_aur();
+    }
+    if actions.install_flatpak {
+        ws.dep_wizard.open_for_flatpak();
+    }
+    if actions.install_snap {
+        ws.dep_wizard.open_for_snap();
+    }
     if actions.install_xwin {
         ws.dep_wizard.open_for_xwin();
     }
@@ -684,30 +779,47 @@ pub(super) fn process_menu_actions(
     if actions.install_windows_target {
         ws.dep_wizard.open_for_windows_target();
     }
-    if actions.build_deb {
-        if let Some(t) = &mut ws.build_terminal {
-            t.send_command("mkdir -p target/dist && ./packaging/deb/build-deb.sh && mv target/debian/*.deb target/dist/ 2>/dev/null || true");
-        }
+    if actions.build_deb
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command("mkdir -p target/dist && ./packaging/deb/build-deb.sh && mv target/debian/*.deb target/dist/ 2>/dev/null || true");
     }
-    if actions.build_rpm {
-        if let Some(t) = &mut ws.build_terminal {
-            t.send_command("mkdir -p target/dist && cargo generate-rpm && mv *.rpm target/dist/ 2>/dev/null || true");
-        }
+    if actions.build_rpm
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command("mkdir -p target/dist && cargo generate-rpm && mv *.rpm target/dist/ 2>/dev/null || true");
     }
-    if actions.build_appimage {
-        if let Some(t) = &mut ws.build_terminal {
-            t.send_command("mkdir -p target/dist && cargo appimage && mv *.AppImage target/dist/ 2>/dev/null || true");
-        }
+    if actions.build_aur
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command("mkdir -p target/dist && cargo aur && mv target/cargo-aur/*.pkg.tar.zst target/dist/ 2>/dev/null || true");
     }
-    if actions.build_tar_gz {
-        if let Some(t) = &mut ws.build_terminal {
-            t.send_command("mkdir -p target/dist && cargo build --release && tar -C target/release -czvf target/dist/polycredo-editor.tar.gz polycredo-editor");
-        }
+    if actions.build_flatpak
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command("mkdir -p target/dist && flatpak-builder --force-clean build-dir org.polycredo.Editor.yaml && flatpak-builder --repo=repo --force-clean build-dir org.polycredo.Editor.yaml && flatpak build-bundle repo target/dist/polycredo-editor.flatpak org.polycredo.Editor");
     }
-    if actions.build_exe {
-        if let Some(t) = &mut ws.build_terminal {
-            t.send_command("mkdir -p target/dist && export PATH=$PATH:/usr/lib/llvm-19/bin && cargo xwin build --release --target x86_64-pc-windows-msvc && cp target/x86_64-pc-windows-msvc/release/polycredo-editor.exe target/dist/ 2>/dev/null || true");
-        }
+    if actions.build_snap
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command(
+            "mkdir -p target/dist && snapcraft && mv *.snap target/dist/ 2>/dev/null || true",
+        );
+    }
+    if actions.build_appimage
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command("mkdir -p target/dist && cargo appimage && mv *.AppImage target/dist/ 2>/dev/null || true");
+    }
+    if actions.build_tar_gz
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command("mkdir -p target/dist && cargo build --release && tar -C target/release -czvf target/dist/polycredo-editor.tar.gz polycredo-editor");
+    }
+    if actions.build_exe
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command("mkdir -p target/dist && export PATH=$PATH:/usr/lib/llvm-19/bin && cargo xwin build --release --target x86_64-pc-windows-msvc && cp target/x86_64-pc-windows-msvc/release/polycredo-editor.exe target/dist/ 2>/dev/null || true");
     }
     if actions.new_project {
         ws.show_new_project = true;

@@ -26,10 +26,71 @@ btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Vytvoriť .deb
 hover-create-deb-disabled = Nemožno vytvárať balíček v režime sandboxu. Prepnite na Sandbox OFF.
+hover-build-menu-disabled = Sestavovanie je zakázané v režime Sandbox ON alebo ak nie sú všetky súbory zo sandboxu prenesené do projektu.
 btn-run-profile = ▶ Spustiť...
 btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Upraviť
 runner-none = Nie sú definované žiadne profily.
+
+menu-build-windows = Windows
+
+## Dependency Wizard
+dep-wizard-title = Sprievodca inštaláciou závislostí
+dep-wizard-install-question = Chcete stiahnuť a nainštalovať { $tool } do { $path }?
+dep-wizard-install-cmd-question = Chcete spustiť inštaláciu { $tool } pomocou systémového príkazu?
+dep-wizard-btn-install = Inštalovať
+dep-wizard-btn-run-cmd = Spustiť inštaláciu (vyžaduje sudo)
+dep-wizard-status-downloading = Sťahujem...
+dep-wizard-status-running = Inštalujem...
+dep-wizard-status-success = Inštalácia bola úspešná!
+dep-wizard-status-error = Chyba inštalácie: { $error }
+
+command-name-install-nsis = Inštalovať NSIS
+command-name-install-rpm = Inštalovať rpm-build (dnf)
+command-name-install-generate-rpm = Inštalovať cargo-generate-rpm
+command-name-install-appimage = Inštalovať cargo-appimage
+command-name-install-aur = Inštalovať cargo-aur
+command-name-install-flatpak = Inštalovať flatpak-builder
+command-name-install-snap = Inštalovať snapcraft
+command-name-install-tar = Inštalovať tar
+command-name-install-deb-tools = Inštalovať Debian Build Tools
+command-name-install-appimagetool = Inštalovať appimagetool
+command-name-install-windows-target = Inštalovať Windows Target (rustup)
+command-name-install-xwin = Inštalovať cargo-xwin
+command-name-install-clang = Inštalovať Clang (LLVM)
+command-name-install-lld = Inštalovať LLD (Linker)
+
+dep-wizard-xwin-desc = Nástroj cargo-xwin je vyžadovaný pre cross-kompiláciu pre Windows MSVC z Linuxu.
+dep-wizard-generate-rpm-desc = Nástroj cargo-generate-rpm je vyžadovaný pre vytvorenie .rpm balíčka priamo z projektu v Rustu.
+dep-wizard-appimage-desc = Nástroj cargo-appimage je vyžadovaný pre vytvorenie prenosného balíčka AppImage priamo z vášho projektu v Rustu.
+dep-wizard-aur-desc = Nástroj cargo-aur je vyžadovaný pre vytváranie PKGBUILD súborov a AUR balíčkov pre Arch Linux.
+dep-wizard-flatpak-desc = Nástroj flatpak-builder je vyžadovaný pre zostavenie a balenie aplikácie do formátu Flatpak.
+dep-wizard-snap-desc = Nástroj snapcraft je vyžadovaný pre vytváranie Snap balíčkov pre Ubuntu a ďalšie distribúcie.
+dep-wizard-tar-desc = Nástroj tar je nevyhnutný pre vytváranie komprimovaných archívov .tar.gz pre Linux a BSD systémy.
+dep-wizard-deb-desc = Pre vytváranie .deb balíčkov sú vyžadované systémové nástroje ako dpkg-dev, build-essential a fakeroot.
+dep-wizard-clang-desc = Kompilátor Clang je vyžadovaný pre zostavenie natívnych C/C++ závislostí pre Windows.
+dep-wizard-lld-desc = Linker LLD je vyžadovaný pre linkovanie Windows binárok na Linuxe.
+dep-wizard-windows-target-desc = Pre kompiláciu je vyžadovaná štandardná knižnica Rustu pro x86_64-pc-windows-msvc.
+dep-wizard-nsis-desc = NSIS je vyžadovaný pre vytvorenie Windows inštalátora.
+dep-wizard-rpm-desc = Pre vytvorenie .rpm balíčkov je vyžadovaný nástroj rpmbuild.
+dep-wizard-appimagetool-desc = Nástroj appimagetool je vyžadovaný pre finálne zabalenie AppImage.
+
+menu-build-fedora = Fedora
+menu-build-debian = Debian / Ubuntu
+menu-build-arch = Arch Linux
+menu-build-flatpak-sub = Flatpak
+menu-build-snap-sub = Snap
+menu-build-appimage-sub = AppImage
+menu-build-archive = Archív (Linux/BSD)
+menu-build-deb = Zostaviť .deb
+menu-build-rpm = Zostaviť .rpm
+menu-build-aur = Zostaviť AUR (.pkg.tar.zst)
+menu-build-flatpak = Zostaviť Flatpak bundle
+menu-build-snap = Zostaviť Snap balíček
+menu-build-appimage = Zostaviť .AppImage
+menu-build-tar-gz = Zostaviť .tar.gz
+menu-build-exe = Zostaviť .exe (Windows)
+menu-build = Zostaviť
 
 ## Git operácie
 git-add-all = git add .

@@ -63,7 +63,10 @@ fn main() {
         // Cesta k ikoně musí být relativní k místu spuštění nebo absolutní.
         // Použijeme absolutní cestu pro jistotu.
         let abs_icon_path = std::fs::canonicalize(icon_path).unwrap();
-        let rc_content = format!("1 ICON \"{}\"", abs_icon_path.display().to_string().replace("\\", "/"));
+        let rc_content = format!(
+            "1 ICON \"{}\"",
+            abs_icon_path.display().to_string().replace("\\", "/")
+        );
         std::fs::write(&rc_path, rc_content).unwrap();
 
         // 2. Pokusíme se zkompilovat .res soubor pomocí llvm-rc

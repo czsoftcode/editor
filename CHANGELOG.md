@@ -1,19 +1,19 @@
-## [0.7.32] - 2026-02-28
+## [0.8.0] - 2026-02-28
 
 ### Added
-- **Windows Integration**: Implemented high-quality multi-resolution icons for Windows executables (`.exe`).
-- **Fedora Integration**: Added a new "Fedora" submenu under the Build menu for managing RPM-related dependencies.
-- **AppImage Integration**: Added a new "AppImage" submenu with automated `cargo-appimage` and `appimagetool` installation support.
+- **Multi-Platform Distribution**: Implemented comprehensive packaging support for all major platforms: Windows (.exe), Debian/Ubuntu (.deb), Fedora (RPM), Arch Linux (AUR), AppImage, Flatpak, Snap, and Archive (.tar.gz).
 - **Unified Build Protection**: The Build menu is now intelligently disabled when in "Sandbox ON" mode or when unpromoted changes exist, preventing incomplete builds.
-- **Unified Distribution**: All packaging outputs (`.deb`, `.rpm`, `.AppImage`, `.tar.gz`, `.exe`) are now automatically collected in a single `target/dist/` directory.
-- **Dependency Wizard**: Extended the wizard to support automated installation of `cargo-generate-rpm`, `cargo-appimage`, and `rpm-build`.
-- **Icon Generation**: Added automated script-based generation of PNG icons (16px to 256px) with enhanced contrast.
+- **Unified Output**: All distribution packages are now automatically collected in a single `target/dist/` directory.
+- **Windows Integration**: High-quality multi-resolution icons embedded into Windows executables with full cross-compilation support.
+- **Real-time Dependency Tracking**: Submenus in the Build menu now show live status (✅/❌) of required system tools.
+- **Dependency Wizard**: Extended to support automated installation for all new packaging formats across different Linux distributions.
+- **Icon Generation**: Automated generation of vibrant, high-contrast PNG icons (16px to 256px).
 
 ### Changed
-- **Tool Availability Check**: Implemented automatic startup and periodic background checks for all packaging tools, showing real-time status (✅/❌) in submenus.
-- **Windows IPC**: Improved IPC reliability on Windows using local TCP sockets (127.0.0.1).
-- **UI/UX**: Reorganized the Build menu into logical submenus for each platform (Debian, Fedora, AppImage, Windows, Archive).
-- **RPM Packaging**: Optimized `Cargo.toml` for `cargo-generate-rpm` compatibility.
+- **UI/UX**: Completely reorganized the Build menu into platform-specific submenus for better clarity.
+- **Windows IPC**: Switched to local TCP sockets (127.0.0.1) for enhanced reliability on Windows.
+- **Localization**: Synchronized all localization keys across Czech, English, German, Russian, and Slovak.
+- **RPM/AUR Packaging**: Optimized configuration for native package generation.
 
 ## [0.7.31] - 2026-02-28
 

@@ -446,7 +446,8 @@ pub(super) fn process_background_events(
     if ws.win_tool_last_check.elapsed().as_secs() >= 30 // Check every 30 seconds
         && ws.win_tool_check_rx.is_none()
     {
-        ws.win_tool_check_rx = Some(crate::app::ui::workspace::state::actions::spawn_win_tool_check());
+        ws.win_tool_check_rx =
+            Some(crate::app::ui::workspace::state::actions::spawn_win_tool_check());
     }
 
     // --- 5. Async results ---

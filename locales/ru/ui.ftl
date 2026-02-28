@@ -25,12 +25,74 @@ btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
-btn-create-deb = Создать .deb
-hover-create-deb-disabled = Невозможно создать пакет в режиме песочницы. Переключитесь на Sandbox ВЫКЛ.
-btn-run-profile = ▶ Запустить профиль...
+btn-create-deb = Create .deb
+hover-create-deb-disabled = Cannot create package in sandbox mode. Switch to Sandbox OFF.
+hover-build-menu-disabled = Building is disabled in Sandbox ON mode or if there are unpromoted files in the sandbox.
+btn-run-profile = ▶ Запустить...
 btn-git-profile =  Git...
-btn-edit-profiles = ⚙ Изменить
+btn-edit-profiles = ⚙ Редактировать
 runner-none = Профили не определены.
+
+menu-build-windows = Windows
+
+## Dependency Wizard
+dep-wizard-title = Dependency Installation Wizard
+dep-wizard-install-question = Do you want to download and install { $tool } to { $path }?
+dep-wizard-install-cmd-question = Do you want to start the installation of { $tool } using a system command?
+dep-wizard-btn-install = Install
+dep-wizard-btn-run-cmd = Start Installation (requires sudo)
+dep-wizard-status-downloading = Downloading...
+dep-wizard-status-running = Installing...
+dep-wizard-status-success = Installation successful!
+dep-wizard-status-error = Installation error: { $error }
+
+command-name-install-nsis = Install NSIS
+command-name-install-rpm = Install rpm-build (dnf)
+command-name-install-generate-rpm = Install cargo-generate-rpm
+command-name-install-appimage = Install cargo-appimage
+command-name-install-aur = Install cargo-aur
+command-name-install-flatpak = Install flatpak-builder
+command-name-install-snap = Install snapcraft
+command-name-install-tar = Install tar
+command-name-install-deb-tools = Install Debian Build Tools
+command-name-install-appimagetool = Install appimagetool
+command-name-install-windows-target = Install Windows Target (rustup)
+command-name-install-xwin = Install cargo-xwin
+command-name-install-clang = Install Clang (LLVM)
+command-name-install-lld = Install LLD (Linker)
+
+dep-wizard-xwin-desc = The cargo-xwin tool is required for cross-compiling for Windows MSVC from Linux.
+dep-wizard-generate-rpm-desc = The cargo-generate-rpm tool is required to create an .rpm package directly from your Rust project.
+dep-wizard-appimage-desc = The cargo-appimage tool is required to create a portable AppImage package directly from your Rust project.
+dep-wizard-aur-desc = The cargo-aur tool is required to create PKGBUILD files and AUR packages for Arch Linux.
+dep-wizard-flatpak-desc = The flatpak-builder tool is required to build and package the application into the Flatpak format.
+dep-wizard-snap-desc = The snapcraft tool is required to create Snap packages for Ubuntu and other distributions.
+dep-wizard-tar-desc = The tar utility is essential for creating compressed .tar.gz archives for Linux and BSD systems.
+dep-wizard-deb-desc = System tools like dpkg-dev, build-essential, and fakeroot are required to create .deb packages.
+dep-wizard-clang-desc = Clang compiler is required for building native C/C++ dependencies for Windows.
+dep-wizard-lld-desc = LLD linker is required for linking Windows binaries on Linux.
+dep-wizard-windows-target-desc = Rust standard library for x86_64-pc-windows-msvc is required for compilation.
+dep-wizard-nsis-desc = NSIS is required to create Windows installers.
+dep-wizard-rpm-desc = The rpmbuild utility is required to create .rpm packages.
+dep-wizard-appimagetool-desc = The appimagetool utility is required for final AppImage bundling.
+
+menu-build-fedora = Fedora
+menu-build-debian = Debian / Ubuntu
+menu-build-arch = Arch Linux
+menu-build-flatpak-sub = Flatpak
+menu-build-snap-sub = Snap
+menu-build-appimage-sub = AppImage
+menu-build-archive = Archive (Linux/BSD)
+menu-build-deb = Build .deb
+menu-build-rpm = Build .rpm
+menu-build-aur = Build AUR (.pkg.tar.zst)
+menu-build-flatpak = Build Flatpak bundle
+menu-build-snap = Build Snap package
+menu-build-appimage = Build .AppImage
+menu-build-tar-gz = Build .tar.gz
+menu-build-exe = Build .exe (Windows)
+menu-build = Build
+
 
 ## Операции Git
 git-add-all = git add .

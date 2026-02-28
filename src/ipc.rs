@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::net::{TcpListener, TcpStream, SocketAddr};
 
 #[cfg(unix)]
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -296,7 +296,9 @@ fn connect_to_process_socket(path: &Path) -> Option<IpcStream> {
 fn focus_process_window(pid: u32) -> bool {
     let path = process_socket_path(pid);
     if let Some(mut stream) = connect_to_process_socket(&path) {
-        stream.set_write_timeout(Some(std::time::Duration::from_secs(1))).ok();
+        stream
+            .set_write_timeout(Some(std::time::Duration::from_secs(1)))
+            .ok();
         writeln!(stream, "FOCUS").is_ok()
     } else {
         false
@@ -347,11 +349,10 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
     if let Some(rest) = line.strip_prefix("REGISTER ") {
         if let Some((pid_str, path_str)) = rest.split_once(' ')
             && let Ok(pid) = pid_str.parse::<u32>()
+            && let Some(path) = normalize_project_path_str(path_str)
         {
-            if let Some(path) = normalize_project_path_str(path_str) {
-                state.lock().unwrap().registered.insert(path, pid);
-                return vec!["OK".into()];
-            }
+            state.lock().unwrap().registered.insert(path, pid);
+            return vec!["OK".into()];
         }
         return vec!["ERR bad REGISTER".into()];
     }
@@ -395,7 +396,9 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
 
     if line == "FOCUS_MAIN" {
         let pid_opt = state.lock().unwrap().registered.values().next().copied();
-        if let Some(pid) = pid_opt && focus_process_window(pid) {
+        if let Some(pid) = pid_opt
+            && focus_process_window(pid)
+        {
             return vec!["OK".into()];
         }
         return vec!["ERR no registered window".into()];
@@ -405,7 +408,9 @@ fn process_command(line: &str, state: &Arc<Mutex<ServerState>>) -> Vec<String> {
 }
 
 fn handle_connection(mut stream: IpcStream, state: Arc<Mutex<ServerState>>) {
-    stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).ok();
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+        .ok();
     let mut line = String::new();
     {
         let mut reader = BufReader::new(&mut stream);
@@ -422,23 +427,35 @@ fn handle_connection(mut stream: IpcStream, state: Arc<Mutex<ServerState>>) {
 
 fn server_loop(listener: IpcListener, state: Arc<Mutex<ServerState>>) {
     let active_workers = Arc::new(AtomicUsize::new(0));
-    
+
     match listener {
         #[cfg(unix)]
         IpcListener::Unix(l) => {
             for stream in l.incoming().flatten() {
-                spawn_worker(IpcStream::Unix(stream), state.clone(), active_workers.clone());
+                spawn_worker(
+                    IpcStream::Unix(stream),
+                    state.clone(),
+                    active_workers.clone(),
+                );
             }
         }
         IpcListener::Tcp(l) => {
             for stream in l.incoming().flatten() {
-                spawn_worker(IpcStream::Tcp(stream), state.clone(), active_workers.clone());
+                spawn_worker(
+                    IpcStream::Tcp(stream),
+                    state.clone(),
+                    active_workers.clone(),
+                );
             }
         }
     }
 }
 
-fn spawn_worker(stream: IpcStream, state: Arc<Mutex<ServerState>>, active_workers: Arc<AtomicUsize>) {
+fn spawn_worker(
+    stream: IpcStream,
+    state: Arc<Mutex<ServerState>>,
+    active_workers: Arc<AtomicUsize>,
+) {
     if active_workers.load(Ordering::Relaxed) >= IPC_MAX_WORKERS {
         return;
     }
@@ -480,7 +497,7 @@ impl IpcServer {
 
         let _ = std::fs::remove_file(&sock);
         let listener = Self::bind_listener(&sock)?;
-        
+
         let (open_tx, open_rx) = std::sync::mpsc::channel();
         let state = Arc::new(Mutex::new(ServerState {
             registered: HashMap::new(),
@@ -545,7 +562,9 @@ impl Ipc {
             return false;
         };
         let cmd = format!("QUERY {}", path.display());
-        Self::send_one(&cmd).map(|r| r == "FOCUSED").unwrap_or(false)
+        Self::send_one(&cmd)
+            .map(|r| r == "FOCUSED")
+            .unwrap_or(false)
     }
 
     pub fn register(path: &Path) {
@@ -578,7 +597,9 @@ impl Ipc {
     }
 
     pub fn focus_main() -> bool {
-        Self::send_one("FOCUS_MAIN").map(|r| r == "OK").unwrap_or(false)
+        Self::send_one("FOCUS_MAIN")
+            .map(|r| r == "OK")
+            .unwrap_or(false)
     }
 
     pub fn recent() -> Vec<PathBuf> {

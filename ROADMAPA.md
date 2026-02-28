@@ -46,13 +46,14 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 
 - [ ] **LSP plná sada** — refaktoring, rename symbol, code actions přes LSP.
 - [ ] **macOS build** — funkční binárka pro macOS (Apple Silicon + Intel).
-- [x] **Distribuce Linuxu** — AppImage / .deb balíček; Flatpak.
+- [x] **Distribuce Linuxu** — AppImage, .deb, .rpm, .pkg.tar.zst (Arch), Flatpak, Snap a .tar.gz.
+- [x] **Ochrana Buildu** — automatické blokování sestavení při nepromotovaných souborech nebo Sandbox ON.
 - [ ] **WASM plugin API (beta)** — první vlna komunitních pluginů.
 
 ## Q4 2026 — Ekosystém a v1.0
 **Cíl:** Veřejné vydání jako stabilní produkt připravený na komunitu.
 
-- [ ] **Windows build alpha** — základní funkčnost na Windows 11.
+- [x] **Windows build (v0.8.0)** — plná podpora Windows 10/11 včetně cross-kompilace, ikon a stabilního IPC.
 - [ ] **PolyCredo Hub (lite)** — sdílení snippetů, AI promptů a nastavení (local-first).
 - [ ] **v1.0 release** — stabilní API, changelog, dokumentace.
 

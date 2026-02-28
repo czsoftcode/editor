@@ -1,10 +1,10 @@
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, Ordering};
-use eframe::egui;
 use crate::app::ui::widgets::modal::StandardModal;
 use crate::i18n::I18n;
 use crate::tr;
+use eframe::egui;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone, PartialEq, Default)]
 pub enum InstallStatus {
@@ -50,12 +50,12 @@ impl DependencyWizard {
     pub fn open_for_appimagetool(&mut self) {
         let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
         let target = home.join(".local/bin/appimagetool");
-        
+
         self.active_dependency = Some(Dependency {
             id: "appimagetool".into(),
             name: "appimagetool".into(),
             description_key: "dep-wizard-appimagetool-desc".into(),
-            method: InstallMethod::Download { 
+            method: InstallMethod::Download {
                 url: "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage".into(),
                 target
             },
@@ -67,13 +67,19 @@ impl DependencyWizard {
     pub fn open_for_nsis(&mut self) {
         #[cfg(windows)]
         let method = InstallMethod::Download {
-            url: "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.10/nsis-3.10-setup.exe".into(),
+            url: "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.10/nsis-3.10-setup.exe"
+                .into(),
             target: dirs::cache_dir().unwrap_or_default().join("nsis-setup.exe"),
         };
         #[cfg(not(windows))]
         let method = InstallMethod::SystemCommand {
             cmd: "pkexec".into(),
-            args: vec!["apt-get".into(), "install".into(), "-y".into(), "nsis".into()],
+            args: vec![
+                "apt-get".into(),
+                "install".into(),
+                "-y".into(),
+                "nsis".into(),
+            ],
         };
 
         self.active_dependency = Some(Dependency {
@@ -93,7 +99,13 @@ impl DependencyWizard {
             description_key: "dep-wizard-rpm-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "pkexec".into(),
-                args: vec!["dnf".into(), "install".into(), "-y".into(), "rpm-build".into(), "rpm".into()],
+                args: vec![
+                    "dnf".into(),
+                    "install".into(),
+                    "-y".into(),
+                    "rpm-build".into(),
+                    "rpm".into(),
+                ],
             },
         });
         self.reset_status();
@@ -108,6 +120,58 @@ impl DependencyWizard {
             method: InstallMethod::SystemCommand {
                 cmd: "cargo".into(),
                 args: vec!["install".into(), "cargo-generate-rpm".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_aur(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "aur".into(),
+            name: "cargo-aur".into(),
+            description_key: "dep-wizard-aur-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "cargo".into(),
+                args: vec!["install".into(), "cargo-aur".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_flatpak(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "flatpak".into(),
+            name: "Flatpak Builder".into(),
+            description_key: "dep-wizard-flatpak-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "pkexec".into(),
+                args: vec![
+                    "apt-get".into(),
+                    "install".into(),
+                    "-y".into(),
+                    "flatpak-builder".into(),
+                ],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_snap(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "snap".into(),
+            name: "Snapcraft".into(),
+            description_key: "dep-wizard-snap-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "pkexec".into(),
+                args: vec![
+                    "apt-get".into(),
+                    "install".into(),
+                    "-y".into(),
+                    "snapcraft".into(),
+                ],
             },
         });
         self.reset_status();
@@ -135,7 +199,12 @@ impl DependencyWizard {
             description_key: "dep-wizard-tar-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "pkexec".into(),
-                args: vec!["apt-get".into(), "install".into(), "-y".into(), "tar".into()],
+                args: vec![
+                    "apt-get".into(),
+                    "install".into(),
+                    "-y".into(),
+                    "tar".into(),
+                ],
             },
         });
         self.reset_status();
@@ -149,7 +218,14 @@ impl DependencyWizard {
             description_key: "dep-wizard-deb-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "pkexec".into(),
-                args: vec!["apt-get".into(), "install".into(), "-y".into(), "dpkg-dev".into(), "build-essential".into(), "fakeroot".into()],
+                args: vec![
+                    "apt-get".into(),
+                    "install".into(),
+                    "-y".into(),
+                    "dpkg-dev".into(),
+                    "build-essential".into(),
+                    "fakeroot".into(),
+                ],
             },
         });
         self.reset_status();
@@ -177,7 +253,12 @@ impl DependencyWizard {
             description_key: "dep-wizard-clang-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "pkexec".into(),
-                args: vec!["apt-get".into(), "install".into(), "-y".into(), "clang".into()],
+                args: vec![
+                    "apt-get".into(),
+                    "install".into(),
+                    "-y".into(),
+                    "clang".into(),
+                ],
             },
         });
         self.reset_status();
@@ -191,7 +272,12 @@ impl DependencyWizard {
             description_key: "dep-wizard-lld-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "pkexec".into(),
-                args: vec!["apt-get".into(), "install".into(), "-y".into(), "lld".into()],
+                args: vec![
+                    "apt-get".into(),
+                    "install".into(),
+                    "-y".into(),
+                    "lld".into(),
+                ],
             },
         });
         self.reset_status();
@@ -205,7 +291,11 @@ impl DependencyWizard {
             description_key: "dep-wizard-windows-target-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "rustup".into(),
-                args: vec!["target".into(), "add".into(), "x86_64-pc-windows-msvc".into()],
+                args: vec![
+                    "target".into(),
+                    "add".into(),
+                    "x86_64-pc-windows-msvc".into(),
+                ],
             },
         });
         self.reset_status();
@@ -228,10 +318,8 @@ impl DependencyWizard {
             None => return,
         };
 
-        let modal = StandardModal::new(
-            tr!(i18n, "dep-wizard-title"),
-            "dependency_wizard",
-        ).with_size(500.0, 320.0);
+        let modal = StandardModal::new(tr!(i18n, "dep-wizard-title"), "dependency_wizard")
+            .with_size(500.0, 320.0);
 
         let mut local_show = self.show;
         modal.show(ctx, &mut local_show, |ui| {
@@ -248,7 +336,11 @@ impl DependencyWizard {
                             ui.add_space(10.0);
                             match &dep.method {
                                 InstallMethod::Download { target, .. } => {
-                                    ui.label(tr!(i18n, "dep-wizard-install-question", path = target.display().to_string()));
+                                    ui.label(tr!(
+                                        i18n,
+                                        "dep-wizard-install-question",
+                                        path = target.display().to_string()
+                                    ));
                                 }
                                 InstallMethod::SystemCommand { .. } => {
                                     ui.label(tr!(i18n, "dep-wizard-install-cmd-question"));
@@ -264,10 +356,16 @@ impl DependencyWizard {
                             ui.add(egui::Spinner::new());
                         }
                         InstallStatus::Success => {
-                            ui.colored_label(egui::Color32::GREEN, tr!(i18n, "dep-wizard-status-success"));
+                            ui.colored_label(
+                                egui::Color32::GREEN,
+                                tr!(i18n, "dep-wizard-status-success"),
+                            );
                         }
                         InstallStatus::Error(e) => {
-                            ui.colored_label(egui::Color32::RED, tr!(i18n, "dep-wizard-status-error", error = e));
+                            ui.colored_label(
+                                egui::Color32::RED,
+                                tr!(i18n, "dep-wizard-status-error", error = e),
+                            );
                         }
                     }
                 });
@@ -279,7 +377,9 @@ impl DependencyWizard {
                     InstallStatus::Pending => {
                         let btn_text = match &dep.method {
                             InstallMethod::Download { .. } => tr!(i18n, "dep-wizard-btn-install"),
-                            InstallMethod::SystemCommand { .. } => tr!(i18n, "dep-wizard-btn-run-cmd"),
+                            InstallMethod::SystemCommand { .. } => {
+                                tr!(i18n, "dep-wizard-btn-run-cmd")
+                            }
                         };
                         if ui.button(btn_text).clicked() {
                             self.start_install(ctx.clone());
@@ -328,7 +428,12 @@ impl DependencyWizard {
                         }
 
                         let output = tokio::process::Command::new("curl")
-                            .arg("-L").arg("-o").arg(&target).arg(&url).output().await;
+                            .arg("-L")
+                            .arg("-o")
+                            .arg(&target)
+                            .arg(&url)
+                            .output()
+                            .await;
 
                         match output {
                             Ok(out) if out.status.success() => {
@@ -349,7 +454,10 @@ impl DependencyWizard {
 
                                 *status_arc.lock().unwrap() = InstallStatus::Success;
                             }
-                            _ => *status_arc.lock().unwrap() = InstallStatus::Error("Download failed".into()),
+                            _ => {
+                                *status_arc.lock().unwrap() =
+                                    InstallStatus::Error("Download failed".into())
+                            }
                         }
                     }
                     InstallMethod::SystemCommand { cmd, args } => {
@@ -361,9 +469,17 @@ impl DependencyWizard {
 
                         let output = tokio::process::Command::new(cmd).args(args).output().await;
                         match output {
-                            Ok(out) if out.status.success() => *status_arc.lock().unwrap() = InstallStatus::Success,
-                            Ok(out) => *status_arc.lock().unwrap() = InstallStatus::Error(String::from_utf8_lossy(&out.stderr).to_string()),
-                            Err(e) => *status_arc.lock().unwrap() = InstallStatus::Error(e.to_string()),
+                            Ok(out) if out.status.success() => {
+                                *status_arc.lock().unwrap() = InstallStatus::Success
+                            }
+                            Ok(out) => {
+                                *status_arc.lock().unwrap() = InstallStatus::Error(
+                                    String::from_utf8_lossy(&out.stderr).to_string(),
+                                )
+                            }
+                            Err(e) => {
+                                *status_arc.lock().unwrap() = InstallStatus::Error(e.to_string())
+                            }
                         }
                     }
                 }

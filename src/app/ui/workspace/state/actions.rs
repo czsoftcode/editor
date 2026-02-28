@@ -27,7 +27,7 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let mut results = HashMap::new();
-        
+
         // Check binaries in PATH
         for (id, cmd) in [
             ("xwin", "cargo-xwin"),
@@ -40,6 +40,9 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
             ("appimagetool", "appimagetool"),
             ("tar", "tar"),
             ("deb", "dpkg-deb"),
+            ("aur", "cargo-aur"),
+            ("flatpak", "flatpak-builder"),
+            ("snap", "snapcraft"),
         ] {
             let found = std::process::Command::new("which")
                 .arg(cmd)

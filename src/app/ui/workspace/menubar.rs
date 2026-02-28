@@ -34,6 +34,7 @@ pub(crate) struct MenuActions {
     pub install_appimagetool: bool,
     pub install_nsis: bool,
     pub install_rpm: bool,
+    pub install_generate_rpm: bool,
     pub install_xwin: bool,
     pub install_clang: bool,
     pub install_lld: bool,
@@ -386,12 +387,41 @@ pub(super) fn render_menu_bar(
                     }
                 });
 
+                ui.menu_button(i18n.get("menu-build-fedora"), |ui| {
+                    let get_icon = |id: &str| {
+                        if *ws.win_tool_available.get(id).unwrap_or(&false) {
+                            "✅"
+                        } else {
+                            "❌"
+                        }
+                    };
+
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("generate-rpm"),
+                            i18n.get("command-name-install-generate-rpm")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_generate_rpm = true;
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("rpm"),
+                            i18n.get("command-name-install-rpm")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_rpm = true;
+                        ui.close_menu();
+                    }
+                });
+
                 if ui.button(i18n.get("command-name-install-appimagetool")).clicked() {
                     actions.install_appimagetool = true;
-                    ui.close_menu();
-                }
-                if ui.button(i18n.get("command-name-install-rpm")).clicked() {
-                    actions.install_rpm = true;
                     ui.close_menu();
                 }
             });
@@ -543,6 +573,9 @@ pub(super) fn process_menu_actions(
     }
     if actions.install_rpm {
         ws.dep_wizard.open_for_rpm();
+    }
+    if actions.install_generate_rpm {
+        ws.dep_wizard.open_for_generate_rpm();
     }
     if actions.install_xwin {
         ws.dep_wizard.open_for_xwin();

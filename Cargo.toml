@@ -11,7 +11,7 @@ homepage = "https://github.com/czsoftcode/editor"
 [package.metadata.packager]
 name = "polycredo-editor"
 identifier = "io.github.czsoftcode.editor"
-version = "0.7.31"
+version = "0.7.32"
 authors = ["stkremen <stkremen@gmail.com>"]
 description = "PolyCredo Editor — Local-first AI-powered editor for Rust and more."
 category = "Development"
@@ -24,6 +24,15 @@ icons = [
     "packaging/icons/icon-64.png",
     "packaging/icons/icon-128.png",
     "packaging/icons/icon-256.png"
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/polycredo-editor", dest = "/usr/bin/polycredo-editor", mode = "755" },
+    { source = "packaging/icons/icon-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/polycredo-editor.png", mode = "644" },
+    { source = "packaging/icons/icon-64.png", dest = "/usr/share/icons/hicolor/64x64/apps/polycredo-editor.png", mode = "644" },
+    { source = "packaging/icons/icon-32.png", dest = "/usr/share/icons/hicolor/32x32/apps/polycredo-editor.png", mode = "644" },
+    { source = "packaging/deb/polycredo-editor.desktop", dest = "/usr/share/applications/polycredo-editor.desktop", mode = "644" }
 ]
 
 [package.metadata.packager.debian]

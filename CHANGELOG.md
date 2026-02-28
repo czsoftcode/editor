@@ -2,13 +2,17 @@
 
 ### Added
 - **Windows Integration**: Implemented high-quality multi-resolution icons for Windows executables (`.exe`).
+- **Fedora Integration**: Added a new "Fedora" submenu under the Build menu for managing RPM-related dependencies.
+- **Dependency Wizard**: Extended the wizard to support automated installation of `cargo-generate-rpm` and `rpm-build` using `dnf`.
 - **Icon Generation**: Added automated script-based generation of PNG icons (16px to 256px) with enhanced contrast and vibrancy for better visibility on modern displays.
 - **Cross-Compilation Resources**: Integrated `winres` with manual `llvm-rc` fallback in `build.rs` to support embedding icons into the binary during cross-compilation from Linux.
 - **Documentation**: Added `docs/WINDOWS_BUILD.md` detailing the cross-compilation procedure using `cargo-xwin` and `llvm-rc`.
 
 ### Changed
+- **Tool Availability Check**: Implemented automatic startup and periodic (30s) background checks for Fedora/RPM tools (`cargo-generate-rpm`, `rpmbuild`), showing real-time status (✅/❌) in the Build menu.
 - **Windows IPC**: Improved IPC reliability on Windows by using local TCP sockets (127.0.0.1) instead of Unix domain sockets, with automatic port discovery via configuration file.
 - **UI/UX**: Refined the Dependency Wizard and Build Menu labels for better consistency across languages.
+- **RPM Packaging**: Optimized `Cargo.toml` for `cargo-generate-rpm` compatibility.
 
 ## [0.7.31] - 2026-02-28
 

@@ -89,11 +89,25 @@ impl DependencyWizard {
     pub fn open_for_rpm(&mut self) {
         self.active_dependency = Some(Dependency {
             id: "rpm".into(),
-            name: "rpmbuild".into(),
+            name: "rpm-build".into(),
             description_key: "dep-wizard-rpm-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "pkexec".into(),
-                args: vec!["apt-get".into(), "install".into(), "-y".into(), "rpm".into()],
+                args: vec!["dnf".into(), "install".into(), "-y".into(), "rpm-build".into(), "rpm".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_generate_rpm(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "generate-rpm".into(),
+            name: "cargo-generate-rpm".into(),
+            description_key: "dep-wizard-generate-rpm-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "cargo".into(),
+                args: vec!["install".into(), "cargo-generate-rpm".into()],
             },
         });
         self.reset_status();

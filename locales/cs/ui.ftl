@@ -351,3 +351,4 @@ support-modal-title = Podpořit vývoj PolyCredo
 support-modal-body = PolyCredo Editor je vyvíjen s vizí soukromí, rychlosti a bezpečné integrace AI asistentů. Pokud se vám projekt líbí, budeme vděční za jakoukoli podporu. Vaše příspěvky nám pomáhají věnovat více času vývoji nových funkcí a údržbě.
 support-modal-github = Sledovat na GitHubu
 support-modal-donate = Přispět na rozvoj
+semantic-indexing-btn-stop = Zastavit indexaci

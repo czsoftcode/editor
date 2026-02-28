@@ -167,6 +167,10 @@ pub(crate) struct AppShared {
     pub registry: crate::app::registry::Registry,
     /// Version of settings, incremented on change to ensure all viewports re-apply them (Audit S-4).
     pub settings_version: std::sync::atomic::AtomicU64,
+    /// Shared BERT model for semantic search (all-MiniLM-L6-v2)
+    pub bert_model: Option<std::sync::Arc<candle_transformers::models::bert::BertModel>>,
+    /// Shared BERT tokenizer
+    pub bert_tokenizer: Option<std::sync::Arc<tokenizers::Tokenizer>>,
 }
 
 // ---------------------------------------------------------------------------

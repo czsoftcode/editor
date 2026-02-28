@@ -34,6 +34,8 @@ use eframe::egui;
 // EditorApp — Main application (root viewport)
 // ---------------------------------------------------------------------------
 
+use crate::tr;
+
 pub struct EditorApp {
     /// Root workspace (None = startup dialog)
     root_ws: Option<WorkspaceState>,
@@ -113,43 +115,6 @@ impl EditorApp {
 
         let settings = std::sync::Arc::new(crate::settings::Settings::load());
         let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
-
-        // Register all projects
-        for p in &paths_to_open {
-            Ipc::register(p);
-        }
-
-        // Add to recent
-        for p in &paths_to_open {
-            Ipc::add_recent(p);
-        }
-
-        // Initialize root workspace
-        let root_ws = paths_to_open
-            .first()
-            .map(|p| init_workspace(p.clone(), &panel_state, cc.egui_ctx.clone(), &settings));
-
-        // Initialize secondary workspaces from session
-        let mut counter = 0u64;
-        let secondary: Vec<SecondaryWorkspace> = paths_to_open
-            .get(1..)
-            .unwrap_or(&[])
-            .iter()
-            .map(|p| {
-                let vid = egui::ViewportId::from_hash_of(format!("workspace_{}", counter));
-                counter += 1;
-                SecondaryWorkspace {
-                    viewport_id: vid,
-                    state: Arc::new(Mutex::new(init_workspace(
-                        p.clone(),
-                        &panel_state,
-                        cc.egui_ctx.clone(),
-                        &settings,
-                    ))),
-                    close_requested: Arc::new(AtomicBool::new(false)),
-                }
-            })
-            .collect();
 
         let sandbox_root = paths_to_open
             .first()
@@ -251,12 +216,58 @@ impl EditorApp {
         let shared = Arc::new(Mutex::new(AppShared {
             recent_projects,
             actions: Vec::new(),
-            settings,
+            settings: Arc::clone(&settings),
             i18n,
             is_internal_save: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             registry,
             settings_version: std::sync::atomic::AtomicU64::new(1),
+            bert_model: None,
+            bert_tokenizer: None,
         }));
+
+        // Register all projects
+        for p in &paths_to_open {
+            Ipc::register(p);
+        }
+
+        // Add to recent
+        for p in &paths_to_open {
+            Ipc::add_recent(p);
+        }
+
+        // Initialize root workspace
+        let root_ws = paths_to_open.first().map(|p| {
+            init_workspace(
+                p.clone(),
+                &panel_state,
+                cc.egui_ctx.clone(),
+                &settings,
+                Arc::clone(&shared),
+            )
+        });
+
+        // Initialize secondary workspaces from session
+        let mut counter = 0u64;
+        let secondary: Vec<SecondaryWorkspace> = paths_to_open
+            .get(1..)
+            .unwrap_or(&[])
+            .iter()
+            .map(|p| {
+                let vid = egui::ViewportId::from_hash_of(format!("workspace_{}", counter));
+                counter += 1;
+                SecondaryWorkspace {
+                    viewport_id: vid,
+                    state: Arc::new(Mutex::new(init_workspace(
+                        p.clone(),
+                        &panel_state,
+                        cc.egui_ctx.clone(),
+                        &settings,
+                        Arc::clone(&shared),
+                    ))),
+                    close_requested: Arc::new(AtomicBool::new(false)),
+                }
+            })
+            .collect();
 
         // Update local cache of recent projects
         {
@@ -367,7 +378,13 @@ impl EditorApp {
         self.next_viewport_counter += 1;
         let panel_state = self.current_panel_state();
         let settings = self.shared.lock().expect("lock").settings.clone();
-        let ws = init_workspace(path.clone(), &panel_state, ctx.clone(), &settings);
+        let ws = init_workspace(
+            path.clone(),
+            &panel_state,
+            ctx.clone(),
+            &settings,
+            Arc::clone(&self.shared),
+        );
         self.secondary.push(SecondaryWorkspace {
             viewport_id: vid,
             state: Arc::new(Mutex::new(ws)),
@@ -493,6 +510,7 @@ impl EditorApp {
                 .map(|ws| format!("PolyCredo Editor — {}", ws.root_path.display()))
                 .unwrap_or_else(|_| "PolyCredo Editor".to_string());
 
+            let shared_for_init = Arc::clone(&self.shared);
             ctx.show_viewport_deferred(
                 vid,
                 egui::ViewportBuilder::default()
@@ -527,7 +545,13 @@ impl EditorApp {
                         let panel = ws_to_panel_state(&ws);
                         let new_path_clone = new_path.clone();
                         let settings = shared_arc.lock().expect("lock").settings.clone();
-                        *ws = init_workspace(new_path, &panel, ctx.clone(), &settings);
+                        *ws = init_workspace(
+                            new_path,
+                            &panel,
+                            ctx.clone(),
+                            &settings,
+                            Arc::clone(&shared_for_init),
+                        );
                         ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
                             "PolyCredo Editor — {}",
                             ws.root_path.display()
@@ -781,10 +805,11 @@ impl eframe::App for EditorApp {
                 };
                 let i18n = &*i18n_arc;
                 for path in self.missing_session_paths.drain(..) {
-                    let mut args = fluent_bundle::FluentArgs::new();
-                    args.set("path", path.to_string_lossy().into_owned());
-                    ws.toasts
-                        .push(Toast::info(i18n.get_args("error-session-restore", &args)));
+                    ws.toasts.push(Toast::info(tr!(
+                        i18n,
+                        "error-session-restore",
+                        path = path.to_string_lossy().into_owned()
+                    )));
                 }
             }
             let reinit = render_workspace(ctx, &mut ws, &self.shared);
@@ -792,7 +817,13 @@ impl eframe::App for EditorApp {
                 let panel = ws_to_panel_state(&ws);
                 let new_path_clone = new_path.clone();
                 let settings = self.shared.lock().expect("lock").settings.clone();
-                ws = init_workspace(new_path, &panel, ctx.clone(), &settings);
+                ws = init_workspace(
+                    new_path,
+                    &panel,
+                    ctx.clone(),
+                    &settings,
+                    Arc::clone(&self.shared),
+                );
                 ctx.send_viewport_cmd(egui::ViewportCommand::Title(format!(
                     "PolyCredo Editor — {}",
                     ws.root_path.display()

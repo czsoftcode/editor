@@ -51,6 +51,7 @@ pub(crate) struct SemanticIndex {
     pub files_processed: Arc<AtomicUsize>,
     pub current_file: Arc<Mutex<String>>,
     pub error: Arc<Mutex<Option<String>>>,
+    pub stop_requested: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl SemanticIndex {
@@ -66,6 +67,7 @@ impl SemanticIndex {
             files_processed: Arc::new(AtomicUsize::new(0)),
             current_file: Arc::new(Mutex::new(String::new())),
             error: Arc::new(Mutex::new(None)),
+            stop_requested: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
@@ -122,7 +124,7 @@ impl SemanticIndex {
         let vb = unsafe {
             candle_nn::VarBuilder::from_mmaped_safetensors(
                 &[weights_filename],
-                candle_core::DType::F32,
+                candle_core::DType::F16,
                 &self.device,
             )?
         };

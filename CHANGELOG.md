@@ -1,3 +1,16 @@
+## [0.7.30] - 2026-02-28
+
+### Added
+- **AI Semantic Indexing**: Integrated **Stop Indexing** functionality with a UI button and progress indicator.
+- **AI Shared Model**: Implemented BERT model sharing across multiple project viewports via `AppShared`, significantly reducing RAM usage when multiple projects are open.
+- **AI Methodology**: Translated `AI_GUIDE.md` into English to maintain technical consistency across the codebase.
+
+### Changed
+- **Performance**: Optimized semantic vectorization by switching from `F32` to `F16` (`DType::F16`), reducing model weight memory footprint by 50%.
+- **Performance**: Implemented **incremental indexing** using `xxh3` file hashing and `HashMap` lookups, reducing project re-scan complexity from O(N²) to O(N).
+- **Behavior**: Disabled automatic full semantic re-indexing on startup; it now only triggers if the cache is empty or manually requested.
+- **Maintenance**: Moved all audit logs to a dedicated `.audit/` directory to clean up the project root.
+
 ## [0.7.29] - 2026-02-28
 
 ### Fixed

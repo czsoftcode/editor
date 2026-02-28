@@ -351,3 +351,4 @@ support-modal-donate = Donate to Development
 settings-blacklist = Plugin Blacklist (blocked files)
 settings-blacklist-add = Add pattern
 settings-blacklist-hint = Patterns like *.env, secret/*. Auto-blocks .gitignore.
+semantic-indexing-btn-stop = Stop indexing

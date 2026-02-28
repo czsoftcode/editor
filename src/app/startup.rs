@@ -132,7 +132,13 @@ fn open_workspace(
     let settings = shared.lock().expect("lock").settings.clone();
     // User opened a new project — missing session projects are no longer relevant
     missing_session_paths.clear();
-    *root_ws = Some(init_workspace(path, &ps, ctx.clone(), &settings));
+    *root_ws = Some(init_workspace(
+        path,
+        &ps,
+        ctx.clone(),
+        &settings,
+        Arc::clone(shared),
+    ));
 
     // Save session
     let mut paths = Vec::new();

@@ -23,8 +23,8 @@ use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{render_file_picker, render_project_search_dialog};
 use super::terminal::right::render_ai_panel;
 use super::widgets::command_palette::{execute_command, render_command_palette};
-use super::widgets::modal::StandardModal;
 use crate::config;
+use crate::tr;
 pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
 use modal_dialogs::render_dialogs;
@@ -463,13 +463,14 @@ fn render_semantic_indexing_modal(
                 si.files_total.load(std::sync::atomic::Ordering::SeqCst),
                 si.current_file.lock().unwrap().clone(),
                 si.error.lock().unwrap().clone(),
+                Arc::clone(&si.stop_requested),
             ))
         } else {
             None
         }
     };
 
-    let Some((is_indexing, processed, total, current_file, error)) = res else {
+    let Some((is_indexing, processed, total, current_file, error, stop_signal)) = res else {
         // If locked, we don't render the modal content this frame to keep UI responsive
         return;
     };
@@ -477,35 +478,70 @@ fn render_semantic_indexing_modal(
         ws.show_semantic_indexing_modal = false;
         return;
     }
-    let modal = StandardModal::new(
-        i18n.get("semantic-indexing-title"),
-        "semantic_indexing_modal",
-    )
-    .with_size(500.0, 220.0);
-    let mut local_show = ws.show_semantic_indexing_modal;
-    modal.show(ctx, &mut local_show, |ui| {
-        modal.ui_body(ui, |ui| {
-            ui.vertical_centered(|ui| {
-                if let Some(err) = &error {
-                    ui.label(err);
-                } else {
+
+    egui::Window::new(i18n.get("semantic-indexing-title"))
+        .collapsible(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+        .show(ctx, |ui| {
+            ui.set_width(450.0);
+            ui.add_space(8.0);
+
+            if let Some(err) = &error {
+                ui.colored_label(egui::Color32::RED, err);
+                ui.add_space(16.0);
+                if ui.button(i18n.get("btn-close")).clicked() {
+                    ws.show_semantic_indexing_modal = false;
+                }
+            } else if is_indexing {
+                ui.vertical_centered(|ui| {
                     let progress = if total > 0 {
                         processed as f32 / total as f32
                     } else {
                         0.0
                     };
-                    ui.add(egui::ProgressBar::new(progress).show_percentage());
-                    ui.label(current_file);
-                }
-            });
-        });
-        modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
-                ws.show_semantic_indexing_modal = false;
+
+                    ui.label(tr!(
+                        i18n,
+                        "semantic-indexing-processing",
+                        processed = processed,
+                        total = total
+                    ));
+                    ui.add(
+                        egui::ProgressBar::new(progress)
+                            .show_percentage()
+                            .animate(true),
+                    );
+
+                    // Show current file name, but truncate if too long
+                    let display_path = if current_file.len() > 50 {
+                        format!("...{}", &current_file[current_file.len() - 47..])
+                    } else {
+                        current_file.clone()
+                    };
+                    ui.small(display_path);
+
+                    ui.add_space(20.0);
+                    ui.horizontal(|ui| {
+                        if ui.button(i18n.get("semantic-indexing-btn-stop")).clicked() {
+                            stop_signal.store(true, std::sync::atomic::Ordering::SeqCst);
+                        }
+                        if ui.button(i18n.get("semantic-indexing-btn-bg")).clicked() {
+                            ws.show_semantic_indexing_modal = false;
+                        }
+                    });
+                });
+            } else {
+                ui.vertical_centered(|ui| {
+                    ui.label(i18n.get("btn-done"));
+                    ui.add_space(16.0);
+                    if ui.button(i18n.get("btn-close")).clicked() {
+                        ws.show_semantic_indexing_modal = false;
+                    }
+                });
             }
-            None::<()>
+            ui.add_space(8.0);
         });
-    });
 }
 
 fn render_sandbox_deletion_sync_dialog(

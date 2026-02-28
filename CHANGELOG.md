@@ -1,4 +1,16 @@
+## [0.7.28] - 2026-02-28
+
+### Added
+- **Legal Framework**: Established a robust legal foundation for the project to support future commercial growth and potential sale.
+- **AGPLv3 License**: Adopted the GNU Affero General Public License v3.0 to ensure the community edition remains open and transparent.
+- **Contributor License Agreement (CLA)**: Implemented a mandatory CLA for all contributors, securing the right for project owners to relicense or sell the project in the future.
+- **Dual-Licensing Strategy**: Introduced `LICENSING.md` to clearly communicate the "Open Core" model (AGPL for community, custom licenses for enterprise/sponsors).
+
 ## [0.7.27] - 2026-02-28
+
+### Fixed
+- **.deb Package Startup**: Resolved a critical issue where the application failed to start on some Linux systems due to an invalid `AppID` property in the `systemd-run` wrapper. Added a robust fallback to direct execution if `systemd-run` or the user session bus is unavailable.
+- **Icon Duplication**: Confirmed and unified `app_id` in the editor core with `StartupWMClass` in the `.desktop` file to ensure the application is correctly grouped under a single icon in desktop launchers.
 
 ### Added
 - **Support & Sponsorship Modal**: Introduced a dedicated "Support Development" modal dialog to the Help menu and status bar. This provides users with a clear way to follow the project on GitHub and contribute to its future development.

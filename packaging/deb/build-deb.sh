@@ -120,6 +120,7 @@ prepare_stage() {
         "$STAGE_DIR/usr/lib/polycredo-editor" \
         "$STAGE_DIR/usr/share/applications" \
         "$STAGE_DIR/usr/share/icons/hicolor/scalable/apps" \
+        "$STAGE_DIR/usr/share/doc/polycredo-editor" \
         "$OUTPUT_DIR"
 
     # Install the real binary to /usr/lib/
@@ -129,8 +130,12 @@ prepare_stage() {
 
     install -m 0644 "$ASSETS_DIR/polycredo-editor.desktop" "$STAGE_DIR/usr/share/applications/polycredo-editor.desktop"
     install -m 0644 "$ASSETS_DIR/polycredo-editor.svg" "$STAGE_DIR/usr/share/icons/hicolor/scalable/apps/polycredo-editor.svg"
+    install -m 0644 "$ASSETS_DIR/copyright" "$STAGE_DIR/usr/share/doc/polycredo-editor/copyright"
+    
     install -m 0755 "$ASSETS_DIR/postinst" "$DEBIAN_DIR/postinst"
     install -m 0755 "$ASSETS_DIR/postrm" "$DEBIAN_DIR/postrm"
+    install -m 0755 "$ASSETS_DIR/config" "$DEBIAN_DIR/config"
+    install -m 0644 "$ASSETS_DIR/templates" "$DEBIAN_DIR/templates"
 }
 
 write_control() {

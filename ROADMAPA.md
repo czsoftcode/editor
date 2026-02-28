@@ -12,6 +12,8 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - [x] **Capability-based Security** — definice oprávnění pro pluginy (např. přístup k souborům, síti).
 - [x] **Sdílený file index** — jeden inkrementální index pro Ctrl+P, project search a file tree.
 - [x] **Settings.toml** — uložení konfigurace do souboru, import/export nastavení.
+- [x] **Právní rámec (Licencování)** — zavedení AGPLv3 a Dual-Licensing modelu pro komerční udržitelnost.
+- [x] **CLA (Contributor License Agreement)** — právní ochrana umožňující budoucí prodej nebo změnu licence.
 
 ## Q2 2026 — LSP a inteligentní editor
 **Cíl:** Přechod k "opravdovému IDE" bez ztráty výkonu.
@@ -44,7 +46,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 
 - [ ] **LSP plná sada** — refaktoring, rename symbol, code actions přes LSP.
 - [ ] **macOS build** — funkční binárka pro macOS (Apple Silicon + Intel).
-- [ ] **Distribuce Linuxu** — AppImage / .deb balíček; Flatpak.
+- [x] **Distribuce Linuxu** — AppImage / .deb balíček; Flatpak.
 - [ ] **WASM plugin API (beta)** — první vlna komunitních pluginů.
 
 ## Q4 2026 — Ekosystém a v1.0

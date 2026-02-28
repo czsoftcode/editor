@@ -3,15 +3,15 @@
 # CPU: 50% dostupných jader
 # RAM: 66% celkové fyzické paměti
 
-# Zjištění počtu jader a výpočet 25%
+# Zjištění počtu jader a výpočet 50%
 TOTAL_CORES=$(nproc)
-LIMIT_CORES=$((TOTAL_CORES / 4))
+LIMIT_CORES=$((TOTAL_CORES / 2))
 if [ "$LIMIT_CORES" -lt 1 ]; then LIMIT_CORES=1; fi
 CPU_QUOTA=$((LIMIT_CORES * 100))
 
 # Zjištění celkové RAM a výpočet 33% (1/3)
 TOTAL_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-LIMIT_KB=$((TOTAL_KB * 1 / 3))
+LIMIT_KB=$((TOTAL_KB * 2 / 3))
 LIMIT_MB=$((LIMIT_KB / 1024))
 
 echo "==> Spouštím PolyCredo Editor s dynamickými limity:"

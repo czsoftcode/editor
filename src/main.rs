@@ -51,6 +51,7 @@ fn main() -> eframe::Result<()> {
 
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
+            .with_app_id("polycredo-editor")
             .with_inner_size([config::WINDOW_DEFAULT_WIDTH, config::WINDOW_DEFAULT_HEIGHT])
             .with_title(title),
         persist_window: true,

@@ -3,6 +3,8 @@ name = "polycredo-editor"
 version = "0.7.29"
 edition = "2024"
 license = "AGPL-3.0-or-later"
+repository = "https://github.com/czsoftcode/editor"
+homepage = "https://github.com/czsoftcode/editor"
 
 [dependencies]
 eframe = { version = "0.31", features = ["persistence"] }

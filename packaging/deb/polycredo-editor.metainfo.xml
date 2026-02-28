@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.stkremen.polycredo-editor</id>
+  <id>io.github.czsoftcode.editor</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>AGPL-3.0-or-later</project_license>
   <name>PolyCredo Editor</name>
@@ -16,10 +16,10 @@
   <screenshots>
     <screenshot type="default">
       <caption>Main window with code editor and AI panel</caption>
-      <image>https://raw.githubusercontent.com/stkremen/polycredo_editor/main/packaging/deb/polycredo-editor.svg</image>
+      <image>https://github.com/czsoftcode/editor/raw/main/packaging/deb/polycredo-editor.svg</image>
     </screenshot>
   </screenshots>
-  <url type="homepage">https://github.com/stkremen/polycredo_editor</url>
+  <url type="homepage">https://github.com/czsoftcode/editor</url>
   <provides>
     <binary>polycredo-editor</binary>
   </provides>

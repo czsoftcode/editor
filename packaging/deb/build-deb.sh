@@ -154,7 +154,7 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: $MAINTAINER
 Depends: $depends
-Homepage: https://github.com/stkremen/polycredo_editor
+Homepage: https://github.com/czsoftcode/editor
 Description: $APP_NAME
  Jednoduchý textový editor napsaný v Rustu.
  .

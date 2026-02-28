@@ -26,6 +26,21 @@ pub use self::types::{
     FilePicker, FolderPickResult, FsChangeResult, ProjectSearch, SearchResult, SecondaryWorkspace,
 };
 
+pub type PendingPluginApproval = (
+    String,
+    String,
+    String,
+    std::sync::mpsc::Sender<crate::app::types::PluginApprovalResponse>,
+);
+
+pub type PendingAskUser = (
+    String,
+    String,
+    Vec<String>,
+    String,
+    std::sync::mpsc::Sender<String>,
+);
+
 pub struct WorkspaceState {
     pub file_tree: FileTree,
     pub editor: Editor,
@@ -44,6 +59,7 @@ pub struct WorkspaceState {
     pub build_terminal_float: bool,
     pub left_panel_split: f32,
     pub show_about: bool,
+    pub show_support: bool,
     pub show_settings: bool,
     pub show_plugins: bool,
     pub show_ai_chat: bool,
@@ -119,20 +135,9 @@ pub struct WorkspaceState {
     pub sandbox_staged_last_refresh: std::time::Instant,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
     pub applied_settings_version: u64,
-    pub pending_plugin_approval: Option<(
-        String,
-        String,
-        String,
-        std::sync::mpsc::Sender<crate::app::types::PluginApprovalResponse>,
-    )>,
+    pub pending_plugin_approval: Option<PendingPluginApproval>,
     /// Pending ask_user request: (plugin_id, question, options, answer_input_buffer, sender)
-    pub pending_ask_user: Option<(
-        String,
-        String,
-        Vec<String>,
-        String,
-        std::sync::mpsc::Sender<String>,
-    )>,
+    pub pending_ask_user: Option<PendingAskUser>,
     pub ai_cancellation_token: Arc<AtomicBool>,
 }
 

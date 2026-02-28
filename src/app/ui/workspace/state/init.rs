@@ -79,6 +79,7 @@ pub fn init_workspace(
         build_terminal_float: false,
         left_panel_split: 0.55,
         show_about: false,
+        show_support: false,
         show_settings: false,
         show_plugins: false,
         show_ai_chat: false,

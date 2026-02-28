@@ -76,10 +76,16 @@ pub fn host_exec_in_sandbox(
         ) {
             let lower = command_str.to_lowercase();
             let destructive_patterns = [
-                "rm ", "rm\t", " rm ", "rmdir",
-                "git reset", "git push", "git commit",
+                "rm ",
+                "rm\t",
+                " rm ",
+                "rmdir",
+                "git reset",
+                "git push",
+                "git commit",
                 "cargo clean",
-                "truncate", " dd ",
+                "truncate",
+                " dd ",
             ];
             for pattern in &destructive_patterns {
                 if lower.contains(pattern) {
@@ -88,7 +94,9 @@ pub fn host_exec_in_sandbox(
                         command_str
                     );
                     let h = plugin.memory_alloc(err_msg.len() as u64)?;
-                    plugin.memory_bytes_mut(h)?.copy_from_slice(err_msg.as_bytes());
+                    plugin
+                        .memory_bytes_mut(h)?
+                        .copy_from_slice(err_msg.as_bytes());
                     outputs[0] = Val::I64(h.offset() as i64);
                     return Ok(());
                 }
@@ -98,11 +106,15 @@ pub fn host_exec_in_sandbox(
 
     // --- HOST OBSERVATIONS ---
     let cmd_lower = command_str.to_lowercase();
-    let is_discovery = cmd_lower.contains("rg ") || cmd_lower.contains("grep ") || 
-                        cmd_lower.contains("curl ") || cmd_lower.contains("wget ") || 
-                        cmd_lower.contains("find ") || cmd_lower.contains("ls ") ||
-                        cmd_lower.contains("cat ") || cmd_lower.contains("head ");
-    
+    let is_discovery = cmd_lower.contains("rg ")
+        || cmd_lower.contains("grep ")
+        || cmd_lower.contains("curl ")
+        || cmd_lower.contains("wget ")
+        || cmd_lower.contains("find ")
+        || cmd_lower.contains("ls ")
+        || cmd_lower.contains("cat ")
+        || cmd_lower.contains("head ");
+
     let mut advice = String::new();
 
     // Monitor Discovery Chain (Soft Nudge)
@@ -118,9 +130,12 @@ pub fn host_exec_in_sandbox(
 
     // Basic Path Security
     if command_str.contains("..") {
-        let err_msg = "SECURITY VIOLATION: Path traversal (..) is blocked. Use project-relative paths.";
+        let err_msg =
+            "SECURITY VIOLATION: Path traversal (..) is blocked. Use project-relative paths.";
         let h = plugin.memory_alloc(err_msg.len() as u64)?;
-        plugin.memory_bytes_mut(h)?.copy_from_slice(err_msg.as_bytes());
+        plugin
+            .memory_bytes_mut(h)?
+            .copy_from_slice(err_msg.as_bytes());
         outputs[0] = Val::I64(h.offset() as i64);
         return Ok(());
     }
@@ -130,13 +145,19 @@ pub fn host_exec_in_sandbox(
     if is_absolute && !is_allowed_tmp {
         let err_msg = "SECURITY VIOLATION: Absolute system paths are blocked. Use project-relative paths or '/tmp/'. You do NOT have a persistent home directory.";
         let h = plugin.memory_alloc(err_msg.len() as u64)?;
-        plugin.memory_bytes_mut(h)?.copy_from_slice(err_msg.as_bytes());
+        plugin
+            .memory_bytes_mut(h)?
+            .copy_from_slice(err_msg.as_bytes());
         outputs[0] = Val::I64(h.offset() as i64);
         return Ok(());
     }
 
     // Store in history
-    state.command_history.lock().expect("lock").push(command_str.clone());
+    state
+        .command_history
+        .lock()
+        .expect("lock")
+        .push(command_str.clone());
 
     match request_plugin_approval(
         &state,
@@ -167,16 +188,17 @@ pub fn host_exec_in_sandbox(
         Ok(out) => {
             let stdout = String::from_utf8_lossy(&out.stdout);
             let stderr = String::from_utf8_lossy(&out.stderr);
-            let mut full_output = format!(
-                "STDOUT:\n{}\nSTDERR:\n{}",
-                stdout, stderr
-            );
+            let mut full_output = format!("STDOUT:\n{}\nSTDERR:\n{}", stdout, stderr);
 
             // --- INTELLIGENT ERROR COACHING ---
             if !out.status.success() {
-                if full_output.contains("none of the selected features exist") || full_output.contains("feature not found") {
+                if full_output.contains("none of the selected features exist")
+                    || full_output.contains("feature not found")
+                {
                     advice.push_str("\nMETHODOLOGICAL HINT: The compiler cannot find a feature you requested. This usually means the crate version in Cargo.toml is too old. DO NOT search the web yet. Instead, check the latest available version of the crate on crates.io (or via 'cargo search') and update Cargo.toml.");
-                } else if full_output.contains("no method named") || full_output.contains("cannot find type") {
+                } else if full_output.contains("no method named")
+                    || full_output.contains("cannot find type")
+                {
                     advice.push_str("\nMETHODOLOGICAL HINT: API mismatch detected. You might be using documentation for a different version than what is in Cargo.toml. Compare your local code with the crate version defined in Cargo.toml.");
                 }
             }
@@ -188,13 +210,13 @@ pub fn host_exec_in_sandbox(
                     "\n\n[OUTPUT TRUNCATED: The output was too long. Use more specific commands or 'search_project' tool.]",
                 );
             }
-            
+
             // Append host guidance if generated
             if !advice.is_empty() {
                 full_output.push_str("\n\n--- HOST GUIDANCE ---\n");
                 full_output.push_str(&advice);
             }
-            
+
             full_output
         }
         Err(e) => format!("ERROR executing command: {}\n{}", e, advice),
@@ -236,7 +258,11 @@ pub fn host_ask_user(
     let question = input["question"].as_str().unwrap_or("?").to_string();
     let options: Vec<String> = input["options"]
         .as_array()
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect()
+        })
         .unwrap_or_default();
 
     if let Some(sender) = &state.action_sender {
@@ -267,7 +293,9 @@ pub fn host_ask_user(
                 Ok(answer) => {
                     let result = answer.clone();
                     let h = plugin.memory_alloc(result.len() as u64)?;
-                    plugin.memory_bytes_mut(h)?.copy_from_slice(result.as_bytes());
+                    plugin
+                        .memory_bytes_mut(h)?
+                        .copy_from_slice(result.as_bytes());
                     outputs[0] = Val::I64(h.offset() as i64);
                     return Ok(());
                 }
@@ -298,7 +326,10 @@ pub fn host_announce_completion(
     let input: serde_json::Value =
         serde_json::from_str(&input_str).unwrap_or(serde_json::json!({"summary": input_str}));
 
-    let summary = input["summary"].as_str().unwrap_or("Task completed.").to_string();
+    let summary = input["summary"]
+        .as_str()
+        .unwrap_or("Task completed.")
+        .to_string();
 
     if let Some(sender) = &state.action_sender {
         let _ = sender.send(crate::app::types::AppAction::PluginCompleted(

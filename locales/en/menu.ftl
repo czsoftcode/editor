@@ -42,6 +42,8 @@ menu-view-build-terminal = Build Terminal
 menu-view-ai-panel = AI Terminal
 menu-view-ai-float = Floating AI Terminal
 
-## Help menu
+## Help Menu
 menu-help-settings = Settings…
 menu-help-about = About
+menu-help-support = Support Development (Sponsorship)
+

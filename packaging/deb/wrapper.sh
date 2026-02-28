@@ -23,10 +23,10 @@ export TOKIO_WORKER_THREADS="$LIMIT_CORES"
 # Run the actual binary via systemd-run for OS-level enforcement
 # If systemd-run is not available (e.g. non-systemd init), fall back to direct execution
 if command -v systemd-run >/dev/null 2>&1; then
-    exec systemd-run --user --scope 
-        --description="PolyCredo Editor (Limited Resources)" 
-        -p CPUQuota="${CPU_QUOTA}%" 
-        -p MemoryMax="${LIMIT_MB}M" 
+    exec systemd-run --user --scope \
+        --description="PolyCredo Editor (Limited Resources)" \
+        -p CPUQuota="${CPU_QUOTA}%" \
+        -p MemoryMax="${LIMIT_MB}M" \
         /usr/lib/polycredo-editor/polycredo-editor-bin "$@"
 else
     # Fallback to direct execution if systemd-run fails or is missing

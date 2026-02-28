@@ -15,7 +15,7 @@ pub fn host_search_project(
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
 
     let _query: String = plugin.memory_get_val(&inputs[0])?;
-    
+
     // TEMPORARY: Return empty list to fix compilation and allow restart.
     // Agents should use 'exec_in_sandbox' with 'rg' for now.
     let result_json = "[]";
@@ -40,7 +40,7 @@ pub fn host_semantic_search(
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
 
     let query: String = plugin.memory_get_val(&inputs[0])?;
-    
+
     // Check for cancellation before expensive operation
     let semantic_index: Option<Arc<Mutex<SemanticIndex>>> = {
         let ctx = state.context.lock().expect("lock");

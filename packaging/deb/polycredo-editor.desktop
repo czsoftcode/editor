@@ -7,6 +7,7 @@ Comment=PolyCredo Editor - AI polyglot code editor
 Exec=polycredo-editor %F
 Terminal=false
 Icon=polycredo-editor
+StartupWMClass=polycredo-editor
 Categories=Development;IDE;TextEditor;
 StartupNotify=true
 Keywords=editor;code;ai;polyglot;ide;polycredo;

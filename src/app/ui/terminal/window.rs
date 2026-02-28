@@ -1,6 +1,6 @@
-use eframe::egui;
-use crate::app::ui::workspace::state::WorkspaceState;
 use crate::app::types::FocusedPanel;
+use crate::app::ui::workspace::state::WorkspaceState;
+use eframe::egui;
 
 pub struct StandardTerminalWindow {
     pub title: String,
@@ -9,7 +9,11 @@ pub struct StandardTerminalWindow {
 }
 
 impl StandardTerminalWindow {
-    pub fn new(title: impl Into<String>, id: impl Into<egui::Id>, panel_type: FocusedPanel) -> Self {
+    pub fn new(
+        title: impl Into<String>,
+        id: impl Into<egui::Id>,
+        panel_type: FocusedPanel,
+    ) -> Self {
         Self {
             title: title.into(),
             id: id.into(),
@@ -42,7 +46,7 @@ impl StandardTerminalWindow {
             .max_height(max_h)
             .resizable(true)
             .collapsible(true)
-            .vscroll(false) 
+            .vscroll(false)
             .open(open)
             .frame(egui::Frame::window(&ctx.style()).fill(viewer_bg))
             .show(ctx, |ui| {
@@ -58,7 +62,7 @@ impl StandardTerminalWindow {
                     // BODY
                     let footer_reserved = 40.0;
                     let body_h = (ui.available_height() - footer_reserved).max(100.0);
-                    
+
                     ui.allocate_ui(egui::vec2(ui.available_width(), body_h), |ui| {
                         if let Some(res) = render_body(ui, ws, body_h) {
                             result = Some(res);
@@ -86,17 +90,17 @@ impl StandardTerminalWindow {
             let pointer_active = ctx.input(|i| i.pointer.any_click() || i.pointer.any_down());
             if pointer_active {
                 let pos = ctx.input(|i| i.pointer.interact_pos());
-                if let Some(pos) = pos {
-                    if inner.response.rect.contains(pos) {
-                        let our_layer = egui::LayerId::new(egui::Order::Middle, self.id);
-                        let is_topmost = ctx
-                            .layer_id_at(pos)
-                            .map(|top| top == our_layer)
-                            .unwrap_or(true);
-                        if is_topmost {
-                            ws.focused_panel = self.focused_panel_type;
-                            interacted = true;
-                        }
+                if let Some(pos) = pos
+                    && inner.response.rect.contains(pos)
+                {
+                    let our_layer = egui::LayerId::new(egui::Order::Middle, self.id);
+                    let is_topmost = ctx
+                        .layer_id_at(pos)
+                        .map(|top| top == our_layer)
+                        .unwrap_or(false);
+
+                    if is_topmost {
+                        interacted = true;
                     }
                 }
             }

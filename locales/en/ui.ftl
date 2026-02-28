@@ -334,11 +334,18 @@ svg-modal-title = SVG File
 svg-modal-body = This file is an SVG image. Do you want to open it in the system viewer, or edit it as XML text?
 svg-modal-edit = Edit as text
 
-## Sandbox deletion sync dialog
-sandbox-delete-title = File deleted in sandbox
-sandbox-delete-msg = File "{ $name }" was deleted in AI sandbox but still exists in project. What would you like to do?
-sandbox-delete-keep-project = Keep in project (restore to sandbox)
-sandbox-delete-also-project = Also delete in project
+## Sandbox Deletion Sync Dialog
+sandbox-delete-title = File Deleted in Sandbox
+sandbox-delete-msg = The file "{ $name }" was deleted in the AI sandbox, but still exists in the project. What would you like to do?
+sandbox-delete-keep-project = Keep in Project (Restore to Sandbox)
+sandbox-delete-also-project = Delete from Project Too
+
+## Support Modal
+support-modal-title = Support PolyCredo Development
+support-modal-body = PolyCredo Editor is developed with a vision of privacy, speed, and secure AI assistant integration. If you like the project, we would be grateful for any support. Your contributions help us dedicate more time to developing new features and maintenance.
+support-modal-github = Follow on GitHub
+support-modal-donate = Donate to Development
+
 
 ## Settings updates
 settings-blacklist = Plugin Blacklist (blocked files)

@@ -45,3 +45,4 @@ menu-view-ai-float = Plovoucí AI terminál
 ## Menu Nápověda
 menu-help-settings = Nastavení…
 menu-help-about = O aplikaci
+menu-help-support = Podpořit vývoj (Sponzorství)

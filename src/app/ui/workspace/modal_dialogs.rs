@@ -32,6 +32,9 @@ pub(super) fn render_dialogs(
     // 1. About dialog
     about::show(ctx, ws, i18n, &id_salt);
 
+    // 1a. Support dialog
+    crate::app::ui::dialogs::show_support_dialog(ctx, ws, i18n);
+
     // 2. Settings dialog
     settings::show(ctx, ws, shared, i18n, &id_salt);
 

@@ -143,12 +143,7 @@ pub(crate) enum AppAction {
     ),
     /// Agent asks the user a clarifying question and blocks for the answer.
     /// (plugin_id, question, options, response_sender)
-    PluginAskUser(
-        String,
-        String,
-        Vec<String>,
-        std::sync::mpsc::Sender<String>,
-    ),
+    PluginAskUser(String, String, Vec<String>, std::sync::mpsc::Sender<String>),
     /// Agent signals successful task completion with a summary.
     /// (plugin_id, summary)
     PluginCompleted(String, String),

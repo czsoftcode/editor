@@ -25,8 +25,12 @@ pub fn render_bottom_panel(
 
     if ws.build_terminal_float {
         let mut is_open = true;
-        let win = StandardTerminalWindow::new(i18n.get("build-terminal-title"), "build_terminal_float_win", FocusedPanel::Build);
-        
+        let win = StandardTerminalWindow::new(
+            i18n.get("build-terminal-title"),
+            "build_terminal_float_win",
+            FocusedPanel::Build,
+        );
+
         let (inter_res, res) = win.show(
             ctx,
             ws,
@@ -52,7 +56,11 @@ pub fn render_bottom_panel(
                                 ws_arg.focused_panel = FocusedPanel::Build;
                             }
                             TerminalAction::Navigate(path, line, col) => {
-                                let abs_path = if path.is_absolute() { path } else { ws_arg.root_path.join(path) };
+                                let abs_path = if path.is_absolute() {
+                                    path
+                                } else {
+                                    ws_arg.root_path.join(path)
+                                };
                                 open_file_in_ws(ws_arg, abs_path);
                                 ws_arg.editor.jump_to_location(line, col);
                                 ws_arg.focused_panel = FocusedPanel::Editor;
@@ -70,12 +78,17 @@ pub fn render_bottom_panel(
             |ui, _ws_arg| {
                 // FOOTER: Small dock button for consistency
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button("📥").on_hover_text(i18n.get("ai-float-dock")).clicked() {
+                    if ui
+                        .small_button("📥")
+                        .on_hover_text(i18n.get("ai-float-dock"))
+                        .clicked()
+                    {
                         return Some(true);
                     }
                     None
-                }).inner
-            }
+                })
+                .inner
+            },
         );
 
         interacted = inter_res;

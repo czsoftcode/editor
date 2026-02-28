@@ -105,17 +105,16 @@ MANDATORY RULES:
         }
 
         // 3. Cursor position and selected text from active tab
-        if let Some(tab) = ws.editor.active() {
-            if let Some(cr) = tab.last_cursor_range {
-                payload.cursor_line = Some(cr.primary.rcursor.row + 1);
-                payload.cursor_col = Some(cr.primary.rcursor.column + 1);
-                let start = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
-                let end = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
-                if start != end {
-                    let text: String =
-                        tab.content.chars().skip(start).take(end - start).collect();
-                    payload.selected_text = Some(text);
-                }
+        if let Some(tab) = ws.editor.active()
+            && let Some(cr) = tab.last_cursor_range
+        {
+            payload.cursor_line = Some(cr.primary.rcursor.row + 1);
+            payload.cursor_col = Some(cr.primary.rcursor.column + 1);
+            let start = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
+            let end = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
+            if start != end {
+                let text: String = tab.content.chars().skip(start).take(end - start).collect();
+                payload.selected_text = Some(text);
             }
         }
 
@@ -148,7 +147,6 @@ MANDATORY RULES:
     }
 
     /// Returns the centralized ASCII logo for all CLI agents.
-
     pub fn get_logo(
         version: &str,
         model: &str,
@@ -182,10 +180,10 @@ MANDATORY RULES:
 fn git_color_to_status(color: eframe::egui::Color32) -> &'static str {
     let [r, g, b, _] = color.to_array();
     match (r, g, b) {
-        (100, 200, 110) => "A",   // Added
-        (210, 80, 80) => "D",     // Deleted
-        (120, 190, 255) => "??",  // Untracked
-        _ => "M",                 // Modified (fallback)
+        (100, 200, 110) => "A",  // Added
+        (210, 80, 80) => "D",    // Deleted
+        (120, 190, 255) => "??", // Untracked
+        _ => "M",                // Modified (fallback)
     }
 }
 
@@ -196,9 +194,7 @@ fn extract_cargo_summary(root: &std::path::Path) -> Option<String> {
     let mut in_relevant = false;
     for line in content.lines() {
         let trimmed = line.trim();
-        if trimmed == "[package]"
-            || trimmed == "[dependencies]"
-            || trimmed == "[dev-dependencies]"
+        if trimmed == "[package]" || trimmed == "[dependencies]" || trimmed == "[dev-dependencies]"
         {
             in_relevant = true;
             lines.push(line);
@@ -208,5 +204,9 @@ fn extract_cargo_summary(root: &std::path::Path) -> Option<String> {
             lines.push(line);
         }
     }
-    if lines.is_empty() { None } else { Some(lines.join("\n")) }
+    if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
+    }
 }

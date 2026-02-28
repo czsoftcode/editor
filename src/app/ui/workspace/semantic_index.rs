@@ -150,14 +150,20 @@ impl SemanticIndex {
         top_k: usize,
     ) -> anyhow::Result<Vec<(f32, PathBuf, usize, String)>> {
         let (model, tokenizer) = {
-            let m = self.model.as_ref().ok_or_else(|| anyhow::anyhow!("Model not initialized"))?;
-            let t = self.tokenizer.as_ref().ok_or_else(|| anyhow::anyhow!("Tokenizer not initialized"))?;
+            let m = self
+                .model
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Model not initialized"))?;
+            let t = self
+                .tokenizer
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Tokenizer not initialized"))?;
             (Arc::clone(m), Arc::clone(t))
         };
 
         // Perform vectorization OUTSIDE the snippets lock
         let query_vec = self.vectorize_with_model(query, &model, &tokenizer)?;
-        
+
         let snippets = self.snippets.lock().unwrap();
         let mut results = Vec::new();
 

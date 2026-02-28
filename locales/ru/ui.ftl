@@ -399,3 +399,9 @@ ai-chat-default-prompt = Expert Rust Developer.
 command-name-plugin-gemini = Plugin: Ask Gemini
 command-name-plugin-ollama = Plugin: Ask Ollama
 command-name-plugin-ai-chat = Plugin: Ask AI Agent
+
+## Support Modal
+support-modal-title = Поддержать разработку PolyCredo
+support-modal-body = PolyCredo Editor разрабатывается с акцентом на приватность, скорость и безопасную интеграцию ИИ-ассистентов. Если вам нравится проект, мы будем благодарны за любую поддержку. Ваши пожертвования помогают нам уделять больше времени разработке новых функций и поддержке.
+support-modal-github = Подписаться на GitHub
+support-modal-donate = Поддержать разработку

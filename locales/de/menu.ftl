@@ -45,3 +45,4 @@ menu-view-ai-float = Schwebendes AI-Terminal
 ## Menü Hilfe
 menu-help-settings = Einstellungen…
 menu-help-about = Über
+menu-help-support = Entwicklung unterstützen (Sponsoring)

@@ -161,10 +161,7 @@ fn render_plugin_bar(
         plugins
             .iter()
             .filter(|p| {
-                p.metadata
-                    .as_ref()
-                    .and_then(|m| m.plugin_type.as_deref())
-                    == Some("ai_agent")
+                p.metadata.as_ref().and_then(|m| m.plugin_type.as_deref()) == Some("ai_agent")
             })
             .map(|p| {
                 let display = p

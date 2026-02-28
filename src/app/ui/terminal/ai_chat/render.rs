@@ -1,6 +1,6 @@
+use super::AiChatAction;
 use super::approval::{render_approval_ui, render_ask_user_ui};
 use super::inspector::render_inspector;
-use super::AiChatAction;
 use crate::app::types::AppShared;
 use crate::app::ui::widgets::ai::AiChatWidget;
 use crate::app::ui::workspace::state::WorkspaceState;
@@ -12,11 +12,7 @@ use std::sync::{Arc, Mutex};
 
 /// Checks whether the selected AI plugin still needs authorization and triggers
 /// it automatically. Shows nothing visible when no authorization is pending.
-pub fn render_head(
-    ui: &mut egui::Ui,
-    ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
-) {
+pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
     let pending_auth = {
         let sh = shared.lock().expect("lock");
         sh.registry
@@ -110,7 +106,7 @@ fn render_chat_content(
     ui.spacing_mut().item_spacing.y = 0.0;
 
     // Heights from previous frame stored in ui.memory
-    let prompt_mem_id  = egui::Id::new("ai_prompt_frame_h");
+    let prompt_mem_id = egui::Id::new("ai_prompt_frame_h");
     let history_mem_id = egui::Id::new("ai_history_content_h");
 
     let prompt_h_prev = ui
@@ -121,7 +117,7 @@ fn render_chat_content(
         .unwrap_or(0.0);
 
     let info_bar_h = 30.0;
-    let sep_h      = 14.0;
+    let sep_h = 14.0;
     let settings_h = if ws.ai_show_settings { 280.0 } else { 0.0 };
     let reserved_h = prompt_h_prev + info_bar_h + sep_h + settings_h;
 
@@ -165,23 +161,20 @@ fn render_chat_content(
                     ui.label(egui::RichText::new(i18n.get("ai-chat-loading")).strong());
                 });
                 ui.add_space(4.0);
-                AiChatWidget::ui_monologue(
-                    ui,
-                    &ws.ai_monologue,
-                    font_size,
-                    &mut ws.markdown_cache,
-                );
+                AiChatWidget::ui_monologue(ui, &ws.ai_monologue, font_size, &mut ws.markdown_cache);
             }
         });
 
     // Store actual content height for the next frame
-    ui.memory_mut(|m| m.data.insert_temp(history_mem_id, scroll_out.content_size.y));
+    ui.memory_mut(|m| {
+        m.data
+            .insert_temp(history_mem_id, scroll_out.content_size.y)
+    });
 
     // ── APPROVAL UI  /  ASK USER  /  PROMPT ──────────────────────────────────
     if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
         render_approval_ui(ui, id, action_name, details, sender, ws);
-    } else if let Some((id, question, options, mut input_buf, sender)) =
-        ws.pending_ask_user.take()
+    } else if let Some((id, question, options, mut input_buf, sender)) = ws.pending_ask_user.take()
     {
         render_ask_user_ui(ui, id, question, options, &mut input_buf, sender, ws);
     } else {
@@ -243,7 +236,8 @@ fn render_chat_content(
             });
 
         ui.memory_mut(|m| {
-            m.data.insert_temp(prompt_mem_id, prompt_resp.response.rect.height())
+            m.data
+                .insert_temp(prompt_mem_id, prompt_resp.response.rect.height())
         });
 
         let (send_via_kb, resp) = prompt_resp.inner;

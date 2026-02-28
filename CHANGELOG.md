@@ -1,3 +1,13 @@
+## [0.7.27] - 2026-02-28
+
+### Added
+- **Support & Sponsorship Modal**: Introduced a dedicated "Support Development" modal dialog to the Help menu and status bar. This provides users with a clear way to follow the project on GitHub and contribute to its future development.
+- **Support Entry Points**: Added a heart icon (❤️) to the right side of the status bar and a new "Support Development" item to the Help menu for easy access to the sponsorship information.
+- **Internationalization**: Fully localized the support modal and all related UI strings into Czech, English, Slovak, German, and Russian.
+
+### Changed
+- **Inclusive AI Vision**: Updated all "Local AI" references in the support dialogue to "Secure AI Assistant Integration" to better reflect the editor's support for various AI backends (Ollama, Gemini, etc.) while maintaining a focus on privacy and security.
+
 ## [0.7.26] - 2026-02-28
 
 ### Added

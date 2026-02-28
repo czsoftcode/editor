@@ -28,6 +28,7 @@ pub(crate) struct MenuActions {
     pub toggle_build: bool,
     pub toggle_float: bool,
     pub about: bool,
+    pub support: bool,
     pub settings: bool,
     pub plugins: bool,
     pub plugins_target: Option<String>,
@@ -288,6 +289,14 @@ pub(super) fn render_menu_bar(
                     actions.about = true;
                     ui.close_menu();
                 }
+                ui.separator();
+                if ui
+                    .button(format!("❤️ {}", i18n.get("menu-help-support")))
+                    .clicked()
+                {
+                    actions.support = true;
+                    ui.close_menu();
+                }
             });
         });
     });
@@ -343,6 +352,9 @@ pub(super) fn process_menu_actions(
     }
     if actions.about {
         ws.show_about = true;
+    }
+    if actions.support {
+        ws.show_support = true;
     }
     if actions.settings {
         ws.show_settings = true;

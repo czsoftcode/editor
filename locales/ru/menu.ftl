@@ -45,3 +45,4 @@ menu-view-ai-float = Плавающий AI-терминал
 ## Меню Справка
 menu-help-settings = Настройки…
 menu-help-about = О программе
+menu-help-support = Поддержать разработку (Спонсорство)

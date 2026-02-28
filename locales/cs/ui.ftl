@@ -345,3 +345,9 @@ sandbox-delete-title = Soubor smazán v sandboxu
 sandbox-delete-msg = Soubor „{ $name }" byl smazán v AI sandboxu, ale v projektu stále existuje. Co si přejete udělat?
 sandbox-delete-keep-project = Ponechat v projektu (obnovit do sandboxu)
 sandbox-delete-also-project = Smazat i v projektu
+
+## Support Modal
+support-modal-title = Podpořit vývoj PolyCredo
+support-modal-body = PolyCredo Editor je vyvíjen s vizí soukromí, rychlosti a bezpečné integrace AI asistentů. Pokud se vám projekt líbí, budeme vděční za jakoukoli podporu. Vaše příspěvky nám pomáhají věnovat více času vývoji nových funkcí a údržbě.
+support-modal-github = Sledovat na GitHubu
+support-modal-donate = Přispět na rozvoj

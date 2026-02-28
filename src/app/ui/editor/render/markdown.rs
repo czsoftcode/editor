@@ -154,7 +154,9 @@ impl Editor {
                                     if response.response.clicked() {
                                         clicked = true;
                                     }
-                                } else if response.response.clicked() || response.response.has_focus() {
+                                } else if response.response.clicked()
+                                    || response.response.has_focus()
+                                {
                                     clicked = true;
                                 }
                                 if response.response.changed() && !is_readonly {

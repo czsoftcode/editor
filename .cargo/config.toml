@@ -1,6 +1,6 @@
 [build]
-jobs = 10
+jobs = 5
 
 [env]
-RAYON_NUM_THREADS = "8"
-TOKIO_WORKER_THREADS = "8"
+RAYON_NUM_THREADS = "4"
+TOKIO_WORKER_THREADS = "4"

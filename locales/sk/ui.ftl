@@ -354,3 +354,9 @@ plugins-placeholder-model = ID modelu (napr. gemini-1.5-flash)
 command-name-plugin-ollama = Plugin: Spýtať sa Ollama
 command-name-plugin-ai-chat = Plugin: Spýtať sa AI agenta
 command-name-show-plugins = Pluginy
+
+## Support Modal
+support-modal-title = Podporiť vývoj PolyCredo
+support-modal-body = PolyCredo Editor je vyvíjaný s víziou súkromia, rýchlosti a bezpečnej integrácie AI asistentov. Ak sa vám projekt páči, budeme vděční za akúkoľvek podporu. Vaše príspevky nám pomáhajú venovať viac času vývoju nových funkcií a údržbe.
+support-modal-github = Sledovať na GitHub-e
+support-modal-donate = Prispieť na rozvoj

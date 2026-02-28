@@ -42,7 +42,11 @@ pub fn host_read_file(
     let total_lines = lines.len();
     let line_end = input["line_end"].as_u64().map(|v| v as usize);
     let content = if line_start > 1 || line_end.is_some() {
-        let start = if line_start > 1 { (line_start - 1).min(total_lines) } else { 0 };
+        let start = if line_start > 1 {
+            (line_start - 1).min(total_lines)
+        } else {
+            0
+        };
         let end = line_end.map(|e| e.min(total_lines)).unwrap_or(total_lines);
         lines[start..end].join("\n")
     } else {
@@ -528,7 +532,9 @@ pub fn host_list_facts(
     let result = serde_json::to_string(&serde_json::json!({ "keys": keys })).unwrap_or_default();
 
     let h = plugin.memory_alloc(result.len() as u64)?;
-    plugin.memory_bytes_mut(h)?.copy_from_slice(result.as_bytes());
+    plugin
+        .memory_bytes_mut(h)?
+        .copy_from_slice(result.as_bytes());
     outputs[0] = Val::I64(h.offset() as i64);
     Ok(())
 }

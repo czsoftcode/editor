@@ -281,12 +281,23 @@ pub(crate) fn render_workspace(
                             .color(egui::Color32::from_rgb(100, 200, 255)),
                     );
                 }
+
+                // Support Button (Heart)
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_space(8.0);
+                    let support_btn = ui
+                        .selectable_label(false, "❤️")
+                        .on_hover_text(i18n.get("menu-help-support"));
+                    if support_btn.clicked() {
+                        ws.show_support = true;
+                    }
+                });
             });
         });
-
     // --- 4. PANELS (Side & Bottom) ---
     let ai_chat_clicked = crate::app::ui::terminal::ai_chat::show(ctx, ws, shared, i18n);
-    let bottom_clicked = crate::app::ui::terminal::bottom::render_bottom_panel(ctx, ws, dialog_open_base, i18n);
+    let bottom_clicked =
+        crate::app::ui::terminal::bottom::render_bottom_panel(ctx, ws, dialog_open_base, i18n);
     let ai_clicked = render_ai_panel(ctx, ws, shared, dialog_open_base, i18n);
     let left_clicked = render_left_panel(ctx, ws, shared, dialog_open_base, i18n);
 
@@ -352,7 +363,13 @@ pub(crate) fn render_workspace(
     // Reset focus to editor only when the user explicitly clicks outside all panels.
     // Do NOT reset just because the mouse drifted away from the terminal area —
     // that would make keyboard input impossible after clicking the terminal.
-    let any_panel_interacted = ai_chat_clicked || ai_clicked || left_clicked || ai_viewport_clicked || ws.show_ai_chat || bottom_clicked || dialogs_interacted;
+    let any_panel_interacted = ai_chat_clicked
+        || ai_clicked
+        || left_clicked
+        || ai_viewport_clicked
+        || ws.show_ai_chat
+        || bottom_clicked
+        || dialogs_interacted;
     if !any_panel_interacted {
         let in_terminal = ws.focused_panel == FocusedPanel::Claude
             || ws.focused_panel == FocusedPanel::Build

@@ -460,6 +460,22 @@ impl EditorApp {
                         ws.ai_focus_requested = true;
                     }
                 }
+                AppAction::PluginAskUser(id, question, options, sender) => {
+                    if let Some(ws) = &mut self.root_ws
+                        && id == ws.ai_selected_provider
+                    {
+                        ws.pending_ask_user = Some((id, question, options, String::new(), sender));
+                        ws.ai_focus_requested = true;
+                    }
+                }
+                AppAction::PluginCompleted(id, summary) => {
+                    if let Some(ws) = &mut self.root_ws
+                        && id == ws.ai_selected_provider
+                    {
+                        ws.ai_monologue.push(format!("✅ DONE: {}", summary));
+                        ws.ai_loading = false;
+                    }
+                }
             }
         }
     }

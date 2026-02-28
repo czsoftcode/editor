@@ -15,6 +15,9 @@ pub fn host_read_file(
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
 
+    // Reset search chain count on actual work
+    *state.search_chain_count.lock().expect("lock") = 0;
+
     let input_str: String = plugin.memory_get_val(&inputs[0])?;
     let input: serde_json::Value =
         serde_json::from_str(&input_str).unwrap_or(serde_json::json!({"path": input_str}));
@@ -37,8 +40,11 @@ pub fn host_read_file(
 
     let lines: Vec<&str> = full_content.lines().collect();
     let total_lines = lines.len();
-    let content = if line_start > 1 && line_start <= total_lines {
-        lines[line_start - 1..].join("\n")
+    let line_end = input["line_end"].as_u64().map(|v| v as usize);
+    let content = if line_start > 1 || line_end.is_some() {
+        let start = if line_start > 1 { (line_start - 1).min(total_lines) } else { 0 };
+        let end = line_end.map(|e| e.min(total_lines)).unwrap_or(total_lines);
+        lines[start..end].join("\n")
     } else {
         full_content
     };
@@ -81,6 +87,9 @@ pub fn host_write_file(
     let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    // Reset search chain count on actual work
+    *state.search_chain_count.lock().expect("lock") = 0;
 
     let input_str: String = plugin.memory_get_val(&inputs[0])?;
     let input: serde_json::Value =
@@ -145,6 +154,9 @@ pub fn host_replace_file(
     let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    // Reset search chain count on actual work
+    *state.search_chain_count.lock().expect("lock") = 0;
 
     let input_str: String = plugin.memory_get_val(&inputs[0])?;
     let input: serde_json::Value =
@@ -283,6 +295,9 @@ pub fn host_store_scratch(
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
 
+    // Reset search chain count on actual work
+    *state.search_chain_count.lock().expect("lock") = 0;
+
     let input_str: String = plugin.memory_get_val(&inputs[0])?;
     let input: serde_json::Value =
         serde_json::from_str(&input_str).map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
@@ -319,6 +334,9 @@ pub fn host_retrieve_scratch(
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
 
+    // Reset search chain count on actual work
+    *state.search_chain_count.lock().expect("lock") = 0;
+
     let key: String = plugin.memory_get_val(&inputs[0])?;
 
     let ctx = state
@@ -350,6 +368,9 @@ pub fn host_store_fact(
     let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    // Reset search chain count on actual work
+    *state.search_chain_count.lock().expect("lock") = 0;
 
     let input_str: String = plugin.memory_get_val(&inputs[0])?;
     let input: serde_json::Value =
@@ -398,6 +419,9 @@ pub fn host_retrieve_fact(
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
 
+    // Reset search chain count on actual work
+    *state.search_chain_count.lock().expect("lock") = 0;
+
     let key: String = plugin.memory_get_val(&inputs[0])?;
 
     let ctx = state
@@ -429,6 +453,9 @@ pub fn host_list_files(
     let state = state_lock
         .lock()
         .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    // Reset search chain count on actual work
+    *state.search_chain_count.lock().expect("lock") = 0;
     let root = &state.sandbox_root;
 
     let mut files = Vec::new();
@@ -474,6 +501,65 @@ pub fn host_list_files(
         .memory_bytes_mut(h)?
         .copy_from_slice(result_json.as_bytes());
     outputs[0] = Val::I64(h.offset() as i64);
+    Ok(())
+}
+
+pub fn host_list_facts(
+    plugin: &mut CurrentPlugin,
+    _inputs: &[Val],
+    outputs: &mut [Val],
+    user_data: extism::UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let ctx = state
+        .context
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Context lock poisoned"))?;
+    let memory = ctx
+        .agent_memory
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Memory lock poisoned"))?;
+
+    let keys: Vec<String> = memory.facts.keys().cloned().collect();
+    let result = serde_json::to_string(&serde_json::json!({ "keys": keys })).unwrap_or_default();
+
+    let h = plugin.memory_alloc(result.len() as u64)?;
+    plugin.memory_bytes_mut(h)?.copy_from_slice(result.as_bytes());
+    outputs[0] = Val::I64(h.offset() as i64);
+    Ok(())
+}
+
+pub fn host_delete_fact(
+    plugin: &mut CurrentPlugin,
+    inputs: &[Val],
+    _outputs: &mut [Val],
+    user_data: extism::UserData<HostState>,
+) -> Result<(), extism::Error> {
+    let state_lock = user_data.get()?;
+    let state = state_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Mutex poisoned"))?;
+
+    let key: String = plugin.memory_get_val(&inputs[0])?;
+
+    let ctx = state
+        .context
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Context lock poisoned"))?;
+    let mut memory = ctx
+        .agent_memory
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Memory lock poisoned"))?;
+
+    memory.facts.remove(&key);
+    if let Err(e) = memory.save() {
+        eprintln!("Failed to save agent memory after delete: {}", e);
+    }
+
     Ok(())
 }
 

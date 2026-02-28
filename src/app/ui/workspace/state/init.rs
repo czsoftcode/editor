@@ -191,6 +191,7 @@ pub fn init_workspace(
         background_io_rx: None,
         applied_settings_version: 0,
         pending_plugin_approval: None,
+        pending_ask_user: None,
         ai_cancellation_token: Arc::new(AtomicBool::new(false)),
     }
 }

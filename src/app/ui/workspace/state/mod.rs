@@ -125,6 +125,14 @@ pub struct WorkspaceState {
         String,
         std::sync::mpsc::Sender<crate::app::types::PluginApprovalResponse>,
     )>,
+    /// Pending ask_user request: (plugin_id, question, options, answer_input_buffer, sender)
+    pub pending_ask_user: Option<(
+        String,
+        String,
+        Vec<String>,
+        String,
+        std::sync::mpsc::Sender<String>,
+    )>,
     pub ai_cancellation_token: Arc<AtomicBool>,
 }
 

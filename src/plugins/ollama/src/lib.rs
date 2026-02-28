@@ -144,6 +144,10 @@ extern "ExtismHost" {
     fn retrieve_scratch(key: String) -> String;
     fn store_fact(input: String);
     fn retrieve_fact(key: String) -> String;
+    fn list_facts() -> String;
+    fn delete_fact(key: String);
+    fn ask_user(input: String) -> String;
+    fn announce_completion(input: String);
     fn log_monologue(message: String);
     fn log_usage(in_tokens: u64, out_tokens: u64);
     fn log_payload(payload: String);
@@ -198,11 +202,12 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
     let mut system_prompt = config::get("SYSTEM_PROMPT")?.unwrap_or_else(|| "Expert Rust Developer.".to_string());
     if language_name != "English" {
         system_prompt.push_str(&format!(
-            "\n\nIMPORTANT: You MUST communicate EXCLUSIVELY in {}. This applies to your final response, your inner monologue, and your thoughts. NEVER switch to English.", 
+            "\n\nSTRICT LANGUAGE RULE: You MUST speak ONLY in the following language: '{}'. This applies to your final response, your inner monologue, and your thoughts. NEVER switch to English.", 
             language_name
         ));
     }
     system_prompt.push_str("\nMANDATE: LONG-TERM MEMORY: The context payload contains `memory_keys`, which is a LIST of fact names you have stored. It is NOT a key itself. At the START of a new task, you MUST review this list. If you see relevant keys, use `retrieve_fact` on EACH of them to recall your memory before proceeding.");
+    
     system_prompt.push_str("\nUse 'rg' (ripgrep) via 'search_project' for fast searching. For complex architectural questions or when you need to find relevant logic across the entire codebase, use 'semantic_search'.");
     system_prompt.push_str("\nIf you feel the context is getting full or you're missing information, proactively use 'semantic_search' to find the most relevant snippets.");
 
@@ -259,23 +264,15 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
 
     messages.push(Message { role: "user".to_string(), content: user_prompt, ..Default::default() });
 
-    let user_prompt = if context_str.is_empty() {
-        input.prompt.clone()
-    } else {
-        format!("Context:\n{}\nQuestion: {}", context_str, input.prompt)
-    };
-
-    messages.push(Message { role: "user".to_string(), content: user_prompt, ..Default::default() });
-
-        let mut current_iteration = 0;
-        let max_iterations: i32 = config::get("MAX_ITERATIONS")?
-            .and_then(|v| v.parse::<i32>().ok())
-            .unwrap_or(30);
-        let mut trace_log = format!("--- TRACE ---\nPrompt: {}\n\n", input.prompt);
-    
-        loop {
-            current_iteration += 1;
-            if current_iteration > max_iterations {
+                    let mut current_iteration = 0;
+                    let max_iterations: i32 = config::get("MAX_ITERATIONS")?
+                        .and_then(|v| v.parse::<i32>().ok())
+                        .unwrap_or(30);
+                    let mut trace_log = format!("--- TRACE ---\nPrompt: {}\n\n", input.prompt);
+                
+                    loop {
+                        current_iteration += 1;
+                        if current_iteration > max_iterations {
                 break;
             }
 
@@ -444,6 +441,23 @@ pub fn ask_ollama(input_json: String) -> FnResult<String> {
                             Ok(res) => serde_json::json!({ "value": res }),
                             Err(e) => serde_json::json!({ "error": format!("Retrieval failed: {}", e) }),
                         }
+                    } else if name == "list_facts" {
+                        match unsafe { list_facts() } {
+                            Ok(res_str) => serde_json::from_str(&res_str).unwrap_or(serde_json::json!({"keys": []})),
+                            Err(e) => serde_json::json!({ "error": format!("list_facts failed: {}", e) }),
+                        }
+                    } else if name == "delete_fact" {
+                        let key = call.function.arguments["key"].as_str().unwrap_or("").to_string();
+                        unsafe { let _ = delete_fact(key); }
+                        serde_json::json!({ "status": "deleted" })
+                    } else if name == "ask_user" {
+                        match unsafe { ask_user(serde_json::to_string(&call.function.arguments)?) } {
+                            Ok(answer) => serde_json::json!({ "answer": answer }),
+                            Err(e) => serde_json::json!({ "error": format!("ask_user failed: {}", e) }),
+                        }
+                    } else if name == "announce_completion" {
+                        unsafe { let _ = announce_completion(serde_json::to_string(&call.function.arguments)?); }
+                        serde_json::json!({ "status": "completed" })
                     } else { serde_json::json!({"error": "unknown function"}) };
 
                     let mut content = serde_json::to_string(&result)?;

@@ -41,6 +41,8 @@ pub struct HostState {
     pub context: Arc<Mutex<HostContext>>,
     pub action_sender: Option<std::sync::mpsc::Sender<crate::app::types::AppAction>>,
     pub egui_ctx: Option<eframe::egui::Context>,
+    pub command_history: Arc<Mutex<Vec<String>>>,
+    pub search_chain_count: Arc<Mutex<usize>>,
 }
 
 impl HostState {

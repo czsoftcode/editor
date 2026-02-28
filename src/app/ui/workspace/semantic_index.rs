@@ -1,5 +1,5 @@
 use candle_core::{Device, Tensor};
-use candle_transformers::models::bert::{BertModel, Config};
+use candle_transformers::models::bert::BertModel;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use std::fs;
@@ -115,7 +115,8 @@ impl SemanticIndex {
         let tokenizer_filename = repo.get("tokenizer.json")?;
         let weights_filename = repo.get("model.safetensors")?;
 
-        let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
+        let config: candle_transformers::models::bert::Config =
+            serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
         let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(|e| anyhow::anyhow!(e))?;
 
         let vb = unsafe {
@@ -125,6 +126,7 @@ impl SemanticIndex {
                 &self.device,
             )?
         };
+
         let model = BertModel::load(vb, &config)?;
 
         self.model = Some(Arc::new(model));
@@ -147,14 +149,15 @@ impl SemanticIndex {
         query: &str,
         top_k: usize,
     ) -> anyhow::Result<Vec<(f32, PathBuf, usize, String)>> {
-        let Some(model) = &self.model else {
-            anyhow::bail!("Model not initialized")
-        };
-        let Some(tokenizer) = &self.tokenizer else {
-            anyhow::bail!("Tokenizer not initialized")
+        let (model, tokenizer) = {
+            let m = self.model.as_ref().ok_or_else(|| anyhow::anyhow!("Model not initialized"))?;
+            let t = self.tokenizer.as_ref().ok_or_else(|| anyhow::anyhow!("Tokenizer not initialized"))?;
+            (Arc::clone(m), Arc::clone(t))
         };
 
-        let query_vec = self.vectorize_with_model(query, model, tokenizer)?;
+        // Perform vectorization OUTSIDE the snippets lock
+        let query_vec = self.vectorize_with_model(query, &model, &tokenizer)?;
+        
         let snippets = self.snippets.lock().unwrap();
         let mut results = Vec::new();
 

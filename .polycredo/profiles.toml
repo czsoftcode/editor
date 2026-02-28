@@ -5,9 +5,9 @@ args = ["check"]
 error_parser = "Rust"
 
 [[runners]]
-name = "Build --release -j 12"
+name = "Build --release"
 command = "cargo"
-args = ["build", "--release", "-j", "12"]
+args = ["build", "--release"]
 error_parser = "Rust"
 
 [[runners]]
@@ -17,8 +17,7 @@ args = ["run"]
 
 [[runners]]
 name = "Run New Instance"
-command = "cargo"
-args = ["run", "--", "--new-instance"]
+command = "./run_limited.sh"
 
 [[runners]]
 name = "Test"

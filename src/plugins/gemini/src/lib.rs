@@ -122,6 +122,14 @@ extern "ExtismHost" {
     fn search_project(query: String) -> String;
     fn semantic_search(query: String) -> String;
     fn exec_in_sandbox(command: String) -> String;
+    fn store_scratch(input: String);
+    fn retrieve_scratch(key: String) -> String;
+    fn store_fact(input: String);
+    fn retrieve_fact(key: String) -> String;
+    fn list_facts() -> String;
+    fn delete_fact(key: String);
+    fn ask_user(input: String) -> String;
+    fn announce_completion(input: String);
     fn log_monologue(message: String);
     fn log_usage(in_tokens: u64, out_tokens: u64);
     fn log_payload(payload: String);
@@ -151,7 +159,8 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
     let mut system_instruction = config::get("SYSTEM_PROMPT")?.unwrap_or_else(|| "Expert Rust Developer.".to_string());
 
     system_instruction.push_str(&format!(
-        "\n\nSTRICT LANGUAGE RULE: You MUST speak ONLY in the following language: '{}'. NEVER use English for text responses or thoughts. ALL reasoning/thoughts MUST also be in '{}'. NEVER overwrite existing files with 'write_file'.", 
+        "\n\nSTRICT LANGUAGE RULE: You MUST speak ONLY in the following language: '{}'. NEVER use English for text responses or thoughts. ALL reasoning/thoughts MUST also be in '{}'. NEVER overwrite existing files with 'write_file'. 
+        \nLIMIT shell command complexity: Do NOT chain more than 3 pipes (|).", 
         language, language
     ));
 
@@ -161,7 +170,7 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
     let mut current_iteration = 0;
     let mut last_in_tokens = 0u64;
     let mut last_out_tokens = 0u64;
-    const MAX_ITERATIONS: i32 = 100;
+    const MAX_ITERATIONS: i32 = 30;
     let mut trace_log = format!("--- TRACE ---\nPrompt: {}\n\n", input.prompt);
 
     loop {
@@ -253,6 +262,41 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
                         Ok(res) => serde_json::json!({ "output": res }),
                         Err(e) => serde_json::json!({ "error": format!("Execution failed: {}", e) }),
                     }
+                } else if name == "store_scratch" {
+                    unsafe { let _ = store_scratch(serde_json::to_string(&call.args)?); }
+                    serde_json::json!({ "status": "success" })
+                } else if name == "retrieve_scratch" {
+                    let key = call.args["key"].as_str().unwrap_or("").to_string();
+                    match unsafe { retrieve_scratch(key) } {
+                        Ok(res) => serde_json::json!({ "value": res }),
+                        Err(e) => serde_json::json!({ "error": format!("Scratch retrieval failed: {}", e) }),
+                    }
+                } else if name == "store_fact" {
+                    unsafe { let _ = store_fact(serde_json::to_string(&call.args)?); }
+                    serde_json::json!({ "status": "success" })
+                } else if name == "retrieve_fact" {
+                    let key = call.args["key"].as_str().unwrap_or("").to_string();
+                    match unsafe { retrieve_fact(key) } {
+                        Ok(res) => serde_json::json!({ "value": res }),
+                        Err(e) => serde_json::json!({ "error": format!("Retrieval failed: {}", e) }),
+                    }
+                } else if name == "list_facts" {
+                    match unsafe { list_facts() } {
+                        Ok(res_str) => serde_json::from_str(&res_str).unwrap_or(serde_json::json!({"keys": []})),
+                        Err(e) => serde_json::json!({ "error": format!("list_facts failed: {}", e) }),
+                    }
+                } else if name == "delete_fact" {
+                    let key = call.args["key"].as_str().unwrap_or("").to_string();
+                    unsafe { let _ = delete_fact(key); }
+                    serde_json::json!({ "status": "deleted" })
+                } else if name == "ask_user" {
+                    match unsafe { ask_user(serde_json::to_string(&call.args)?) } {
+                        Ok(answer) => serde_json::json!({ "answer": answer }),
+                        Err(e) => serde_json::json!({ "error": format!("ask_user failed: {}", e) }),
+                    }
+                } else if name == "announce_completion" {
+                    unsafe { let _ = announce_completion(serde_json::to_string(&call.args)?); }
+                    serde_json::json!({ "status": "completed" })
                 } else { serde_json::json!({"error": "unknown function"}) };
 
                 response_parts.push(Part { text: None, function_call: None, function_response: Some(FunctionResponse { name: call.name.clone(), response: result }), extra: HashMap::new() });

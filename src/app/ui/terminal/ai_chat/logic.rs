@@ -89,6 +89,7 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared
         is_cancelled: Arc::clone(&ws.ai_cancellation_token),
         agent_memory,
         scratch,
+        expertise_role: ws.ai_expertise,
     });
 
     std::thread::spawn(move || {

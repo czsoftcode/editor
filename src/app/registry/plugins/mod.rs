@@ -222,6 +222,8 @@ impl PluginManager {
             context: Arc::clone(&self.current_context),
             action_sender: self.action_sender.lock().expect("lock").clone(),
             egui_ctx: self.egui_ctx.lock().expect("lock").clone(),
+            command_history: Arc::new(Mutex::new(Vec::new())),
+            search_chain_count: Arc::new(Mutex::new(0)),
         };
 
         let functions = vec![
@@ -334,8 +336,36 @@ impl PluginManager {
                 "log_payload",
                 [ValType::I64],
                 [],
-                UserData::new(host_state),
+                UserData::new(host_state.clone()),
                 host_log_payload,
+            ),
+            Function::new(
+                "list_facts",
+                [],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_list_facts,
+            ),
+            Function::new(
+                "delete_fact",
+                [ValType::I64],
+                [],
+                UserData::new(host_state.clone()),
+                host_delete_fact,
+            ),
+            Function::new(
+                "ask_user",
+                [ValType::I64],
+                [ValType::I64],
+                UserData::new(host_state.clone()),
+                host_ask_user,
+            ),
+            Function::new(
+                "announce_completion",
+                [ValType::I64],
+                [],
+                UserData::new(host_state),
+                host_announce_completion,
             ),
         ];
 

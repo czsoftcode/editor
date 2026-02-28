@@ -17,21 +17,33 @@ impl AiManager {
         depth: AiReasoningDepth,
         language_name: &str,
     ) -> String {
-        format!(
+        let mut mandates = format!(
             "{}
 {}
 
-CORE MANDATE: 
-1. You MUST communicate EXCLUSIVELY in {}. This applies to both the final response AND your inner monologue/thoughts. NEVER switch to English unless explicitly asked.
-2. You MUST use the 'replace' tool for ALL code modifications in existing files. 
-3. DO NOT use 'write_file' to overwrite existing source code files.
-4. When using 'replace', ensure 'old_string' contains exactly 3-5 lines of context.
+CORE MISSION PROTOCOL: 
+You operate as a disciplined software engineer. For EVERY response, you MUST follow this structural thinking process in your monologue:
 
-Strictly adhere to these levels of expertise and reasoning depth.",
+1. **REFLECTION**: Analyze the output of your last tool call. Did it succeed? What EXACTLY did you learn? If it failed, why? (Do not repeat failed logic).
+2. **STATUS UPDATE**: Maintain a 'sub-goals' table in your scratchpad (use 'store_scratch' with key 'mission_status'). Mark tasks as [DONE], [ACTIVE], or [TODO].
+3. **PLANNING**: Define the single next logical step based on the Hierarchy of Truth (Local Code > Config > Host Hints > Web).
+
+MANDATORY RULES:
+- Language: ALWAYS use '{}' for everything. This applies to both thoughts and final responses.
+- Code: Use 'replace' for modifications. Never 'write_file' on existing source.
+- Context: Every 5 steps, provide a 'MISSION SUMMARY' to keep your context clean.",
             role.get_persona_mandate(),
             depth.get_reasoning_mandate(),
             language_name
-        )
+        );
+
+        // --- CENTRALIZED PROJECT STANDARDS ---
+        if let Ok(guide) = std::fs::read_to_string("AI_GUIDE.md") {
+            mandates.push_str("\n\nPROJECT-SPECIFIC MANIFESTO (Read this first):\n");
+            mandates.push_str(&guide);
+        }
+
+        mandates
     }
 
     /// Generates a unified context payload from the current workspace state.
@@ -92,10 +104,51 @@ Strictly adhere to these levels of expertise and reasoning depth.",
             });
         }
 
+        // 3. Cursor position and selected text from active tab
+        if let Some(tab) = ws.editor.active() {
+            if let Some(cr) = tab.last_cursor_range {
+                payload.cursor_line = Some(cr.primary.rcursor.row + 1);
+                payload.cursor_col = Some(cr.primary.rcursor.column + 1);
+                let start = cr.primary.ccursor.index.min(cr.secondary.ccursor.index);
+                let end = cr.primary.ccursor.index.max(cr.secondary.ccursor.index);
+                if start != end {
+                    let text: String =
+                        tab.content.chars().skip(start).take(end - start).collect();
+                    payload.selected_text = Some(text);
+                }
+            }
+        }
+
+        // 4. Project name and root
+        payload.project_name = ws
+            .root_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        payload.project_root = ".".to_string();
+
+        // 5. Git context
+        payload.git_branch = ws.git_branch.clone();
+        for (abs_path, color) in &ws.file_tree.git_colors {
+            let rel = abs_path
+                .strip_prefix(&ws.root_path)
+                .unwrap_or(abs_path)
+                .to_string_lossy()
+                .into_owned();
+            payload.git_status.push(AiGitFileStatus {
+                path: rel,
+                status: git_color_to_status(*color).to_string(),
+            });
+        }
+
+        // 6. Cargo.toml summary
+        payload.cargo_toml_summary = extract_cargo_summary(&ws.root_path);
+
         payload
     }
 
     /// Returns the centralized ASCII logo for all CLI agents.
+
     pub fn get_logo(
         version: &str,
         model: &str,
@@ -119,4 +172,41 @@ Strictly adhere to these levels of expertise and reasoning depth.",
             depth.as_str()
         )
     }
+}
+
+// ---------------------------------------------------------------------------
+// Private helpers
+// ---------------------------------------------------------------------------
+
+/// Converts a git-status color (as stored in FileTree) back to a short status code.
+fn git_color_to_status(color: eframe::egui::Color32) -> &'static str {
+    let [r, g, b, _] = color.to_array();
+    match (r, g, b) {
+        (100, 200, 110) => "A",   // Added
+        (210, 80, 80) => "D",     // Deleted
+        (120, 190, 255) => "??",  // Untracked
+        _ => "M",                 // Modified (fallback)
+    }
+}
+
+/// Extracts [package] and [dependencies] sections from Cargo.toml as a compact summary.
+fn extract_cargo_summary(root: &std::path::Path) -> Option<String> {
+    let content = std::fs::read_to_string(root.join("Cargo.toml")).ok()?;
+    let mut lines: Vec<&str> = Vec::new();
+    let mut in_relevant = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed == "[package]"
+            || trimmed == "[dependencies]"
+            || trimmed == "[dev-dependencies]"
+        {
+            in_relevant = true;
+            lines.push(line);
+        } else if trimmed.starts_with('[') && !trimmed.starts_with("[[") {
+            in_relevant = false;
+        } else if in_relevant && !trimmed.is_empty() {
+            lines.push(line);
+        }
+    }
+    if lines.is_empty() { None } else { Some(lines.join("\n")) }
 }

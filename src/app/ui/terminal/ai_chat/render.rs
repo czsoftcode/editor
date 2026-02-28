@@ -1,4 +1,4 @@
-use super::approval::render_approval_ui;
+use super::approval::{render_approval_ui, render_ask_user_ui};
 use super::inspector::render_inspector;
 use super::AiChatAction;
 use crate::app::types::AppShared;
@@ -133,12 +133,13 @@ fn render_chat_content(
     let gap_h = (body_h - history_display_h - reserved_h).max(0.0);
 
     // ── CONVERSATION HISTORY ──────────────────────────────────────────────────
-    let scroll_out = egui::ScrollArea::vertical()
+    let scroll_out = egui::ScrollArea::both()
         .id_salt("ai_chat_terminal_history")
         .auto_shrink([false, false])
         .max_height(history_display_h.max(1.0))
         .stick_to_bottom(true)
         .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = 8.0;
 
             if !ws.ai_conversation.is_empty() {
@@ -176,9 +177,13 @@ fn render_chat_content(
     // Store actual content height for the next frame
     ui.memory_mut(|m| m.data.insert_temp(history_mem_id, scroll_out.content_size.y));
 
-    // ── APPROVAL UI  OR  PROMPT ───────────────────────────────────────────────
+    // ── APPROVAL UI  /  ASK USER  /  PROMPT ──────────────────────────────────
     if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
         render_approval_ui(ui, id, action_name, details, sender, ws);
+    } else if let Some((id, question, options, mut input_buf, sender)) =
+        ws.pending_ask_user.take()
+    {
+        render_ask_user_ui(ui, id, question, options, &mut input_buf, sender, ws);
     } else {
         ui.add_space(4.0);
         ui.scope(|ui| {

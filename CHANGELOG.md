@@ -1,3 +1,11 @@
+## [0.7.26] - 2026-02-28
+
+### Added
+- **Dynamic Resource Management**: Integrated automatic CPU/RAM limit calculation into `build.rs` to maintain system responsiveness during development (66% cores for build, 50% for runtime).
+- **Auto-Configurator**: The build system now automatically generates and maintains `.cargo/config.toml` based on the current machine's hardware.
+- **Resource-Aware Packaging**: Updated `.deb` build scripts with a dynamic wrapper that calculates and enforces resource limits (via systemd-run) at the OS level on the target machine.
+- **Enhanced Dev Runner**: Added `run_limited.sh` with automatic `--new-instance` flag and dynamic resource throttling.
+
 ## [0.7.25] - 2026-02-27
 
 ### Changed

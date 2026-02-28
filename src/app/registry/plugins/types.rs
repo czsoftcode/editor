@@ -80,6 +80,8 @@ pub struct HostContext {
     pub agent_memory: Arc<Mutex<AgentMemory>>,
     /// Dočasný scratchpad — vymazán při každém novém dotazu, nikdy neperzistován.
     pub scratch: Arc<Mutex<std::collections::HashMap<String, String>>>,
+    /// Expertise role of the current session — used for runtime safety enforcement.
+    pub expertise_role: crate::app::ai::types::AiExpertiseRole,
 }
 
 impl Default for HostContext {
@@ -94,6 +96,7 @@ impl Default for HostContext {
             is_cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             agent_memory: Arc::new(Mutex::new(AgentMemory::default())),
             scratch: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            expertise_role: crate::app::ai::types::AiExpertiseRole::Senior,
         }
     }
 }

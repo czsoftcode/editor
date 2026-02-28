@@ -30,11 +30,16 @@ impl StandardTerminalWindow {
         let mut result = None;
 
         let viewer_bg = egui::Color32::from_rgb(20, 20, 25);
+        let screen_rect = ctx.screen_rect();
+        let max_w = screen_rect.width() * 0.9;
+        let max_h = screen_rect.height() * 0.9;
 
         let window_res = egui::Window::new(&self.title)
             .id(self.id)
             .default_size([800.0, 600.0])
             .min_size([300.0, 200.0])
+            .max_width(max_w)
+            .max_height(max_h)
             .resizable(true)
             .collapsible(true)
             .vscroll(false) 

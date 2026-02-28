@@ -25,6 +25,10 @@ pub fn get_standard_tools() -> Vec<AiToolDeclaration> {
                     "line_start": {
                         "type": "integer",
                         "description": "Optional: Line number to start reading from (default is 1). Use this to read the next segment if a file was truncated."
+                    },
+                    "line_end": {
+                        "type": "integer",
+                        "description": "Optional: Last line to read (inclusive). Use together with 'line_start' to read a precise segment without loading the entire file."
                     }
                 },
                 "required": ["path"]
@@ -174,6 +178,71 @@ pub fn get_standard_tools() -> Vec<AiToolDeclaration> {
                     }
                 },
                 "required": ["key"]
+            }),
+        },
+        AiToolDeclaration {
+            name: "list_facts".to_string(),
+            description: "Returns all keys currently stored in long-term memory. Use this at the start of a new task to check what you already know about the project before asking the user or searching files.".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }),
+        },
+        AiToolDeclaration {
+            name: "delete_fact".to_string(),
+            description: "Removes an outdated or incorrect fact from long-term memory. Use when you discover that a stored fact is no longer valid (e.g. an API changed, a file was renamed).".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "The key of the fact to delete."
+                    }
+                },
+                "required": ["key"]
+            }),
+        },
+        AiToolDeclaration {
+            name: "ask_user".to_string(),
+            description: "Ask the user a clarifying question when the task is ambiguous or requires a decision. Call this BEFORE making a guess that could lead to wrong code. The user's answer will be injected as the next user message. Use 'options' to offer concrete choices and reduce back-and-forth.".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "The clarifying question to ask the user."
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Optional list of suggested answers for the user to choose from."
+                    }
+                },
+                "required": ["question"]
+            }),
+        },
+        AiToolDeclaration {
+            name: "announce_completion".to_string(),
+            description: "Signal that the task is fully complete. ALWAYS call this as your FINAL action — never end a task without it. This tells the UI to stop the loading indicator and display your summary to the user.".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "summary": {
+                        "type": "string",
+                        "description": "Brief human-readable description of what was accomplished."
+                    },
+                    "files_modified": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "Optional list of relative paths of files that were changed."
+                    },
+                    "follow_up": {
+                        "type": "string",
+                        "description": "Optional: suggested next steps or warnings for the user (e.g. 'run cargo check to verify')."
+                    }
+                },
+                "required": ["summary"]
             }),
         },
     ]

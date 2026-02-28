@@ -68,7 +68,7 @@ normalize_dep_list() {
 
 compute_depends() {
     local shlibs_output shlibs_depends manual_depends
-    shlibs_output="$(dpkg_shlibdeps_wrapper "$STAGE_DIR/usr/bin/polycredo-editor")"
+    shlibs_output="$(dpkg_shlibdeps_wrapper "$STAGE_DIR/usr/lib/polycredo-editor/polycredo-editor-bin")"
     shlibs_depends="$(printf '%s\n' "$shlibs_output" | sed -n 's/^shlibs:Depends=//p')"
 
     # Rust GUI stack část knihoven načítá dynamicky přes dlopen, takže přidáme
@@ -117,11 +117,16 @@ prepare_stage() {
     mkdir -p \
         "$DEBIAN_DIR" \
         "$STAGE_DIR/usr/bin" \
+        "$STAGE_DIR/usr/lib/polycredo-editor" \
         "$STAGE_DIR/usr/share/applications" \
         "$STAGE_DIR/usr/share/icons/hicolor/scalable/apps" \
         "$OUTPUT_DIR"
 
-    install -m 0755 "$BIN_SOURCE" "$STAGE_DIR/usr/bin/polycredo-editor"
+    # Install the real binary to /usr/lib/
+    install -m 0755 "$BIN_SOURCE" "$STAGE_DIR/usr/lib/polycredo-editor/polycredo-editor-bin"
+    # Install the dynamic resource limiter wrapper as /usr/bin/polycredo-editor
+    install -m 0755 "$ASSETS_DIR/wrapper.sh" "$STAGE_DIR/usr/bin/polycredo-editor"
+
     install -m 0644 "$ASSETS_DIR/polycredo-editor.desktop" "$STAGE_DIR/usr/share/applications/polycredo-editor.desktop"
     install -m 0644 "$ASSETS_DIR/polycredo-editor.svg" "$STAGE_DIR/usr/share/icons/hicolor/scalable/apps/polycredo-editor.svg"
     install -m 0755 "$ASSETS_DIR/postinst" "$DEBIAN_DIR/postinst"

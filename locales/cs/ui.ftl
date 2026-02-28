@@ -30,6 +30,7 @@ btn-run-profile = ▶ Spustit...
 btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Upravit
 runner-none = Nejsou definovány žádné profily.
+menu-build-windows = Windows
 
 ## Git operace
 git-add-all = git add .
@@ -370,3 +371,11 @@ dep-wizard-btn-run-cmd = Spustit instalaci (vyžaduje sudo)
 dep-wizard-status-running = Instaluji...
 command-name-install-nsis = Instalovat NSIS
 command-name-install-rpm = Instalovat rpmbuild
+command-name-install-windows-target = Instalovat Windows Target (rustup)
+command-name-install-xwin = Instalovat cargo-xwin
+command-name-install-clang = Instalovat Clang (LLVM)
+command-name-install-lld = Instalovat LLD (Linker)
+dep-wizard-xwin-desc = Nástroj cargo-xwin je vyžadován pro cross-kompilaci pro Windows MSVC z Linuxu.
+dep-wizard-clang-desc = Kompilátor Clang je vyžadován pro sestavení nativních C/C++ závislostí pro Windows.
+dep-wizard-lld-desc = Linker LLD je vyžadován pro linkování Windows binárek na Linuxu.
+dep-wizard-windows-target-desc = Pro kompilaci je vyžadována standardní knihovna Rustu pro x86_64-pc-windows-msvc.

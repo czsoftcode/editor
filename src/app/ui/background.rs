@@ -436,6 +436,19 @@ pub(super) fn process_background_events(
         ws.ai_tool_check_rx = Some(spawn_ai_tool_check(check_list));
     }
 
+    if let Some(rx) = &ws.win_tool_check_rx
+        && let Ok(status) = rx.try_recv()
+    {
+        ws.win_tool_available = status;
+        ws.win_tool_check_rx = None;
+        ws.win_tool_last_check = std::time::Instant::now();
+    }
+    if ws.win_tool_last_check.elapsed().as_secs() >= 30 // Check every 30 seconds
+        && ws.win_tool_check_rx.is_none()
+    {
+        ws.win_tool_check_rx = Some(crate::app::ui::workspace::state::actions::spawn_win_tool_check());
+    }
+
     // --- 5. Async results ---
     if let Some(rx) = &ws.build_error_rx
         && let Ok(errors) = rx.try_recv()

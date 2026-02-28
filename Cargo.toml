@@ -1,6 +1,6 @@
 [package]
 name = "polycredo-editor"
-version = "0.7.31"
+version = "0.7.32"
 edition = "2024"
 authors = ["stkremen <stkremen@gmail.com>"]
 description = "PolyCredo Editor — Local-first AI-powered editor for Rust and more."
@@ -16,7 +16,15 @@ authors = ["stkremen <stkremen@gmail.com>"]
 description = "PolyCredo Editor — Local-first AI-powered editor for Rust and more."
 category = "Development"
 copyright = "Copyright 2024-2026 stkremen"
-icons = ["packaging/icons/icon.svg"]
+icons = [
+    "packaging/icons/icon.svg",
+    "packaging/icons/icon-16.png",
+    "packaging/icons/icon-32.png",
+    "packaging/icons/icon-48.png",
+    "packaging/icons/icon-64.png",
+    "packaging/icons/icon-128.png",
+    "packaging/icons/icon-256.png"
+]
 
 [package.metadata.packager.debian]
 targets = ["deb"]
@@ -60,6 +68,12 @@ targets = ["nsis"]
 # Universal source/binary archive for BSD and manual installs
 [package.metadata.packager.archive]
 targets = ["tar-gz"]
+
+[package.metadata.winres]
+RC = "llvm-rc"
+
+[build-dependencies]
+winres = "0.1"
 
 [dependencies]
 eframe = { version = "0.31", features = ["persistence"] }

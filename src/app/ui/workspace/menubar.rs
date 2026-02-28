@@ -34,6 +34,10 @@ pub(crate) struct MenuActions {
     pub install_appimagetool: bool,
     pub install_nsis: bool,
     pub install_rpm: bool,
+    pub install_xwin: bool,
+    pub install_clang: bool,
+    pub install_lld: bool,
+    pub install_windows_target: bool,
     pub plugins_target: Option<String>,
     pub run_agent: Option<String>,
     pub run_plugin: Option<(String, String)>,
@@ -314,12 +318,76 @@ pub(super) fn render_menu_bar(
                     ui.close_menu();
                 }
                 ui.separator();
+
+                ui.menu_button(i18n.get("menu-build-windows"), |ui| {
+                    let get_icon = |id: &str| {
+                        if *ws.win_tool_available.get(id).unwrap_or(&false) {
+                            "✅"
+                        } else {
+                            "❌"
+                        }
+                    };
+
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("windows-target"),
+                            i18n.get("command-name-install-windows-target")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_windows_target = true;
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("xwin"),
+                            i18n.get("command-name-install-xwin")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_xwin = true;
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("clang"),
+                            i18n.get("command-name-install-clang")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_clang = true;
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("lld"),
+                            i18n.get("command-name-install-lld")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_lld = true;
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("nsis"),
+                            i18n.get("command-name-install-nsis")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_nsis = true;
+                        ui.close_menu();
+                    }
+                });
+
                 if ui.button(i18n.get("command-name-install-appimagetool")).clicked() {
                     actions.install_appimagetool = true;
-                    ui.close_menu();
-                }
-                if ui.button(i18n.get("command-name-install-nsis")).clicked() {
-                    actions.install_nsis = true;
                     ui.close_menu();
                 }
                 if ui.button(i18n.get("command-name-install-rpm")).clicked() {
@@ -476,6 +544,18 @@ pub(super) fn process_menu_actions(
     if actions.install_rpm {
         ws.dep_wizard.open_for_rpm();
     }
+    if actions.install_xwin {
+        ws.dep_wizard.open_for_xwin();
+    }
+    if actions.install_clang {
+        ws.dep_wizard.open_for_clang();
+    }
+    if actions.install_lld {
+        ws.dep_wizard.open_for_lld();
+    }
+    if actions.install_windows_target {
+        ws.dep_wizard.open_for_windows_target();
+    }
     if actions.build_deb {
         if let Some(t) = &mut ws.build_terminal {
             t.send_command("./packaging/deb/build-deb.sh");
@@ -498,7 +578,7 @@ pub(super) fn process_menu_actions(
     }
     if actions.build_exe {
         if let Some(t) = &mut ws.build_terminal {
-            t.send_command("cargo build --release --target x86_64-pc-windows-msvc");
+            t.send_command("export PATH=$PATH:/usr/lib/llvm-19/bin && cargo xwin build --release --target x86_64-pc-windows-msvc");
         }
     }
     if actions.new_project {

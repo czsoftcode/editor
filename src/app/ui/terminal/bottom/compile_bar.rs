@@ -1,8 +1,9 @@
+#[cfg(target_os = "linux")]
 use crate::app::types::FocusedPanel;
 use crate::app::ui::workspace::state::WorkspaceState;
 use eframe::egui;
 
-pub fn render_compile_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+pub fn render_compile_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, _i18n: &crate::i18n::I18n) {
     // Only visible when Sandbox is OFF
     if ws.build_in_sandbox {
         return;
@@ -19,8 +20,8 @@ pub fn render_compile_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &cra
             #[cfg(target_os = "linux")]
             {
                 if ui
-                    .button(i18n.get("btn-create-deb"))
-                    .on_hover_text(i18n.get("hover-create-deb"))
+                    .button(_i18n.get("btn-create-deb"))
+                    .on_hover_text(_i18n.get("hover-create-deb"))
                     .clicked()
                 {
                     let cmd = "./packaging/deb/build-deb.sh";

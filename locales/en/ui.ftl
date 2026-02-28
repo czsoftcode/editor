@@ -29,6 +29,7 @@ btn-run-profile = ▶ Run Profile...
 btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Edit
 runner-none = No profiles defined.
+menu-build-windows = Windows
 
 ## Git operations
 git-add-all = git add .
@@ -370,3 +371,11 @@ dep-wizard-btn-run-cmd = Start Installation (requires sudo)
 dep-wizard-status-running = Installing...
 command-name-install-nsis = Install NSIS
 command-name-install-rpm = Install rpmbuild
+command-name-install-windows-target = Install Windows Target (rustup)
+command-name-install-xwin = Install cargo-xwin
+command-name-install-clang = Install Clang (LLVM)
+command-name-install-lld = Install LLD (Linker)
+dep-wizard-xwin-desc = The cargo-xwin utility is required for cross-compiling to Windows MSVC from Linux.
+dep-wizard-clang-desc = The Clang compiler is required to build native C/C++ dependencies for Windows.
+dep-wizard-lld-desc = The LLD linker is required to link Windows binaries on Linux.
+dep-wizard-windows-target-desc = The Rust standard library for x86_64-pc-windows-msvc is required for compilation.

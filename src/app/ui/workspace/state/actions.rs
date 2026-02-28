@@ -23,6 +23,42 @@ pub fn spawn_ai_tool_check(
     rx
 }
 
+pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut results = HashMap::new();
+        
+        // Check binaries in PATH
+        for (id, cmd) in [
+            ("xwin", "cargo-xwin"),
+            ("clang", "clang"),
+            ("lld", "lld"),
+            ("nsis", "makensis"),
+        ] {
+            let found = std::process::Command::new("which")
+                .arg(cmd)
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+            results.insert(id.to_string(), found);
+        }
+
+        // Check rustup target
+        let target_found = std::process::Command::new("rustup")
+            .args(["target", "list", "--installed"])
+            .output()
+            .map(|o| {
+                let stdout = String::from_utf8_lossy(&o.stdout);
+                stdout.lines().any(|l| l.trim() == "x86_64-pc-windows-msvc")
+            })
+            .unwrap_or(false);
+        results.insert("windows-target".to_string(), target_found);
+
+        let _ = tx.send(results);
+    });
+    rx
+}
+
 pub fn open_and_jump(ws: &mut WorkspaceState, path: PathBuf, line: usize) {
     open_file_in_ws(ws, path);
     ws.editor.jump_to_location(line, 1);

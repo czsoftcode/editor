@@ -100,6 +100,62 @@ impl DependencyWizard {
         self.show = true;
     }
 
+    pub fn open_for_xwin(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "xwin".into(),
+            name: "cargo-xwin".into(),
+            description_key: "dep-wizard-xwin-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "cargo".into(),
+                args: vec!["install".into(), "cargo-xwin".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_clang(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "clang".into(),
+            name: "Clang (LLVM)".into(),
+            description_key: "dep-wizard-clang-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "pkexec".into(),
+                args: vec!["apt-get".into(), "install".into(), "-y".into(), "clang".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_lld(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "lld".into(),
+            name: "LLD (LLVM Linker)".into(),
+            description_key: "dep-wizard-lld-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "pkexec".into(),
+                args: vec!["apt-get".into(), "install".into(), "-y".into(), "lld".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_windows_target(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "windows-target".into(),
+            name: "Windows Target".into(),
+            description_key: "dep-wizard-windows-target-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "rustup".into(),
+                args: vec!["target".into(), "add".into(), "x86_64-pc-windows-msvc".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
     fn reset_status(&mut self) {
         let mut s = self.status.lock().unwrap();
         *s = InstallStatus::Pending;

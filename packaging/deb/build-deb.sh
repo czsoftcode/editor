@@ -132,7 +132,7 @@ prepare_stage() {
     install -m 0644 "$ASSETS_DIR/polycredo-editor.desktop" "$STAGE_DIR/usr/share/applications/polycredo-editor.desktop"
     install -m 0644 "$ASSETS_DIR/polycredo-editor.svg" "$STAGE_DIR/usr/share/icons/hicolor/scalable/apps/polycredo-editor.svg"
     install -m 0644 "$ASSETS_DIR/copyright" "$STAGE_DIR/usr/share/doc/polycredo-editor/copyright"
-    install -m 0644 "$ASSETS_DIR/polycredo-editor.metainfo.xml" "$STAGE_DIR/usr/share/metainfo/polycredo-editor.metainfo.xml"
+    install -m 0644 "$ASSETS_DIR/io.github.czsoftcode.editor.metainfo.xml" "$STAGE_DIR/usr/share/metainfo/io.github.czsoftcode.editor.metainfo.xml"
     
     install -m 0755 "$ASSETS_DIR/preinst" "$DEBIAN_DIR/preinst"
     install -m 0755 "$ASSETS_DIR/postinst" "$DEBIAN_DIR/postinst"

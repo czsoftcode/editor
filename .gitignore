@@ -3,10 +3,11 @@ target/
 .aider*
 .polycredo/sandbox/
 .polycredo/plugins/
+.polycredo/*.bin
 .build_number
-.gemini-*
-.claude-notes.md
-.codex-notes.md
+.gemini*
+.claude*
+.codex*
 parse_diff_test.rs
 check.sh
 .build_number
@@ -17,3 +18,9 @@ test-docs/
 *.model
 semantic_index.bin
 all-minilm-l6-v2-q4_k_m.gguf
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+AUDIT*.md
+DONE.txt
+FIX_REPORT.md

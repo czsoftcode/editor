@@ -36,6 +36,10 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
             ("nsis", "makensis"),
             ("generate-rpm", "cargo-generate-rpm"),
             ("rpm", "rpmbuild"),
+            ("appimage", "cargo-appimage"),
+            ("appimagetool", "appimagetool"),
+            ("tar", "tar"),
+            ("deb", "dpkg-deb"),
         ] {
             let found = std::process::Command::new("which")
                 .arg(cmd)

@@ -114,6 +114,48 @@ impl DependencyWizard {
         self.show = true;
     }
 
+    pub fn open_for_appimage(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "appimage".into(),
+            name: "cargo-appimage".into(),
+            description_key: "dep-wizard-appimage-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "cargo".into(),
+                args: vec!["install".into(), "cargo-appimage".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_tar(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "tar".into(),
+            name: "tar".into(),
+            description_key: "dep-wizard-tar-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "pkexec".into(),
+                args: vec!["apt-get".into(), "install".into(), "-y".into(), "tar".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_deb_tools(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "deb".into(),
+            name: "Debian Build Tools".into(),
+            description_key: "dep-wizard-deb-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "pkexec".into(),
+                args: vec!["apt-get".into(), "install".into(), "-y".into(), "dpkg-dev".into(), "build-essential".into(), "fakeroot".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
     pub fn open_for_xwin(&mut self) {
         self.active_dependency = Some(Dependency {
             id: "xwin".into(),

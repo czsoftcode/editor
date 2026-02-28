@@ -3,15 +3,16 @@
 ### Added
 - **Windows Integration**: Implemented high-quality multi-resolution icons for Windows executables (`.exe`).
 - **Fedora Integration**: Added a new "Fedora" submenu under the Build menu for managing RPM-related dependencies.
-- **Dependency Wizard**: Extended the wizard to support automated installation of `cargo-generate-rpm` and `rpm-build` using `dnf`.
-- **Icon Generation**: Added automated script-based generation of PNG icons (16px to 256px) with enhanced contrast and vibrancy for better visibility on modern displays.
-- **Cross-Compilation Resources**: Integrated `winres` with manual `llvm-rc` fallback in `build.rs` to support embedding icons into the binary during cross-compilation from Linux.
-- **Documentation**: Added `docs/WINDOWS_BUILD.md` detailing the cross-compilation procedure using `cargo-xwin` and `llvm-rc`.
+- **AppImage Integration**: Added a new "AppImage" submenu with automated `cargo-appimage` and `appimagetool` installation support.
+- **Unified Build Protection**: The Build menu is now intelligently disabled when in "Sandbox ON" mode or when unpromoted changes exist, preventing incomplete builds.
+- **Unified Distribution**: All packaging outputs (`.deb`, `.rpm`, `.AppImage`, `.tar.gz`, `.exe`) are now automatically collected in a single `target/dist/` directory.
+- **Dependency Wizard**: Extended the wizard to support automated installation of `cargo-generate-rpm`, `cargo-appimage`, and `rpm-build`.
+- **Icon Generation**: Added automated script-based generation of PNG icons (16px to 256px) with enhanced contrast.
 
 ### Changed
-- **Tool Availability Check**: Implemented automatic startup and periodic (30s) background checks for Fedora/RPM tools (`cargo-generate-rpm`, `rpmbuild`), showing real-time status (✅/❌) in the Build menu.
-- **Windows IPC**: Improved IPC reliability on Windows by using local TCP sockets (127.0.0.1) instead of Unix domain sockets, with automatic port discovery via configuration file.
-- **UI/UX**: Refined the Dependency Wizard and Build Menu labels for better consistency across languages.
+- **Tool Availability Check**: Implemented automatic startup and periodic background checks for all packaging tools, showing real-time status (✅/❌) in submenus.
+- **Windows IPC**: Improved IPC reliability on Windows using local TCP sockets (127.0.0.1).
+- **UI/UX**: Reorganized the Build menu into logical submenus for each platform (Debian, Fedora, AppImage, Windows, Archive).
 - **RPM Packaging**: Optimized `Cargo.toml` for `cargo-generate-rpm` compatibility.
 
 ## [0.7.31] - 2026-02-28

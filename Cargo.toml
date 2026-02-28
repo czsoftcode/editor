@@ -35,6 +35,12 @@ assets = [
     { source = "packaging/deb/polycredo-editor.desktop", dest = "/usr/share/applications/polycredo-editor.desktop", mode = "644" }
 ]
 
+[package.metadata.appimage]
+assets = [
+    "packaging/icons/icon-256.png",
+    "packaging/deb/polycredo-editor.desktop"
+]
+
 [package.metadata.packager.debian]
 targets = ["deb"]
 section = "devel"

@@ -3,5 +3,5 @@ set -e
 
 . /usr/share/debconf/confmodule
 
-db_input high polycredo-editor/license || true
+db_input critical polycredo-editor/accept-license || true
 db_go || true

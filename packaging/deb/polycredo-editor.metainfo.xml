@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.stkremen.polycredo-editor</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <name>PolyCredo Editor</name>
+  <summary>AI Polyglot Code Editor</summary>
+  <description>
+    <p>
+      PolyCredo Editor is a lightweight, high-performance desktop editor written in Rust.
+      It features integrated AI assistance, a project file tree, multi-panel layout, 
+      and a built-in terminal.
+    </p>
+  </description>
+  <launchable type="desktop-id">polycredo-editor.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main window with code editor and AI panel</caption>
+      <image>https://raw.githubusercontent.com/stkremen/polycredo_editor/main/packaging/deb/polycredo-editor.svg</image>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/stkremen/polycredo_editor</url>
+  <provides>
+    <binary>polycredo-editor</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.7.28" date="2026-02-28" />
+  </releases>
+</component>

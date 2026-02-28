@@ -73,7 +73,7 @@ compute_depends() {
 
     # Rust GUI stack část knihoven načítá dynamicky přes dlopen, takže přidáme
     # minimální runtime balíčky pro X11/Wayland/OpenGL a fonty s Unicode podporou.
-    manual_depends="ripgrep, libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libgl1, fonts-dejavu-core, fonts-noto-core, fonts-noto-ui-core, fonts-noto-mono, fonts-symbola, fonts-noto-color-emoji"
+    manual_depends="ripgrep, debconf, libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libgl1, fonts-dejavu-core, fonts-noto-core, fonts-noto-ui-core, fonts-noto-mono, fonts-symbola, fonts-noto-color-emoji"
     printf '%s\n' "${shlibs_depends}, ${manual_depends}" | normalize_dep_list
 }
 
@@ -121,6 +121,7 @@ prepare_stage() {
         "$STAGE_DIR/usr/share/applications" \
         "$STAGE_DIR/usr/share/icons/hicolor/scalable/apps" \
         "$STAGE_DIR/usr/share/doc/polycredo-editor" \
+        "$STAGE_DIR/usr/share/metainfo" \
         "$OUTPUT_DIR"
 
     # Install the real binary to /usr/lib/
@@ -131,7 +132,9 @@ prepare_stage() {
     install -m 0644 "$ASSETS_DIR/polycredo-editor.desktop" "$STAGE_DIR/usr/share/applications/polycredo-editor.desktop"
     install -m 0644 "$ASSETS_DIR/polycredo-editor.svg" "$STAGE_DIR/usr/share/icons/hicolor/scalable/apps/polycredo-editor.svg"
     install -m 0644 "$ASSETS_DIR/copyright" "$STAGE_DIR/usr/share/doc/polycredo-editor/copyright"
+    install -m 0644 "$ASSETS_DIR/polycredo-editor.metainfo.xml" "$STAGE_DIR/usr/share/metainfo/polycredo-editor.metainfo.xml"
     
+    install -m 0755 "$ASSETS_DIR/preinst" "$DEBIAN_DIR/preinst"
     install -m 0755 "$ASSETS_DIR/postinst" "$DEBIAN_DIR/postinst"
     install -m 0755 "$ASSETS_DIR/postrm" "$DEBIAN_DIR/postrm"
     install -m 0755 "$ASSETS_DIR/config" "$DEBIAN_DIR/config"
@@ -151,10 +154,14 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: $MAINTAINER
 Depends: $depends
+Homepage: https://github.com/stkremen/polycredo_editor
 Description: $APP_NAME
- Jednoduchý textový editor napsaný v Rustu s eframe/egui.
+ Jednoduchý textový editor napsaný v Rustu.
  .
- Obsahuje AI polyglot code editor se stromem souborů, více panely a integrovaným terminálem.
+ PolyCredo Editor obsahuje AI polyglot code editor se stromem souborů, 
+ více panely a integrovaným terminálem.
+ .
+ License: AGPL-3.0-or-later
 EOF
 }
 

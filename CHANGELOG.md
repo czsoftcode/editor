@@ -1,3 +1,13 @@
+## [0.7.29] - 2026-02-28
+
+### Fixed
+- **Linux Distribution (Discover)**: Resolved an issue where KDE Discover failed to install the `.deb` package due to blocking `debconf` prompts in non-interactive mode.
+- **License Visibility**: Added **AppStream metadata** (`metainfo.xml`) to the Debian package, enabling software centers like Discover to correctly identify the AGPL-3.0 license and project details.
+- **Package Metadata**: Added an explicit `License` field and homepage to the `.deb` control file for better compatibility with various Linux package managers.
+
+### Changed
+- **Cargo Metadata**: Added the `license` field to `Cargo.toml`.
+
 ## [0.7.28] - 2026-02-28
 
 ### Added

@@ -136,6 +136,7 @@ pub fn init_workspace(
         ai_tool_check_rx: None,
         ai_tool_last_check: std::time::Instant::now(),
         external_change_conflict: None,
+        dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
         sandbox_deletion_sync: None,
         terminal_close_requested: None,
         ai_viewport_open: false,

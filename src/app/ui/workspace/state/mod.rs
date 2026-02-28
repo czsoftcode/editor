@@ -98,6 +98,7 @@ pub struct WorkspaceState {
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<String, bool>>>,
     pub ai_tool_last_check: std::time::Instant,
     pub external_change_conflict: Option<PathBuf>,
+    pub dep_wizard: crate::app::ui::dialogs::DependencyWizard,
     pub sandbox_deletion_sync: Option<PathBuf>,
     pub terminal_close_requested: Option<usize>,
     pub ai_viewport_open: bool,

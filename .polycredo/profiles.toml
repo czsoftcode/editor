@@ -11,6 +11,13 @@ args = ["build", "--release"]
 error_parser = "Rust"
 
 [[runners]]
+name = "Packager"
+command = "cargo"
+args = ["package", "--release"]
+auto_save = true
+error_parser = "None"
+
+[[runners]]
 name = "Run"
 command = "cargo"
 args = ["run"]
@@ -38,3 +45,4 @@ args = ["fmt", "--all"]
 [[runners]]
 name = "check.sh"
 command = "./check.sh"
+

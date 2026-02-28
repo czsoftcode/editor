@@ -1,3 +1,11 @@
+## [0.7.31] - 2026-02-28
+
+### Added
+- **Build Menu**: Introduced a new top-level "Sestavit" (Build) menu for streamlined access to packaging tools.
+- **Cross-Platform Packaging**: Added direct build actions for `.deb`, `.rpm`, `.AppImage`, `.tar.gz` (Linux/BSD), and `.exe` (Windows) formats.
+- **Improved Menu Organization**: Moved system dependency installation tools (NSIS, rpmbuild, appimagetool) from the Help menu to the new Build menu for better logical grouping.
+- **Multi-language Support**: Fully localized the new Build menu and its actions into Czech, English, Slovak, German, and Russian.
+
 ## [0.7.30] - 2026-02-28
 
 ### Added

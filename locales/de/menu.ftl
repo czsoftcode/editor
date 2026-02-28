@@ -5,6 +5,7 @@ menu-file = Datei
 menu-project = Projekt
 menu-edit = Bearbeiten
 menu-view = Ansicht
+menu-build = Bauen
 menu-help = Hilfe
 
 ## Menü Datei
@@ -41,6 +42,13 @@ menu-view-left-panel = Linkes Panel
 menu-view-build-terminal = Build-Terminal
 menu-view-ai-panel = AI-Terminal
 menu-view-ai-float = Schwebendes AI-Terminal
+
+## Menü Bauen
+menu-build-deb = .deb-Paket
+menu-build-rpm = .rpm-Paket
+menu-build-appimage = .AppImage-Paket
+menu-build-tar-gz = .tar.gz-Archiv (Linux/BSD)
+menu-build-exe = .exe-Installer (Windows)
 
 ## Menü Hilfe
 menu-help-settings = Einstellungen…

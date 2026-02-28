@@ -31,11 +31,19 @@ pub(crate) struct MenuActions {
     pub support: bool,
     pub settings: bool,
     pub plugins: bool,
+    pub install_appimagetool: bool,
+    pub install_nsis: bool,
+    pub install_rpm: bool,
     pub plugins_target: Option<String>,
     pub run_agent: Option<String>,
     pub run_plugin: Option<(String, String)>,
     pub build: bool,
     pub run: bool,
+    pub build_deb: bool,
+    pub build_rpm: bool,
+    pub build_appimage: bool,
+    pub build_tar_gz: bool,
+    pub build_exe: bool,
     pub open_file_picker: bool,
     pub project_search: bool,
 }
@@ -284,6 +292,42 @@ pub(super) fn render_menu_bar(
                 }
             });
 
+            ui.menu_button(i18n.get("menu-build"), |ui| {
+                if ui.button(i18n.get("menu-build-deb")).clicked() {
+                    actions.build_deb = true;
+                    ui.close_menu();
+                }
+                if ui.button(i18n.get("menu-build-rpm")).clicked() {
+                    actions.build_rpm = true;
+                    ui.close_menu();
+                }
+                if ui.button(i18n.get("menu-build-appimage")).clicked() {
+                    actions.build_appimage = true;
+                    ui.close_menu();
+                }
+                if ui.button(i18n.get("menu-build-tar-gz")).clicked() {
+                    actions.build_tar_gz = true;
+                    ui.close_menu();
+                }
+                if ui.button(i18n.get("menu-build-exe")).clicked() {
+                    actions.build_exe = true;
+                    ui.close_menu();
+                }
+                ui.separator();
+                if ui.button(i18n.get("command-name-install-appimagetool")).clicked() {
+                    actions.install_appimagetool = true;
+                    ui.close_menu();
+                }
+                if ui.button(i18n.get("command-name-install-nsis")).clicked() {
+                    actions.install_nsis = true;
+                    ui.close_menu();
+                }
+                if ui.button(i18n.get("command-name-install-rpm")).clicked() {
+                    actions.install_rpm = true;
+                    ui.close_menu();
+                }
+            });
+
             ui.menu_button(i18n.get("menu-help"), |ui| {
                 if ui.button(i18n.get("menu-help-about")).clicked() {
                     actions.about = true;
@@ -422,6 +466,40 @@ pub(super) fn process_menu_actions(
         ws.show_plugins = true;
         let shared_lock = shared.lock().expect("lock");
         ws.plugins_draft = Some((*shared_lock.settings).clone());
+    }
+    if actions.install_appimagetool {
+        ws.dep_wizard.open_for_appimagetool();
+    }
+    if actions.install_nsis {
+        ws.dep_wizard.open_for_nsis();
+    }
+    if actions.install_rpm {
+        ws.dep_wizard.open_for_rpm();
+    }
+    if actions.build_deb {
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("./packaging/deb/build-deb.sh");
+        }
+    }
+    if actions.build_rpm {
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("cargo generate-rpm");
+        }
+    }
+    if actions.build_appimage {
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("cargo appimage");
+        }
+    }
+    if actions.build_tar_gz {
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("cargo build --release && tar -C target/release -czvf polycredo-editor.tar.gz polycredo-editor");
+        }
+    }
+    if actions.build_exe {
+        if let Some(t) = &mut ws.build_terminal {
+            t.send_command("cargo build --release --target x86_64-pc-windows-msvc");
+        }
     }
     if actions.new_project {
         ws.show_new_project = true;

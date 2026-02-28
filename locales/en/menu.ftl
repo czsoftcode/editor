@@ -5,6 +5,7 @@ menu-file = File
 menu-project = Project
 menu-edit = Edit
 menu-view = View
+menu-build = Build
 menu-help = Help
 
 ## File menu
@@ -41,6 +42,13 @@ menu-view-left-panel = Left Panel
 menu-view-build-terminal = Build Terminal
 menu-view-ai-panel = AI Terminal
 menu-view-ai-float = Floating AI Terminal
+
+## Build Menu
+menu-build-deb = .deb package
+menu-build-rpm = .rpm package
+menu-build-appimage = .AppImage package
+menu-build-tar-gz = .tar.gz archive (Linux/BSD)
+menu-build-exe = .exe installer (Windows)
 
 ## Help Menu
 menu-help-settings = Settings…

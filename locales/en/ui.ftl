@@ -352,3 +352,21 @@ settings-blacklist = Plugin Blacklist (blocked files)
 settings-blacklist-add = Add pattern
 settings-blacklist-hint = Patterns like *.env, secret/*. Auto-blocks .gitignore.
 semantic-indexing-btn-stop = Stop indexing
+
+# Dependency Wizard
+dep-wizard-title = Install Missing Tools
+dep-wizard-appimagetool-desc = To create an AppImage package, the { $tool } utility is required. This tool is not part of your system standard repositories.
+dep-wizard-install-question = Do you want to download it from the official source and install it to { $path }?
+dep-wizard-btn-install = Download and Install
+dep-wizard-status-downloading = Downloading...
+dep-wizard-status-success = Tool installed successfully.
+dep-wizard-status-error = Installation error: { $error }
+command-name-install-appimagetool = Install appimagetool
+
+dep-wizard-nsis-desc = The NSIS system utility is required to create Windows .exe installers.
+dep-wizard-rpm-desc = The rpmbuild utility is required to create .rpm packages.
+dep-wizard-install-cmd-question = This tool can be installed using your system package manager. Do you want to start the installation?
+dep-wizard-btn-run-cmd = Start Installation (requires sudo)
+dep-wizard-status-running = Installing...
+command-name-install-nsis = Install NSIS
+command-name-install-rpm = Install rpmbuild

@@ -352,3 +352,21 @@ support-modal-body = PolyCredo Editor je vyvíjen s vizí soukromí, rychlosti a
 support-modal-github = Sledovat na GitHubu
 support-modal-donate = Přispět na rozvoj
 semantic-indexing-btn-stop = Zastavit indexaci
+
+# Dependency Wizard
+dep-wizard-title = Instalace chybějících nástrojů
+dep-wizard-appimagetool-desc = Pro vytvoření AppImage balíčku je vyžadován nástroj { $tool }. Tento nástroj není součástí standardních repozitářů vašeho systému.
+dep-wizard-install-question = Chcete jej nyní stáhnout z oficiálního zdroje a nainstalovat do { $path }?
+dep-wizard-btn-install = Stáhnout a nainstalovat
+dep-wizard-status-downloading = Stahování...
+dep-wizard-status-success = Nástroj byl úspěšně nainstalován.
+dep-wizard-status-error = Chyba při instalaci: { $error }
+command-name-install-appimagetool = Instalovat appimagetool
+
+dep-wizard-nsis-desc = Pro vytvoření Windows .exe instalátorů je vyžadován systémový nástroj NSIS.
+dep-wizard-rpm-desc = Pro vytvoření .rpm balíčků je vyžadován nástroj rpmbuild.
+dep-wizard-install-cmd-question = Tento nástroj lze nainstalovat pomocí systémového správce balíčků. Chcete spustit instalaci?
+dep-wizard-btn-run-cmd = Spustit instalaci (vyžaduje sudo)
+dep-wizard-status-running = Instaluji...
+command-name-install-nsis = Instalovat NSIS
+command-name-install-rpm = Instalovat rpmbuild

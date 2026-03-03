@@ -26,18 +26,8 @@ default_maintainer() {
 MAINTAINER="${DEB_MAINTAINER:-$(default_maintainer)}"
 
 compute_version() {
-    local cargo_version build_number
-    cargo_version="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT_DIR/Cargo.toml" | head -n1)"
-    if [[ -z "$cargo_version" ]]; then
-        echo "Nepodařilo se načíst verzi z Cargo.toml" >&2
-        exit 1
-    fi
-
-    build_number="$(tr -d '[:space:]' < "$ROOT_DIR/.build_number")"
-    if [[ -z "$build_number" ]]; then
-        build_number="0"
-    fi
-    printf '%s-%s\n' "$cargo_version" "$build_number"
+    local type="${DEB_BUILD_TYPE:-deb}"
+    ./scripts/get-version.sh "$type"
 }
 
 normalize_dep_list() {
@@ -73,7 +63,14 @@ compute_depends() {
 
     # Rust GUI stack část knihoven načítá dynamicky přes dlopen, takže přidáme
     # minimální runtime balíčky pro X11/Wayland/OpenGL a fonty s Unicode podporou.
-    manual_depends="ripgrep, debconf, libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libgl1, fonts-dejavu-core, fonts-noto-core, fonts-noto-ui-core, fonts-noto-mono, fonts-symbola, fonts-noto-color-emoji"
+    # Přidáváme také runtime pro podporované frameworky (PHP, Python, Node.js).
+    manual_depends="ripgrep, debconf, libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libgl1, fonts-dejavu-core, fonts-noto-core, fonts-noto-ui-core, fonts-noto-mono, fonts-symbola, fonts-noto-color-emoji, libssl3, php-cli, php-xml, php-mbstring, python3, python3-pip, nodejs, npm"
+    
+    # Add GitHub CLI for development builds
+    if [[ "${DEB_BUILD_TYPE:-}" == "deb-dev" ]]; then
+        manual_depends="${manual_depends}, gh"
+    fi
+
     printf '%s\n' "${shlibs_depends}, ${manual_depends}" | normalize_dep_list
 }
 

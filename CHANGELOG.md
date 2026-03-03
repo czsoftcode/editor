@@ -2,6 +2,11 @@
 
 ### Added
 - **Multi-Platform Distribution**: Implemented comprehensive packaging support for all major platforms: Windows (.exe), Debian/Ubuntu (.deb), Fedora (RPM), Arch Linux (AUR), AppImage, Flatpak, Snap, and Archive (.tar.gz).
+- **Snapcraft & LXD Integration**: 
+    - Added automated installation of `snapd`, `lxd`, and `snapcraft` via the Dependency Wizard.
+    - Implemented LXD configuration tool in the Build menu to simplify build environment setup.
+    - Enhanced Snap build process with automatic fallback to `--destructive-mode` and `sg lxd` group switching for immediate permission access.
+    - Created standard `snap/snapcraft.yaml` configuration using modern `core24` base.
 - **Unified Build Protection**: The Build menu is now intelligently disabled when in "Sandbox ON" mode or when unpromoted changes exist, preventing incomplete builds.
 - **Unified Output**: All distribution packages are now automatically collected in a single `target/dist/` directory.
 - **Windows Integration**: High-quality multi-resolution icons embedded into Windows executables with full cross-compilation support.

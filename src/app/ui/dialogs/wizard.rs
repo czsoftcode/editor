@@ -1,4 +1,4 @@
-use crate::app::types::{AppShared, ProjectType, default_wizard_path, path_env};
+use crate::app::types::{AppShared, ProjectType, default_wizard_path};
 use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::validation::is_valid_project_name;
 use eframe::egui;
@@ -123,18 +123,30 @@ pub(crate) fn show_project_wizard(
         modal.ui_body(ui, |ui| {
             ui.add_space(8.0);
             ui.label(egui::RichText::new(i18n.get("wizard-project-type")).strong());
-            ui.horizontal(|ui| {
-                ui.radio_value(
-                    &mut state.project_type,
-                    ProjectType::Rust,
-                    i18n.get("wizard-type-rust"),
-                );
-                ui.radio_value(
-                    &mut state.project_type,
-                    ProjectType::Symfony,
-                    i18n.get("wizard-type-symfony"),
-                );
-            });
+            egui::ComboBox::from_id_source("project_type_combo")
+                .selected_text(match state.project_type {
+                    ProjectType::Rust => i18n.get("wizard-type-rust-2024"),
+                    ProjectType::Symfony74 => i18n.get("wizard-type-symfony-7-4"),
+                    ProjectType::Symfony80 => i18n.get("wizard-type-symfony-8-0"),
+                    ProjectType::Laravel12 => i18n.get("wizard-type-laravel-12"),
+                    ProjectType::Nette32 => i18n.get("wizard-type-nette-3-2"),
+                    ProjectType::Nette30 => i18n.get("wizard-type-nette-3-0"),
+                    ProjectType::FastApi => i18n.get("wizard-type-fastapi-0-135"),
+                    ProjectType::NextJs => i18n.get("wizard-type-nextjs-16-1"),
+                    ProjectType::ExpressJs => i18n.get("wizard-type-expressjs-5-0"),
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut state.project_type, ProjectType::Rust, i18n.get("wizard-type-rust-2024"));
+                    ui.selectable_value(&mut state.project_type, ProjectType::Symfony74, i18n.get("wizard-type-symfony-7-4"));
+                    ui.selectable_value(&mut state.project_type, ProjectType::Symfony80, i18n.get("wizard-type-symfony-8-0"));
+                    ui.selectable_value(&mut state.project_type, ProjectType::Laravel12, i18n.get("wizard-type-laravel-12"));
+                    ui.selectable_value(&mut state.project_type, ProjectType::Nette32, i18n.get("wizard-type-nette-3-2"));
+                    ui.selectable_value(&mut state.project_type, ProjectType::Nette30, i18n.get("wizard-type-nette-3-0"));
+                    ui.separator();
+                    ui.selectable_value(&mut state.project_type, ProjectType::FastApi, i18n.get("wizard-type-fastapi-0-135"));
+                    ui.selectable_value(&mut state.project_type, ProjectType::NextJs, i18n.get("wizard-type-nextjs-16-1"));
+                    ui.selectable_value(&mut state.project_type, ProjectType::ExpressJs, i18n.get("wizard-type-expressjs-5-0"));
+                });
             ui.add_space(12.0);
 
             egui::Grid::new("wizard_grid")
@@ -162,23 +174,15 @@ pub(crate) fn show_project_wizard(
                 });
 
             let raw_name = state.name.trim();
-            let display_name = if state.project_type == ProjectType::Rust {
-                raw_name.to_lowercase()
-            } else {
-                raw_name.to_string()
-            };
             let name_valid = is_valid_project_name(raw_name);
-            if !display_name.is_empty() {
+            if !raw_name.is_empty() {
                 if !name_valid {
                     ui.add_space(4.0);
-                    ui.colored_label(
-                        egui::Color32::from_rgb(0xe0, 0x70, 0x10),
-                        i18n.get("wizard-name-hint"),
-                    );
+                    ui.colored_label(egui::Color32::from_rgb(0xe0, 0x70, 0x10), i18n.get("wizard-name-hint"));
                 } else {
                     let preview = PathBuf::from(state.path.trim())
                         .join(state.project_type.subdir())
-                        .join(&display_name);
+                        .join(&raw_name);
                     ui.add_space(4.0);
                     ui.horizontal(|ui| {
                         ui.label(i18n.get("settings-creates-in"));
@@ -209,69 +213,22 @@ pub(crate) fn show_project_wizard(
         state.browse_rx = Some(spawn_folder_picker(state.path.clone()));
     }
 
-    if let Some((project_type, raw_name, base_path)) = create_project {
+    if let Some((project_type, name, base_path)) = create_project {
         state.error.clear();
         state.creating = true;
-        let i18n_arc = std::sync::Arc::clone(
-            &shared
-                .lock()
-                .expect("Failed to lock AppShared for i18n in project wizard")
-                .i18n,
-        );
+        let i18n_arc = Arc::clone(&shared.lock().expect("lock").i18n);
         state.create_rx = Some(crate::app::ui::background::spawn_task(move || {
             let i18n = &*i18n_arc;
-            let name = if project_type == ProjectType::Rust {
-                raw_name.to_lowercase()
-            } else {
-                raw_name
-            };
             let type_dir = PathBuf::from(&base_path).join(project_type.subdir());
             if let Err(e) = std::fs::create_dir_all(&type_dir) {
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("reason", e.to_string());
-                return ProjectCreateResult::Error(
-                    i18n.get_args("error-project-dir-create", &args),
-                );
+                return ProjectCreateResult::Error(i18n.get_args("error-project-dir-create", &args));
             }
-
             let full_path = type_dir.join(&name);
-            let env = path_env();
-            let output = match project_type {
-                ProjectType::Rust => std::process::Command::new("cargo")
-                    .args(["new", &name])
-                    .current_dir(&type_dir)
-                    .env("PATH", &env)
-                    .output(),
-                ProjectType::Symfony => std::process::Command::new("composer")
-                    .args(["create-project", "symfony/skeleton", &name])
-                    .current_dir(&type_dir)
-                    .env("PATH", &env)
-                    .output(),
-            };
-
-            match output {
-                Ok(output) if output.status.success() => {
-                    ProjectCreateResult::Success(full_path.canonicalize().unwrap_or(full_path))
-                }
-                Ok(output) => {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    let msg = if !stderr.is_empty() {
-                        stderr.to_string()
-                    } else if !stdout.is_empty() {
-                        stdout.to_string()
-                    } else {
-                        let mut args = fluent_bundle::FluentArgs::new();
-                        args.set("code", output.status.to_string());
-                        i18n.get_args("error-cmd-failed", &args)
-                    };
-                    ProjectCreateResult::Error(msg)
-                }
-                Err(e) => {
-                    let mut args = fluent_bundle::FluentArgs::new();
-                    args.set("reason", e.to_string());
-                    ProjectCreateResult::Error(i18n.get_args("error-cmd-start", &args))
-                }
+            match crate::app::project_templates::generate_project(project_type, &name, &full_path) {
+                Ok(_) => ProjectCreateResult::Success(full_path.canonicalize().unwrap_or(full_path)),
+                Err(e) => ProjectCreateResult::Error(e),
             }
         }));
     }

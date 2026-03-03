@@ -24,7 +24,7 @@ pub fn render_compile_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, _i18n: &cr
                     .on_hover_text(_i18n.get("hover-create-deb"))
                     .clicked()
                 {
-                    let cmd = "./packaging/deb/build-deb.sh";
+                    let cmd = "export DEB_BUILD_TYPE=deb-dev && ./packaging/deb/build-deb.sh";
                     ws.next_terminal_id += 1;
                     let terminal = crate::app::ui::terminal::instance::Terminal::new(
                         ws.next_terminal_id,

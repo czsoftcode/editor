@@ -70,6 +70,28 @@ pub fn render(
                         actions.install_aur = true;
                         ui.close_menu();
                     }
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("bsdtar"),
+                            i18n.get("command-name-install-bsdtar")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_bsdtar = true;
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("makepkg"),
+                            i18n.get("command-name-install-makepkg")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_makepkg = true;
+                        ui.close_menu();
+                    }
                 });
 
                 ui.menu_button(i18n.get("menu-build-flatpak-sub"), |ui| {
@@ -120,6 +142,17 @@ pub fn render(
                         .clicked()
                     {
                         actions.install_snap = true;
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("snap"),
+                            i18n.get("command-name-configure-lxd")
+                        ))
+                        .clicked()
+                    {
+                        actions.configure_lxd = true;
                         ui.close_menu();
                     }
                 });

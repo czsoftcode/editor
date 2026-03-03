@@ -1,6 +1,6 @@
 [package]
 name = "polycredo-editor"
-version = "0.8.0"
+version = "0.8.1-dev"
 edition = "2024"
 authors = ["stkremen <stkremen@gmail.com>"]
 description = "PolyCredo Editor — Local-first AI-powered editor for Rust and more."
@@ -11,7 +11,6 @@ homepage = "https://github.com/czsoftcode/editor"
 [package.metadata.packager]
 name = "polycredo-editor"
 identifier = "io.github.czsoftcode.editor"
-version = "0.7.32"
 authors = ["stkremen <stkremen@gmail.com>"]
 description = "PolyCredo Editor — Local-first AI-powered editor for Rust and more."
 category = "Development"
@@ -130,3 +129,19 @@ url = "2.5.8"
 
 [patch.crates-io]
 egui_term = { path = "vendor/egui_term" }
+
+[profile.dev]
+# 0 = no debug info, 1 = line tables only, 2 = full debug info
+debug = 1
+# Incremental compilation speeds up build times but uses more space
+incremental = true
+
+[profile.release]
+# Link-Time Optimization (LTO) for smaller and faster binary
+lto = "thin"
+# Remove debug symbols from the binary automatically
+strip = true
+# Optimization level 3 is standard for release
+opt-level = 3
+# Don't panic, abort instead (can save space, optional)
+# panic = "abort"

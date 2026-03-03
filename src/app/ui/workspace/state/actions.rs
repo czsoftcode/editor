@@ -41,6 +41,8 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
             ("tar", "tar"),
             ("deb", "dpkg-deb"),
             ("aur", "cargo-aur"),
+            ("bsdtar", "bsdtar"),
+            ("makepkg", "makepkg"),
             ("flatpak", "flatpak-builder"),
             ("snap", "snapcraft"),
         ] {

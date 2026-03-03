@@ -43,8 +43,11 @@ pub(crate) struct MenuActions {
     pub install_generate_rpm: bool,
     pub install_deb_tools: bool,
     pub install_aur: bool,
+    pub install_bsdtar: bool,
+    pub install_makepkg: bool,
     pub install_flatpak: bool,
     pub install_snap: bool,
+    pub configure_lxd: bool,
     pub install_tar: bool,
     pub install_xwin: bool,
     pub install_clang: bool,
@@ -227,11 +230,22 @@ pub(super) fn process_menu_actions(
     if actions.install_aur {
         ws.dep_wizard.open_for_aur();
     }
+    if actions.install_bsdtar {
+        ws.dep_wizard.open_for_bsdtar();
+    }
+    if actions.install_makepkg {
+        ws.dep_wizard.open_for_makepkg();
+    }
     if actions.install_flatpak {
         ws.dep_wizard.open_for_flatpak();
     }
     if actions.install_snap {
         ws.dep_wizard.open_for_snap();
+    }
+    if actions.configure_lxd
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command(&format!("sudo usermod -aG lxd $USER && sudo /snap/bin/lxd init --auto && echo 'LXD configured. Please restart your session or run: newgrp lxd'"));
     }
     if actions.install_tar {
         ws.dep_wizard.open_for_tar();
@@ -248,47 +262,107 @@ pub(super) fn process_menu_actions(
     if actions.install_windows_target {
         ws.dep_wizard.open_for_windows_target();
     }
+    let root = {
+        let c: Vec<_> = ws.root_path.components().collect();
+        let n = c.len();
+        if n >= 2
+            && c[n - 1].as_os_str() == "sandbox"
+            && c[n - 2].as_os_str() == ".polycredo"
+        {
+            ws.root_path
+                .parent()
+                .and_then(|p| p.parent())
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| ws.root_path.clone())
+        } else {
+            ws.root_path.clone()
+        }
+    }
+    .display()
+    .to_string();
+    let sandbox_root = ws.sandbox.root.display().to_string();
+    let upload_to_github = "&& (VERSION=$(./scripts/get-version.sh); \
+                             gh release create \"v$VERSION\" --title \"Release v$VERSION\" --notes \"Automated build from PolyCredo Editor\" 2>/dev/null || true; \
+                             gh release upload \"v$VERSION\" target/dist/* --clobber 2>/dev/null || true)";
+
     if actions.build_deb
         && let Some(t) = &mut ws.build_terminal
     {
-        t.send_command("mkdir -p target/dist && ./packaging/deb/build-deb.sh && mv target/debian/*.deb target/dist/ 2>/dev/null || true");
+        t.send_command(&format!(
+            "cd \"{root}\" && mkdir -p target/dist && \
+             export DEB_BUILD_TYPE=deb && ./packaging/deb/build-deb.sh && \
+             mv target/debian/*.deb target/dist/ 2>/dev/null {upload_to_github} || true"
+        ));
     }
     if actions.build_rpm
         && let Some(t) = &mut ws.build_terminal
     {
-        t.send_command("mkdir -p target/dist && cargo generate-rpm && mv *.rpm target/dist/ 2>/dev/null || true");
+        t.send_command(&format!(
+            "cd \"{root}\" && mkdir -p target/dist && \
+             cargo generate-rpm -o target/dist/ 2>/dev/null || \
+             (cargo generate-rpm && mv *.rpm target/dist/ 2>/dev/null) {upload_to_github} || true"
+        ));
     }
     if actions.build_aur
         && let Some(t) = &mut ws.build_terminal
     {
-        t.send_command("mkdir -p target/dist && cargo aur && mv target/cargo-aur/*.pkg.tar.zst target/dist/ 2>/dev/null || true");
+        t.send_command(&format!(
+            "cd \"{root}\" && mkdir -p target/dist && \
+             cargo build --release && \
+             PKGNAME=$(awk -F'\"' '/^name = /{{print $2; exit}}' Cargo.toml) && \
+             VERSION=$(./scripts/get-version.sh arch) && \
+             RAW_VERSION=$(./scripts/get-version.sh) && \
+             cargo aur && \
+             tar -C target/release -czvf \"target/cargo-aur/$PKGNAME-$VERSION-x86_64.tar.gz\" \"$PKGNAME\" && \
+             gh release create \"v$RAW_VERSION\" --title \"Release v$RAW_VERSION\" --notes \"Automated build\" 2>/dev/null || true; \
+             gh release upload \"v$RAW_VERSION\" \"target/cargo-aur/$PKGNAME-$VERSION-x86_64.tar.gz\" --clobber 2>/dev/null || true; \
+             sed -i \"s/pkgver=.*/pkgver=$VERSION/\" target/cargo-aur/PKGBUILD && \
+             sed -i \"s|source=.*|source=(\\\"$PKGNAME-$VERSION-x86_64.tar.gz\\\")|\" target/cargo-aur/PKGBUILD && \
+             sed -i \"s|sha256sums=.*|sha256sums=('SKIP')|\" target/cargo-aur/PKGBUILD && \
+             (cd target/cargo-aur && BUILDDIR=/tmp/polycredo-aur-build PKGDEST=\"{root}/target/dist\" makepkg -sf --noconfirm) || true"
+        ));
     }
     if actions.build_flatpak
         && let Some(t) = &mut ws.build_terminal
     {
-        t.send_command("mkdir -p target/dist && flatpak-builder --force-clean build-dir org.polycredo.Editor.yaml && flatpak-builder --repo=repo --force-clean build-dir org.polycredo.Editor.yaml && flatpak build-bundle repo target/dist/polycredo-editor.flatpak org.polycredo.Editor");
+        t.send_command(&format!(
+            "cd \"{root}\" && mkdir -p target/dist && \
+             flatpak-builder --force-clean --repo=repo build-dir org.polycredo.Editor.yaml && \
+             flatpak build-bundle repo target/dist/polycredo-editor.flatpak org.polycredo.Editor {upload_to_github}"
+        ));
     }
     if actions.build_snap
         && let Some(t) = &mut ws.build_terminal
     {
-        t.send_command(
-            "mkdir -p target/dist && snapcraft && mv *.snap target/dist/ 2>/dev/null || true",
-        );
+        t.send_command(&format!(
+            "cd \"{root}\" && mkdir -p target/dist && \
+             sg lxd -c \"snapcraft pack --output target/dist/polycredo-editor.snap\" 2>/dev/null || \
+             snapcraft pack --output target/dist/polycredo-editor.snap 2>/dev/null || \
+             (snapcraft pack && mv *.snap target/dist/ 2>/dev/null) {upload_to_github} || true",
+        ));
     }
     if actions.build_appimage
         && let Some(t) = &mut ws.build_terminal
     {
-        t.send_command("mkdir -p target/dist && cargo appimage && mv *.AppImage target/dist/ 2>/dev/null || true");
+        t.send_command(&format!(
+            "cd \"{root}\" && mkdir -p target/dist && \
+             cargo appimage && mv *.AppImage target/dist/ 2>/dev/null || \
+             mv target/appimage/*.AppImage target/dist/ 2>/dev/null {upload_to_github} || true"
+        ));
     }
     if actions.build_tar_gz
         && let Some(t) = &mut ws.build_terminal
     {
-        t.send_command("mkdir -p target/dist && cargo build --release && tar -C target/release -czvf target/dist/polycredo-editor.tar.gz polycredo-editor");
+        t.send_command(&format!(
+            "cd \"{root}\" && mkdir -p target/dist && \
+             cargo build --release && \
+             tar -C target/release -czvf target/dist/polycredo-editor.tar.gz polycredo-editor {upload_to_github}"
+        ));
     }
     if actions.build_exe
         && let Some(t) = &mut ws.build_terminal
     {
-        t.send_command("mkdir -p target/dist && export PATH=$PATH:/usr/lib/llvm-19/bin && cargo xwin build --release --target x86_64-pc-windows-msvc && cp target/x86_64-pc-windows-msvc/release/polycredo-editor.exe target/dist/ 2>/dev/null || true");
+        t.send_command(&format!("cd \"{root}\" && mkdir -p target/dist && export PATH=$PATH:/usr/lib/llvm-19/bin && cargo xwin build --release --target x86_64-pc-windows-msvc && (cp target/x86_64-pc-windows-msvc/release/polycredo-editor.exe target/dist/ 2>/dev/null || cp target/release/polycredo-editor.exe target/dist/ 2>/dev/null) || true"));
     }
     if actions.new_project {
         ws.show_new_project = true;

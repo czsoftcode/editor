@@ -60,17 +60,28 @@ pub(crate) enum FocusedPanel {
     Files,
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub(crate) enum ProjectType {
     Rust,
-    Symfony,
+    Symfony74,
+    Symfony80,
+    Laravel12,
+    Nette32,
+    Nette30,
+    FastApi,
+    NextJs,
+    ExpressJs,
 }
 
 impl ProjectType {
     pub(crate) fn subdir(&self) -> &'static str {
         match self {
             ProjectType::Rust => "Rust",
-            ProjectType::Symfony => "Symfony",
+            ProjectType::Symfony74 | ProjectType::Symfony80 => "Symfony",
+            ProjectType::Laravel12 => "Laravel",
+            ProjectType::Nette32 | ProjectType::Nette30 => "Nette",
+            ProjectType::FastApi => "Python",
+            ProjectType::NextJs | ProjectType::ExpressJs => "NodeJS",
         }
     }
 }
@@ -192,7 +203,6 @@ impl Toast {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn info(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),

@@ -36,6 +36,10 @@ impl Sandbox {
         Self { root, project_root }
     }
 
+    pub fn project_root(&self) -> &std::path::Path {
+        &self.project_root
+    }
+
     fn calculate_file_hash(path: &Path) -> Option<u64> {
         let bytes = fs::read(path).ok()?;
         Some(xxh3_64(&bytes))

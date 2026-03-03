@@ -9,6 +9,7 @@ mod fonts;
 pub mod local_history;
 pub mod lsp;
 mod project_config;
+pub(crate) mod project_templates;
 pub mod registry;
 pub mod sandbox;
 mod startup;

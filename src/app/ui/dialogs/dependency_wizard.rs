@@ -140,18 +140,56 @@ impl DependencyWizard {
         self.show = true;
     }
 
-    pub fn open_for_flatpak(&mut self) {
+    pub fn open_for_makepkg(&mut self) {
         self.active_dependency = Some(Dependency {
-            id: "flatpak".into(),
-            name: "Flatpak Builder".into(),
-            description_key: "dep-wizard-flatpak-desc".into(),
+            id: "makepkg".into(),
+            name: "makepkg (pacman)".into(),
+            description_key: "dep-wizard-makepkg-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "pkexec".into(),
                 args: vec![
                     "apt-get".into(),
                     "install".into(),
                     "-y".into(),
-                    "flatpak-builder".into(),
+                    "pacman".into(),
+                ],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_bsdtar(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "bsdtar".into(),
+            name: "bsdtar (libarchive-tools)".into(),
+            description_key: "dep-wizard-bsdtar-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "pkexec".into(),
+                args: vec![
+                    "apt-get".into(),
+                    "install".into(),
+                    "-y".into(),
+                    "libarchive-tools".into(),
+                ],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_flatpak(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "flatpak".into(),
+            name: "Flatpak Builder & SDK".into(),
+            description_key: "dep-wizard-flatpak-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "bash".into(),
+                args: vec![
+                    "-c".into(),
+                    "pkexec apt-get install -y flatpak-builder flatpak && \
+                     flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo && \
+                     flatpak install -y flathub org.freedesktop.Sdk//24.08 org.freedesktop.Platform//24.08 org.freedesktop.Sdk.Extension.rust-stable//24.08".into(),
                 ],
             },
         });
@@ -165,12 +203,10 @@ impl DependencyWizard {
             name: "Snapcraft".into(),
             description_key: "dep-wizard-snap-desc".into(),
             method: InstallMethod::SystemCommand {
-                cmd: "pkexec".into(),
+                cmd: "bash".into(),
                 args: vec![
-                    "apt-get".into(),
-                    "install".into(),
-                    "-y".into(),
-                    "snapcraft".into(),
+                    "-c".into(),
+                    "sudo apt-get update && sudo apt-get install -y snapd && sudo snap install lxd && sudo snap install snapcraft --classic".into(),
                 ],
             },
         });

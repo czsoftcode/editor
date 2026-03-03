@@ -25,3 +25,5 @@ AUDIT*.md
 DONE.txt
 FIX_REPORT.md
 .audit/
+polycredo-editor
+.flatpak-builder

@@ -25,6 +25,23 @@ icons = [
     "packaging/icons/icon-256.png"
 ]
 
+[package.metadata.deb]
+maintainer = "stkremen <stkremen@gmail.com>"
+copyright = "Copyright 2024-2026 stkremen"
+license-file = ["LICENSE", "0"]
+extended-description = "PolyCredo Editor is a modern, high-performance editor built with Rust. It features deep AI integration, a built-in terminal, and focuses on local-first privacy."
+depends = "$auto, libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libegl1, libgl1, ripgrep"
+section = "devel"
+priority = "optional"
+assets = [
+    ["target/release/polycredo-editor", "usr/bin/", "755"],
+    ["packaging/deb/polycredo-editor.desktop", "usr/share/applications/", "644"],
+    ["packaging/icons/icon-256.png", "usr/share/icons/hicolor/256x256/apps/polycredo-editor.png", "644"],
+    ["packaging/icons/icon-128.png", "usr/share/icons/hicolor/128x128/apps/polycredo-editor.png", "644"],
+    ["packaging/icons/icon-64.png", "usr/share/icons/hicolor/64x64/apps/polycredo-editor.png", "644"],
+    ["packaging/icons/icon-32.png", "usr/share/icons/hicolor/32x32/apps/polycredo-editor.png", "644"],
+]
+
 [package.metadata.generate-rpm]
 assets = [
     { source = "target/release/polycredo-editor", dest = "/usr/bin/polycredo-editor", mode = "755" },

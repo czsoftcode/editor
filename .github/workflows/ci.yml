@@ -30,5 +30,10 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      - name: Instalace display závislostí
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libx11-dev libxcb1 libxkbcommon0
+
       - name: Run Tests
-        run: cargo test --all-targets --all-features
+        run: xvfb-run --auto-servernum cargo test --all-targets --all-features

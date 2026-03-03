@@ -122,7 +122,7 @@ impl ProjectWatcher {
                         // Check for common high-frequency ignore directories via components (only for non-polycredo paths)
                         p.components().any(|c| {
                             let s = c.as_os_str().to_string_lossy();
-                            matches!(s.as_ref(), ".git" | "target" | "node_modules" | "history")
+                            matches!(s.as_ref(), ".git" | "target" | "node_modules" | "history" | ".flatpak-builder")
                         })
                     };
 

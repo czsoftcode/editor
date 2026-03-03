@@ -1,3 +1,4 @@
+pub(crate) mod build_all_modal;
 pub(crate) mod index;
 mod menubar;
 mod modal_dialogs;
@@ -186,6 +187,7 @@ pub(crate) fn render_workspace(
     let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
     render_semantic_indexing_modal(ctx, ws, i18n);
     ws.dep_wizard.render(ctx, i18n);
+    ws.build_all_modal.render(ctx, i18n);
     if let Some(path) = render_file_picker(ctx, ws, i18n) {
         open_file_in_ws(ws, path);
     }

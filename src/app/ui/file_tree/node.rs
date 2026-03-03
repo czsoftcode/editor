@@ -8,6 +8,7 @@ pub const IGNORED_DIRS: &[&str] = &[
     ".vscode",
     "__pycache__",
     ".polycredo",
+    ".flatpak-builder",
 ];
 
 pub struct FileNode {

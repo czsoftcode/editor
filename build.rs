@@ -19,7 +19,7 @@ fn main() {
     }
 
     let config_content = format!(
-        "[build]\njobs = {}\n\n[env]\nRAYON_NUM_THREADS = \"{}\"\nTOKIO_WORKER_THREADS = \"{}\"\n",
+        "[build]\njobs = {}\ntarget-dir = \"~/.cache/polycredo-editor/target\"\n\n[env]\nRAYON_NUM_THREADS = \"{}\"\nTOKIO_WORKER_THREADS = \"{}\"\n",
         build_jobs, env_threads, env_threads
     );
 

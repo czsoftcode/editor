@@ -46,50 +46,61 @@ pub fn render(
                     }
                 });
 
-                ui.menu_button(i18n.get("menu-build-arch"), |ui| {
+                ui.menu_button(i18n.get("menu-build-freebsd"), |ui| {
                     if ui
                         .button(format!(
                             "{} {}",
-                            get_icon("aur"),
-                            i18n.get("menu-build-aur")
+                            get_icon("freebsd-target"),
+                            i18n.get("menu-build-freebsd-pkg")
                         ))
                         .clicked()
                     {
-                        actions.build_aur = true;
+                        actions.build_freebsd = true;
                         ui.close_menu();
                     }
                     ui.separator();
                     if ui
                         .button(format!(
                             "{} {}",
-                            get_icon("aur"),
-                            i18n.get("command-name-install-aur")
+                            get_icon("freebsd-target"),
+                            i18n.get("command-name-install-freebsd-target")
                         ))
                         .clicked()
                     {
-                        actions.install_aur = true;
+                        actions.install_freebsd_target = true;
                         ui.close_menu();
                     }
                     if ui
                         .button(format!(
                             "{} {}",
-                            get_icon("bsdtar"),
-                            i18n.get("command-name-install-bsdtar")
+                            get_icon("cross"),
+                            i18n.get("command-name-install-cross")
                         ))
                         .clicked()
                     {
-                        actions.install_bsdtar = true;
+                        actions.install_cross = true;
                         ui.close_menu();
                     }
                     if ui
                         .button(format!(
                             "{} {}",
-                            get_icon("makepkg"),
-                            i18n.get("command-name-install-makepkg")
+                            get_icon("fpm"),
+                            i18n.get("command-name-install-fpm")
                         ))
                         .clicked()
                     {
-                        actions.install_makepkg = true;
+                        actions.install_fpm = true;
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("podman"),
+                            i18n.get("command-name-install-podman")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_podman = true;
                         ui.close_menu();
                     }
                 });
@@ -157,31 +168,6 @@ pub fn render(
                     }
                 });
 
-                ui.menu_button(i18n.get("menu-build-archive"), |ui| {
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("tar"),
-                            i18n.get("menu-build-tar-gz")
-                        ))
-                        .clicked()
-                    {
-                        actions.build_tar_gz = true;
-                        ui.close_menu();
-                    }
-                    ui.separator();
-                    if ui
-                        .button(format!(
-                            "{} {}",
-                            get_icon("tar"),
-                            i18n.get("command-name-install-tar")
-                        ))
-                        .clicked()
-                    {
-                        actions.install_tar = true;
-                        ui.close_menu();
-                    }
-                });
 
                 ui.menu_button(i18n.get("menu-build-fedora"), |ui| {
                     if ui
@@ -326,6 +312,14 @@ pub fn render(
                         ui.close_menu();
                     }
                 });
+                ui.separator();
+                if ui
+                    .button(i18n.get("menu-build-all"))
+                    .clicked()
+                {
+                    actions.build_all = true;
+                    ui.close_menu();
+                }
             });
         })
         .response;

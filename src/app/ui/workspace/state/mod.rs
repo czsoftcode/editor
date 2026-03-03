@@ -102,6 +102,7 @@ pub struct WorkspaceState {
     pub win_tool_last_check: std::time::Instant,
     pub external_change_conflict: Option<PathBuf>,
     pub dep_wizard: crate::app::ui::dialogs::DependencyWizard,
+    pub build_all_modal: crate::app::ui::workspace::build_all_modal::BuildAllModal,
     pub sandbox_deletion_sync: Option<PathBuf>,
     pub terminal_close_requested: Option<usize>,
     pub ai_viewport_open: bool,

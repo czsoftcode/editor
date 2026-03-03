@@ -4,12 +4,17 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PKG_NAME="polycredo-editor"
 APP_NAME="PolyCredo Editor"
-BIN_SOURCE="$ROOT_DIR/target/release/polycredo-editor"
-PKG_BUILD_ROOT="$ROOT_DIR/target/deb-build"
+CARGO_CACHE_TARGET="${CARGO_TARGET_DIR:-$HOME/.cache/polycredo-editor/target}"
+BIN_SOURCE="$CARGO_CACHE_TARGET/release/polycredo-editor"
+PKG_BUILD_ROOT="$ROOT_DIR/target/debian"
 STAGE_DIR="$PKG_BUILD_ROOT/$PKG_NAME"
 DEBIAN_DIR="$STAGE_DIR/DEBIAN"
 ASSETS_DIR="$ROOT_DIR/packaging/deb"
-OUTPUT_DIR="${1:-$ROOT_DIR/target/debian}"
+if [[ "${DEB_BUILD_TYPE:-deb}" == "deb" ]]; then
+    OUTPUT_DIR="${1:-$ROOT_DIR/target/dist}"
+else
+    OUTPUT_DIR="${1:-$ROOT_DIR/target/debian}"
+fi
 ARCH="${DEB_ARCH:-$(dpkg --print-architecture)}"
 
 default_maintainer() {
@@ -64,7 +69,7 @@ compute_depends() {
     # Rust GUI stack část knihoven načítá dynamicky přes dlopen, takže přidáme
     # minimální runtime balíčky pro X11/Wayland/OpenGL a fonty s Unicode podporou.
     # Přidáváme také runtime pro podporované frameworky (PHP, Python, Node.js).
-    manual_depends="ripgrep, debconf, libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libgl1, fonts-dejavu-core, fonts-noto-core, fonts-noto-ui-core, fonts-noto-mono, fonts-symbola, fonts-noto-color-emoji, libssl3, php-cli, php-xml, php-mbstring, python3, python3-pip, nodejs, npm"
+    manual_depends="ripgrep, debconf, pkexec, polkitd, libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libegl1, libgl1, fonts-dejavu-core, fonts-noto-core, fonts-noto-ui-core, fonts-noto-mono, fonts-symbola, fonts-noto-color-emoji, libssl3, php-cli, php-xml, php-mbstring, python3, python3-pip, nodejs, npm"
     
     # Add GitHub CLI for development builds
     if [[ "${DEB_BUILD_TYPE:-}" == "deb-dev" ]]; then
@@ -101,7 +106,9 @@ EOF
 
 build_binary() {
     echo "==> Building release binary"
-    cargo build --release --manifest-path "$ROOT_DIR/Cargo.toml"
+    cargo build --release \
+        --manifest-path "$ROOT_DIR/Cargo.toml" \
+        --target-dir "$CARGO_CACHE_TARGET"
     if [[ ! -x "$BIN_SOURCE" ]]; then
         echo "Release binary nebyla nalezena: $BIN_SOURCE" >&2
         exit 1

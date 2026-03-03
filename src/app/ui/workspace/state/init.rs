@@ -140,6 +140,7 @@ pub fn init_workspace(
         win_tool_last_check: std::time::Instant::now(),
         external_change_conflict: None,
         dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
+        build_all_modal: crate::app::ui::workspace::build_all_modal::BuildAllModal::new(),
         sandbox_deletion_sync: None,
         terminal_close_requested: None,
         ai_viewport_open: false,

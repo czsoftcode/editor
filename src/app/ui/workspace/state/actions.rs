@@ -38,13 +38,12 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
             ("rpm", "rpmbuild"),
             ("appimage", "cargo-appimage"),
             ("appimagetool", "appimagetool"),
-            ("tar", "tar"),
             ("deb", "dpkg-deb"),
-            ("aur", "cargo-aur"),
-            ("bsdtar", "bsdtar"),
-            ("makepkg", "makepkg"),
             ("flatpak", "flatpak-builder"),
             ("snap", "snapcraft"),
+            ("cross", "cross"),
+            ("fpm", "fpm"),
+            ("podman", "podman"),
         ] {
             let found = std::process::Command::new("which")
                 .arg(cmd)
@@ -54,16 +53,20 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
             results.insert(id.to_string(), found);
         }
 
-        // Check rustup target
-        let target_found = std::process::Command::new("rustup")
+        // Check rustup targets
+        let installed_targets = std::process::Command::new("rustup")
             .args(["target", "list", "--installed"])
             .output()
-            .map(|o| {
-                let stdout = String::from_utf8_lossy(&o.stdout);
-                stdout.lines().any(|l| l.trim() == "x86_64-pc-windows-msvc")
-            })
-            .unwrap_or(false);
-        results.insert("windows-target".to_string(), target_found);
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+            .unwrap_or_default();
+        results.insert(
+            "windows-target".to_string(),
+            installed_targets.lines().any(|l| l.trim() == "x86_64-pc-windows-msvc"),
+        );
+        results.insert(
+            "freebsd-target".to_string(),
+            installed_targets.lines().any(|l| l.trim() == "x86_64-unknown-freebsd"),
+        );
 
         let _ = tx.send(results);
     });

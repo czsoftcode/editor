@@ -42,17 +42,18 @@ pub(crate) struct MenuActions {
     pub install_rpm: bool,
     pub install_generate_rpm: bool,
     pub install_deb_tools: bool,
-    pub install_aur: bool,
-    pub install_bsdtar: bool,
-    pub install_makepkg: bool,
     pub install_flatpak: bool,
     pub install_snap: bool,
     pub configure_lxd: bool,
-    pub install_tar: bool,
     pub install_xwin: bool,
     pub install_clang: bool,
     pub install_lld: bool,
     pub install_windows_target: bool,
+    pub install_freebsd_target: bool,
+    pub install_cross: bool,
+    pub install_fpm: bool,
+    pub install_podman: bool,
+    pub build_all: bool,
     pub plugins_target: Option<String>,
     pub run_agent: Option<String>,
     pub run_plugin: Option<(String, String)>,
@@ -60,12 +61,11 @@ pub(crate) struct MenuActions {
     pub run: bool,
     pub build_deb: bool,
     pub build_rpm: bool,
-    pub build_aur: bool,
     pub build_flatpak: bool,
     pub build_snap: bool,
     pub build_appimage: bool,
-    pub build_tar_gz: bool,
     pub build_exe: bool,
+    pub build_freebsd: bool,
     pub open_file_picker: bool,
     pub project_search: bool,
 }
@@ -227,14 +227,20 @@ pub(super) fn process_menu_actions(
     if actions.install_deb_tools {
         ws.dep_wizard.open_for_deb_tools();
     }
-    if actions.install_aur {
-        ws.dep_wizard.open_for_aur();
+    if actions.install_freebsd_target {
+        ws.dep_wizard.open_for_freebsd_target();
     }
-    if actions.install_bsdtar {
-        ws.dep_wizard.open_for_bsdtar();
+    if actions.install_cross {
+        ws.dep_wizard.open_for_cross();
     }
-    if actions.install_makepkg {
-        ws.dep_wizard.open_for_makepkg();
+    if actions.install_fpm {
+        ws.dep_wizard.open_for_fpm();
+    }
+    if actions.install_podman {
+        ws.dep_wizard.open_for_podman();
+    }
+    if actions.build_all {
+        ws.build_all_modal.start(ws.root_path.clone(), _ctx.clone());
     }
     if actions.install_flatpak {
         ws.dep_wizard.open_for_flatpak();
@@ -242,13 +248,8 @@ pub(super) fn process_menu_actions(
     if actions.install_snap {
         ws.dep_wizard.open_for_snap();
     }
-    if actions.configure_lxd
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!("sudo usermod -aG lxd $USER && sudo /snap/bin/lxd init --auto && echo 'LXD configured. Please restart your session or run: newgrp lxd'"));
-    }
-    if actions.install_tar {
-        ws.dep_wizard.open_for_tar();
+    if actions.configure_lxd {
+        ws.dep_wizard.open_for_lxd();
     }
     if actions.install_xwin {
         ws.dep_wizard.open_for_xwin();
@@ -280,7 +281,7 @@ pub(super) fn process_menu_actions(
     }
     .display()
     .to_string();
-    let sandbox_root = ws.sandbox.root.display().to_string();
+    let _sandbox_root = ws.sandbox.root.display().to_string();
     let upload_to_github = "&& (VERSION=$(./scripts/get-version.sh); \
                              gh release create \"v$VERSION\" --title \"Release v$VERSION\" --notes \"Automated build from PolyCredo Editor\" 2>/dev/null || true; \
                              gh release upload \"v$VERSION\" target/dist/* --clobber 2>/dev/null || true)";
@@ -290,8 +291,10 @@ pub(super) fn process_menu_actions(
     {
         t.send_command(&format!(
             "cd \"{root}\" && mkdir -p target/dist && \
-             export DEB_BUILD_TYPE=deb && ./packaging/deb/build-deb.sh && \
-             mv target/debian/*.deb target/dist/ 2>/dev/null {upload_to_github} || true"
+             export DEB_BUILD_TYPE=deb && \
+             export CARGO_TARGET_DIR=\"$HOME/.cache/polycredo-editor/target\" && \
+             ./packaging/deb/build-deb.sh \
+             {upload_to_github} || true"
         ));
     }
     if actions.build_rpm
@@ -299,46 +302,55 @@ pub(super) fn process_menu_actions(
     {
         t.send_command(&format!(
             "cd \"{root}\" && mkdir -p target/dist && \
-             cargo generate-rpm -o target/dist/ 2>/dev/null || \
-             (cargo generate-rpm && mv *.rpm target/dist/ 2>/dev/null) {upload_to_github} || true"
+             CARGO_TARGET_DIR=\"$HOME/.cache/polycredo-editor/target\" \
+             cargo generate-rpm -o target/dist/ 2>&1 || \
+             (CARGO_TARGET_DIR=\"$HOME/.cache/polycredo-editor/target\" \
+              cargo generate-rpm 2>&1 && mv ./*.rpm target/dist/) {upload_to_github} || true"
         ));
     }
-    if actions.build_aur
+    if actions.build_freebsd
         && let Some(t) = &mut ws.build_terminal
     {
         t.send_command(&format!(
             "cd \"{root}\" && mkdir -p target/dist && \
-             cargo build --release && \
-             PKGNAME=$(awk -F'\"' '/^name = /{{print $2; exit}}' Cargo.toml) && \
-             VERSION=$(./scripts/get-version.sh arch) && \
-             RAW_VERSION=$(./scripts/get-version.sh) && \
-             cargo aur && \
-             tar -C target/release -czvf \"target/cargo-aur/$PKGNAME-$VERSION-x86_64.tar.gz\" \"$PKGNAME\" && \
-             gh release create \"v$RAW_VERSION\" --title \"Release v$RAW_VERSION\" --notes \"Automated build\" 2>/dev/null || true; \
-             gh release upload \"v$RAW_VERSION\" \"target/cargo-aur/$PKGNAME-$VERSION-x86_64.tar.gz\" --clobber 2>/dev/null || true; \
-             sed -i \"s/pkgver=.*/pkgver=$VERSION/\" target/cargo-aur/PKGBUILD && \
-             sed -i \"s|source=.*|source=(\\\"$PKGNAME-$VERSION-x86_64.tar.gz\\\")|\" target/cargo-aur/PKGBUILD && \
-             sed -i \"s|sha256sums=.*|sha256sums=('SKIP')|\" target/cargo-aur/PKGBUILD && \
-             (cd target/cargo-aur && BUILDDIR=/tmp/polycredo-aur-build PKGDEST=\"{root}/target/dist\" makepkg -sf --noconfirm) || true"
+             rustup target add x86_64-unknown-freebsd 2>/dev/null || true && \
+             cross build --release --target x86_64-unknown-freebsd && \
+             VERSION=$(./scripts/get-version.sh) && \
+             fpm -s dir -t freebsd -n polycredo-editor -v \"$VERSION\" \
+               --prefix /usr/local \
+               -p \"target/dist/polycredo-editor-$VERSION-amd64.pkg\" \
+               \"$HOME/.cache/polycredo-editor/target/x86_64-unknown-freebsd/release/polycredo-editor=/bin/polycredo-editor\" \
+             {upload_to_github} || true"
         ));
     }
     if actions.build_flatpak
         && let Some(t) = &mut ws.build_terminal
     {
         t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist && \
-             flatpak-builder --force-clean --repo=repo build-dir org.polycredo.Editor.yaml && \
-             flatpak build-bundle repo target/dist/polycredo-editor.flatpak org.polycredo.Editor {upload_to_github}"
+            "cd \"{root}\" && mkdir -p target/dist \
+               \"$HOME/.cache/polycredo-editor/flatpak/build\" \
+               \"$HOME/.cache/polycredo-editor/flatpak/repo\" \
+               \"$HOME/.cache/polycredo-editor/flatpak/state\" && \
+             flatpak-builder --force-clean \
+               --state-dir=\"$HOME/.cache/polycredo-editor/flatpak/state\" \
+               --repo=\"$HOME/.cache/polycredo-editor/flatpak/repo\" \
+               \"$HOME/.cache/polycredo-editor/flatpak/build\" \
+               \"{root}/.polycredo/sandbox/org.polycredo.Editor.yaml\" && \
+             VERSION=$(./scripts/get-version.sh) && \
+             flatpak build-bundle \"$HOME/.cache/polycredo-editor/flatpak/repo\" \
+               target/dist/polycredo-editor-$VERSION.flatpak org.polycredo.Editor {upload_to_github}"
         ));
     }
     if actions.build_snap
         && let Some(t) = &mut ws.build_terminal
     {
         t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist && \
-             sg lxd -c \"snapcraft pack --output target/dist/polycredo-editor.snap\" 2>/dev/null || \
-             snapcraft pack --output target/dist/polycredo-editor.snap 2>/dev/null || \
-             (snapcraft pack && mv *.snap target/dist/ 2>/dev/null) {upload_to_github} || true",
+            "cd \"{root}\" && mkdir -p target/dist && export PATH=$PATH:/snap/bin && \
+             VERSION=$(./scripts/get-version.sh) && \
+             (sg lxd -c \"snapcraft pack --output target/dist/polycredo-editor-$VERSION-amd64.snap\" 2>/dev/null || \
+              snapcraft pack --output target/dist/polycredo-editor-$VERSION-amd64.snap 2>/dev/null || \
+              (snapcraft pack && mv *.snap target/dist/polycredo-editor-$VERSION-amd64.snap 2>/dev/null)) \
+             {upload_to_github} || true",
         ));
     }
     if actions.build_appimage
@@ -346,23 +358,28 @@ pub(super) fn process_menu_actions(
     {
         t.send_command(&format!(
             "cd \"{root}\" && mkdir -p target/dist && \
-             cargo appimage && mv *.AppImage target/dist/ 2>/dev/null || \
-             mv target/appimage/*.AppImage target/dist/ 2>/dev/null {upload_to_github} || true"
-        ));
-    }
-    if actions.build_tar_gz
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist && \
-             cargo build --release && \
-             tar -C target/release -czvf target/dist/polycredo-editor.tar.gz polycredo-editor {upload_to_github}"
+             cp packaging/icons/icon-256.png icon.png 2>/dev/null || true && \
+             cargo appimage && \
+             VERSION=$(./scripts/get-version.sh) && \
+             APPIMAGE=$(find \"$HOME/.cache/polycredo-editor/target\" . -maxdepth 5 -name '*.AppImage' ! -path '*/target/dist/*' 2>/dev/null | head -1) && \
+             [ -n \"$APPIMAGE\" ] && cp \"$APPIMAGE\" \"target/dist/polycredo-editor-$VERSION-x86_64.AppImage\" \
+             {upload_to_github} || true"
         ));
     }
     if actions.build_exe
         && let Some(t) = &mut ws.build_terminal
     {
-        t.send_command(&format!("cd \"{root}\" && mkdir -p target/dist && export PATH=$PATH:/usr/lib/llvm-19/bin && cargo xwin build --release --target x86_64-pc-windows-msvc && (cp target/x86_64-pc-windows-msvc/release/polycredo-editor.exe target/dist/ 2>/dev/null || cp target/release/polycredo-editor.exe target/dist/ 2>/dev/null) || true"));
+        t.send_command(&format!(
+            "cd \"{root}\" && mkdir -p target/dist && \
+             export PATH=$PATH:/usr/lib/llvm-19/bin && \
+             cargo xwin build --release --target x86_64-pc-windows-msvc && \
+             VERSION=$(./scripts/get-version.sh) && \
+             (cp \"$HOME/.cache/polycredo-editor/target/x86_64-pc-windows-msvc/release/polycredo-editor.exe\" \
+                \"target/dist/polycredo-editor-$VERSION-x86_64.exe\" 2>/dev/null || \
+              cp \"$HOME/.cache/polycredo-editor/target/release/polycredo-editor.exe\" \
+                \"target/dist/polycredo-editor-$VERSION-x86_64.exe\" 2>/dev/null) \
+             {upload_to_github} || true"
+        ));
     }
     if actions.new_project {
         ws.show_new_project = true;

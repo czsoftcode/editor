@@ -1,3 +1,25 @@
+## [0.8.3] - 2026-03-03
+
+### Added
+- **Build All Packages** (`scripts/build-all.sh`): New script that builds all distribution formats in a single run — .deb, .rpm, .flatpak, .snap, .AppImage, .exe, and FreeBSD .pkg. Features live colored output, per-format logs in `target/dist-logs/`, graceful error handling (continues on failure), and a final summary listing successes, skipped (missing tools), failures, and required manual actions. Supports `--no-upload` flag.
+- **"All Packages" menu item**: Added to the bottom of the Build menu (with separator) to trigger the new script from within the editor.
+- **BuildAllModal**: New `StandardModal`-based dialog that runs `build-all.sh` in a background thread, streams live output with ANSI stripping and syntax-aware line coloring (green=success, red=error, yellow=skipped, blue=section headers), spinner during run, and a Close button that activates only after completion.
+
+### Changed
+- **Cargo artifacts relocated**: `build.rs` now writes `target-dir = "~/.cache/polycredo-editor/target"` into `.cargo/config.toml`, moving all Cargo compilation artifacts out of the project tree. Only `target/debian/` (deb staging) and `target/dist/` (final packages) remain in the project.
+- **`target/dist/` cleanup**: `build-all.sh` removes stale packages from `target/dist/` before starting a new release build.
+- **`target/debian/` layout**: `.deb` build staging (`PKG_BUILD_ROOT`) now lives in `target/debian/` (intermediate files); the final release `.deb` goes to `target/dist/` (`DEB_BUILD_TYPE=deb`), while dev builds with build number suffix go to `target/debian/` (`DEB_BUILD_TYPE=deb-dev`).
+- **Cross-compile paths updated**: Exe, FreeBSD, and AppImage build commands now reference binaries from `~/.cache/polycredo-editor/target/` instead of `target/`.
+- **`build-deb.sh`**: `BIN_SOURCE` now respects `CARGO_TARGET_DIR` env variable.
+
+### Fixed
+- **FreeBSD `fpm`**: Moved `-p` output path flag before the source argument to prevent misinterpretation as a positional path.
+- **Privilege elevation**: All wizard install commands now use a standardized `pkexec` → `sudo -n` → error fallback via `apt_install_cmd()`.
+- **RPM on Debian**: Wizard now detects `dnf` vs `apt-get` and uses the correct package manager.
+- **Flatpak artifacts**: Builder state, repo, and build directories relocated to `~/.cache/polycredo-editor/flatpak/` to keep the project tree clean.
+- **Snap build**: Added `/snap/bin` to PATH in the snap build command.
+- **LXD configure**: Now opens the Dependency Wizard modal instead of running in the build terminal.
+
 ## [0.8.0] - 2026-02-28
 
 ### Added

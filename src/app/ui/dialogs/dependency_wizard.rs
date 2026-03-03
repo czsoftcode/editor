@@ -6,6 +6,21 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+/// Wraps an apt-get command with pkexec/sudo-n fallback for privilege elevation.
+fn apt_install_cmd(cmd: &str) -> String {
+    format!(
+        "if command -v pkexec >/dev/null 2>&1; then \
+           pkexec bash -c '{cmd}'; \
+         elif sudo -n bash -c '{cmd}' 2>&1; then \
+           true; \
+         else \
+           echo 'ERROR: Root access required. Run manually:'; \
+           echo '  sudo {cmd}'; \
+           exit 1; \
+         fi"
+    )
+}
+
 #[derive(Clone, PartialEq, Default)]
 pub enum InstallStatus {
     #[default]
@@ -35,6 +50,7 @@ pub struct DependencyWizard {
     pub active_dependency: Option<Dependency>,
     pub status: Arc<Mutex<InstallStatus>>,
     pub is_busy: Arc<AtomicBool>,
+    pub output_lines: Arc<Mutex<Vec<String>>>,
 }
 
 impl DependencyWizard {
@@ -44,6 +60,7 @@ impl DependencyWizard {
             active_dependency: None,
             status: Arc::new(Mutex::new(InstallStatus::Pending)),
             is_busy: Arc::new(AtomicBool::new(false)),
+            output_lines: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -98,13 +115,27 @@ impl DependencyWizard {
             name: "rpm-build".into(),
             description_key: "dep-wizard-rpm-desc".into(),
             method: InstallMethod::SystemCommand {
-                cmd: "pkexec".into(),
+                cmd: "bash".into(),
                 args: vec![
-                    "dnf".into(),
-                    "install".into(),
-                    "-y".into(),
-                    "rpm-build".into(),
-                    "rpm".into(),
+                    "-c".into(),
+                    concat!(
+                        "if command -v dnf >/dev/null 2>&1; then ",
+                        "  CMD='dnf install -y rpm-build rpm'; ",
+                        "elif command -v apt-get >/dev/null 2>&1; then ",
+                        "  CMD='apt-get install -y rpm'; ",
+                        "else ",
+                        "  echo 'ERROR: No supported package manager found (dnf/apt-get)'; exit 1; ",
+                        "fi; ",
+                        "if command -v pkexec >/dev/null 2>&1; then ",
+                        "  pkexec bash -c \"$CMD\"; ",
+                        "elif sudo -n bash -c \"$CMD\" 2>&1; then ",
+                        "  true; ",
+                        "else ",
+                        "  echo 'ERROR: Root access required. Run manually:'; ",
+                        "  echo \"  sudo $CMD\"; ",
+                        "  exit 1; ",
+                        "fi",
+                    ).into(),
                 ],
             },
         });
@@ -126,32 +157,17 @@ impl DependencyWizard {
         self.show = true;
     }
 
-    pub fn open_for_aur(&mut self) {
+    pub fn open_for_freebsd_target(&mut self) {
         self.active_dependency = Some(Dependency {
-            id: "aur".into(),
-            name: "cargo-aur".into(),
-            description_key: "dep-wizard-aur-desc".into(),
+            id: "freebsd-target".into(),
+            name: "FreeBSD Target (rustup)".into(),
+            description_key: "dep-wizard-freebsd-target-desc".into(),
             method: InstallMethod::SystemCommand {
-                cmd: "cargo".into(),
-                args: vec!["install".into(), "cargo-aur".into()],
-            },
-        });
-        self.reset_status();
-        self.show = true;
-    }
-
-    pub fn open_for_makepkg(&mut self) {
-        self.active_dependency = Some(Dependency {
-            id: "makepkg".into(),
-            name: "makepkg (pacman)".into(),
-            description_key: "dep-wizard-makepkg-desc".into(),
-            method: InstallMethod::SystemCommand {
-                cmd: "pkexec".into(),
+                cmd: "rustup".into(),
                 args: vec![
-                    "apt-get".into(),
-                    "install".into(),
-                    "-y".into(),
-                    "pacman".into(),
+                    "target".into(),
+                    "add".into(),
+                    "x86_64-unknown-freebsd".into(),
                 ],
             },
         });
@@ -159,18 +175,46 @@ impl DependencyWizard {
         self.show = true;
     }
 
-    pub fn open_for_bsdtar(&mut self) {
+    pub fn open_for_cross(&mut self) {
         self.active_dependency = Some(Dependency {
-            id: "bsdtar".into(),
-            name: "bsdtar (libarchive-tools)".into(),
-            description_key: "dep-wizard-bsdtar-desc".into(),
+            id: "cross".into(),
+            name: "cross".into(),
+            description_key: "dep-wizard-cross-desc".into(),
             method: InstallMethod::SystemCommand {
-                cmd: "pkexec".into(),
+                cmd: "cargo".into(),
+                args: vec!["install".into(), "cross".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_podman(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "podman".into(),
+            name: "Podman (container engine for cross)".into(),
+            description_key: "dep-wizard-podman-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "bash".into(),
+                args: vec!["-c".into(), apt_install_cmd("apt-get install -y podman").into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_fpm(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "fpm".into(),
+            name: "fpm (Effing Package Manager)".into(),
+            description_key: "dep-wizard-fpm-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "bash".into(),
                 args: vec![
-                    "apt-get".into(),
-                    "install".into(),
-                    "-y".into(),
-                    "libarchive-tools".into(),
+                    "-c".into(),
+                    apt_install_cmd(
+                        "apt-get install -y ruby ruby-dev build-essential && gem install fpm --no-document",
+                    ).into(),
                 ],
             },
         });
@@ -187,9 +231,41 @@ impl DependencyWizard {
                 cmd: "bash".into(),
                 args: vec![
                     "-c".into(),
-                    "pkexec apt-get install -y flatpak-builder flatpak && \
-                     flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo && \
-                     flatpak install -y flathub org.freedesktop.Sdk//24.08 org.freedesktop.Platform//24.08 org.freedesktop.Sdk.Extension.rust-stable//24.08".into(),
+                    format!(
+                        "{} && \
+                         flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo && \
+                         flatpak install --user -y flathub org.freedesktop.Sdk//24.08 org.freedesktop.Platform//24.08 org.freedesktop.Sdk.Extension.rust-stable//24.08",
+                        apt_install_cmd("apt-get install -y flatpak-builder flatpak")
+                    ).into(),
+                ],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_lxd(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "lxd".into(),
+            name: "LXD (konfigurace pro Snapcraft)".into(),
+            description_key: "dep-wizard-lxd-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "bash".into(),
+                args: vec![
+                    "-c".into(),
+                    concat!(
+                        "REALUSER=$(logname 2>/dev/null || id -un); ",
+                        "CMD=\"usermod -aG lxd $REALUSER && /snap/bin/lxd init --auto\"; ",
+                        "if command -v pkexec >/dev/null 2>&1; then ",
+                        "  pkexec bash -c \"$CMD\"; ",
+                        "elif sudo -n bash -c \"$CMD\" 2>&1; then ",
+                        "  true; ",
+                        "else ",
+                        "  echo 'ERROR: Root access required. Run manually:'; ",
+                        "  echo \"  sudo $CMD\"; ",
+                        "  exit 1; ",
+                        "fi && echo 'LXD configured. Run: newgrp lxd (or restart session)'",
+                    ).into(),
                 ],
             },
         });
@@ -206,7 +282,7 @@ impl DependencyWizard {
                 cmd: "bash".into(),
                 args: vec![
                     "-c".into(),
-                    "sudo apt-get update && sudo apt-get install -y snapd && sudo snap install lxd && sudo snap install snapcraft --classic".into(),
+                    apt_install_cmd("apt-get install -y snapd && export PATH=$PATH:/snap/bin && snap install lxd && snap install snapcraft --classic").into(),
                 ],
             },
         });
@@ -228,39 +304,16 @@ impl DependencyWizard {
         self.show = true;
     }
 
-    pub fn open_for_tar(&mut self) {
-        self.active_dependency = Some(Dependency {
-            id: "tar".into(),
-            name: "tar".into(),
-            description_key: "dep-wizard-tar-desc".into(),
-            method: InstallMethod::SystemCommand {
-                cmd: "pkexec".into(),
-                args: vec![
-                    "apt-get".into(),
-                    "install".into(),
-                    "-y".into(),
-                    "tar".into(),
-                ],
-            },
-        });
-        self.reset_status();
-        self.show = true;
-    }
-
     pub fn open_for_deb_tools(&mut self) {
         self.active_dependency = Some(Dependency {
             id: "deb".into(),
             name: "Debian Build Tools".into(),
             description_key: "dep-wizard-deb-desc".into(),
             method: InstallMethod::SystemCommand {
-                cmd: "pkexec".into(),
+                cmd: "bash".into(),
                 args: vec![
-                    "apt-get".into(),
-                    "install".into(),
-                    "-y".into(),
-                    "dpkg-dev".into(),
-                    "build-essential".into(),
-                    "fakeroot".into(),
+                    "-c".into(),
+                    apt_install_cmd("apt-get install -y dpkg-dev build-essential fakeroot").into(),
                 ],
             },
         });
@@ -288,12 +341,10 @@ impl DependencyWizard {
             name: "Clang (LLVM)".into(),
             description_key: "dep-wizard-clang-desc".into(),
             method: InstallMethod::SystemCommand {
-                cmd: "pkexec".into(),
+                cmd: "bash".into(),
                 args: vec![
-                    "apt-get".into(),
-                    "install".into(),
-                    "-y".into(),
-                    "clang".into(),
+                    "-c".into(),
+                    apt_install_cmd("apt-get install -y clang").into(),
                 ],
             },
         });
@@ -307,12 +358,10 @@ impl DependencyWizard {
             name: "LLD (LLVM Linker)".into(),
             description_key: "dep-wizard-lld-desc".into(),
             method: InstallMethod::SystemCommand {
-                cmd: "pkexec".into(),
+                cmd: "bash".into(),
                 args: vec![
-                    "apt-get".into(),
-                    "install".into(),
-                    "-y".into(),
-                    "lld".into(),
+                    "-c".into(),
+                    apt_install_cmd("apt-get install -y lld").into(),
                 ],
             },
         });
@@ -342,6 +391,7 @@ impl DependencyWizard {
         let mut s = self.status.lock().unwrap();
         *s = InstallStatus::Pending;
         self.is_busy.store(false, Ordering::SeqCst);
+        self.output_lines.lock().unwrap().clear();
     }
 
     pub fn render(&mut self, ctx: &egui::Context, i18n: &I18n) {
@@ -354,19 +404,22 @@ impl DependencyWizard {
             None => return,
         };
 
+        let in_progress = !matches!(*self.status.lock().unwrap(), InstallStatus::Pending);
+        let (modal_w, modal_h) = if in_progress { (660.0, 520.0) } else { (500.0, 320.0) };
         let modal = StandardModal::new(tr!(i18n, "dep-wizard-title"), "dependency_wizard")
-            .with_size(500.0, 320.0);
+            .with_size(modal_w, modal_h);
 
         let mut local_show = self.show;
         modal.show(ctx, &mut local_show, |ui| {
             modal.ui_body(ui, |ui| {
+                let status = self.status.lock().unwrap().clone();
+
                 ui.vertical_centered(|ui| {
                     ui.add_space(10.0);
                     ui.heading(&dep.name);
                     ui.add_space(10.0);
 
-                    let status = self.status.lock().unwrap().clone();
-                    match status {
+                    match &status {
                         InstallStatus::Pending => {
                             ui.label(tr!(i18n, &dep.description_key, tool = &dep.name));
                             ui.add_space(10.0);
@@ -385,11 +438,13 @@ impl DependencyWizard {
                         }
                         InstallStatus::Downloading(p) => {
                             ui.label(tr!(i18n, "dep-wizard-status-downloading"));
-                            ui.add(egui::ProgressBar::new(p).show_percentage());
+                            ui.add(egui::ProgressBar::new(*p).show_percentage());
                         }
                         InstallStatus::RunningCommand => {
-                            ui.label(tr!(i18n, "dep-wizard-status-running"));
-                            ui.add(egui::Spinner::new());
+                            ui.horizontal(|ui| {
+                                ui.add(egui::Spinner::new());
+                                ui.label(tr!(i18n, "dep-wizard-status-running"));
+                            });
                         }
                         InstallStatus::Success => {
                             ui.colored_label(
@@ -400,11 +455,40 @@ impl DependencyWizard {
                         InstallStatus::Error(e) => {
                             ui.colored_label(
                                 egui::Color32::RED,
-                                tr!(i18n, "dep-wizard-status-error", error = e),
+                                tr!(i18n, "dep-wizard-status-error", error = e.clone()),
                             );
                         }
                     }
                 });
+
+                // Terminal output
+                let output = self.output_lines.lock().unwrap().clone();
+                if !output.is_empty() {
+                    ui.add_space(6.0);
+                    ui.separator();
+                    let auto_scroll = matches!(
+                        status,
+                        InstallStatus::RunningCommand | InstallStatus::Downloading(_)
+                    );
+                    let bg = ui.visuals().extreme_bg_color;
+                    egui::ScrollArea::vertical()
+                        .id_salt("dep_wizard_output")
+                        .max_height(320.0)
+                        .stick_to_bottom(auto_scroll)
+                        .show(ui, |ui| {
+                            let rect = ui.max_rect();
+                            ui.painter().rect_filled(rect, 2.0, bg);
+                            ui.set_width(rect.width());
+                            for line in &output {
+                                ui.label(
+                                    egui::RichText::new(line)
+                                        .monospace()
+                                        .size(11.0)
+                                        .color(egui::Color32::from_rgb(180, 220, 180)),
+                                );
+                            }
+                        });
+                }
             });
 
             modal.ui_footer(ui, |ui| {
@@ -447,23 +531,23 @@ impl DependencyWizard {
         let dep = self.active_dependency.as_ref().unwrap().clone();
         let status_arc = Arc::clone(&self.status);
         let is_busy = Arc::clone(&self.is_busy);
+        let output_lines = Arc::clone(&self.output_lines);
 
         std::thread::spawn(move || {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
                 match dep.method {
                     InstallMethod::Download { url, target } => {
-                        {
-                            let mut s = status_arc.lock().unwrap();
-                            *s = InstallStatus::Downloading(0.1);
-                        }
+                        *status_arc.lock().unwrap() = InstallStatus::Downloading(0.1);
+                        output_lines.lock().unwrap().push(format!("Downloading: {}", url));
+                        output_lines.lock().unwrap().push(format!("Destination: {}", target.display()));
                         ctx.request_repaint();
 
                         if let Some(parent) = target.parent() {
                             let _ = std::fs::create_dir_all(parent);
                         }
 
-                        let output = tokio::process::Command::new("curl")
+                        let result = tokio::process::Command::new("curl")
                             .arg("-L")
                             .arg("-o")
                             .arg(&target)
@@ -471,7 +555,7 @@ impl DependencyWizard {
                             .output()
                             .await;
 
-                        match output {
+                        match result {
                             Ok(out) if out.status.success() => {
                                 #[cfg(unix)]
                                 {
@@ -484,37 +568,86 @@ impl DependencyWizard {
                                 }
                                 #[cfg(windows)]
                                 if target.extension().map_or(false, |ext| ext == "exe") {
-                                    // Optionally run the installer on Windows
                                     let _ = std::process::Command::new(&target).spawn();
                                 }
-
+                                output_lines.lock().unwrap().push("✓ Download complete.".into());
                                 *status_arc.lock().unwrap() = InstallStatus::Success;
                             }
-                            _ => {
-                                *status_arc.lock().unwrap() =
-                                    InstallStatus::Error("Download failed".into())
+                            Ok(out) => {
+                                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                                if !stderr.trim().is_empty() {
+                                    output_lines.lock().unwrap().push(stderr);
+                                }
+                                output_lines.lock().unwrap().push("✗ Download failed.".into());
+                                *status_arc.lock().unwrap() = InstallStatus::Error("Download failed".into());
+                            }
+                            Err(e) => {
+                                output_lines.lock().unwrap().push(format!("✗ Error: {}", e));
+                                *status_arc.lock().unwrap() = InstallStatus::Error(e.to_string());
                             }
                         }
                     }
                     InstallMethod::SystemCommand { cmd, args } => {
-                        {
-                            let mut s = status_arc.lock().unwrap();
-                            *s = InstallStatus::RunningCommand;
-                        }
+                        *status_arc.lock().unwrap() = InstallStatus::RunningCommand;
+                        output_lines.lock().unwrap().push(format!("$ {} {}", cmd, args.join(" ")));
                         ctx.request_repaint();
 
-                        let output = tokio::process::Command::new(cmd).args(args).output().await;
-                        match output {
-                            Ok(out) if out.status.success() => {
-                                *status_arc.lock().unwrap() = InstallStatus::Success
-                            }
-                            Ok(out) => {
-                                *status_arc.lock().unwrap() = InstallStatus::Error(
-                                    String::from_utf8_lossy(&out.stderr).to_string(),
-                                )
+                        use tokio::io::{AsyncBufReadExt, BufReader};
+                        let child = tokio::process::Command::new(&cmd)
+                            .args(&args)
+                            .stdout(std::process::Stdio::piped())
+                            .stderr(std::process::Stdio::piped())
+                            .spawn();
+
+                        match child {
+                            Ok(mut child) => {
+                                let stdout = child.stdout.take().map(BufReader::new);
+                                let stderr = child.stderr.take().map(BufReader::new);
+
+                                let lines1 = Arc::clone(&output_lines);
+                                let ctx1 = ctx.clone();
+                                let stdout_task = tokio::spawn(async move {
+                                    if let Some(reader) = stdout {
+                                        let mut lines = reader.lines();
+                                        while let Ok(Some(line)) = lines.next_line().await {
+                                            lines1.lock().unwrap().push(line);
+                                            ctx1.request_repaint();
+                                        }
+                                    }
+                                });
+
+                                let lines2 = Arc::clone(&output_lines);
+                                let ctx2 = ctx.clone();
+                                let stderr_task = tokio::spawn(async move {
+                                    if let Some(reader) = stderr {
+                                        let mut lines = reader.lines();
+                                        while let Ok(Some(line)) = lines.next_line().await {
+                                            lines2.lock().unwrap().push(line);
+                                            ctx2.request_repaint();
+                                        }
+                                    }
+                                });
+
+                                let _ = tokio::join!(stdout_task, stderr_task);
+
+                                match child.wait().await {
+                                    Ok(exit) if exit.success() => {
+                                        output_lines.lock().unwrap().push("✓ Done.".into());
+                                        *status_arc.lock().unwrap() = InstallStatus::Success;
+                                    }
+                                    Ok(exit) => {
+                                        output_lines.lock().unwrap().push(format!("✗ Exited with: {}", exit));
+                                        *status_arc.lock().unwrap() = InstallStatus::Error(format!("Exit: {}", exit));
+                                    }
+                                    Err(e) => {
+                                        output_lines.lock().unwrap().push(format!("✗ Error: {}", e));
+                                        *status_arc.lock().unwrap() = InstallStatus::Error(e.to_string());
+                                    }
+                                }
                             }
                             Err(e) => {
-                                *status_arc.lock().unwrap() = InstallStatus::Error(e.to_string())
+                                output_lines.lock().unwrap().push(format!("✗ Failed to start: {}", e));
+                                *status_arc.lock().unwrap() = InstallStatus::Error(e.to_string());
                             }
                         }
                     }

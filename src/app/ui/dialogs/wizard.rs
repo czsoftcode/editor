@@ -123,7 +123,7 @@ pub(crate) fn show_project_wizard(
         modal.ui_body(ui, |ui| {
             ui.add_space(8.0);
             ui.label(egui::RichText::new(i18n.get("wizard-project-type")).strong());
-            egui::ComboBox::from_id_source("project_type_combo")
+            egui::ComboBox::from_id_salt("project_type_combo")
                 .selected_text(match state.project_type {
                     ProjectType::Rust => i18n.get("wizard-type-rust-2024"),
                     ProjectType::Symfony74 => i18n.get("wizard-type-symfony-7-4"),
@@ -221,7 +221,7 @@ pub(crate) fn show_project_wizard(
                 } else {
                     let preview = PathBuf::from(state.path.trim())
                         .join(state.project_type.subdir())
-                        .join(&raw_name);
+                        .join(raw_name);
                     ui.add_space(4.0);
                     ui.horizontal(|ui| {
                         ui.label(i18n.get("settings-creates-in"));

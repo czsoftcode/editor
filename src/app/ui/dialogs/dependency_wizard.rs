@@ -196,10 +196,7 @@ impl DependencyWizard {
             description_key: "dep-wizard-podman-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "bash".into(),
-                args: vec![
-                    "-c".into(),
-                    apt_install_cmd("apt-get install -y podman").into(),
-                ],
+                args: vec!["-c".into(), apt_install_cmd("apt-get install -y podman")],
             },
         });
         self.reset_status();
@@ -217,7 +214,7 @@ impl DependencyWizard {
                     "-c".into(),
                     apt_install_cmd(
                         "apt-get install -y ruby ruby-dev build-essential && gem install fpm --no-document",
-                    ).into(),
+                    ),
                 ],
             },
         });
@@ -239,7 +236,7 @@ impl DependencyWizard {
                          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo && \
                          flatpak install --user -y flathub org.freedesktop.Sdk//24.08 org.freedesktop.Platform//24.08 org.freedesktop.Sdk.Extension.rust-stable//24.08",
                         apt_install_cmd("apt-get install -y flatpak-builder flatpak")
-                    ).into(),
+                    ),
                 ],
             },
         });
@@ -286,7 +283,9 @@ impl DependencyWizard {
                 cmd: "bash".into(),
                 args: vec![
                     "-c".into(),
-                    apt_install_cmd("apt-get install -y snapd && export PATH=$PATH:/snap/bin && snap install lxd && snap install snapcraft --classic").into(),
+                    apt_install_cmd(
+                        "apt-get install -y snapd && export PATH=$PATH:/snap/bin && snap install lxd && snap install snapcraft --classic",
+                    ),
                 ],
             },
         });
@@ -317,7 +316,7 @@ impl DependencyWizard {
                 cmd: "bash".into(),
                 args: vec![
                     "-c".into(),
-                    apt_install_cmd("apt-get install -y dpkg-dev build-essential fakeroot").into(),
+                    apt_install_cmd("apt-get install -y dpkg-dev build-essential fakeroot"),
                 ],
             },
         });
@@ -346,10 +345,7 @@ impl DependencyWizard {
             description_key: "dep-wizard-clang-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "bash".into(),
-                args: vec![
-                    "-c".into(),
-                    apt_install_cmd("apt-get install -y clang").into(),
-                ],
+                args: vec!["-c".into(), apt_install_cmd("apt-get install -y clang")],
             },
         });
         self.reset_status();
@@ -363,10 +359,123 @@ impl DependencyWizard {
             description_key: "dep-wizard-lld-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "bash".into(),
+                args: vec!["-c".into(), apt_install_cmd("apt-get install -y lld")],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_macos_all_deps(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "macos-deps".into(),
+            name: "macOS Build Dependencies".into(),
+            description_key: "dep-wizard-macos-deps-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "bash".into(),
                 args: vec![
                     "-c".into(),
-                    apt_install_cmd("apt-get install -y lld").into(),
+                    concat!(
+                        // 1. cargo-zigbuild
+                        "echo '>>> cargo install cargo-zigbuild' && ",
+                        "cargo install cargo-zigbuild && ",
+                        // 2. zig — apt (Debian 12+ / Ubuntu 23.04+), jinak stáhneme z ziglang.org
+                        "echo '>>> installing zig' && ",
+                        "if apt-get install -y zig 2>/dev/null || ",
+                        "   pkexec apt-get install -y zig 2>/dev/null; then ",
+                        "  echo 'zig installed via apt'; ",
+                        "else ",
+                        "  ZIG_VER='0.15.2' && ",
+                        "  ZIG_DIR=\"$HOME/.local/opt/zig\" && ",
+                        "  mkdir -p \"$ZIG_DIR\" \"$HOME/.local/bin\" && ",
+                        "  ZIG_URL=\"https://ziglang.org/download/${ZIG_VER}/zig-x86_64-linux-${ZIG_VER}.tar.xz\" && ",
+                        "  echo \">>> downloading zig ${ZIG_VER} from ziglang.org\" && ",
+                        "  if command -v curl >/dev/null 2>&1; then ",
+                        "    curl -L \"$ZIG_URL\" | tar -xJ --strip-components=1 -C \"$ZIG_DIR\"; ",
+                        "  elif command -v wget >/dev/null 2>&1; then ",
+                        "    wget -qO- \"$ZIG_URL\" | tar -xJ --strip-components=1 -C \"$ZIG_DIR\"; ",
+                        "  else ",
+                        "    echo 'ERROR: neither curl nor wget found. Install one: sudo apt-get install -y wget'; exit 1; ",
+                        "  fi && ",
+                        "  ln -sf \"$ZIG_DIR/zig\" \"$HOME/.local/bin/zig\" && ",
+                        "  echo \"zig ${ZIG_VER} installed to $HOME/.local/bin/zig\"; ",
+                        "fi && ",
+                        // 3. rustup targety
+                        "echo '>>> rustup target add x86_64-apple-darwin aarch64-apple-darwin' && ",
+                        "rustup target add x86_64-apple-darwin aarch64-apple-darwin && ",
+                        // 4. llvm (lipo pro Universal Binary)
+                        "echo '>>> installing llvm (lipo for Universal Binary)' && ",
+                        "if apt-get install -y llvm 2>/dev/null || ",
+                        "   pkexec apt-get install -y llvm 2>/dev/null; then ",
+                        "  echo 'llvm installed'; ",
+                        "else ",
+                        "  echo 'WARNING: llvm not installed — Universal Binary will not be created'; ",
+                        "fi && ",
+                        "echo '>>> All macOS build dependencies installed.'"
+                    ).into(),
                 ],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_zigbuild(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "zigbuild".into(),
+            name: "cargo-zigbuild".into(),
+            description_key: "dep-wizard-zigbuild-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "cargo".into(),
+                args: vec!["install".into(), "cargo-zigbuild".into()],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_macos_targets(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "macos-targets".into(),
+            name: "macOS Targets (rustup)".into(),
+            description_key: "dep-wizard-macos-targets-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "bash".into(),
+                args: vec![
+                    "-c".into(),
+                    "rustup target add x86_64-apple-darwin aarch64-apple-darwin".into(),
+                ],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_genisoimage(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "genisoimage".into(),
+            name: "genisoimage".into(),
+            description_key: "dep-wizard-genisoimage-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "bash".into(),
+                args: vec![
+                    "-c".into(),
+                    apt_install_cmd("apt-get install -y genisoimage"),
+                ],
+            },
+        });
+        self.reset_status();
+        self.show = true;
+    }
+
+    pub fn open_for_llvm(&mut self) {
+        self.active_dependency = Some(Dependency {
+            id: "llvm".into(),
+            name: "LLVM (lipo)".into(),
+            description_key: "dep-wizard-llvm-desc".into(),
+            method: InstallMethod::SystemCommand {
+                cmd: "bash".into(),
+                args: vec!["-c".into(), apt_install_cmd("apt-get install -y llvm")],
             },
         });
         self.reset_status();

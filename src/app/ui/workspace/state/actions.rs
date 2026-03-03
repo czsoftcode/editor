@@ -44,6 +44,9 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
             ("cross", "cross"),
             ("fpm", "fpm"),
             ("podman", "podman"),
+            ("zigbuild", "cargo-zigbuild"),
+            ("zig", "zig"),
+            ("genisoimage", "genisoimage"),
         ] {
             let found = std::process::Command::new("which")
                 .arg(cmd)
@@ -71,6 +74,16 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
                 .lines()
                 .any(|l| l.trim() == "x86_64-unknown-freebsd"),
         );
+        let macos_targets_ok = installed_targets
+            .lines()
+            .any(|l| l.trim() == "aarch64-apple-darwin");
+        results.insert("macos-targets".to_string(), macos_targets_ok);
+
+        // Složený check: všechny macOS závislosti najednou
+        let macos_deps_ok = *results.get("zigbuild").unwrap_or(&false)
+            && *results.get("zig").unwrap_or(&false)
+            && macos_targets_ok;
+        results.insert("macos-deps".to_string(), macos_deps_ok);
 
         let _ = tx.send(results);
     });

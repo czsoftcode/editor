@@ -1,3 +1,16 @@
+## [0.8.5] - 2026-03-03
+
+### Added
+- **macOS cross-compilation support**: Added ability to build Apple Silicon (aarch64) and Intel (x86_64) binaries from Linux using `cargo-zigbuild`.
+- **Universal Binary & DMG**: `build-all.sh` now creates a macOS `.app` bundle with a Universal Binary (via `lipo`) and packages it into a `.dmg` disk image (via `create-dmg` or `genisoimage`).
+- **SDK Stub Generation**: The build script automatically generates TBD stubs for `libobjc` and core macOS frameworks (Foundation, AppKit, etc.) to satisfy the Zig linker without requiring a full macOS SDK.
+- **macOS Dependency Wizard**: `DependencyWizard` now includes a specialized "macOS Build Dependencies" installer that handles `cargo-zigbuild`, `zig`, `rustup` targets, and `llvm` (lipo).
+- **macOS Build Menu**: New submenu in **Build** menu for macOS-specific actions.
+
+### Changed
+- **BuildAllModal improvements**: Updated log parsing to correctly identify the current step from the script's box-drawing output.
+- **Localization**: Added missing macOS-related strings to all supported languages (cs, en, de, ru, sk) and updated project templates in German.
+
 ## [0.8.4] - 2026-03-03
 
 ### Added

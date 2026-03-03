@@ -311,6 +311,43 @@ pub fn render(
                         ui.close_menu();
                     }
                 });
+                ui.menu_button(i18n.get("menu-build-macos-sub"), |ui| {
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("zigbuild"),
+                            i18n.get("menu-build-macos-dmg")
+                        ))
+                        .clicked()
+                    {
+                        actions.build_macos = true;
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("macos-deps"),
+                            i18n.get("command-name-install-macos-deps")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_macos_all_deps = true;
+                        ui.close_menu();
+                    }
+                    if ui
+                        .button(format!(
+                            "{} {}",
+                            get_icon("llvm"),
+                            i18n.get("command-name-install-llvm")
+                        ))
+                        .clicked()
+                    {
+                        actions.install_llvm = true;
+                        ui.close_menu();
+                    }
+                });
+
                 ui.separator();
                 if ui.button(i18n.get("menu-build-all")).clicked() {
                     actions.build_all = true;

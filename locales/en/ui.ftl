@@ -401,6 +401,16 @@ dep-wizard-podman-desc = Podman is a container engine required by the cross tool
 dep-wizard-clang-desc = Clang compiler is required for building native C/C++ dependencies for Windows.
 dep-wizard-lld-desc = LLD linker is required for linking Windows binaries on Linux.
 dep-wizard-windows-target-desc = Rust standard library for x86_64-pc-windows-msvc is required for compilation.
+dep-wizard-zigbuild-desc = cargo-zigbuild is required for cross-compiling for macOS (Intel + Apple Silicon) from Linux. Uses the Zig compiler as linker.
+dep-wizard-macos-targets-desc = Rust standard libraries for x86_64-apple-darwin and aarch64-apple-darwin are required to cross-compile for macOS (Intel + Apple Silicon).
+dep-wizard-genisoimage-desc = genisoimage is used to create a .dmg disk image from the macOS .app bundle.
+dep-wizard-macos-deps-desc = Installs all tools required for macOS builds: cargo-zigbuild (cross-compiler), zig (linker), Rust targets for x86_64-apple-darwin and aarch64-apple-darwin, and LLVM (lipo for Universal Binary).
+dep-wizard-llvm-desc = LLVM provides the lipo tool for merging Intel (x86_64) and Apple Silicon (aarch64) binaries into a Universal Binary (.app / .dmg).
+
+menu-build-macos-sub = macOS
+menu-build-macos-dmg = Build .dmg (macOS)
+command-name-install-macos-deps = Install macOS dependencies (cargo-zigbuild + zig + targets)
+command-name-install-llvm = Install LLVM (lipo — Universal Binary)
 
 menu-build-fedora = Fedora
 menu-build-debian = Debian / Ubuntu

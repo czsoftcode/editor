@@ -401,6 +401,16 @@ dep-wizard-podman-desc = Podman je kontejnerový engine vyžadovaný nástrojem 
 dep-wizard-clang-desc = Kompilátor Clang je vyžadován pro sestavení nativních C/C++ závislostí pro Windows.
 dep-wizard-lld-desc = Linker LLD je vyžadován pro linkování Windows binárek na Linuxu.
 dep-wizard-windows-target-desc = Pro kompilaci je vyžadována standardní knihovna Rustu pro x86_64-pc-windows-msvc.
+dep-wizard-zigbuild-desc = cargo-zigbuild je vyžadován pro cross-kompilaci pro macOS (Intel + Apple Silicon) z Linuxu. Jako linker používá kompilátor Zig.
+dep-wizard-macos-targets-desc = Standardní knihovny Rustu pro x86_64-apple-darwin a aarch64-apple-darwin jsou vyžadovány pro cross-kompilaci pro macOS (Intel + Apple Silicon).
+dep-wizard-genisoimage-desc = genisoimage se používá k vytvoření .dmg diskového obrazu z macOS .app bundlu.
+dep-wizard-macos-deps-desc = Nainstaluje všechny nástroje potřebné pro sestavení macOS: cargo-zigbuild (cross-kompilátor), zig (linker), Rust targety pro x86_64-apple-darwin a aarch64-apple-darwin a LLVM (lipo pro Universal Binary).
+dep-wizard-llvm-desc = LLVM poskytuje nástroj lipo pro sloučení Intel (x86_64) a Apple Silicon (aarch64) binárních souborů do Universal Binary (.app / .dmg).
+
+menu-build-macos-sub = macOS
+menu-build-macos-dmg = Sestavit .dmg (macOS)
+command-name-install-macos-deps = Instalovat macOS závislosti (cargo-zigbuild + zig + targety)
+command-name-install-llvm = Instalovat LLVM (lipo — Universal Binary)
 
 menu-build-fedora = Fedora
 menu-build-debian = Debian / Ubuntu

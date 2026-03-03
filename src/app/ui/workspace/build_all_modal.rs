@@ -45,6 +45,7 @@ pub enum PackageSelection {
     AppImage,
     Exe,
     FreeBsd,
+    MacOs,
 }
 
 impl PackageSelection {
@@ -58,6 +59,7 @@ impl PackageSelection {
             Self::AppImage => ".AppImage",
             Self::Exe => ".exe — Windows",
             Self::FreeBsd => ".pkg — FreeBSD",
+            Self::MacOs => ".dmg — macOS",
         }
     }
 
@@ -71,6 +73,7 @@ impl PackageSelection {
             Self::AppImage => "--only=appimage",
             Self::Exe => "--only=exe",
             Self::FreeBsd => "--only=freebsd",
+            Self::MacOs => "--only=macos",
         }
     }
 }
@@ -203,6 +206,7 @@ impl BuildAllModal {
                                     PackageSelection::AppImage,
                                     PackageSelection::Exe,
                                     PackageSelection::FreeBsd,
+                                    PackageSelection::MacOs,
                                 ];
                                 for pkg in variants {
                                     let selected = pkg == self.selected;
@@ -361,7 +365,7 @@ fn detect_current_step(lines: &[String]) -> Option<String> {
     for line in lines.iter().rev() {
         let t = line.trim();
         if t.starts_with('│') && t.ends_with('│') && t.len() > 4 {
-            let inner = t[1..t.len() - 1].trim();
+            let inner = t.trim_start_matches('│').trim_end_matches('│').trim();
             if inner.contains('/') && !inner.chars().all(|c| c == '─' || c == '═' || c == ' ') {
                 return Some(inner.to_string());
             }

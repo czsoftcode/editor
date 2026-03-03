@@ -53,6 +53,9 @@ pub(crate) struct MenuActions {
     pub install_cross: bool,
     pub install_fpm: bool,
     pub install_podman: bool,
+    pub install_llvm: bool,
+    pub install_macos_all_deps: bool,
+    pub build_macos: bool,
     pub build_all: bool,
     pub plugins_target: Option<String>,
     pub run_agent: Option<String>,
@@ -263,6 +266,12 @@ pub(super) fn process_menu_actions(
     if actions.install_windows_target {
         ws.dep_wizard.open_for_windows_target();
     }
+    if actions.install_llvm {
+        ws.dep_wizard.open_for_llvm();
+    }
+    if actions.install_macos_all_deps {
+        ws.dep_wizard.open_for_macos_all_deps();
+    }
     let root = {
         let c: Vec<_> = ws.root_path.components().collect();
         let n = c.len();
@@ -377,6 +386,13 @@ pub(super) fn process_menu_actions(
               cp \"$HOME/.cache/polycredo-editor/target/release/polycredo-editor.exe\" \
                 \"target/dist/polycredo-editor-$VERSION-x86_64.exe\" 2>/dev/null) \
              {upload_to_github} || true"
+        ));
+    }
+    if actions.build_macos
+        && let Some(t) = &mut ws.build_terminal
+    {
+        t.send_command(&format!(
+            "cd \"{root}\" && ./scripts/build-all.sh --only=macos"
         ));
     }
     if actions.new_project {

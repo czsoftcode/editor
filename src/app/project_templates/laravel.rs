@@ -71,7 +71,11 @@ require __DIR__.'/../vendor/autoload.php';
     fs::write(path.join("composer.json"), composer_json).map_err(|e| e.to_string())?;
     fs::write(path.join("artisan"), artisan_bin).map_err(|e| e.to_string())?;
     fs::write(path.join("public/index.php"), index_php).map_err(|e| e.to_string())?;
-    fs::write(path.join(".env.example"), "APP_NAME=Laravel\nAPP_ENV=local\n").map_err(|e| e.to_string())?;
+    fs::write(
+        path.join(".env.example"),
+        "APP_NAME=Laravel\nAPP_ENV=local\n",
+    )
+    .map_err(|e| e.to_string())?;
     fs::write(path.join(".gitignore"), "/vendor/\n.env\n").map_err(|e| e.to_string())?;
 
     #[cfg(unix)]

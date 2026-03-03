@@ -240,7 +240,7 @@ pub(super) fn process_menu_actions(
         ws.dep_wizard.open_for_podman();
     }
     if actions.build_all {
-        ws.build_all_modal.start(ws.root_path.clone(), _ctx.clone());
+        ws.build_all_modal.open(ws.root_path.clone());
     }
     if actions.install_flatpak {
         ws.dep_wizard.open_for_flatpak();
@@ -266,10 +266,7 @@ pub(super) fn process_menu_actions(
     let root = {
         let c: Vec<_> = ws.root_path.components().collect();
         let n = c.len();
-        if n >= 2
-            && c[n - 1].as_os_str() == "sandbox"
-            && c[n - 2].as_os_str() == ".polycredo"
-        {
+        if n >= 2 && c[n - 1].as_os_str() == "sandbox" && c[n - 2].as_os_str() == ".polycredo" {
             ws.root_path
                 .parent()
                 .and_then(|p| p.parent())
@@ -372,7 +369,8 @@ pub(super) fn process_menu_actions(
         t.send_command(&format!(
             "cd \"{root}\" && mkdir -p target/dist && \
              export PATH=$PATH:/usr/lib/llvm-19/bin && \
-             cargo xwin build --release --target x86_64-pc-windows-msvc && \
+             cargo xwin build --release --target x86_64-pc-windows-msvc \
+               --target-dir \"$HOME/.cache/polycredo-editor/target\" && \
              VERSION=$(./scripts/get-version.sh) && \
              (cp \"$HOME/.cache/polycredo-editor/target/x86_64-pc-windows-msvc/release/polycredo-editor.exe\" \
                 \"target/dist/polycredo-editor-$VERSION-x86_64.exe\" 2>/dev/null || \

@@ -38,14 +38,19 @@ pub(crate) fn generate(name: &str, path: &Path) -> Result<(), String> {
     </main>
   );
 }
-"#.replace("{0}", name);
+"#
+    .replace("{0}", name);
 
     fs::write(path.join("package.json"), package_json).map_err(|e| e.to_string())?;
     fs::create_dir_all(path.join("app")).map_err(|e| e.to_string())?;
     fs::write(path.join("app/page.tsx"), page_tsx).map_err(|e| e.to_string())?;
-    fs::write(path.join(".gitignore"), "node_modules/
+    fs::write(
+        path.join(".gitignore"),
+        "node_modules/
 .next/
-").map_err(|e| e.to_string())?;
+",
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }

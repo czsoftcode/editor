@@ -168,7 +168,6 @@ pub fn render(
                     }
                 });
 
-
                 ui.menu_button(i18n.get("menu-build-fedora"), |ui| {
                     if ui
                         .button(format!(
@@ -313,10 +312,7 @@ pub fn render(
                     }
                 });
                 ui.separator();
-                if ui
-                    .button(i18n.get("menu-build-all"))
-                    .clicked()
-                {
+                if ui.button(i18n.get("menu-build-all")).clicked() {
                     actions.build_all = true;
                     ui.close_menu();
                 }

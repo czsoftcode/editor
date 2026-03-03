@@ -26,10 +26,14 @@ uvicorn>=0.30.0
     fs::write(path.join("requirements.txt"), requirements).map_err(|e| e.to_string())?;
     fs::create_dir_all(path.join("app")).map_err(|e| e.to_string())?;
     fs::write(path.join("app/__init__.py"), "").map_err(|e| e.to_string())?;
-    fs::write(path.join(".gitignore"), "__pycache__/
+    fs::write(
+        path.join(".gitignore"),
+        "__pycache__/
 .venv/
 .env
-").map_err(|e| e.to_string())?;
+",
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }

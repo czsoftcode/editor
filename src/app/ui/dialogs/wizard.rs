@@ -136,16 +136,52 @@ pub(crate) fn show_project_wizard(
                     ProjectType::ExpressJs => i18n.get("wizard-type-expressjs-5-0"),
                 })
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut state.project_type, ProjectType::Rust, i18n.get("wizard-type-rust-2024"));
-                    ui.selectable_value(&mut state.project_type, ProjectType::Symfony74, i18n.get("wizard-type-symfony-7-4"));
-                    ui.selectable_value(&mut state.project_type, ProjectType::Symfony80, i18n.get("wizard-type-symfony-8-0"));
-                    ui.selectable_value(&mut state.project_type, ProjectType::Laravel12, i18n.get("wizard-type-laravel-12"));
-                    ui.selectable_value(&mut state.project_type, ProjectType::Nette32, i18n.get("wizard-type-nette-3-2"));
-                    ui.selectable_value(&mut state.project_type, ProjectType::Nette30, i18n.get("wizard-type-nette-3-0"));
+                    ui.selectable_value(
+                        &mut state.project_type,
+                        ProjectType::Rust,
+                        i18n.get("wizard-type-rust-2024"),
+                    );
+                    ui.selectable_value(
+                        &mut state.project_type,
+                        ProjectType::Symfony74,
+                        i18n.get("wizard-type-symfony-7-4"),
+                    );
+                    ui.selectable_value(
+                        &mut state.project_type,
+                        ProjectType::Symfony80,
+                        i18n.get("wizard-type-symfony-8-0"),
+                    );
+                    ui.selectable_value(
+                        &mut state.project_type,
+                        ProjectType::Laravel12,
+                        i18n.get("wizard-type-laravel-12"),
+                    );
+                    ui.selectable_value(
+                        &mut state.project_type,
+                        ProjectType::Nette32,
+                        i18n.get("wizard-type-nette-3-2"),
+                    );
+                    ui.selectable_value(
+                        &mut state.project_type,
+                        ProjectType::Nette30,
+                        i18n.get("wizard-type-nette-3-0"),
+                    );
                     ui.separator();
-                    ui.selectable_value(&mut state.project_type, ProjectType::FastApi, i18n.get("wizard-type-fastapi-0-135"));
-                    ui.selectable_value(&mut state.project_type, ProjectType::NextJs, i18n.get("wizard-type-nextjs-16-1"));
-                    ui.selectable_value(&mut state.project_type, ProjectType::ExpressJs, i18n.get("wizard-type-expressjs-5-0"));
+                    ui.selectable_value(
+                        &mut state.project_type,
+                        ProjectType::FastApi,
+                        i18n.get("wizard-type-fastapi-0-135"),
+                    );
+                    ui.selectable_value(
+                        &mut state.project_type,
+                        ProjectType::NextJs,
+                        i18n.get("wizard-type-nextjs-16-1"),
+                    );
+                    ui.selectable_value(
+                        &mut state.project_type,
+                        ProjectType::ExpressJs,
+                        i18n.get("wizard-type-expressjs-5-0"),
+                    );
                 });
             ui.add_space(12.0);
 
@@ -178,7 +214,10 @@ pub(crate) fn show_project_wizard(
             if !raw_name.is_empty() {
                 if !name_valid {
                     ui.add_space(4.0);
-                    ui.colored_label(egui::Color32::from_rgb(0xe0, 0x70, 0x10), i18n.get("wizard-name-hint"));
+                    ui.colored_label(
+                        egui::Color32::from_rgb(0xe0, 0x70, 0x10),
+                        i18n.get("wizard-name-hint"),
+                    );
                 } else {
                     let preview = PathBuf::from(state.path.trim())
                         .join(state.project_type.subdir())
@@ -223,11 +262,15 @@ pub(crate) fn show_project_wizard(
             if let Err(e) = std::fs::create_dir_all(&type_dir) {
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("reason", e.to_string());
-                return ProjectCreateResult::Error(i18n.get_args("error-project-dir-create", &args));
+                return ProjectCreateResult::Error(
+                    i18n.get_args("error-project-dir-create", &args),
+                );
             }
             let full_path = type_dir.join(&name);
             match crate::app::project_templates::generate_project(project_type, &name, &full_path) {
-                Ok(_) => ProjectCreateResult::Success(full_path.canonicalize().unwrap_or(full_path)),
+                Ok(_) => {
+                    ProjectCreateResult::Success(full_path.canonicalize().unwrap_or(full_path))
+                }
                 Err(e) => ProjectCreateResult::Error(e),
             }
         }));

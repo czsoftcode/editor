@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PolyCredo Editor — sestavení všech distribučních balíčků
-# Použití: ./scripts/build-all.sh [--no-upload]
+# Použití: ./scripts/build-all.sh [--no-upload] [--only=<deb|rpm|flatpak|snap|appimage|exe|freebsd>]
 
 set -uo pipefail
 
@@ -8,7 +8,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 UPLOAD=true
-[[ "${1:-}" == "--no-upload" ]] && UPLOAD=false
+ONLY="all"
+for arg in "$@"; do
+    case "$arg" in
+        --no-upload)  UPLOAD=false ;;
+        --only=*)     ONLY="${arg#--only=}" ;;
+    esac
+done
 
 VERSION=$(./scripts/get-version.sh)
 LOG_DIR="$ROOT_DIR/target/dist-logs"
@@ -23,8 +29,9 @@ MANUAL_STEPS=()
 START_TIME=$(date +%s)
 
 # ── Helpery ─────────────────────────────────────────────────────────────────
-need()    { command -v "$1" >/dev/null 2>&1; }
-elapsed() { echo $(( $(date +%s) - START_TIME ))s; }
+need()         { command -v "$1" >/dev/null 2>&1; }
+elapsed()      { echo $(( $(date +%s) - START_TIME ))s; }
+only_matches() { [[ "$ONLY" == "all" || "$ONLY" == "$1" ]]; }
 
 header() {
     echo -e "\n${CYAN}${BOLD}┌──────────────────────────────────────────────────────┐${NC}"
@@ -81,7 +88,9 @@ mkdir -p target/dist target/debian "$LOG_DIR" \
 
 # ── 1. Debian .deb (release → target/dist/) ─────────────────────────────
 header "1/7  Debian — .deb"
-if ! need dpkg-deb || ! need dpkg-shlibdeps; then
+if ! only_matches "deb"; then
+    :
+elif ! need dpkg-deb || ! need dpkg-shlibdeps; then
     mark_skip ".deb" "chybí dpkg-dev" \
         "sudo apt-get install -y dpkg-dev binutils"
 elif ! need cargo; then
@@ -99,7 +108,9 @@ fi
 
 # ── 2. Fedora .rpm ───────────────────────────────────────────────────────
 header "2/7  Fedora — .rpm"
-if ! need cargo-generate-rpm; then
+if ! only_matches "rpm"; then
+    :
+elif ! need cargo-generate-rpm; then
     mark_skip ".rpm" "chybí cargo-generate-rpm" \
         "cargo install cargo-generate-rpm"
 else
@@ -118,7 +129,9 @@ fi
 # ── 3. Flatpak ──────────────────────────────────────────────────────────
 header "3/7  Flatpak — .flatpak"
 YAML="$ROOT_DIR/.polycredo/sandbox/org.polycredo.Editor.yaml"
-if ! need flatpak-builder; then
+if ! only_matches "flatpak"; then
+    :
+elif ! need flatpak-builder; then
     mark_skip ".flatpak" "chybí flatpak-builder" \
         "sudo apt-get install -y flatpak-builder"
 elif [[ ! -f "$YAML" ]]; then
@@ -146,7 +159,9 @@ fi
 # ── 4. Snap ─────────────────────────────────────────────────────────────
 header "4/7  Snap — .snap"
 export PATH="$PATH:/snap/bin"
-if ! need snapcraft; then
+if ! only_matches "snap"; then
+    :
+elif ! need snapcraft; then
     mark_skip ".snap" "chybí snapcraft" \
         "sudo snap install snapcraft --classic"
 else
@@ -168,7 +183,9 @@ fi
 
 # ── 5. AppImage ──────────────────────────────────────────────────────────
 header "5/7  AppImage — .AppImage"
-if ! need cargo-appimage; then
+if ! only_matches "appimage"; then
+    :
+elif ! need cargo-appimage; then
     mark_skip ".AppImage" "chybí cargo-appimage" \
         "cargo install cargo-appimage"
 else
@@ -194,23 +211,28 @@ fi
 # ── 6. Windows .exe ──────────────────────────────────────────────────────
 header "6/7  Windows — .exe (cross-compile)"
 export PATH="$PATH:/usr/lib/llvm-19/bin"
-if ! need cargo-xwin; then
+if ! only_matches "exe"; then
+    :
+elif ! need cargo-xwin; then
     mark_skip ".exe" "chybí cargo-xwin" \
         "cargo install cargo-xwin; rustup target add x86_64-pc-windows-msvc"
 else
     log="$LOG_DIR/exe.log"
     echo -e "  ${DIM}→ cargo xwin build --target x86_64-pc-windows-msvc${NC}"
-    if cargo xwin build --release --target x86_64-pc-windows-msvc 2>&1 | tee "$log"; then
+    if cargo xwin build --release \
+            --target x86_64-pc-windows-msvc \
+            --target-dir "$CACHE/target" 2>&1 | tee "$log"; then
         EXE=$(find \
             "$CACHE/target/x86_64-pc-windows-msvc/release" \
             "$CACHE/target/release" \
-            -maxdepth 1 -name 'polycredo-editor.exe' 2>/dev/null | head -1)
+            "$CACHE/target" \
+            -maxdepth 3 -name 'polycredo-editor.exe' 2>/dev/null | head -1)
         if [[ -n "$EXE" ]]; then
             cp "$EXE" "target/dist/polycredo-editor-$VERSION-x86_64.exe"
             mark_ok ".exe → target/dist/"
         else
             mark_fail ".exe" "$log" \
-                "build OK, ale .exe nenalezen — hledej v $CACHE/target/"
+                "build OK, ale .exe nenalezen — spusť: find $CACHE/target -name '*.exe'"
         fi
     else
         mark_fail ".exe" "$log" \
@@ -220,26 +242,30 @@ fi
 
 # ── 7. FreeBSD .pkg ──────────────────────────────────────────────────────
 header "7/7  FreeBSD — .pkg (cross-compile)"
-missing_bsd=()
-need cross || missing_bsd+=("cross")
-need fpm   || missing_bsd+=("fpm")
-if [[ ${#missing_bsd[@]} -gt 0 ]]; then
-    mark_skip ".pkg" "chybí: ${missing_bsd[*]}" \
-        "cargo install cross; gem install fpm --no-document; + Docker nebo Podman"
+if ! only_matches "freebsd"; then
+    :
 else
-    log="$LOG_DIR/freebsd.log"
-    echo -e "  ${DIM}→ cross build --target x86_64-unknown-freebsd + fpm${NC}"
-    if ( rustup target add x86_64-unknown-freebsd 2>/dev/null || true && \
-         cross build --release --target x86_64-unknown-freebsd && \
-         fpm -s dir -t freebsd -n polycredo-editor -v "$VERSION" \
-             --prefix /usr/local \
-             -p "target/dist/polycredo-editor-$VERSION-amd64.pkg" \
-             "$CACHE/target/x86_64-unknown-freebsd/release/polycredo-editor=/bin/polycredo-editor" \
-       ) 2>&1 | tee "$log"; then
-        mark_ok ".pkg → target/dist/"
+    missing_bsd=()
+    need cross || missing_bsd+=("cross")
+    need fpm   || missing_bsd+=("fpm")
+    if [[ ${#missing_bsd[@]} -gt 0 ]]; then
+        mark_skip ".pkg" "chybí: ${missing_bsd[*]}" \
+            "cargo install cross; gem install fpm --no-document; + Docker nebo Podman"
     else
-        mark_fail ".pkg" "$log" \
-            "nutné: cross, fpm, Docker nebo Podman; rustup target x86_64-unknown-freebsd"
+        log="$LOG_DIR/freebsd.log"
+        echo -e "  ${DIM}→ cross build --target x86_64-unknown-freebsd + fpm${NC}"
+        if ( rustup target add x86_64-unknown-freebsd 2>/dev/null || true && \
+             cross build --release --target x86_64-unknown-freebsd --target-dir target && \
+             fpm -s dir -t freebsd -n polycredo-editor -v "$VERSION" \
+                 --prefix /usr/local \
+                 -p "target/dist/polycredo-editor-$VERSION-amd64.pkg" \
+                 "target/x86_64-unknown-freebsd/release/polycredo-editor=/bin/polycredo-editor" \
+           ) 2>&1 | tee "$log"; then
+            mark_ok ".pkg → target/dist/"
+        else
+            mark_fail ".pkg" "$log" \
+                "nutné: cross, fpm, Docker nebo Podman; rustup target x86_64-unknown-freebsd"
+        fi
     fi
 fi
 

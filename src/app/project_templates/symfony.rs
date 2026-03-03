@@ -1,7 +1,12 @@
 use std::fs;
 use std::path::Path;
 
-pub(crate) fn generate(_name: &str, path: &Path, version: &str, php_version: &str) -> Result<(), String> {
+pub(crate) fn generate(
+    _name: &str,
+    path: &Path,
+    version: &str,
+    php_version: &str,
+) -> Result<(), String> {
     let composer_json = format!(
         r#"{{
     "type": "project",
@@ -124,8 +129,10 @@ class Kernel extends BaseKernel
     fs::write(path.join("public/index.php"), index_php).map_err(|e| e.to_string())?;
     fs::write(path.join("bin/console"), console_bin).map_err(|e| e.to_string())?;
     fs::write(path.join("src/Kernel.php"), kernel_php).map_err(|e| e.to_string())?;
-    fs::write(path.join(".env"), "APP_ENV=dev\nAPP_SECRET=change_me\n").map_err(|e| e.to_string())?;
-    fs::write(path.join(".gitignore"), "/vendor/\n/var/\n.env.local\n").map_err(|e| e.to_string())?;
+    fs::write(path.join(".env"), "APP_ENV=dev\nAPP_SECRET=change_me\n")
+        .map_err(|e| e.to_string())?;
+    fs::write(path.join(".gitignore"), "/vendor/\n/var/\n.env.local\n")
+        .map_err(|e| e.to_string())?;
 
     #[cfg(unix)]
     {

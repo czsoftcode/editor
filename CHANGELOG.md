@@ -1,3 +1,13 @@
+## [0.8.4] - 2026-03-03
+
+### Added
+- **Selective package build**: `BuildAllModal` now opens with a ComboBox to choose between building all packages or a single format (.deb, .rpm, .flatpak, .snap, .AppImage, .exe, .pkg). Build no longer starts automatically — the user clicks **Spustit** to begin and **Znovu spustit** to rebuild with the same or different selection.
+- **Live step indicator**: During a build, a highlighted header with spinner shows the currently active step (e.g. `3/7  Flatpak — .flatpak`), parsed from the script's box-drawing output. Before the first output arrives, the selected package label is shown instead.
+- **`--only=<pkg>` flag in `build-all.sh`**: All seven build steps can be individually skipped via `--only=deb|rpm|flatpak|snap|appimage|exe|freebsd`. Steps not matching the selection are silently bypassed using the new `only_matches()` helper.
+
+### Fixed
+- **FreeBSD cross-compile path**: `cross build` now receives `--target-dir target`, ensuring the binary lands in `target/x86_64-unknown-freebsd/release/` (the default cross output location). `fpm` source path updated accordingly — previously pointed to `~/.cache/…` which was never populated by cross.
+
 ## [0.8.3] - 2026-03-03
 
 ### Added

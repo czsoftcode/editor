@@ -61,11 +61,15 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
             .unwrap_or_default();
         results.insert(
             "windows-target".to_string(),
-            installed_targets.lines().any(|l| l.trim() == "x86_64-pc-windows-msvc"),
+            installed_targets
+                .lines()
+                .any(|l| l.trim() == "x86_64-pc-windows-msvc"),
         );
         results.insert(
             "freebsd-target".to_string(),
-            installed_targets.lines().any(|l| l.trim() == "x86_64-unknown-freebsd"),
+            installed_targets
+                .lines()
+                .any(|l| l.trim() == "x86_64-unknown-freebsd"),
         );
 
         let _ = tx.send(results);

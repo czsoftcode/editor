@@ -196,7 +196,10 @@ impl DependencyWizard {
             description_key: "dep-wizard-podman-desc".into(),
             method: InstallMethod::SystemCommand {
                 cmd: "bash".into(),
-                args: vec!["-c".into(), apt_install_cmd("apt-get install -y podman").into()],
+                args: vec![
+                    "-c".into(),
+                    apt_install_cmd("apt-get install -y podman").into(),
+                ],
             },
         });
         self.reset_status();
@@ -265,7 +268,8 @@ impl DependencyWizard {
                         "  echo \"  sudo $CMD\"; ",
                         "  exit 1; ",
                         "fi && echo 'LXD configured. Run: newgrp lxd (or restart session)'",
-                    ).into(),
+                    )
+                    .into(),
                 ],
             },
         });
@@ -405,7 +409,11 @@ impl DependencyWizard {
         };
 
         let in_progress = !matches!(*self.status.lock().unwrap(), InstallStatus::Pending);
-        let (modal_w, modal_h) = if in_progress { (660.0, 520.0) } else { (500.0, 320.0) };
+        let (modal_w, modal_h) = if in_progress {
+            (660.0, 520.0)
+        } else {
+            (500.0, 320.0)
+        };
         let modal = StandardModal::new(tr!(i18n, "dep-wizard-title"), "dependency_wizard")
             .with_size(modal_w, modal_h);
 
@@ -539,8 +547,14 @@ impl DependencyWizard {
                 match dep.method {
                     InstallMethod::Download { url, target } => {
                         *status_arc.lock().unwrap() = InstallStatus::Downloading(0.1);
-                        output_lines.lock().unwrap().push(format!("Downloading: {}", url));
-                        output_lines.lock().unwrap().push(format!("Destination: {}", target.display()));
+                        output_lines
+                            .lock()
+                            .unwrap()
+                            .push(format!("Downloading: {}", url));
+                        output_lines
+                            .lock()
+                            .unwrap()
+                            .push(format!("Destination: {}", target.display()));
                         ctx.request_repaint();
 
                         if let Some(parent) = target.parent() {
@@ -570,7 +584,10 @@ impl DependencyWizard {
                                 if target.extension().map_or(false, |ext| ext == "exe") {
                                     let _ = std::process::Command::new(&target).spawn();
                                 }
-                                output_lines.lock().unwrap().push("✓ Download complete.".into());
+                                output_lines
+                                    .lock()
+                                    .unwrap()
+                                    .push("✓ Download complete.".into());
                                 *status_arc.lock().unwrap() = InstallStatus::Success;
                             }
                             Ok(out) => {
@@ -578,8 +595,12 @@ impl DependencyWizard {
                                 if !stderr.trim().is_empty() {
                                     output_lines.lock().unwrap().push(stderr);
                                 }
-                                output_lines.lock().unwrap().push("✗ Download failed.".into());
-                                *status_arc.lock().unwrap() = InstallStatus::Error("Download failed".into());
+                                output_lines
+                                    .lock()
+                                    .unwrap()
+                                    .push("✗ Download failed.".into());
+                                *status_arc.lock().unwrap() =
+                                    InstallStatus::Error("Download failed".into());
                             }
                             Err(e) => {
                                 output_lines.lock().unwrap().push(format!("✗ Error: {}", e));
@@ -589,7 +610,10 @@ impl DependencyWizard {
                     }
                     InstallMethod::SystemCommand { cmd, args } => {
                         *status_arc.lock().unwrap() = InstallStatus::RunningCommand;
-                        output_lines.lock().unwrap().push(format!("$ {} {}", cmd, args.join(" ")));
+                        output_lines
+                            .lock()
+                            .unwrap()
+                            .push(format!("$ {} {}", cmd, args.join(" ")));
                         ctx.request_repaint();
 
                         use tokio::io::{AsyncBufReadExt, BufReader};
@@ -636,17 +660,28 @@ impl DependencyWizard {
                                         *status_arc.lock().unwrap() = InstallStatus::Success;
                                     }
                                     Ok(exit) => {
-                                        output_lines.lock().unwrap().push(format!("✗ Exited with: {}", exit));
-                                        *status_arc.lock().unwrap() = InstallStatus::Error(format!("Exit: {}", exit));
+                                        output_lines
+                                            .lock()
+                                            .unwrap()
+                                            .push(format!("✗ Exited with: {}", exit));
+                                        *status_arc.lock().unwrap() =
+                                            InstallStatus::Error(format!("Exit: {}", exit));
                                     }
                                     Err(e) => {
-                                        output_lines.lock().unwrap().push(format!("✗ Error: {}", e));
-                                        *status_arc.lock().unwrap() = InstallStatus::Error(e.to_string());
+                                        output_lines
+                                            .lock()
+                                            .unwrap()
+                                            .push(format!("✗ Error: {}", e));
+                                        *status_arc.lock().unwrap() =
+                                            InstallStatus::Error(e.to_string());
                                     }
                                 }
                             }
                             Err(e) => {
-                                output_lines.lock().unwrap().push(format!("✗ Failed to start: {}", e));
+                                output_lines
+                                    .lock()
+                                    .unwrap()
+                                    .push(format!("✗ Failed to start: {}", e));
                                 *status_arc.lock().unwrap() = InstallStatus::Error(e.to_string());
                             }
                         }

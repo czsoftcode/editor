@@ -2,13 +2,13 @@ use crate::app::types::ProjectType;
 use std::fs;
 use std::path::Path;
 
-mod rust;
-mod symfony;
+mod expressjs;
+mod fastapi;
 mod laravel;
 mod nette;
-mod fastapi;
 mod nextjs;
-mod expressjs;
+mod rust;
+mod symfony;
 
 pub(crate) fn generate_project(
     project_type: ProjectType,

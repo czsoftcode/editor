@@ -27,9 +27,13 @@ app.listen(3000);
     fs::write(path.join("package.json"), package_json).map_err(|e| e.to_string())?;
     fs::create_dir_all(path.join("src")).map_err(|e| e.to_string())?;
     fs::write(path.join("src/index.ts"), index_ts).map_err(|e| e.to_string())?;
-    fs::write(path.join(".gitignore"), "node_modules/
+    fs::write(
+        path.join(".gitignore"),
+        "node_modules/
 dist/
-").map_err(|e| e.to_string())?;
+",
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }

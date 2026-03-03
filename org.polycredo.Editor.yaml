@@ -20,13 +20,15 @@ build-options:
     - --share=network
   env:
     CARGO_HOME: /run/build/polycredo-editor/cargo
+    CARGO_TARGET_DIR: /run/build/polycredo-editor/target
 
 modules:
   - name: polycredo-editor
     buildsystem: simple
     build-commands:
-      - cargo build --release --verbose
-      - install -Dm755 target/release/polycredo-editor /app/bin/polycredo-editor
+      - rm -f .cargo/config.toml
+      - CARGO_TARGET_DIR=/run/build/polycredo-editor/target cargo build --release --verbose
+      - install -Dm755 /run/build/polycredo-editor/target/release/polycredo-editor /app/bin/polycredo-editor
       - install -Dm644 packaging/deb/polycredo-editor.desktop /app/share/applications/org.polycredo.Editor.desktop
       - install -Dm644 packaging/icons/icon-256.png /app/share/icons/hicolor/256x256/apps/org.polycredo.Editor.png
     sources:

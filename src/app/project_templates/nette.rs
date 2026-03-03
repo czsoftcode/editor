@@ -1,7 +1,12 @@
 use std::fs;
 use std::path::Path;
 
-pub(crate) fn generate(name: &str, path: &Path, version: &str, php_version: &str) -> Result<(), String> {
+pub(crate) fn generate(
+    name: &str,
+    path: &Path,
+    version: &str,
+    php_version: &str,
+) -> Result<(), String> {
     let composer_json = if version == "3.2" {
         format!(
             r#"{{

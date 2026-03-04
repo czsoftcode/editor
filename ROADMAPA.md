@@ -28,6 +28,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - [x] **Ollama Stability Fix** — Opraven "Internal Server Error" při prohledávání velkých projektů skrze AI agenty.
 - [x] **AI Inspector & Trace** — centrální nástroj pro sledování odesílaného kontextu a JSON payloadů.
 - [x] **Conversational Threads** — podpora historie a "vláken" konverzace s AI agenty.
+- [x] **Unified UI Actions** — sjednocení tlačítek v modálních oknech a zavedení potvrzovacího dialogu pro zahození změn.
 
 ## AI Agenti a Autonomie (Nová vize)
 **Cíl:** Transformace editoru na platformu pro plně autonomní AI agenty.
@@ -47,7 +48,7 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 
 - [ ] **LSP plná sada** — refaktoring, rename symbol, code actions přes LSP.
 - [x] **macOS build** — funkční binárka pro macOS (Apple Silicon + Intel).
-- [x] **Distribuce Linuxu** — AppImage, .deb, .rpm, .pkg.tar.zst (Arch), Flatpak, Snap a .tar.gz.
+- [x] **Distribuce (CI/CD)** — automatizované sestavování .deb, .rpm, AppImage, Flatpak, Snap a Windows/macOS balíčků přes GitHub Actions. Lokální kód vyčištěn.
 - [x] **Ochrana Buildu** — automatické blokování sestavení při nepromotovaných souborech nebo Sandbox ON.
 - [ ] **WASM plugin API (beta)** — první vlna komunitních pluginů.
 

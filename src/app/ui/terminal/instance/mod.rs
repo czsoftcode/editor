@@ -385,49 +385,7 @@ impl Terminal {
 
         response.context_menu(|ui| {
             let selected_text = if let Some(backend) = self.backend.as_ref() {
-                let content = backend.last_content();
-                let mut result = String::new();
-                if let Some(range) = content.selectable_range {
-                    let mut last_line = None;
-                    let mut current_line_buffer = String::new();
-                    let mut was_wrapped = false;
-                    let num_cols = content.grid.columns();
-                    let total_lines = content.grid.total_lines() as i32;
-                    let history_size = content.grid.history_size() as i32;
-                    for line_idx in -history_size..(total_lines - history_size) {
-                        let line = alacritty_terminal::index::Line(line_idx);
-                        let row = &content.grid[line];
-                        for col_idx in 0..num_cols {
-                            let col = alacritty_terminal::index::Column(col_idx);
-                            let point = alacritty_terminal::index::Point::new(line, col);
-                            if range.contains(point) {
-                                let cell = &row[col];
-                                if let Some(last) = last_line
-                                    && line != last
-                                {
-                                    if was_wrapped {
-                                        let trimmed = current_line_buffer.trim_end();
-                                        result.push_str(trimmed);
-                                        if current_line_buffer.len() > trimmed.len() {
-                                            result.push(' ');
-                                        }
-                                    } else {
-                                        result.push_str(current_line_buffer.trim_end());
-                                        result.push('\n');
-                                    }
-                                    current_line_buffer.clear();
-                                }
-                                current_line_buffer.push(cell.c);
-                                last_line = Some(line);
-                                was_wrapped = cell
-                                    .flags
-                                    .contains(alacritty_terminal::term::cell::Flags::WRAPLINE);
-                            }
-                        }
-                    }
-                    result.push_str(current_line_buffer.trim_end());
-                }
-                result
+                backend.selectable_content()
             } else {
                 String::new()
             };

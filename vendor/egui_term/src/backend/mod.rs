@@ -261,12 +261,44 @@ impl TerminalBackend {
     pub fn selectable_content(&self) -> String {
         let content = self.last_content();
         let mut result = String::new();
+        let mut last_line = None;
+        let mut was_wrapped = false;
+        let mut current_line_buffer = String::new();
+
         if let Some(range) = content.selectable_range {
             for indexed in content.grid.display_iter() {
                 if range.contains(indexed.point) {
-                    result.push(indexed.c);
+                    let line = indexed.point.line;
+
+                    if let Some(last) = last_line {
+                        if line != last {
+                            if was_wrapped {
+                                // Spojíme řádky, ale trimneme mezery na konci fyzického řádku
+                                // které jsou tam jen jako výplň do šířky terminálu.
+                                let trimmed = current_line_buffer.trim_end();
+                                result.push_str(trimmed);
+                                // Pokud tam nějaké mezery byly, zachováme aspoň jednu (pokud to není wrap uprostřed slova)
+                                // Ale alacritty WRAPLINE obvykle znamená, že slovo pokračuje.
+                                if current_line_buffer.len() > trimmed.len() {
+                                    result.push(' ');
+                                }
+                            } else {
+                                // Hard wrap - přidáme newline
+                                result.push_str(current_line_buffer.trim_end());
+                                result.push('\n');
+                            }
+                            current_line_buffer.clear();
+                        }
+                    }
+
+                    current_line_buffer.push(indexed.c);
+                    last_line = Some(line);
+                    was_wrapped = indexed
+                        .flags
+                        .contains(alacritty_terminal::term::cell::Flags::WRAPLINE);
                 }
             }
+            result.push_str(current_line_buffer.trim_end());
         }
         result
     }

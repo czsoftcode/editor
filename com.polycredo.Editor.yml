@@ -19,9 +19,11 @@ modules:
     build-options:
       append-path: /usr/lib/sdk/rust-stable/bin
       env:
-        CARGO_HOME: /run/build/polycredo-editor/cargo
+        CARGO_HOME: /tmp/cargo-home
     build-commands:
-      - cargo build --release
+      - mkdir -p /tmp/cargo-home
+      - cp .flatpak-cargo/config.toml /tmp/cargo-home/config.toml
+      - cargo build --release --offline
       - install -Dm755 target/release/polycredo-editor /app/bin/polycredo-editor
       - install -Dm644 packaging/deb/polycredo-editor.desktop /app/share/applications/com.polycredo.Editor.desktop
       - install -Dm644 packaging/icons/icon-256.png /app/share/icons/hicolor/256x256/apps/com.polycredo.Editor.png

@@ -38,24 +38,19 @@ impl Editor {
         let modal = StandardModal::new(i18n.get("lsp-references-heading"), "lsp_references_modal")
             .with_size(700.0, 500.0);
 
+        let mut should_close = false;
         modal.show(ctx, &mut show_flag, |ui| {
-            if let Some(close) = modal.ui_footer(ui, |ui| {
-                if ui.button(i18n.get("btn-close")).clicked() {
+            if let Some(close) = modal.ui_footer_actions(ui, i18n, |f| {
+                if f.close() || f.cancel() {
                     return Some(true);
                 }
                 None
             }) && close
             {
-                close_requested = true;
+                should_close = true;
             }
 
             modal.ui_body(ui, |ui| {
-                if picker.focus_requested {
-                    ui.memory_mut(|m| m.request_focus(ui.id()));
-                    picker.focus_requested = false;
-                }
-                ui.add_space(4.0);
-
                 egui::ScrollArea::vertical()
                     .id_salt("lsp_ref_scroll")
                     .auto_shrink([false, false])
@@ -105,6 +100,10 @@ impl Editor {
                     });
             });
         });
+
+        if should_close {
+            show_flag = false;
+        }
 
         if let Some(p) = self.lsp_references.as_mut()
             && p.scroll_to_selected

@@ -442,15 +442,16 @@ impl Editor {
 
         modal.show(ctx, &mut show_flag, |ui| {
             // FOOTER
-            if let Some(close) = modal.ui_footer(ui, |ui| {
-                if ui.button(i18n.get("btn-close")).clicked() {
+            if let Some(close) = modal.ui_footer_actions(ui, i18n, |f| {
+                if f.close() || f.cancel() {
                     return Some(true);
                 }
                 None
             }) && close
             {
-                close_requested = true;
+                show_flag = false;
             }
+
 
             // BODY
             modal.ui_body(ui, |ui| {

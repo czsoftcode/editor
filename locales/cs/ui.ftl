@@ -162,8 +162,10 @@ project-search-max-results = Zobrazeno max. { $max } výsledků
 ## Obecná tlačítka
 btn-ok = OK
 btn-confirm = Potvrdit
-btn-cancel = Zrušit
+btn-cancel = Storno
 btn-close = Zavřít
+cancel-confirm-title = Zahodit změny?
+cancel-confirm-msg = Opravdu si přejete zahodit všechny neuložené změny a zavřít toto okno?
 btn-browse = Procházet…
 btn-create = Vytvořit
 btn-open = Otevřít

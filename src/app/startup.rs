@@ -74,17 +74,18 @@ pub fn render(ctx: &egui::Context, state: StartupState) {
     // 2. Startup Wizard
     if *state.show_startup_wizard {
         let mut success_path: Option<PathBuf> = None;
-        show_project_wizard(
+        let args = crate::app::ui::dialogs::WizardArgs {
             ctx,
-            state.startup_wizard,
-            state.show_startup_wizard,
-            "startup_wizard_modal",
-            state.shared,
-            &i18n_arc,
-            |path, _sh| {
-                success_path = Some(path);
-            },
-        );
+            state: state.startup_wizard,
+            show: state.show_startup_wizard,
+            modal_id: "startup_wizard_modal",
+            shared: state.shared,
+            i18n: &i18n_arc,
+            ws: None,
+        };
+        show_project_wizard(args, |path, _sh| {
+            success_path = Some(path);
+        });
         if let Some(path) = success_path {
             open_workspace(
                 ctx,

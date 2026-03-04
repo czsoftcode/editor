@@ -19,8 +19,8 @@ pub fn show(
             .with_size(600.0, 400.0);
 
         modal.show(ctx, &mut local_show, |ui| {
-            if let Some(c) = modal.ui_footer(ui, |ui| {
-                if ui.button(i18n.get("btn-close")).clicked() {
+            if let Some(c) = modal.ui_footer_actions(ui, i18n, |f| {
+                if f.close() {
                     return Some(true);
                 }
                 None
@@ -68,11 +68,8 @@ pub fn show(
         .with_size(400.0, 250.0);
 
         modal.show(ctx, &mut local_show, |ui| {
-            if let Some(c) = modal.ui_footer(ui, |ui| {
-                if ui.button(i18n.get("btn-close")).clicked() {
-                    return Some(true);
-                }
-                if ui.button(i18n.get("btn-ok")).clicked() {
+            if let Some(c) = modal.ui_footer_actions(ui, i18n, |f| {
+                if f.close() || f.ok() {
                     return Some(true);
                 }
                 None
@@ -111,21 +108,18 @@ pub fn show(
             .with_size(500.0, 300.0);
 
         modal.show(ctx, &mut local_show, |ui| {
-            if let Some((sync, skip, close)) = modal.ui_footer(ui, |ui| {
-                if ui.button(i18n.get("btn-close")).clicked() {
+            if let Some((sync, skip, close)) = modal.ui_footer_actions(ui, i18n, |f| {
+                if f.close() || f.cancel() {
                     return Some((false, false, true));
                 }
-                if ui
+                if f.ui
                     .button(egui::RichText::new(i18n.get("ai-sync-btn-sync")).strong())
                     .clicked()
                 {
                     return Some((true, false, true));
                 }
-                if ui.button(i18n.get("ai-sync-btn-skip")).clicked() {
+                if f.button("ai-sync-btn-skip").clicked() {
                     return Some((false, true, true));
-                }
-                if ui.button(i18n.get("btn-cancel")).clicked() {
-                    return Some((false, false, true));
                 }
                 None
             }) {
@@ -220,8 +214,8 @@ pub fn show(
                 .with_size(600.0, 450.0);
 
             modal.show(ctx, &mut local_show, |ui| {
-                if let Some(c) = modal.ui_footer(ui, |ui| {
-                    if ui.button(i18n.get("btn-close")).clicked() {
+                if let Some(c) = modal.ui_footer_actions(ui, i18n, |f| {
+                    if f.close() {
                         return Some(true);
                     }
                     None

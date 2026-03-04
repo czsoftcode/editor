@@ -19,14 +19,11 @@ pub fn render_diff_modal(
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
-        if let Some(r) = modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        if let Some(r) = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() || f.cancel() {
                 return Some(super::DiffAction::Rejected);
             }
-            if ui.button(i18n.get("btn-cancel")).clicked() {
-                return Some(super::DiffAction::Rejected);
-            }
-            if ui.button(i18n.get("btn-confirm")).clicked() {
+            if f.button("ai-staged-bar-promote-all").clicked() {
                 return Some(super::DiffAction::Accepted);
             }
             None

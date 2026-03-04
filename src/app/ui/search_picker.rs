@@ -1,100 +1,29 @@
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc;
-
-use eframe::egui;
-
-use super::workspace::{SearchResult, WorkspaceState};
 use crate::app::ui::widgets::modal::StandardModal;
+use crate::app::ui::workspace::state::{SearchResult, WorkspaceState};
+use crate::i18n::I18n;
+use eframe::egui;
+use std::path::PathBuf;
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, mpsc};
 
-const EXCLUDED_DIRS: &[&str] = &[
-    "target",
-    ".git",
-    "node_modules",
-    "vendor",
-    ".idea",
-    ".vscode",
-    ".cache",
-];
-
-/// Subsequence fuzzy match — pattern characters must appear in the text in order, but not necessarily adjacent.
-pub(crate) fn fuzzy_match(pattern: &str, text: &str) -> bool {
-    if pattern.is_empty() {
+pub fn fuzzy_match(query: &str, text: &str) -> bool {
+    if query.is_empty() {
         return true;
     }
-    let mut text_chars = text.chars();
-    for pc in pattern.chars() {
-        loop {
-            match text_chars.next() {
-                Some(tc) if tc == pc => break,
-                Some(_) => continue,
-                None => return false,
-            }
-        }
-    }
-    true
+    let text_lower = text.to_lowercase();
+    let query_lower = query.to_lowercase();
+
+    // Simple contains for now, could be improved to real fuzzy
+    text_lower.contains(&query_lower)
 }
 
-/// Recursively collects project files (relative paths), skipping insignificant directories.
-pub(super) fn collect_project_files(root: &Path) -> Vec<PathBuf> {
-    let mut files = Vec::new();
-    let mut visited = HashSet::new();
-    if let Ok(canonical_root) = root.canonicalize() {
-        visited.insert(canonical_root);
-    }
-    collect_files_recursive(root, root, &mut files, &mut visited);
-    files.sort();
-    files
-}
-
-fn collect_files_recursive(
-    root: &Path,
-    dir: &Path,
-    files: &mut Vec<PathBuf>,
-    visited: &mut HashSet<PathBuf>,
-) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let name = entry.file_name();
-        let name_str = name.to_string_lossy();
-        if EXCLUDED_DIRS.contains(&name_str.as_ref()) {
-            continue;
-        }
-        let Ok(meta) = std::fs::symlink_metadata(&path) else {
-            continue;
-        };
-        if meta.file_type().is_symlink() {
-            continue;
-        }
-        if meta.is_dir() {
-            if let Ok(canonical) = path.canonicalize()
-                && !visited.insert(canonical)
-            {
-                continue;
-            }
-            collect_files_recursive(root, &path, files, visited);
-        } else if meta.is_file()
-            && let Ok(rel) = path.strip_prefix(root)
-        {
-            files.push(rel.to_path_buf());
-        }
-    }
-}
-
-/// render_file_picker — Modal for Ctrl+P
-pub(super) fn render_file_picker(
+pub fn render_file_picker(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
-    i18n: &crate::i18n::I18n,
+    i18n: &I18n,
 ) -> Option<PathBuf> {
     let picker = ws.file_picker.as_mut()?;
 
-    // Global navigation keys (read before rendering to work even when TextEdit has focus)
     let key_up = ctx.input(|i| i.key_pressed(egui::Key::ArrowUp));
     let key_down = ctx.input(|i| i.key_pressed(egui::Key::ArrowDown));
     let key_enter = ctx.input(|i| i.key_pressed(egui::Key::Enter));
@@ -118,172 +47,81 @@ pub(super) fn render_file_picker(
         close = true;
     }
 
-    // Redraw picker only if we still have data
-    if let Some(picker) = ws.file_picker.as_mut() {
-        let focus_req = picker.focus_requested;
-        let total = picker.files.len();
+    let modal = StandardModal::new(i18n.get("file-picker-heading"), "file_picker_modal")
+        .with_size(600.0, 450.0);
 
-        let modal = StandardModal::new(i18n.get("file-picker-heading"), "file_picker_modal")
-            .with_size(600.0, 450.0);
+    modal.show(ctx, &mut show_flag, |ui| {
+        // FOOTER
+        if let Some(c) = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() || f.cancel() {
+                return Some(true);
+            }
+            None
+        }) {
+            close = c;
+        }
 
-        modal.show(ctx, &mut show_flag, |ui| {
-            // FOOTER
-            if let Some(r) = modal.ui_footer(ui, |ui| {
-                if ui.button(i18n.get("btn-close")).clicked() {
-                    return Some(None);
-                }
-                None
-            }) {
-                selected_file = r;
-                close = true;
+        // BODY
+        modal.ui_body(ui, |ui| {
+            ui.add_space(4.0);
+            let resp = ui.add(
+                egui::TextEdit::singleline(&mut picker.query)
+                    .hint_text(i18n.get("file-picker-placeholder"))
+                    .desired_width(ui.available_width())
+                    .id(egui::Id::new("file_picker_input")),
+            );
+            if picker.focus_requested {
+                resp.request_focus();
+                picker.focus_requested = false;
+            }
+            if resp.changed() {
+                picker.update_filter();
             }
 
-            // BODY
-            modal.ui_body(ui, |ui| {
-                ui.add_space(4.0);
-                let resp = ui.add(
-                    egui::TextEdit::singleline(&mut picker.query)
-                        .hint_text(i18n.get("file-picker-placeholder"))
-                        .desired_width(ui.available_width())
-                        .id(egui::Id::new("file_picker_input")),
-                );
-                if focus_req {
-                    resp.request_focus();
-                }
-                if resp.changed() {
-                    picker.update_filter();
-                }
-
-                let count_label = if picker.query.is_empty() {
-                    let mut args = fluent_bundle::FluentArgs::new();
-                    args.set("count", total as i64);
-                    i18n.get_args("file-picker-count", &args)
-                } else {
-                    let mut args = fluent_bundle::FluentArgs::new();
-                    args.set("filtered", picker.filtered.len() as i64);
-                    args.set("total", total as i64);
-                    i18n.get_args("file-picker-count-filtered", &args)
-                };
-                ui.add_space(2.0);
-                ui.label(egui::RichText::new(count_label).weak().size(11.0));
-                ui.add_space(8.0);
-                ui.separator();
-                ui.add_space(8.0);
-
-                egui::ScrollArea::vertical()
-                    .id_salt("fp_scroll")
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| {
-                        ui.set_width(ui.available_width());
-                        for (disp_idx, &file_idx) in picker.filtered.iter().enumerate() {
-                            let path = &picker.files[file_idx];
-                            let is_sel = disp_idx == picker.selected;
-                            let text = egui::RichText::new(path.to_string_lossy())
-                                .monospace()
-                                .size(12.0);
-                            let r = ui.selectable_label(is_sel, text);
-                            if is_sel {
-                                r.scroll_to_me(None);
-                            }
-                            if r.clicked() {
-                                selected_file = Some(ws.root_path.join(path));
-                                close = true;
-                            }
-                        }
-                    });
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("total", picker.files.len() as i64);
+                args.set("filtered", picker.filtered.len() as i64);
+                ui.label(i18n.get_args("file-picker-count-filtered", &args));
             });
-        });
+            ui.add_space(8.0);
 
-        if let Some(picker_still) = ws.file_picker.as_mut() {
-            picker_still.focus_requested = false;
-        }
-    }
+            egui::ScrollArea::vertical()
+                .id_salt("file_picker_scroll")
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    for (disp_idx, &file_idx) in picker.filtered.iter().enumerate() {
+                        let path = &picker.files[file_idx];
+                        let is_sel = disp_idx == picker.selected;
+                        let text = path.to_string_lossy();
+                        let r = ui.selectable_label(is_sel, text);
+                        if is_sel
+                            && ctx.input(|i| {
+                                i.key_pressed(egui::Key::ArrowUp)
+                                    || i.key_pressed(egui::Key::ArrowDown)
+                            })
+                        {
+                            // r.scroll_to_me(None); // Handled by scroll_area implicitly often, but can be explicit
+                        }
+                        if r.clicked() {
+                            selected_file = Some(ws.root_path.join(path));
+                            close = true;
+                        }
+                    }
+                });
+        });
+    });
 
     if close || !show_flag {
         ws.file_picker = None;
     }
+
     selected_file
 }
 
-/// Synchronous project-wide search for AI agents.
-pub(crate) fn project_search_sync(
-    root: &Path,
-    files: &[PathBuf],
-    query: &str,
-    max_results: usize,
-) -> Vec<SearchResult> {
-    let q = query.to_lowercase();
-    let mut results = Vec::new();
-    for rel in files {
-        let abs = root.join(rel);
-        let Ok(content) = std::fs::read_to_string(&abs) else {
-            continue;
-        };
-        for (idx, line) in content.lines().enumerate() {
-            if line.to_lowercase().contains(&q) {
-                results.push(SearchResult {
-                    file: rel.clone(),
-                    line: idx + 1,
-                    text: line.trim().to_string(),
-                });
-                if results.len() >= max_results {
-                    return results;
-                }
-            }
-        }
-    }
-    results
-}
-
-/// Starts project-wide search in the background (pure Rust, no external tools).
-fn run_project_search(
-    root: PathBuf,
-    files: Arc<Vec<PathBuf>>,
-    query: String,
-    epoch: u64,
-    cancel_epoch: Arc<AtomicU64>,
-) -> mpsc::Receiver<Vec<SearchResult>> {
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
-        if cancel_epoch.load(Ordering::Relaxed) != epoch {
-            return;
-        }
-        let q = query.to_lowercase();
-        let mut results = Vec::new();
-        'outer: for rel in files.iter() {
-            if cancel_epoch.load(Ordering::Relaxed) != epoch {
-                return;
-            }
-            let abs = root.join(rel);
-            let Ok(content) = std::fs::read_to_string(&abs) else {
-                continue;
-            };
-            for (idx, line) in content.lines().enumerate() {
-                if line.to_lowercase().contains(&q) {
-                    results.push(SearchResult {
-                        file: rel.clone(),
-                        line: idx + 1,
-                        text: line.trim().to_string(),
-                    });
-                    if results.len() >= 2000 {
-                        break 'outer;
-                    }
-                }
-            }
-        }
-        if cancel_epoch.load(Ordering::Relaxed) == epoch {
-            let _ = tx.send(results);
-        }
-    });
-    rx
-}
-
-/// Dialog for project-wide search input.
-pub(super) fn render_project_search_dialog(
-    ctx: &egui::Context,
-    ws: &mut WorkspaceState,
-    i18n: &crate::i18n::I18n,
-) {
+pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n) {
     if !ws.project_search.show_input {
         return;
     }
@@ -298,15 +136,12 @@ pub(super) fn render_project_search_dialog(
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
-        if let Some((start, cl)) = modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        if let Some((start, cl)) = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() || f.cancel() {
                 return Some((false, true));
             }
-            if ui.button(i18n.get("project-search-btn")).clicked() {
+            if f.button("project-search-btn").clicked() {
                 return Some((true, false));
-            }
-            if ui.button(i18n.get("btn-cancel")).clicked() {
-                return Some((false, true));
             }
             None
         }) {
@@ -360,4 +195,70 @@ pub(super) fn render_project_search_dialog(
         ws.project_search.rx = None;
         ws.project_search.show_input = false;
     }
+}
+
+pub fn run_project_search(
+    root: PathBuf,
+    files: Arc<Vec<PathBuf>>,
+    query: String,
+    epoch: u64,
+    cancel_epoch: Arc<std::sync::atomic::AtomicU64>,
+) -> mpsc::Receiver<Vec<SearchResult>> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut results = Vec::new();
+        let q = query.to_lowercase();
+
+        for path in files.iter() {
+            if cancel_epoch.load(Ordering::Relaxed) > epoch {
+                return;
+            }
+            let full_path = root.join(path);
+            if let Ok(content) = std::fs::read_to_string(&full_path) {
+                for (idx, line) in content.lines().enumerate() {
+                    if line.to_lowercase().contains(&q) {
+                        results.push(SearchResult {
+                            file: path.clone(),
+                            line: idx + 1,
+                            text: line.trim().to_string(),
+                        });
+                        if results.len() > 1000 {
+                            break;
+                        }
+                    }
+                }
+            }
+            if results.len() > 1000 {
+                break;
+            }
+        }
+        let _ = tx.send(results);
+    });
+    rx
+}
+
+pub fn collect_project_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    let mut dirs = vec![root.to_path_buf()];
+
+    while let Some(dir) = dirs.pop() {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let name = path.file_name().unwrap_or_default().to_string_lossy();
+                if name.starts_with('.') || name == "target" || name == "node_modules" {
+                    continue;
+                }
+                if path.is_dir() {
+                    dirs.push(path);
+                } else if let Ok(rel) = path.strip_prefix(root) {
+                    files.push(rel.to_path_buf());
+                }
+            }
+        }
+        if files.len() > 5000 {
+            break;
+        }
+    }
+    files
 }

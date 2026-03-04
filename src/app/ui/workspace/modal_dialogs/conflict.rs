@@ -35,30 +35,26 @@ pub fn show(
 
         modal.show(ctx, &mut show_flag, |ui| {
             // FOOTER
-            action = modal.ui_footer(ui, |ui: &mut egui::Ui| {
-                if ui.button(i18n.get("btn-close")).clicked() {
+            action = modal.ui_footer_actions(ui, i18n, |f| {
+                if f.close()
+                    || f.cancel()
+                    || f.button("conflict-dismiss")
+                        .on_hover_text(i18n.get("conflict-hover-dismiss"))
+                        .clicked()
+                {
                     return Some(ExternalConflictAction::Dismiss);
                 }
-                if ui
-                    .button(i18n.get("conflict-load-disk"))
+                if f.button("conflict-load-disk")
                     .on_hover_text(i18n.get("conflict-hover-disk"))
                     .clicked()
                 {
                     return Some(ExternalConflictAction::ReloadFromDisk);
                 }
-                if ui
-                    .button(i18n.get("conflict-keep-editor"))
+                if f.button("conflict-keep-editor")
                     .on_hover_text(i18n.get("conflict-hover-keep"))
                     .clicked()
                 {
                     return Some(ExternalConflictAction::KeepEditorVersion);
-                }
-                if ui
-                    .button(i18n.get("conflict-dismiss"))
-                    .on_hover_text(i18n.get("conflict-hover-dismiss"))
-                    .clicked()
-                {
-                    return Some(ExternalConflictAction::Dismiss);
                 }
                 None
             });

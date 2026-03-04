@@ -8,8 +8,8 @@ pub(crate) mod state;
 // Re-exports for external callers
 pub(super) use state::spawn_ai_tool_check;
 pub(crate) use state::{
-    FsChangeResult, SearchResult, SecondaryWorkspace, WorkspaceState, init_workspace,
-    open_file_in_ws, ws_to_panel_state,
+    FsChangeResult, SecondaryWorkspace, WorkspaceState, init_workspace, open_file_in_ws,
+    ws_to_panel_state,
 };
 
 use std::path::PathBuf;

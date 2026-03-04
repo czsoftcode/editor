@@ -55,17 +55,14 @@ pub(crate) fn show_startup_dialog(
         StandardModal::new(i18n.get("open-project-title"), "startup_modal").with_size(600.0, 500.0);
 
     modal.show(ctx, &mut show_flag, |ui| {
-        modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        modal.ui_footer_actions(ui, i18n, |f| {
+            if f.button("startup-quit").clicked() {
                 should_quit = true;
             }
-            if ui.button(i18n.get("startup-quit")).clicked() {
-                should_quit = true;
-            }
-            if ui.button(i18n.get("startup-new-project")).clicked() {
+            if f.button("startup-new-project").clicked() {
                 open_wizard = true;
             }
-            if ui.button(i18n.get("btn-open")).clicked() {
+            if f.button("btn-open").clicked() {
                 should_open = true;
             }
             None::<()>

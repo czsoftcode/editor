@@ -21,8 +21,8 @@ pub(crate) fn show_support_dialog(
 
     modal.show(ctx, &mut local_show, |ui| {
         // FOOTER
-        modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() || f.cancel() {
                 close_requested = true;
             }
             None::<()>

@@ -159,8 +159,10 @@ project-search-max-results = Showing max. { $max } results
 ## Common buttons
 btn-ok = OK
 btn-confirm = Confirm
-btn-cancel = Cancel
+btn-cancel = Discard
 btn-close = Close
+cancel-confirm-title = Discard changes?
+cancel-confirm-msg = Are you sure you want to discard all unsaved changes and close this window?
 btn-browse = Browse…
 btn-create = Create
 btn-open = Open

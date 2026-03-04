@@ -46,17 +46,32 @@ pub(crate) fn spawn_folder_picker(start_dir: String) -> mpsc::Receiver<Option<Pa
     })
 }
 
+pub(crate) struct WizardArgs<'a> {
+    pub ctx: &'a egui::Context,
+    pub state: &'a mut WizardState,
+    pub show: &'a mut bool,
+    pub modal_id: &'a str,
+    pub shared: &'a Arc<Mutex<AppShared>>,
+    pub i18n: &'a crate::i18n::I18n,
+    pub ws: Option<&'a mut crate::app::ui::workspace::state::WorkspaceState>,
+}
+
 pub(crate) fn show_project_wizard(
-    ctx: &egui::Context,
-    state: &mut WizardState,
-    show: &mut bool,
-    modal_id: &str,
-    shared: &Arc<Mutex<AppShared>>,
-    i18n: &crate::i18n::I18n,
+    args: WizardArgs,
     on_success: impl FnOnce(PathBuf, &Arc<Mutex<AppShared>>),
-) {
+) -> bool {
+    let WizardArgs {
+        ctx,
+        state,
+        show,
+        modal_id,
+        shared,
+        i18n,
+        ws,
+    } = args;
+
     if !*show {
-        return;
+        return false;
     }
 
     let mut success_path: Option<PathBuf> = None;
@@ -93,17 +108,18 @@ pub(crate) fn show_project_wizard(
 
     if let Some(true) = modal.show(ctx, show, |ui| {
         // FOOTER
-        if let Some(close) = modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
-                return Some(true);
-            }
-            if ui.button(i18n.get("btn-cancel")).clicked() {
+        if let Some(close) = modal.ui_footer_actions(ui, i18n, |f| {
+            if let Some(ws_val) = ws {
+                if f.confirm_cancel(ws_val) {
+                    return Some(true);
+                }
+            } else if f.close() || f.cancel() {
                 return Some(true);
             }
             let raw_name = state.name.trim();
             let name_valid = is_valid_project_name(raw_name);
             let can_create = name_valid && !state.path.trim().is_empty() && !state.creating;
-            if ui
+            if f.ui
                 .add_enabled(can_create, egui::Button::new(i18n.get("btn-create")))
                 .clicked()
             {
@@ -278,5 +294,8 @@ pub(crate) fn show_project_wizard(
 
     if let Some(path) = success_path {
         on_success(path, shared);
+        true
+    } else {
+        false
     }
 }

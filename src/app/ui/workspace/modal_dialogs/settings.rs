@@ -49,14 +49,11 @@ pub fn show(
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
-        action = modal.ui_footer(ui, |ui: &mut egui::Ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        action = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.confirm_cancel(ws) {
                 return Some(SettingsModalAction::Cancel);
             }
-            if ui.button(i18n.get("btn-cancel")).clicked() {
-                return Some(SettingsModalAction::Cancel);
-            }
-            if ui.button(i18n.get("btn-save")).clicked() {
+            if f.save() {
                 return Some(SettingsModalAction::Save);
             }
             None

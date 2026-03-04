@@ -44,21 +44,28 @@ pub(super) fn render_dialogs(
     // 4. New project wizard (within workspace)
     if ws.show_new_project {
         let wizard_modal_id = format!("ws_new_project_modal_{}", ws.root_path.display());
-        show_project_wizard(
+        let mut wizard_state = std::mem::take(&mut ws.wizard);
+        let mut show_flag = ws.show_new_project;
+
+        let args = crate::app::ui::dialogs::WizardArgs {
             ctx,
-            &mut ws.wizard,
-            &mut ws.show_new_project,
-            &wizard_modal_id,
+            state: &mut wizard_state,
+            show: &mut show_flag,
+            modal_id: &wizard_modal_id,
             shared,
             i18n,
-            |path, sh| {
-                let mut sh = sh
-                    .lock()
-                    .expect("Failed to lock AppShared in new project wizard callback");
-                sh.actions.push(AppAction::AddRecent(path.clone()));
-                sh.actions.push(AppAction::OpenInNewWindow(path));
-            },
-        );
+            ws: Some(ws),
+        };
+
+        show_project_wizard(args, |path, sh| {
+            let mut sh = sh
+                .lock()
+                .expect("Failed to lock AppShared in new project wizard callback");
+            sh.actions.push(AppAction::AddRecent(path.clone()));
+            sh.actions.push(AppAction::OpenInNewWindow(path));
+        });
+        ws.wizard = wizard_state;
+        ws.show_new_project = show_flag;
     }
 
     // 4. External change conflict dialog
@@ -69,6 +76,17 @@ pub(super) fn render_dialogs(
 
     // 6. AI related dialogs (Promotion success, Sandbox staged files, Sync confirmation)
     ai_dialogs::show(ctx, ws, shared, i18n);
+
+    // 7. Global confirm discard dialog
+    if crate::app::ui::widgets::modal::render_confirm_discard_dialog(ctx, ws, i18n) {
+        // If confirmed, close common modals
+        ws.show_settings = false;
+        ws.show_plugins = false;
+        ws.show_new_project = false;
+        ws.show_ai_chat = false;
+        ws.settings_draft = None;
+        ws.plugins_draft = None;
+    }
 
     any_interacted
 }

@@ -106,13 +106,13 @@ pub(crate) fn render_command_palette(
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
-        if let Some(c) = modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        if let Some(c) = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() || f.cancel() {
                 return Some(true);
             }
             None
         }) {
-            close = c || close;
+            close = c;
         }
 
         // BODY

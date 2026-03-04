@@ -144,6 +144,8 @@ pub struct WorkspaceState {
     /// Pending ask_user request: (plugin_id, question, options, answer_input_buffer, sender)
     pub pending_ask_user: Option<PendingAskUser>,
     pub ai_cancellation_token: Arc<AtomicBool>,
+    /// Pending discard changes confirmation for a specific modal ID.
+    pub confirm_discard_changes: Option<String>,
     /// Last time the user pressed a key. Used for repaint capping during active typing.
     pub last_keystroke_time: Option<std::time::Instant>,
 }

@@ -12,4 +12,4 @@ pub(crate) use dependency_wizard::DependencyWizard;
 pub(crate) use privacy::{PrivacyResult, PrivacyState, show_privacy_dialog};
 pub(crate) use startup::{StartupAction, show_startup_dialog};
 pub(crate) use support::show_support_dialog;
-pub(crate) use wizard::{WizardState, show_project_wizard};
+pub(crate) use wizard::{WizardArgs, WizardState, show_project_wizard};

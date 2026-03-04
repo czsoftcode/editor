@@ -1,3 +1,15 @@
+## [0.9.1] - 2026-03-04
+
+### Added
+- **Discard Confirmation Dialog**: Implemented a global confirmation dialog when discarding unsaved changes in Settings, Plugins, or New Project Wizard.
+- **Improved Localization**: Added new strings for confirmation dialogs across all supported languages (CS, EN, SK, DE, RU).
+
+### Changed
+- **Unified Button Layout**: Implemented a standardized button layout across all modal dialogs. "Close" or "Discard/Quit" buttons are now consistently positioned on the far right, with action buttons to their left.
+- **Button Renaming**: Renamed "Cancel" button to "Discard" (EN) / "Storno" (CS/SK) to better reflect the action of discarding local drafts.
+- **Modal Infrastructure**: Introduced `ui_footer_actions` and `ModalFooter` helper in `StandardModal` to eliminate code duplication and enforce UI consistency.
+- **Refactored Dialogs**: Updated all major dialogs (Settings, Plugins, Project Wizard, Search, LSP, Startup, etc.) to use the new unified footer system and removed redundant/duplicate buttons.
+
 ## [0.9.0] - 2026-03-04
 
 ### Added

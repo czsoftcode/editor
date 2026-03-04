@@ -124,17 +124,17 @@ impl Editor {
 
                     modal.show(ui.ctx(), &mut show_flag, |ui| {
                         // FOOTER
-                        if let Some((ext, edit)) = modal.ui_footer(ui, |ui| {
-                            if ui.button(i18n.get("btn-close")).clicked() {
+                        if let Some((ext, edit)) = modal.ui_footer_actions(ui, i18n, |f| {
+                            if f.close() || f.cancel() {
                                 return Some((false, false));
                             }
                             let mut local_ext = false;
                             let mut local_edit = false;
-                            if ui.button(i18n.get("svg-open-external")).clicked() {
-                                local_ext = true;
-                            }
-                            if ui.button(i18n.get("svg-modal-edit")).clicked() {
+                            if f.button("svg-modal-edit").clicked() {
                                 local_edit = true;
+                            }
+                            if f.button("md-open-external").clicked() {
+                                local_ext = true;
                             }
                             if local_ext || local_edit {
                                 Some((local_ext, local_edit))

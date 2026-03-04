@@ -608,28 +608,28 @@ impl DependencyWizard {
                 }
             });
 
-            modal.ui_footer(ui, |ui| {
+            modal.ui_footer_actions(ui, i18n, |f| {
                 let status = self.status.lock().unwrap().clone();
                 match status {
                     InstallStatus::Pending => {
+                        if f.cancel() {
+                            self.show = false;
+                        }
                         let btn_text = match &dep.method {
                             InstallMethod::Download { .. } => tr!(i18n, "dep-wizard-btn-install"),
                             InstallMethod::SystemCommand { .. } => {
                                 tr!(i18n, "dep-wizard-btn-run-cmd")
                             }
                         };
-                        if ui.button(btn_text).clicked() {
+                        if f.ui.button(btn_text).clicked() {
                             self.start_install(ctx.clone());
-                        }
-                        if ui.button(tr!(i18n, "btn-cancel")).clicked() {
-                            self.show = false;
                         }
                     }
                     InstallStatus::Downloading(_) | InstallStatus::RunningCommand => {
-                        ui.add(egui::Spinner::new());
+                        f.ui.add(egui::Spinner::new());
                     }
                     InstallStatus::Success | InstallStatus::Error(_) => {
-                        if ui.button(tr!(i18n, "btn-close")).clicked() {
+                        if f.close() {
                             self.show = false;
                         }
                     }

@@ -42,14 +42,11 @@ pub fn show(
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
-        action = modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        action = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.confirm_cancel(ws) {
                 return Some(PluginModalAction::Cancel);
             }
-            if ui.button(i18n.get("btn-cancel")).clicked() {
-                return Some(PluginModalAction::Cancel);
-            }
-            if ui.button(i18n.get("btn-save")).clicked() {
+            if f.save() {
                 return Some(PluginModalAction::Save);
             }
             None

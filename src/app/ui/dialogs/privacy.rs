@@ -46,17 +46,17 @@ pub(crate) fn show_privacy_dialog(
         let mut result = PrivacyResult::None;
 
         // FOOTER
-        if let Some(r) = modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        if let Some(r) = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() {
                 return Some(PrivacyResult::None);
             }
-            if ui
+            if f.ui
                 .button(egui::RichText::new(i18n.get("btn-accept-privacy")).strong())
                 .clicked()
             {
                 return Some(PrivacyResult::Accepted);
             }
-            if ui.button(i18n.get("startup-quit")).clicked() {
+            if f.button("startup-quit").clicked() {
                 std::process::exit(0);
             }
             None

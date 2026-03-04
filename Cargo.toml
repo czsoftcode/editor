@@ -1,6 +1,6 @@
 [package]
 name = "polycredo-editor"
-version = "0.9.0-dev"
+version = "0.9.1-dev"
 edition = "2024"
 authors = ["stkremen <stkremen@gmail.com>"]
 description = "PolyCredo Editor — Local-first AI-powered editor for Rust and more."

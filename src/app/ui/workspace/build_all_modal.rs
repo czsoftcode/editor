@@ -189,7 +189,7 @@ impl BuildAllModal {
 
         modal.show(ctx, &mut local_show, |ui| {
             modal.ui_body(ui, |ui| {
-                // ── Horní lišta: combobox + tlačítko + status ────────────
+                // ── Horní lišta: combobox + status ────────────
                 ui.horizontal(|ui| {
                     // ComboBox výběru balíčku (zakázán při běhu)
                     ui.add_enabled_ui(!is_running, |ui| {
@@ -217,17 +217,7 @@ impl BuildAllModal {
                             });
                     });
 
-                    // Spustit / Znovu spustit
-                    if !is_running {
-                        let btn_label = if exit_code.is_some() {
-                            i18n.get("build-all-btn-rerun")
-                        } else {
-                            i18n.get("build-all-btn-run")
-                        };
-                        if ui.button(btn_label).clicked() {
-                            run_requested.set(true);
-                        }
-                    } else {
+                    if is_running {
                         ui.add(egui::Spinner::new().size(16.0));
                     }
 
@@ -332,11 +322,22 @@ impl BuildAllModal {
                     });
             });
 
-            modal.ui_footer(ui, |ui| {
+            modal.ui_footer_actions(ui, i18n, |f| {
                 if is_running {
-                    ui.add_enabled(false, egui::Button::new(i18n.get("build-all-btn-close")));
-                } else if ui.button(i18n.get("build-all-btn-close")).clicked() {
+                    f.ui.add_enabled(false, egui::Button::new(i18n.get("build-all-btn-close")));
+                } else if f.close() || f.button("build-all-btn-close").clicked() {
                     close_requested.set(true);
+                }
+
+                if !is_running {
+                    let btn_label = if exit_code.is_some() {
+                        i18n.get("build-all-btn-rerun")
+                    } else {
+                        i18n.get("build-all-btn-run")
+                    };
+                    if f.ui.button(btn_label).clicked() {
+                        run_requested.set(true);
+                    }
                 }
                 None::<()>
             });

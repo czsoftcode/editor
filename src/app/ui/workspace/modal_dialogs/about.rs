@@ -15,8 +15,8 @@ pub fn show(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n, _id_salt:
 
     modal.show(ctx, &mut local_show, |ui| {
         // FOOTER
-        modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() {
                 close_requested = true;
             }
             None::<()>

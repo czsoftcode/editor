@@ -356,8 +356,8 @@ impl Editor {
                         ui.label(i18n.get("lsp-references-searching"));
                     });
                 });
-                modal.ui_footer(ui, |ui| {
-                    if ui.button(i18n.get("btn-close")).clicked() {
+                modal.ui_footer_actions(ui, i18n, |f| {
+                    if f.close() || f.cancel() {
                         self.lsp_references_rx = None;
                     }
                     None::<()>

@@ -19,14 +19,11 @@ pub(crate) fn show_quit_confirm_dialog(
         StandardModal::new(i18n.get("quit-title"), "quit_confirm_modal").with_size(400.0, 250.0);
 
     modal.show(ctx, &mut show_flag, |ui| {
-        modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        modal.ui_footer_actions(ui, i18n, |f| {
+            if f.button("quit-cancel").clicked() {
                 cancelled = true;
             }
-            if ui.button(i18n.get("quit-cancel")).clicked() {
-                cancelled = true;
-            }
-            if ui.button(i18n.get("quit-confirm")).clicked() {
+            if f.button("quit-confirm").clicked() {
                 confirmed = true;
             }
             None::<()>
@@ -62,14 +59,11 @@ pub(crate) fn show_close_project_confirm_dialog(
         StandardModal::new(i18n.get("close-project-title"), modal_id).with_size(450.0, 280.0);
 
     modal.show(ctx, &mut show_flag, |ui| {
-        modal.ui_footer(ui, |ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        modal.ui_footer_actions(ui, i18n, |f| {
+            if f.button("close-project-cancel").clicked() {
                 cancelled = true;
             }
-            if ui.button(i18n.get("close-project-cancel")).clicked() {
-                cancelled = true;
-            }
-            if ui.button(i18n.get("close-project-confirm")).clicked() {
+            if f.button("close-project-confirm").clicked() {
                 confirmed = true;
             }
             None::<()>

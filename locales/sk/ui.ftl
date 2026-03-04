@@ -225,8 +225,11 @@ project-search-max-results = Zobrazených max. { $max } výsledkov
 ## Spoločné tlačidlá
 btn-ok = OK
 btn-confirm = Potvrdiť
-btn-cancel = Zrušiť
-btn-close = Zatvoriť
+btn-cancel = Storno
+btn-close = Zavrieť
+cancel-confirm-title = Zahodiť zmeny?
+cancel-confirm-msg = Naozaj si prajete zahodiť všetky neuložené zmeny a zavrieť toto okno?
+
 btn-browse = Prehľadávať…
 btn-create = Vytvoriť
 btn-open = Otvoriť

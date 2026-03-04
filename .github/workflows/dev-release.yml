@@ -188,16 +188,10 @@ jobs:
       - name: Cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Vendor cargo závislostí
+      - name: Build release binary
         run: |
-          cargo vendor cargo-vendor
-          mkdir -p .flatpak-cargo
-          cat > .flatpak-cargo/config.toml << 'EOF'
-          [source.crates-io]
-          replace-with = "vendored-sources"
-          [source.vendored-sources]
-          directory = "cargo-vendor"
-          EOF
+          cargo build --release
+          cp target/release/${{ env.APP_NAME }} .
 
       - name: Instalace Flatpak nástrojů
         run: |
@@ -205,9 +199,8 @@ jobs:
           sudo apt-get install -y flatpak flatpak-builder
           sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           sudo flatpak install -y flathub \
-            org.freedesktop.Platform//23.08 \
-            org.freedesktop.Sdk//23.08 \
-            org.freedesktop.Sdk.Extension.rust-stable//23.08
+            org.freedesktop.Platform//24.08 \
+            org.freedesktop.Sdk//24.08
 
       - name: Build Flatpak
         run: |

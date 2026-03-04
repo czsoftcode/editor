@@ -245,7 +245,10 @@ jobs:
             www: "https://github.com/${{ github.repository }}"
             prefix: "/usr/local"
             EOF
-            pkg create -M pkg-manifest.ucl -r pkg-stage -o .
+            cat > plist.txt << EOF
+            /usr/local/bin/${{ env.APP_NAME }}
+            EOF
+            pkg create -m pkg-manifest.ucl -r pkg-stage -p plist.txt -o .
 
       - name: Upload artefakt
         uses: actions/upload-artifact@v4

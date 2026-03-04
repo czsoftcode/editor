@@ -33,10 +33,13 @@ pub struct Terminal {
     pub(crate) scroll_drag_acc: f32,
     /// Regex for Rust error paths: "file.rs:line:col" or "file.rs:line"
     pub(crate) path_regex: Regex,
-    /// Cache for path detection to save CPU: (Point, Option<Action>)
-    pub(crate) path_cache: Option<((i32, usize), Option<TerminalAction>)>,
+    /// Cache for path detection to save CPU: (GridLineIdx, Vec<TerminalAction>)
+    #[allow(clippy::type_complexity)]
+    pub(crate) path_cache: Option<(i32, Vec<(std::ops::Range<usize>, TerminalAction)>)>,
     /// Whether the user is currently selecting text via mouse drag
     pub(crate) is_selecting: bool,
+    /// Whether new output has arrived while the terminal was not focused.
+    pub(crate) has_unread_output: bool,
 }
 
 impl Terminal {
@@ -61,6 +64,7 @@ impl Terminal {
                 path_regex,
                 path_cache: None,
                 is_selecting: false,
+                has_unread_output: false,
             },
             Err(err) => Self {
                 id,
@@ -74,6 +78,7 @@ impl Terminal {
                 path_regex,
                 path_cache: None,
                 is_selecting: false,
+                has_unread_output: false,
             },
         }
     }
@@ -102,25 +107,39 @@ impl Terminal {
     ) -> Option<TerminalAction> {
         let mut action = None;
 
-        let mut pty_writes: Vec<Vec<u8>> = Vec::new();
+        if focused {
+            self.has_unread_output = false;
+        }
+
+        let mut pty_batch: Vec<u8> = Vec::new();
         if let Some(pty_receiver) = &self.pty_receiver {
+            let start_time = std::time::Instant::now();
             for _ in 0..config::TERMINAL_MAX_EVENTS_PER_FRAME {
                 match pty_receiver.try_recv() {
                     Ok((_, PtyEvent::Exit)) => {
                         self.exited = true;
                     }
                     Ok((_, PtyEvent::PtyWrite(text))) => {
-                        pty_writes.push(text.into_bytes());
+                        pty_batch.extend_from_slice(text.as_bytes());
+                        if !focused {
+                            self.has_unread_output = true;
+                        }
                     }
                     Ok(_) => {}
                     Err(_) => break,
                 }
+                // Time-based throttle (Plan 01): max 2ms per frame
+                if start_time.elapsed().as_millis() >= 2 {
+                    break;
+                }
             }
         }
-        for bytes in pty_writes {
-            if let Some(backend) = &mut self.backend {
-                backend.process_command(egui_term::BackendCommand::Write(bytes));
-            }
+
+        // Batch write (Plan 02): call process_command only once
+        if !pty_batch.is_empty()
+            && let Some(backend) = &mut self.backend
+        {
+            backend.process_command(egui_term::BackendCommand::Write(pty_batch));
         }
 
         if let Some(err) = &self.error {
@@ -221,15 +240,20 @@ impl Terminal {
                     let line_idx = (rel_y / cell_h) as i32;
                     let grid_line_idx = line_idx - display_offset as i32;
 
-                    let current_point = (grid_line_idx, col_idx);
-                    let nav_action = if let Some((point, res)) = &self.path_cache
-                        && *point == current_point
+                    let nav_action = if let Some((cached_line, actions)) = &self.path_cache
+                        && *cached_line == grid_line_idx
                     {
-                        res.clone()
+                        // Use cached actions for this line
+                        actions
+                            .iter()
+                            .find(|(range, _)| range.contains(&col_idx))
+                            .map(|(_, act)| act.clone())
                     } else {
-                        let mut detected = None;
+                        // Re-parse the whole line and update cache
+                        let mut line_actions = Vec::new();
                         let num_lines = content.grid.total_lines() as i32;
                         let history_size = content.grid.history_size() as i32;
+
                         if grid_line_idx >= -history_size
                             && grid_line_idx < (num_lines - history_size)
                         {
@@ -241,26 +265,30 @@ impl Terminal {
                                 let cell = &row[alacritty_terminal::index::Column(col)];
                                 line_text.push(cell.c);
                             }
+
                             for cap in self.path_regex.captures_iter(&line_text) {
                                 let mat = cap.get(0).unwrap();
-                                if col_idx >= mat.start() && col_idx < mat.end() {
-                                    let path_str = &cap[1];
-                                    let line = cap[2].parse().unwrap_or(1);
-                                    let col = cap
-                                        .get(3)
-                                        .map(|m| m.as_str().parse().unwrap_or(1))
-                                        .unwrap_or(1);
-                                    detected = Some(TerminalAction::Navigate(
-                                        PathBuf::from(path_str),
-                                        line,
-                                        col,
-                                    ));
-                                    break;
-                                }
+                                let path_str = &cap[1];
+                                let line = cap[2].parse().unwrap_or(1);
+                                let col = cap
+                                    .get(3)
+                                    .map(|m| m.as_str().parse().unwrap_or(1))
+                                    .unwrap_or(1);
+
+                                line_actions.push((
+                                    mat.range(),
+                                    TerminalAction::Navigate(PathBuf::from(path_str), line, col),
+                                ));
                             }
                         }
-                        self.path_cache = Some((current_point, detected.clone()));
-                        detected
+
+                        let result = line_actions
+                            .iter()
+                            .find(|(range, _)| range.contains(&col_idx))
+                            .map(|(_, act)| act.clone());
+
+                        self.path_cache = Some((grid_line_idx, line_actions));
+                        result
                     };
 
                     if let Some(TerminalAction::Navigate(p, l, c)) = nav_action {

@@ -142,7 +142,7 @@ pub fn host_write_file(
     }
 
     if let Some(ctx) = &state.egui_ctx {
-        ctx.request_repaint();
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
     }
 
     Ok(())
@@ -282,7 +282,7 @@ pub fn host_replace_file(
     }
 
     if let Some(ctx) = &state.egui_ctx {
-        ctx.request_repaint();
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
     }
 
     Ok(())

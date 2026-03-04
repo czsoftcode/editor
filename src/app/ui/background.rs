@@ -137,7 +137,7 @@ pub(super) fn process_background_events(
                                             let si = si_clone.lock().unwrap();
                                             si.is_indexing
                                                 .store(false, std::sync::atomic::Ordering::SeqCst);
-                                            ui_ctx.request_repaint();
+                                            ui_ctx.request_repaint_after(std::time::Duration::from_millis(100));
                                             return;
                                         }
                                     };
@@ -166,12 +166,16 @@ pub(super) fn process_background_events(
                                                     std::sync::atomic::Ordering::SeqCst,
                                                 );
                                             }
-                                            ui_ctx.request_repaint();
+                                            ui_ctx.request_repaint_after(
+                                                std::time::Duration::from_millis(100),
+                                            );
                                         } else {
                                             let si = si_clone.lock().unwrap();
                                             si.is_indexing
                                                 .store(false, std::sync::atomic::Ordering::SeqCst);
-                                            ui_ctx.request_repaint();
+                                            ui_ctx.request_repaint_after(
+                                                std::time::Duration::from_millis(100),
+                                            );
                                         }
                                     });
                                 }
@@ -283,7 +287,7 @@ pub(super) fn process_background_events(
                                             let si = si_clone.lock().unwrap();
                                             si.is_indexing
                                                 .store(false, std::sync::atomic::Ordering::SeqCst);
-                                            ui_ctx.request_repaint();
+                                            ui_ctx.request_repaint_after(std::time::Duration::from_millis(100));
                                             return;
                                         }
                                     };
@@ -307,12 +311,16 @@ pub(super) fn process_background_events(
                                             si.is_indexing
                                                 .store(false, std::sync::atomic::Ordering::SeqCst);
                                         }
-                                        ui_ctx.request_repaint();
+                                        ui_ctx.request_repaint_after(
+                                            std::time::Duration::from_millis(100),
+                                        );
                                     } else {
                                         let si = si_clone.lock().unwrap();
                                         si.is_indexing
                                             .store(false, std::sync::atomic::Ordering::SeqCst);
-                                        ui_ctx.request_repaint();
+                                        ui_ctx.request_repaint_after(
+                                            std::time::Duration::from_millis(100),
+                                        );
                                     }
                                 });
                             }

@@ -213,6 +213,7 @@ pub fn init_workspace(
         pending_plugin_approval: None,
         pending_ask_user: None,
         ai_cancellation_token: Arc::new(AtomicBool::new(false)),
+        last_keystroke_time: None,
     }
 }
 

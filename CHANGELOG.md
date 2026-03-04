@@ -1,3 +1,19 @@
+## [0.9.0] - 2026-03-04
+
+### Added
+- **Terminal Activity Indicator**: Added a visual cue (dot •) to terminal tab labels to indicate new unread output in background tabs.
+- **Typing FPS Cap**: Implemented a smart repaint throttle that caps the UI at ~30 FPS during active typing, significantly reducing CPU spikes during rapid text entry.
+
+### Changed
+- **Repaint Gate (Performance)**: Major optimization of the UI render loop. The editor is now strictly event-driven in idle states, with a 2-second fallback repaint when unfocused or minimized.
+- **Background Isolation**: Throttled all background-to-UI repaint requests (AI chat, indexing, plugin host, system stats) to a maximum of 10Hz (100ms), preventing "repaint storms" during intensive background tasks.
+- **Terminal Throttling & Batching**: PTY event processing is now time-budgeted (max 2ms per frame) and batched into single writes to the terminal backend, ensuring a smooth UI even during massive console output (e.g., `cat` of large files).
+- **PTY Lifecycle Management**: Improved process group termination. Closing a terminal tab now reliably kills the entire process group (SIGTERM to -PID), preventing zombie processes.
+
+### Fixed
+- **Accesskit Overhead**: Disabled `accesskit` and `web_screen_reader` features in `eframe` to eliminate unnecessary background accessibility processing and unsolicited repaints.
+- **Path Detection Optimization**: Optimized clickable path detection in the terminal by caching results at the line level, reducing regex overhead during mouse movement.
+
 ## [0.8.5] - 2026-03-03
 
 ### Added

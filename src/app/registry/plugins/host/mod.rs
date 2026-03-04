@@ -41,7 +41,7 @@ pub fn request_plugin_approval(
         ));
 
         if let Some(egui_ctx) = &state.egui_ctx {
-            egui_ctx.request_repaint();
+            egui_ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
 
         // Wait for UI response. Periodically check cancellation flag.

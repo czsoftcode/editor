@@ -404,14 +404,20 @@ impl EditorApp {
             self.shared.lock().expect("lock").actions.push(action);
         }
 
-        let actions = std::mem::take(
-            &mut self
+        let mut actions = {
+            let mut sh = self
                 .shared
                 .lock()
-                .expect("Failed to lock AppShared in process_actions")
-                .actions,
-        );
-        for action in actions {
+                .expect("Failed to lock AppShared in process_actions");
+            std::mem::take(&mut sh.actions)
+        };
+
+        let start_time = std::time::Instant::now();
+
+        // Process actions with a time limit (Plan 03: 2ms)
+        while !actions.is_empty() {
+            let action = actions.remove(0);
+
             match action {
                 AppAction::OpenInNewWindow(path) => {
                     self.open_in_new_window(path, ctx);
@@ -494,6 +500,17 @@ impl EditorApp {
                         ws.ai_loading = false;
                     }
                 }
+            }
+
+            // If we've spent more than 2ms, defer remaining actions to the next frame
+            if start_time.elapsed().as_millis() >= 2 && !actions.is_empty() {
+                let mut sh = self.shared.lock().expect("lock");
+                // Prepend remaining actions back to the queue
+                let mut combined = actions;
+                combined.append(&mut sh.actions);
+                sh.actions = combined;
+                ctx.request_repaint(); // Ensure we come back soon to finish
+                break;
             }
         }
     }

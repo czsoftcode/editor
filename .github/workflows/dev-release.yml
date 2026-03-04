@@ -214,49 +214,6 @@ jobs:
           path: "*.flatpak"
 
   # ============================================================
-  # FREEBSD (.pkg)
-  # ============================================================
-  build-freebsd:
-    name: FreeBSD (.pkg)
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build ve FreeBSD VM
-        uses: vmactions/freebsd-vm@v1
-        with:
-          usesh: true
-          prepare: |
-            pkg install -y rust
-          run: |
-            export CARGO_TARGET_DIR=target
-            cargo build --release
-            mkdir -p pkg-stage/usr/local/bin
-            cp target/release/${{ env.APP_NAME }} pkg-stage/usr/local/bin/
-            VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
-            cat > pkg-manifest.ucl << EOF
-            name: "${{ env.APP_NAME }}"
-            version: "${VERSION}"
-            origin: "editors/${{ env.APP_NAME }}"
-            comment: "Polycredo Editor"
-            desc: "Polycredo Editor dev build"
-            maintainer: "dev@example.com"
-            www: "https://github.com/${{ github.repository }}"
-            prefix: "/usr/local"
-            EOF
-            cat > plist.txt << EOF
-            /usr/local/bin/${{ env.APP_NAME }}
-            EOF
-            pkg create -m pkg-manifest.ucl -r pkg-stage -p plist.txt -o .
-
-      - name: Upload artefakt
-        uses: actions/upload-artifact@v4
-        with:
-          name: freebsd-pkg
-          path: "*.pkg"
-
-  # ============================================================
   # WINDOWS — NSIS (.exe)
   # ============================================================
   build-windows-exe:
@@ -398,7 +355,6 @@ jobs:
       - build-rpm
       - build-appimage
       - build-flatpak
-      - build-freebsd
       - build-windows-exe
       - build-windows-msi
       - build-macos
@@ -442,7 +398,6 @@ jobs:
             | Fedora | `.rpm` |
             | Linux univerzální | `.AppImage` |
             | Linux sandboxed | `.flatpak` |
-            | FreeBSD | `.pkg` |
             | Windows (NSIS) | `-setup.exe` |
             | Windows (MSI) | `.msi` |
             | macOS Intel | `-macos-x86_64.tar.gz` |

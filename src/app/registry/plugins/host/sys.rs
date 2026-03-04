@@ -275,7 +275,7 @@ pub fn host_ask_user(
         ));
 
         if let Some(egui_ctx) = &state.egui_ctx {
-            egui_ctx.request_repaint();
+            egui_ctx.request_repaint_after(std::time::Duration::from_millis(100));
         }
 
         loop {
@@ -339,7 +339,7 @@ pub fn host_announce_completion(
     }
 
     if let Some(egui_ctx) = &state.egui_ctx {
-        egui_ctx.request_repaint();
+        egui_ctx.request_repaint_after(std::time::Duration::from_millis(100));
     }
 
     Ok(())
@@ -376,7 +376,7 @@ pub fn host_log_monologue(
     }
 
     if let Some(ctx) = &state.egui_ctx {
-        ctx.request_repaint();
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
     }
 
     Ok(())
@@ -405,7 +405,7 @@ pub fn host_log_usage(
     }
 
     if let Some(ctx) = &state.egui_ctx {
-        ctx.request_repaint();
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
     }
 
     Ok(())
@@ -442,7 +442,7 @@ pub fn host_log_payload(
     }
 
     if let Some(ctx) = &state.egui_ctx {
-        ctx.request_repaint();
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
     }
 
     Ok(())

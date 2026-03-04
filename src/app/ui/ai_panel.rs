@@ -204,6 +204,8 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
         TabBarAction::Close(idx) => {
             if let Some(terminal) = ws.claude_tabs.get(idx) {
                 if terminal.is_exited() {
+                    #[cfg(unix)]
+                    terminal.kill_process_group();
                     ws.claude_tabs.remove(idx);
                     if ws.claude_active_tab >= ws.claude_tabs.len() {
                         ws.claude_active_tab = ws.claude_tabs.len().saturating_sub(1);

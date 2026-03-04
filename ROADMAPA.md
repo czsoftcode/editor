@@ -39,7 +39,8 @@ Tento soubor slouží jako operativní přehled úkolů a cílů projektu. Čerp
 - [x] **Reasoning Loop** — podpora pro cyklus Plán -> Akce -> Observace -> Korekce přímo v UI (interní monolog).
 - [x] **Vlastní CLI Agenti** — možnost definice vlastních AI nástrojů (Claude, Gemini, Aider) přímo v nastavení aplikace s dynamickým UI.
 - [x] **Dlouhodobá paměť agenta** — ukládání faktů a kontextu do perzistentního JSON souboru, který přežije restart editoru.
-- [ ] **Git & Historie** — integrace s Gitem pro automatické commity a analýzu historie kódu agentem.
+- [x] **Repaint Gate** — Optimalizace překreslování UI (focus-aware throttling, FPS cap při psaní).
+- [x] **Terminal Isolation** — Přechod terminálu a AI chatu na asynchronní zpracování, optimalizace PTY a detekce cest.
 
 ## Q3 2026 — Rozšíření platformy
 **Cíl:** Příprava na více platforem a plná podpora LSP.

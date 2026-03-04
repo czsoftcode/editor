@@ -77,9 +77,16 @@ pub fn render_ai_panel(
             |ui, ws_arg, _body_h| {
                 // BODY: Tabs + Terminal (without duplicating AI bar)
                 ui.vertical(|ui| {
-                    let items: Vec<TabItem> = (0..ws_arg.claude_tabs.len())
-                        .map(|i| TabItem {
-                            label: (i + 1).to_string(),
+                    let items: Vec<TabItem> = ws_arg
+                        .claude_tabs
+                        .iter()
+                        .enumerate()
+                        .map(|(i, t)| TabItem {
+                            label: if t.has_unread_output {
+                                format!("{} \u{2022}", i + 1)
+                            } else {
+                                (i + 1).to_string()
+                            },
                             closable: ws_arg.claude_tabs.len() > 1,
                         })
                         .collect();
@@ -223,9 +230,16 @@ pub fn render_ai_panel_content(
     });
 
     // Tabs
-    let items: Vec<TabItem> = (0..ws.claude_tabs.len())
-        .map(|i| TabItem {
-            label: (i + 1).to_string(),
+    let items: Vec<TabItem> = ws
+        .claude_tabs
+        .iter()
+        .enumerate()
+        .map(|(i, t)| TabItem {
+            label: if t.has_unread_output {
+                format!("{} \u{2022}", i + 1)
+            } else {
+                (i + 1).to_string()
+            },
             closable: ws.claude_tabs.len() > 1,
         })
         .collect();
@@ -289,6 +303,8 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
         TabBarAction::Close(idx) => {
             if let Some(terminal) = ws.claude_tabs.get(idx) {
                 if terminal.is_exited() {
+                    #[cfg(unix)]
+                    terminal.kill_process_group();
                     ws.claude_tabs.remove(idx);
                     if ws.claude_active_tab >= ws.claude_tabs.len() {
                         ws.claude_active_tab = ws.claude_tabs.len().saturating_sub(1);

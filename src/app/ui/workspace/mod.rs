@@ -102,21 +102,53 @@ pub(crate) fn render_workspace(
     process_background_events(ws, shared, i18n, ctx);
     refresh_sandbox_staged_cache_if_due(ws);
 
-    // Podmíněný repaint — pouze pokud běží aktivní operace na pozadí.
-    let has_active_work = ws.ai_loading
-        || ws.build_error_rx.is_some()
-        || ws.git_status_rx.is_some()
-        || ws.git_branch_rx.is_some()
-        || ws
-            .semantic_index
-            .lock()
-            .map(|si| si.is_indexing.load(std::sync::atomic::Ordering::SeqCst))
+    // --- REPAINT THROTTLING (Focus-aware) ---
+    let is_focused = ctx.input(|i| i.viewport().focused.unwrap_or(true));
+    let is_minimized = ctx.input(|i| i.viewport().minimized.unwrap_or(false));
+
+    if !is_focused || is_minimized {
+        // Unfocused or minimized: VERY slow repaint (2s fallback)
+        ctx.request_repaint_after(std::time::Duration::from_secs(2));
+    } else {
+        // --- TYPING FPS CAP ---
+        // If user is actively typing, cap at ~30 FPS (33ms) to prevent repaint storm
+        let has_kb_input = ctx.input(|i| {
+            i.events.iter().any(|e| {
+                matches!(
+                    e,
+                    egui::Event::Key { .. } | egui::Event::Text(_) | egui::Event::Ime(_)
+                )
+            })
+        });
+        if has_kb_input {
+            ws.last_keystroke_time = Some(std::time::Instant::now());
+        }
+
+        let is_typing = ws
+            .last_keystroke_time
+            .map(|t| t.elapsed().as_millis() < 500)
             .unwrap_or(false);
 
-    if has_active_work {
-        ctx.request_repaint_after(std::time::Duration::from_millis(
-            config::REPAINT_INTERVAL_MS,
-        ));
+        if is_typing {
+            ctx.request_repaint_after(std::time::Duration::from_millis(33));
+        }
+
+        // Focused: Podmíněný repaint — pouze pokud běží aktivní operace na pozadí.
+        let has_active_work = ws.ai_loading
+            || ws.build_error_rx.is_some()
+            || ws.git_status_rx.is_some()
+            || ws.git_branch_rx.is_some()
+            || ws
+                .semantic_index
+                .lock()
+                .map(|si| si.is_indexing.load(std::sync::atomic::Ordering::SeqCst))
+                .unwrap_or(false);
+
+        if has_active_work {
+            ctx.request_repaint_after(std::time::Duration::from_millis(
+                config::REPAINT_INTERVAL_MS,
+            ));
+        }
     }
 
     // --- KEYBOARD SHORTCUTS ---

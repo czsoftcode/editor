@@ -302,14 +302,25 @@ jobs:
           SectionEnd
           EOF
 
-      - name: Build installer
+      - name: Build NSIS installer
         run: makensis installer.nsi
 
-      - name: Upload artefakt
+      - name: Upload NSIS artefakt
         uses: actions/upload-artifact@v4
         with:
           name: windows-exe
           path: polycredo-editor-setup.exe
+
+      - name: Build MSI installer
+        run: |
+          cargo install cargo-wix
+          cargo wix --nocapture
+
+      - name: Upload MSI artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: target/wix/*.msi
 
   # ============================================================
   # MACOS — Intel (x86_64) + Apple Silicon (aarch64)
@@ -407,7 +418,8 @@ jobs:
             | Linux univerzální | `.AppImage` |
             | Linux sandboxed | `.flatpak` |
             | FreeBSD | `.pkg` |
-            | Windows | `-setup.exe` |
+            | Windows (NSIS) | `-setup.exe` |
+            | Windows (MSI) | `.msi` |
             | macOS Intel | `-macos-x86_64.tar.gz` |
             | macOS Apple Silicon | `-macos-aarch64.tar.gz` |
           files: artifacts/**/*

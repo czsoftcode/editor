@@ -257,10 +257,10 @@ jobs:
           path: "*.pkg"
 
   # ============================================================
-  # WINDOWS (.exe installer) + (.msi installer)
+  # WINDOWS — NSIS (.exe)
   # ============================================================
-  build-windows:
-    name: Windows (.exe)
+  build-windows-exe:
+    name: Windows (.exe NSIS)
     needs: test
     runs-on: windows-latest
     steps:
@@ -308,20 +308,39 @@ jobs:
       - name: Build NSIS installer
         run: makensis installer.nsi
 
-      - name: Upload NSIS artefakt
+      - name: Upload artefakt
         uses: actions/upload-artifact@v4
         with:
           name: windows-exe
           path: polycredo-editor-setup.exe
 
+  # ============================================================
+  # WINDOWS — MSI
+  # ============================================================
+  build-windows-msi:
+    name: Windows (.msi)
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release
+
       - name: Build MSI installer
         shell: bash
         run: |
           cargo install cargo-wix
-          MSI_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/' | sed 's/-[^.]*$/.0/')
+          MSI_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/' | sed 's/-.*//' | tr -d '\r')
           cargo wix --nocapture --install-version "$MSI_VERSION"
 
-      - name: Upload MSI artefakt
+      - name: Upload artefakt
         uses: actions/upload-artifact@v4
         with:
           name: windows-msi
@@ -380,7 +399,8 @@ jobs:
       - build-appimage
       - build-flatpak
       - build-freebsd
-      - build-windows
+      - build-windows-exe
+      - build-windows-msi
       - build-macos
     runs-on: ubuntu-latest
     permissions:

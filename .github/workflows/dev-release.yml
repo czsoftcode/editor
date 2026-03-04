@@ -257,7 +257,7 @@ jobs:
           path: "*.pkg"
 
   # ============================================================
-  # WINDOWS (.exe installer)
+  # WINDOWS (.exe installer) + (.msi installer)
   # ============================================================
   build-windows:
     name: Windows (.exe)
@@ -315,9 +315,11 @@ jobs:
           path: polycredo-editor-setup.exe
 
       - name: Build MSI installer
+        shell: bash
         run: |
           cargo install cargo-wix
-          cargo wix --nocapture
+          MSI_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/' | sed 's/-[^.]*$/.0/')
+          cargo wix --nocapture --install-version "$MSI_VERSION"
 
       - name: Upload MSI artefakt
         uses: actions/upload-artifact@v4

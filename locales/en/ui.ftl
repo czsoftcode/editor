@@ -31,7 +31,6 @@ btn-run-profile = ▶ Run Profile...
 btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Edit
 runner-none = No profiles defined.
-menu-build-windows = Windows
 
 ## Git operations
 git-add-all = git add .
@@ -360,84 +359,17 @@ semantic-indexing-btn-stop = Stop indexing
 
 # Dependency Wizard
 dep-wizard-title = Install Missing Tools
-dep-wizard-appimagetool-desc = To create an AppImage package, the { $tool } utility is required. This tool is not part of your system standard repositories.
 dep-wizard-install-question = Do you want to download it from the official source and install it to { $path }?
 dep-wizard-btn-install = Download and Install
 dep-wizard-status-downloading = Downloading...
 dep-wizard-status-success = Tool installed successfully.
 dep-wizard-status-error = Installation error: { $error }
-command-name-install-appimagetool = Install appimagetool
 
-dep-wizard-nsis-desc = The NSIS system utility is required to create Windows .exe installers.
-dep-wizard-rpm-desc = The rpmbuild utility is required to create .rpm packages.
 dep-wizard-install-cmd-question = This tool can be installed using your system package manager. Do you want to start the installation?
 dep-wizard-btn-run-cmd = Start Installation (requires sudo)
 dep-wizard-status-running = Installing...
-command-name-install-nsis = Install NSIS
-command-name-install-rpm = Install rpm-build (dnf)
-command-name-install-generate-rpm = Install cargo-generate-rpm
-command-name-install-appimage = Install cargo-appimage
-command-name-install-flatpak = Install flatpak-builder
-command-name-install-snap = Install snapcraft
-command-name-configure-lxd = Configure LXD (for build)
-command-name-install-deb-tools = Install Debian Build Tools
-command-name-install-freebsd-target = Install FreeBSD Target (rustup)
-command-name-install-cross = Install cross (cross-compilation)
-command-name-install-fpm = Install fpm (gem install fpm)
-command-name-install-podman = Install Podman (container engine for cross)
-command-name-install-windows-target = Install Windows Target (rustup)
-command-name-install-xwin = Install cargo-xwin
-command-name-install-clang = Install Clang (LLVM)
-command-name-install-lld = Install LLD (Linker)
-dep-wizard-xwin-desc = The cargo-xwin tool is required for cross-compiling for Windows MSVC from Linux.
-dep-wizard-generate-rpm-desc = The cargo-generate-rpm tool is required to create an .rpm package directly from your Rust project.
-dep-wizard-appimage-desc = The cargo-appimage tool is required to create a portable AppImage package directly from your Rust project.
-dep-wizard-flatpak-desc = The flatpak-builder tool is required to build and package the application into the Flatpak format.
-dep-wizard-snap-desc = The snapcraft tool is required to create Snap packages for Ubuntu and other distributions.
-dep-wizard-lxd-desc = LXD is a container system required by snapcraft to build Snap packages. Adds your user to the lxd group and initializes LXD.
-dep-wizard-deb-desc = System tools like dpkg-dev, build-essential, and fakeroot are required to create .deb packages.
-dep-wizard-freebsd-target-desc = The Rust standard library for x86_64-unknown-freebsd is required to cross-compile for FreeBSD.
-dep-wizard-cross-desc = The cross tool enables cross-compilation for FreeBSD and other platforms using Docker/Podman containers.
-dep-wizard-fpm-desc = fpm (Effing Package Manager) allows creating native FreeBSD .pkg packages from Linux.
-dep-wizard-podman-desc = Podman is a container engine required by the cross tool for cross-compilation. A daemon-free alternative to Docker.
-dep-wizard-clang-desc = Clang compiler is required for building native C/C++ dependencies for Windows.
-dep-wizard-lld-desc = LLD linker is required for linking Windows binaries on Linux.
-dep-wizard-windows-target-desc = Rust standard library for x86_64-pc-windows-msvc is required for compilation.
-dep-wizard-zigbuild-desc = cargo-zigbuild is required for cross-compiling for macOS (Intel + Apple Silicon) from Linux. Uses the Zig compiler as linker.
-dep-wizard-macos-targets-desc = Rust standard libraries for x86_64-apple-darwin and aarch64-apple-darwin are required to cross-compile for macOS (Intel + Apple Silicon).
-dep-wizard-genisoimage-desc = genisoimage is used to create a .dmg disk image from the macOS .app bundle.
-dep-wizard-macos-deps-desc = Installs all tools required for macOS builds: cargo-zigbuild (cross-compiler), zig (linker), Rust targets for x86_64-apple-darwin and aarch64-apple-darwin, and LLVM (lipo for Universal Binary).
-dep-wizard-llvm-desc = LLVM provides the lipo tool for merging Intel (x86_64) and Apple Silicon (aarch64) binaries into a Universal Binary (.app / .dmg).
-
-menu-build-macos-sub = macOS
-menu-build-macos-dmg = Build .dmg (macOS)
-command-name-install-macos-deps = Install macOS dependencies (cargo-zigbuild + zig + targets)
-command-name-install-llvm = Install LLVM (lipo — Universal Binary)
-
-menu-build-fedora = Fedora
-menu-build-debian = Debian / Ubuntu
-menu-build-freebsd = FreeBSD
-menu-build-freebsd-pkg = Build .pkg (FreeBSD)
-menu-build-flatpak-sub = Flatpak
-menu-build-snap-sub = Snap
-menu-build-appimage-sub = AppImage
-menu-build-deb = Build .deb
-menu-build-rpm = Build .rpm
-menu-build-flatpak = Build Flatpak bundle
-menu-build-snap = Build Snap package
-menu-build-appimage = Build .AppImage
-menu-build-exe = Build .exe (Windows)
-menu-build = Build
 
 
-menu-build-all = All Packages
-build-all-status-running = Building…
-build-all-status-ok = ✔ All packages built successfully
-build-all-status-error = ✘ Build finished with errors (code { $code })
-build-all-status-waiting = Waiting to start…
-build-all-waiting-output = Starting scripts/build-all.sh…
-build-all-btn-close = Close
-build-all-btn-run = Run
-build-all-btn-rerun = Run again
-build-all-not-started = Select packages and click Run
-build-all-hint-start = Select packages above and click Run…
+
+
+dep-wizard-appimagetool-desc = The appimagetool is required for the final packaging of the .AppImage bundle.

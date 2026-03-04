@@ -8,7 +8,6 @@ use super::super::super::build_runner::run_build_check;
 use super::super::super::types::{AppAction, AppShared, Toast};
 use super::state::{FilePicker, WorkspaceState};
 
-mod build;
 mod edit;
 mod file;
 mod help;
@@ -36,39 +35,11 @@ pub(crate) struct MenuActions {
     pub support: bool,
     pub settings: bool,
     pub plugins: bool,
-    pub install_appimage: bool,
-    pub install_appimagetool: bool,
-    pub install_nsis: bool,
-    pub install_rpm: bool,
-    pub install_generate_rpm: bool,
-    pub install_deb_tools: bool,
-    pub install_flatpak: bool,
-    pub install_snap: bool,
-    pub configure_lxd: bool,
-    pub install_xwin: bool,
-    pub install_clang: bool,
-    pub install_lld: bool,
-    pub install_windows_target: bool,
-    pub install_freebsd_target: bool,
-    pub install_cross: bool,
-    pub install_fpm: bool,
-    pub install_podman: bool,
-    pub install_llvm: bool,
-    pub install_macos_all_deps: bool,
-    pub build_macos: bool,
-    pub build_all: bool,
     pub plugins_target: Option<String>,
     pub run_agent: Option<String>,
     pub run_plugin: Option<(String, String)>,
     pub build: bool,
     pub run: bool,
-    pub build_deb: bool,
-    pub build_rpm: bool,
-    pub build_flatpak: bool,
-    pub build_snap: bool,
-    pub build_appimage: bool,
-    pub build_exe: bool,
-    pub build_freebsd: bool,
     pub open_file_picker: bool,
     pub project_search: bool,
 }
@@ -92,7 +63,6 @@ pub(super) fn render_menu_bar(
             project::render(ui, &mut actions, &recent_snapshot, i18n);
             edit::render(ui, &mut actions, i18n);
             view::render(ui, &mut actions, ws, i18n);
-            build::render(ui, &mut actions, ws, i18n);
             help::render(ui, &mut actions, i18n);
         });
     });
@@ -211,189 +181,6 @@ pub(super) fn process_menu_actions(
         ws.show_plugins = true;
         let shared_lock = shared.lock().expect("lock");
         ws.plugins_draft = Some((*shared_lock.settings).clone());
-    }
-    if actions.install_appimagetool {
-        ws.dep_wizard.open_for_appimagetool();
-    }
-    if actions.install_appimage {
-        ws.dep_wizard.open_for_appimage();
-    }
-    if actions.install_nsis {
-        ws.dep_wizard.open_for_nsis();
-    }
-    if actions.install_rpm {
-        ws.dep_wizard.open_for_rpm();
-    }
-    if actions.install_generate_rpm {
-        ws.dep_wizard.open_for_generate_rpm();
-    }
-    if actions.install_deb_tools {
-        ws.dep_wizard.open_for_deb_tools();
-    }
-    if actions.install_freebsd_target {
-        ws.dep_wizard.open_for_freebsd_target();
-    }
-    if actions.install_cross {
-        ws.dep_wizard.open_for_cross();
-    }
-    if actions.install_fpm {
-        ws.dep_wizard.open_for_fpm();
-    }
-    if actions.install_podman {
-        ws.dep_wizard.open_for_podman();
-    }
-    if actions.build_all {
-        ws.build_all_modal.open(ws.root_path.clone());
-    }
-    if actions.install_flatpak {
-        ws.dep_wizard.open_for_flatpak();
-    }
-    if actions.install_snap {
-        ws.dep_wizard.open_for_snap();
-    }
-    if actions.configure_lxd {
-        ws.dep_wizard.open_for_lxd();
-    }
-    if actions.install_xwin {
-        ws.dep_wizard.open_for_xwin();
-    }
-    if actions.install_clang {
-        ws.dep_wizard.open_for_clang();
-    }
-    if actions.install_lld {
-        ws.dep_wizard.open_for_lld();
-    }
-    if actions.install_windows_target {
-        ws.dep_wizard.open_for_windows_target();
-    }
-    if actions.install_llvm {
-        ws.dep_wizard.open_for_llvm();
-    }
-    if actions.install_macos_all_deps {
-        ws.dep_wizard.open_for_macos_all_deps();
-    }
-    let root = {
-        let c: Vec<_> = ws.root_path.components().collect();
-        let n = c.len();
-        if n >= 2 && c[n - 1].as_os_str() == "sandbox" && c[n - 2].as_os_str() == ".polycredo" {
-            ws.root_path
-                .parent()
-                .and_then(|p| p.parent())
-                .map(|p| p.to_path_buf())
-                .unwrap_or_else(|| ws.root_path.clone())
-        } else {
-            ws.root_path.clone()
-        }
-    }
-    .display()
-    .to_string();
-    let _sandbox_root = ws.sandbox.root.display().to_string();
-    let upload_to_github = "&& (VERSION=$(./scripts/get-version.sh); \
-                             gh release create \"v$VERSION\" --title \"Release v$VERSION\" --notes \"Automated build from PolyCredo Editor\" 2>/dev/null || true; \
-                             gh release upload \"v$VERSION\" target/dist/* --clobber 2>/dev/null || true)";
-
-    if actions.build_deb
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist && \
-             export DEB_BUILD_TYPE=deb && \
-             export CARGO_TARGET_DIR=\"$HOME/.cache/polycredo-editor/target\" && \
-             ./packaging/deb/build-deb.sh \
-             {upload_to_github} || true"
-        ));
-    }
-    if actions.build_rpm
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist && \
-             CARGO_TARGET_DIR=\"$HOME/.cache/polycredo-editor/target\" \
-             cargo generate-rpm -o target/dist/ 2>&1 || \
-             (CARGO_TARGET_DIR=\"$HOME/.cache/polycredo-editor/target\" \
-              cargo generate-rpm 2>&1 && mv ./*.rpm target/dist/) {upload_to_github} || true"
-        ));
-    }
-    if actions.build_freebsd
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist && \
-             rustup target add x86_64-unknown-freebsd 2>/dev/null || true && \
-             cross build --release --target x86_64-unknown-freebsd && \
-             VERSION=$(./scripts/get-version.sh) && \
-             fpm -s dir -t freebsd -n polycredo-editor -v \"$VERSION\" \
-               --prefix /usr/local \
-               -p \"target/dist/polycredo-editor-$VERSION-amd64.pkg\" \
-               \"$HOME/.cache/polycredo-editor/target/x86_64-unknown-freebsd/release/polycredo-editor=/bin/polycredo-editor\" \
-             {upload_to_github} || true"
-        ));
-    }
-    if actions.build_flatpak
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist \
-               \"$HOME/.cache/polycredo-editor/flatpak/build\" \
-               \"$HOME/.cache/polycredo-editor/flatpak/repo\" \
-               \"$HOME/.cache/polycredo-editor/flatpak/state\" && \
-             flatpak-builder --force-clean \
-               --state-dir=\"$HOME/.cache/polycredo-editor/flatpak/state\" \
-               --repo=\"$HOME/.cache/polycredo-editor/flatpak/repo\" \
-               \"$HOME/.cache/polycredo-editor/flatpak/build\" \
-               \"{root}/.polycredo/sandbox/org.polycredo.Editor.yaml\" && \
-             VERSION=$(./scripts/get-version.sh) && \
-             flatpak build-bundle \"$HOME/.cache/polycredo-editor/flatpak/repo\" \
-               target/dist/polycredo-editor-$VERSION.flatpak org.polycredo.Editor {upload_to_github}"
-        ));
-    }
-    if actions.build_snap
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist && export PATH=$PATH:/snap/bin && \
-             VERSION=$(./scripts/get-version.sh) && \
-             (sg lxd -c \"snapcraft pack --output target/dist/polycredo-editor-$VERSION-amd64.snap\" 2>/dev/null || \
-              snapcraft pack --output target/dist/polycredo-editor-$VERSION-amd64.snap 2>/dev/null || \
-              (snapcraft pack && mv *.snap target/dist/polycredo-editor-$VERSION-amd64.snap 2>/dev/null)) \
-             {upload_to_github} || true",
-        ));
-    }
-    if actions.build_appimage
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist && \
-             cp packaging/icons/icon-256.png icon.png 2>/dev/null || true && \
-             cargo appimage && \
-             VERSION=$(./scripts/get-version.sh) && \
-             APPIMAGE=$(find \"$HOME/.cache/polycredo-editor/target\" . -maxdepth 5 -name '*.AppImage' ! -path '*/target/dist/*' 2>/dev/null | head -1) && \
-             [ -n \"$APPIMAGE\" ] && cp \"$APPIMAGE\" \"target/dist/polycredo-editor-$VERSION-x86_64.AppImage\" \
-             {upload_to_github} || true"
-        ));
-    }
-    if actions.build_exe
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!(
-            "cd \"{root}\" && mkdir -p target/dist && \
-             export PATH=$PATH:/usr/lib/llvm-19/bin && \
-             cargo xwin build --release --target x86_64-pc-windows-msvc \
-               --target-dir \"$HOME/.cache/polycredo-editor/target\" && \
-             VERSION=$(./scripts/get-version.sh) && \
-             (cp \"$HOME/.cache/polycredo-editor/target/x86_64-pc-windows-msvc/release/polycredo-editor.exe\" \
-                \"target/dist/polycredo-editor-$VERSION-x86_64.exe\" 2>/dev/null || \
-              cp \"$HOME/.cache/polycredo-editor/target/release/polycredo-editor.exe\" \
-                \"target/dist/polycredo-editor-$VERSION-x86_64.exe\" 2>/dev/null) \
-             {upload_to_github} || true"
-        ));
-    }
-    if actions.build_macos
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command(&format!(
-            "cd \"{root}\" && ./scripts/build-all.sh --only=macos"
-        ));
     }
     if actions.new_project {
         ws.show_new_project = true;

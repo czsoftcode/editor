@@ -34,7 +34,6 @@ btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Редактировать
 runner-none = Профили не определены.
 
-menu-build-windows = Windows
 
 ## Dependency Wizard
 dep-wizard-title = Dependency Installation Wizard
@@ -47,66 +46,9 @@ dep-wizard-status-running = Installing...
 dep-wizard-status-success = Installation successful!
 dep-wizard-status-error = Installation error: { $error }
 
-command-name-install-nsis = Install NSIS
-command-name-install-rpm = Install rpm-build (dnf)
-command-name-install-generate-rpm = Install cargo-generate-rpm
-command-name-install-appimage = Install cargo-appimage
-command-name-install-flatpak = Install flatpak-builder
-command-name-install-snap = Install snapcraft
-command-name-configure-lxd = Настроить LXD (для сборки)
-command-name-install-deb-tools = Install Debian Build Tools
-command-name-install-freebsd-target = Установить FreeBSD Target (rustup)
-command-name-install-cross = Установить cross (кросс-компиляция)
-command-name-install-fpm = Установить fpm (gem install fpm)
-command-name-install-podman = Установить Podman (контейнер для cross)
-command-name-install-appimagetool = Install appimagetool
-command-name-install-windows-target = Install Windows Target (rustup)
-command-name-install-xwin = Install cargo-xwin
-command-name-install-clang = Install Clang (LLVM)
-command-name-install-lld = Install LLD (Linker)
 
-dep-wizard-xwin-desc = The cargo-xwin tool is required for cross-compiling for Windows MSVC from Linux.
-dep-wizard-generate-rpm-desc = The cargo-generate-rpm tool is required to create an .rpm package directly from your Rust project.
-dep-wizard-appimage-desc = The cargo-appimage tool is required to create a portable AppImage package directly from your Rust project.
-dep-wizard-flatpak-desc = The flatpak-builder tool is required to build and package the application into the Flatpak format.
-dep-wizard-snap-desc = The snapcraft tool is required to create Snap packages for Ubuntu and other distributions.
-dep-wizard-lxd-desc = LXD — контейнерная система, необходимая snapcraft для сборки Snap-пакетов. Добавляет пользователя в группу lxd и инициализирует LXD.
-dep-wizard-deb-desc = System tools like dpkg-dev, build-essential, and fakeroot are required to create .deb packages.
-dep-wizard-freebsd-target-desc = Стандартная библиотека Rust для x86_64-unknown-freebsd необходима для кросс-компиляции под FreeBSD.
-dep-wizard-cross-desc = Инструмент cross обеспечивает кросс-компиляцию для FreeBSD и других платформ через Docker/Podman-контейнеры.
-dep-wizard-fpm-desc = fpm (Effing Package Manager) позволяет создавать нативные FreeBSD .pkg пакеты из Linux.
-dep-wizard-podman-desc = Podman — контейнерный движок, необходимый инструменту cross для кросс-компиляции. Альтернатива Docker без фонового демона.
-dep-wizard-clang-desc = Clang compiler is required for building native C/C++ dependencies for Windows.
-dep-wizard-lld-desc = LLD linker is required for linking Windows binaries on Linux.
-dep-wizard-windows-target-desc = Rust standard library for x86_64-pc-windows-msvc is required for compilation.
-dep-wizard-nsis-desc = NSIS is required to create Windows installers.
-dep-wizard-rpm-desc = The rpmbuild utility is required to create .rpm packages.
-dep-wizard-appimagetool-desc = The appimagetool utility is required for final AppImage bundling.
-dep-wizard-zigbuild-desc = cargo-zigbuild необходим для кросс-компиляции под macOS (Intel + Apple Silicon) из Linux. Использует компилятор Zig в качестве линковщика.
-dep-wizard-macos-targets-desc = Стандартные библиотеки Rust для x86_64-apple-darwin и aarch64-apple-darwin необходимы для кросс-компиляции под macOS (Intel + Apple Silicon).
-dep-wizard-genisoimage-desc = genisoimage используется для создания .dmg-образа диска из macOS .app-бандла.
-dep-wizard-macos-deps-desc = Устанавливает все инструменты, необходимые для сборки macOS: cargo-zigbuild (кросс-компилятор), zig (линковщик), Rust-цели для x86_64-apple-darwin и aarch64-apple-darwin, а также LLVM (lipo для Universal Binary).
-dep-wizard-llvm-desc = LLVM предоставляет инструмент lipo для объединения бинарных файлов Intel (x86_64) и Apple Silicon (aarch64) в Universal Binary (.app / .dmg).
 
-menu-build-macos-sub = macOS
-menu-build-macos-dmg = Собрать .dmg (macOS)
-command-name-install-macos-deps = Установить зависимости macOS (cargo-zigbuild + zig + цели)
-command-name-install-llvm = Установить LLVM (lipo — Universal Binary)
 
-menu-build-fedora = Fedora
-menu-build-debian = Debian / Ubuntu
-menu-build-freebsd = FreeBSD
-menu-build-freebsd-pkg = Собрать .pkg (FreeBSD)
-menu-build-flatpak-sub = Flatpak
-menu-build-snap-sub = Snap
-menu-build-appimage-sub = AppImage
-menu-build-deb = Собрать .deb
-menu-build-rpm = Собрать .rpm
-menu-build-flatpak = Собрать Flatpak bundle
-menu-build-snap = Собрать Snap пакет
-menu-build-appimage = Собрать .AppImage
-menu-build-exe = Собрать .exe (Windows)
-menu-build = Build
 
 
 ## Операции Git
@@ -486,14 +428,4 @@ support-modal-github = Подписаться на GitHub
 support-modal-donate = Поддержать разработку
 semantic-indexing-btn-stop = Остановить индексацию
 
-menu-build-all = Все пакеты
-build-all-status-running = Сборка выполняется…
-build-all-status-ok = ✔ Все пакеты успешно собраны
-build-all-status-error = ✘ Сборка завершилась с ошибкой (код { $code })
-build-all-status-waiting = Ожидание запуска…
-build-all-waiting-output = Запуск scripts/build-all.sh…
-build-all-btn-close = Закрыть
-build-all-btn-run = Запустить
-build-all-btn-rerun = Запустить снова
-build-all-not-started = Выберите пакеты и нажмите Запустить
-build-all-hint-start = Выберите пакеты выше и нажмите Запустить…
+dep-wizard-appimagetool-desc = ...

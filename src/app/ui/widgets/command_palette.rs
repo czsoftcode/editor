@@ -22,7 +22,6 @@ pub(crate) enum CommandId {
     About,
     Settings,
     Plugins,
-    InstallAppImageTool,
     Quit,
 }
 
@@ -213,7 +212,6 @@ pub(crate) fn execute_command(
                 CommandId::About => actions.about = true,
                 CommandId::Settings => actions.settings = true,
                 CommandId::Plugins => actions.plugins = true,
-                CommandId::InstallAppImageTool => actions.install_appimagetool = true,
                 CommandId::Quit => actions.quit = true,
             }
             None

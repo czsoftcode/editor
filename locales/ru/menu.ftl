@@ -5,7 +5,6 @@ menu-file = Файл
 menu-project = Проект
 menu-edit = Правка
 menu-view = Вид
-menu-build = Сборка
 menu-help = Справка
 
 ## Меню Файл
@@ -44,11 +43,6 @@ menu-view-ai-panel = AI терминал
 menu-view-ai-float = Плавающий AI терминал
 
 ## Меню Сборка
-menu-build-deb = Пакет .deb
-menu-build-rpm = Пакет .rpm
-menu-build-appimage = Пакет .AppImage
-menu-build-tar-gz = Архив .tar.gz (Linux/BSD)
-menu-build-exe = Установщик .exe (Windows)
 
 ## Меню Справка
 menu-help-settings = Настройки…

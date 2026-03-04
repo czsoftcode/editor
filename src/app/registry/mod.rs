@@ -245,12 +245,6 @@ impl Registry {
                 Some("Ctrl+Shift+L"),
                 Plugins,
             ),
-            (
-                "app.install_appimagetool",
-                "command-name-install-appimagetool",
-                None,
-                InstallAppImageTool,
-            ),
             ("ui.show_about", "command-name-show-about", None, About),
             ("app.quit", "command-name-quit", None, Quit),
         ];

@@ -5,7 +5,6 @@ menu-file = Súbor
 menu-project = Projekt
 menu-edit = Upraviť
 menu-view = Zobraziť
-menu-build = Zostaviť
 menu-help = Pomocník
 
 ## Menu Súbor
@@ -44,11 +43,6 @@ menu-view-ai-panel = AI terminál
 menu-view-ai-float = Plávajúci AI terminál
 
 ## Menu Zostaviť
-menu-build-deb = Balík .deb
-menu-build-rpm = Balík .rpm
-menu-build-appimage = Balík .AppImage
-menu-build-tar-gz = Archív .tar.gz (Linux/BSD)
-menu-build-exe = Inštalátor .exe (Windows)
 
 ## Menu Pomocník
 menu-help-settings = Nastavenia…

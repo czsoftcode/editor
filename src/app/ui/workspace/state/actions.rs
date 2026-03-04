@@ -29,61 +29,12 @@ pub fn spawn_win_tool_check() -> mpsc::Receiver<HashMap<String, bool>> {
         let mut results = HashMap::new();
 
         // Check binaries in PATH
-        for (id, cmd) in [
-            ("xwin", "cargo-xwin"),
-            ("clang", "clang"),
-            ("lld", "lld"),
-            ("nsis", "makensis"),
-            ("generate-rpm", "cargo-generate-rpm"),
-            ("rpm", "rpmbuild"),
-            ("appimage", "cargo-appimage"),
-            ("appimagetool", "appimagetool"),
-            ("deb", "dpkg-deb"),
-            ("flatpak", "flatpak-builder"),
-            ("snap", "snapcraft"),
-            ("cross", "cross"),
-            ("fpm", "fpm"),
-            ("podman", "podman"),
-            ("zigbuild", "cargo-zigbuild"),
-            ("zig", "zig"),
-            ("genisoimage", "genisoimage"),
-        ] {
-            let found = std::process::Command::new("which")
-                .arg(cmd)
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false);
-            results.insert(id.to_string(), found);
-        }
-
-        // Check rustup targets
-        let installed_targets = std::process::Command::new("rustup")
-            .args(["target", "list", "--installed"])
+        let found_deb = std::process::Command::new("which")
+            .arg("dpkg-deb")
             .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-            .unwrap_or_default();
-        results.insert(
-            "windows-target".to_string(),
-            installed_targets
-                .lines()
-                .any(|l| l.trim() == "x86_64-pc-windows-msvc"),
-        );
-        results.insert(
-            "freebsd-target".to_string(),
-            installed_targets
-                .lines()
-                .any(|l| l.trim() == "x86_64-unknown-freebsd"),
-        );
-        let macos_targets_ok = installed_targets
-            .lines()
-            .any(|l| l.trim() == "aarch64-apple-darwin");
-        results.insert("macos-targets".to_string(), macos_targets_ok);
-
-        // Složený check: všechny macOS závislosti najednou
-        let macos_deps_ok = *results.get("zigbuild").unwrap_or(&false)
-            && *results.get("zig").unwrap_or(&false)
-            && macos_targets_ok;
-        results.insert("macos-deps".to_string(), macos_deps_ok);
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        results.insert("deb".to_string(), found_deb);
 
         let _ = tx.send(results);
     });

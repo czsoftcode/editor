@@ -96,7 +96,7 @@ jobs:
       - name: Instalace závislostí
         run: |
           dnf install -y \
-            curl gcc rpm-build pkg-config \
+            curl gcc gcc-c++ rpm-build pkg-config \
             openssl-devel \
             libX11-devel libxcb-devel libxkbcommon-devel \
             wayland-devel mesa-libEGL-devel mesa-libGL-devel \

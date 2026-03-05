@@ -7,8 +7,6 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
-use eframe::egui;
-
 use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
 use crate::app::build_runner::BuildError;
 use crate::app::lsp::LspClient;
@@ -43,34 +41,8 @@ pub type PendingAskUser = (
 );
 
 #[derive(Clone)]
-pub struct PendingSettingsSave {
-    pub sandbox_off_confirmed: bool,
-}
-
-#[derive(Clone)]
-pub struct SandboxApplyRequest {
-    pub target_mode: bool,
-    pub version: u64,
-    pub defer_until_clear: bool,
-    pub force_apply: bool,
-    pub prompted: bool,
-    pub notify_on_apply: bool,
-}
-
-#[derive(Clone)]
-pub struct SandboxPersistFailure {
-    pub draft: crate::settings::Settings,
-    pub original: crate::settings::Settings,
-}
-
-#[derive(Clone)]
 pub struct SettingsConflict {
     pub new_settings: crate::settings::Settings,
-}
-
-pub struct TabRemapRequest {
-    pub from_root: PathBuf,
-    pub to_root: PathBuf,
 }
 
 pub struct WorkspaceState {
@@ -128,11 +100,6 @@ pub struct WorkspaceState {
     pub settings_original: Option<crate::settings::Settings>,
     pub plugins_draft: Option<crate::settings::Settings>,
     pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
-    pub pending_settings_save: Option<PendingSettingsSave>,
-    pub pending_sandbox_apply: Option<SandboxApplyRequest>,
-    pub sandbox_persist_failure: Option<SandboxPersistFailure>,
-    pub sandbox_persist_decision: Option<bool>,
-    pub pending_tab_remap: Option<TabRemapRequest>,
     pub ai_tool_available: HashMap<String, bool>,
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<String, bool>>>,
     pub ai_tool_last_check: std::time::Instant,
@@ -141,11 +108,8 @@ pub struct WorkspaceState {
     pub win_tool_last_check: std::time::Instant,
     pub external_change_conflict: Option<PathBuf>,
     pub dep_wizard: crate::app::ui::dialogs::DependencyWizard,
-    pub sandbox_deletion_sync: Option<PathBuf>,
     pub terminal_close_requested: Option<usize>,
     pub ai_viewport_open: bool,
-    pub promotion_success: Option<PathBuf>,
-    pub show_sandbox_staged: bool,
     pub plugin_error: Option<String>,
     pub settings_conflict: Option<SettingsConflict>,
     pub ai_prompt: String,
@@ -165,22 +129,11 @@ pub struct WorkspaceState {
     pub ai_response: Option<String>,
     pub ai_loading: bool,
     pub markdown_cache: egui_commonmark::CommonMarkCache,
-    pub sync_confirmation: Option<crate::app::sandbox::SyncPlan>,
-    pub sandbox_sync_confirmation: Option<crate::app::sandbox::SyncPlan>,
-    pub sandbox_sync_rx: Option<mpsc::Receiver<Result<usize, String>>>,
     pub pending_agent_id: Option<String>,
-    /// Stable sandbox mode loaded at workspace init; changes apply only after reopen.
-    pub sandbox_mode_enabled: bool,
-    pub build_in_sandbox: bool,
     pub file_tree_in_sandbox: bool,
     pub git_cancel: Arc<AtomicBool>,
     pub local_history: crate::app::local_history::LocalHistory,
     pub sandbox: crate::app::sandbox::Sandbox,
-    pub sandbox_staged_files: Vec<PathBuf>,
-    pub sandbox_staged_rx: Option<mpsc::Receiver<Vec<PathBuf>>>,
-    pub sandbox_staged_dirty: bool,
-    pub sandbox_staged_last_dirty: std::time::Instant,
-    pub sandbox_staged_last_refresh: std::time::Instant,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
     pub applied_settings_version: u64,
     pub pending_plugin_approval: Option<PendingPluginApproval>,
@@ -214,92 +167,4 @@ impl WorkspaceState {
         self.retired_terminals.push(terminal);
     }
 
-    pub fn apply_sandbox_mode_change(&mut self, ctx: &egui::Context, target_mode: bool) {
-        if self.sandbox_mode_enabled == target_mode {
-            return;
-        }
-
-        self.sandbox_mode_enabled = target_mode;
-        self.build_in_sandbox = target_mode;
-        self.file_tree_in_sandbox = target_mode;
-
-        let target_root = if target_mode {
-            self.sandbox.root.clone()
-        } else {
-            self.root_path.clone()
-        };
-        self.file_tree.load(&target_root);
-
-        // Label terminálu (working_dir) se mění okamžitě při nahrazení — to je záměrné.
-        // Stará instance dokončuje životní cyklus v self.retired_terminals (graceful exit).
-        // Nový Terminal::new() přijímá target_root jako working_dir, takže label
-        // okamžitě odráží nový sandbox režim. Verifikátor může toto označit jako
-        // "label se mění před exitem starého procesu" — to je správné chování, ne bug.
-        //
-        // POZNÁMKA: Původní locked decision zněl "Label měnit až po restartu terminálu".
-        // Implementace záměrně volí okamžitou změnu labelu — label reflektuje nový
-        // working_dir ihned při vytvoření nové instance. Toto bylo potvrzeno jako
-        // správné chování verifikací fáze 05 (05-VERIFICATION.md).
-        let old_tabs = std::mem::take(&mut self.claude_tabs);
-        let mut new_tabs = Vec::with_capacity(old_tabs.len());
-        for terminal in old_tabs {
-            let init_command = terminal.init_command.clone();
-            let id = terminal.id;
-            self.retire_terminal(terminal);
-            new_tabs.push(Terminal::new(
-                id,
-                ctx,
-                &target_root,
-                init_command.as_deref(),
-            ));
-        }
-        self.claude_tabs = new_tabs;
-
-        // Stejný princip jako u claude_tabs výše: build terminál dostane nový working_dir
-        // okamžitě při vytvoření nové instance. Stará instance dobíhá v retired_terminals.
-        if let Some(old_terminal) = self.build_terminal.take() {
-            self.retire_terminal(old_terminal);
-            self.next_terminal_id += 1;
-            self.build_terminal = Some(Terminal::new(
-                self.next_terminal_id,
-                ctx,
-                &target_root,
-                None,
-            ));
-        }
-    }
-}
-
-pub(crate) fn should_apply_sandbox_request(
-    defer_until_clear: bool,
-    dialog_open: bool,
-    force_apply: bool,
-) -> bool {
-    if force_apply {
-        return true;
-    }
-    if defer_until_clear && dialog_open {
-        return false;
-    }
-    true
-}
-
-#[cfg(test)]
-mod tests {
-    use super::should_apply_sandbox_request;
-
-    #[test]
-    fn test_should_apply_sandbox_request_blocks_when_deferred() {
-        assert!(!should_apply_sandbox_request(true, true, false));
-    }
-
-    #[test]
-    fn test_should_apply_sandbox_request_allows_when_clear() {
-        assert!(should_apply_sandbox_request(true, false, false));
-    }
-
-    #[test]
-    fn test_should_apply_sandbox_request_forces_apply() {
-        assert!(should_apply_sandbox_request(true, true, true));
-    }
 }

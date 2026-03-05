@@ -1,10 +1,21 @@
 use crate::app::ui::file_tree::FileTree;
 use crate::app::ui::file_tree::node::FileNode;
 use crate::app::ui::file_tree::ops::ContextAction;
+use crate::app::ui::git_status::{GitVisualStatus, git_color_for_visuals};
 use crate::config;
 use eframe::egui;
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+fn resolve_file_tree_git_color(
+    status: Option<GitVisualStatus>,
+    visuals: &egui::Visuals,
+    text_color: egui::Color32,
+) -> egui::Color32 {
+    status
+        .map(|status| git_color_for_visuals(status, visuals))
+        .unwrap_or(text_color)
+}
 
 impl FileTree {
     #[allow(clippy::too_many_arguments)]
@@ -15,26 +26,13 @@ impl FileTree {
         action: &mut Option<ContextAction>,
         has_clipboard: bool,
         expand_to: &Option<PathBuf>,
-        git_colors: &HashMap<PathBuf, egui::Color32>,
+        git_statuses: &HashMap<PathBuf, GitVisualStatus>,
         i18n: &crate::i18n::I18n,
         is_sandbox: bool,
     ) {
-        let dark_mode = ui.visuals().dark_mode;
+        let visuals = ui.visuals();
         let text_color = ui.visuals().text_color();
         let font_size = config::FILE_TREE_FONT_SIZE;
-
-        // Git colors are designed for dark backgrounds — we darken them in light mode
-        let adapt_git_color = |c: egui::Color32| -> egui::Color32 {
-            if dark_mode {
-                c
-            } else {
-                egui::Color32::from_rgb(
-                    (c.r() as f32 * 0.55) as u8,
-                    (c.g() as f32 * 0.55) as u8,
-                    (c.b() as f32 * 0.55) as u8,
-                )
-            }
-        };
 
         if node.is_dir {
             let force_open = expand_to
@@ -58,7 +56,7 @@ impl FileTree {
                         action,
                         has_clipboard,
                         expand_to,
-                        git_colors,
+                        git_statuses,
                         i18n,
                         is_sandbox,
                     );
@@ -122,11 +120,11 @@ impl FileTree {
                 }
             }
 
-            let mut file_color = git_colors
-                .get(&node.path)
-                .copied()
-                .map(adapt_git_color)
-                .unwrap_or(text_color);
+            let mut file_color = resolve_file_tree_git_color(
+                git_statuses.get(&node.path).copied(),
+                visuals,
+                text_color,
+            );
 
             let mut is_large = false;
             let mut is_very_large = false;
@@ -207,5 +205,86 @@ impl FileTree {
                 }
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_file_tree_git_color;
+    use crate::app::ui::git_status::{GitVisualStatus, git_color_for_visuals};
+    use crate::settings::{LightVariant, Settings};
+    use eframe::egui::{Color32, Visuals};
+    use std::collections::HashSet;
+
+    fn light_visuals(variant: LightVariant) -> Visuals {
+        Settings {
+            dark_theme: false,
+            light_variant: variant,
+            ..Default::default()
+        }
+        .to_egui_visuals()
+    }
+
+    #[test]
+    fn file_tree_git_resolve_uses_light_palette_for_untracked_when_not_dark() {
+        let text_color = Color32::WHITE;
+        let visuals = Visuals::light();
+        let resolved =
+            resolve_file_tree_git_color(Some(GitVisualStatus::Untracked), &visuals, text_color);
+
+        assert_eq!(
+            resolved,
+            git_color_for_visuals(GitVisualStatus::Untracked, &visuals)
+        );
+    }
+
+    #[test]
+    fn file_tree_git_resolve_falls_back_to_text_color_without_status() {
+        let text_color = Color32::from_rgb(25, 26, 27);
+        let visuals = Visuals::light();
+        let resolved = resolve_file_tree_git_color(None, &visuals, text_color);
+
+        assert_eq!(resolved, text_color);
+    }
+
+    #[test]
+    fn file_tree_git_resolve_light_palette_statuses_are_distinct() {
+        let text_color = Color32::WHITE;
+        let visuals = Visuals::light();
+        let statuses = [
+            GitVisualStatus::Modified,
+            GitVisualStatus::Added,
+            GitVisualStatus::Deleted,
+            GitVisualStatus::Untracked,
+        ];
+
+        let colors: HashSet<Color32> = statuses
+            .into_iter()
+            .map(|status| resolve_file_tree_git_color(Some(status), &visuals, text_color))
+            .collect();
+
+        assert_eq!(colors.len(), 4);
+    }
+
+    #[test]
+    fn file_tree_git_resolve_light_variant_tones_differ_for_modified() {
+        let text_color = Color32::WHITE;
+        let warm_visuals = light_visuals(LightVariant::WarmIvory);
+        let sepia_visuals = light_visuals(LightVariant::Sepia);
+        let warm = resolve_file_tree_git_color(
+            Some(GitVisualStatus::Modified),
+            &warm_visuals,
+            text_color,
+        );
+        let sepia = resolve_file_tree_git_color(
+            Some(GitVisualStatus::Modified),
+            &sepia_visuals,
+            text_color,
+        );
+
+        assert_ne!(
+            warm, sepia,
+            "light variants must produce different file tree tones"
+        );
     }
 }

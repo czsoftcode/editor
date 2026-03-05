@@ -1,3 +1,23 @@
+## [1.0.0] - 2026-03-05
+
+### Added
+- **Light Mode Variants**: Three selectable light palette variants — Warm Ivory (warm cream), Cool Gray (GitHub/VS Code style), and Sepia (brownish-beige). Selectable via card picker in Settings.
+- **Light Variant Card Picker**: Visual card selector in Settings panel (visible only in light mode) with color swatch, localized name, and selected-state indicator. Selection applies instantly as live preview.
+- **Terminal Variant Toning**: Terminal background is tonally adjusted per active light variant. Warm Ivory uses a dedicated warm cream base (`#f5f2e8`, blend 0.55) for a visually distinct feel.
+- **Variant-Aware Git Colors**: File tree git status colors blend with the active variant's `panel_fill` and `faint_bg_color` for consistent tonal harmony across all three variants.
+
+### Changed
+- **Settings Persistence**: Theme and variant are now stored in canonical `settings.toml`. Legacy `settings.json` is read on first launch for migration, then replaced. Backward-compatible — old configs without `light_variant` default to Warm Ivory.
+- **Settings Save/Cancel Semantics**: Opening Settings captures a snapshot of current theme. Cancel restores the snapshot immediately; Save persists only when theme fingerprint actually changed.
+- **Live Preview**: Dark/light toggle and variant selection apply instantly across all open windows via `settings_version` bump — no restart required.
+- **Syntax Highlighting**: Light mode now uses the `Solarized (light)` syntect theme instead of the dark `base16-ocean.dark`. Theme switches without editor restart; highlighter cache is invalidated only on actual theme change.
+- **Terminal Theming**: Both Claude panel and Build terminal now use an explicit light palette in light mode (light background, dark foreground, sufficient contrast). Theme applies at runtime on every render frame without PTY restart.
+- **Terminal Scrollbar**: Scrollbar colors are derived from active `egui::Visuals` instead of hardcoded dark values.
+- **Floating Terminal Frame**: `StandardTerminalWindow` frame fill is derived from `ctx.style().visuals.panel_fill` — no longer hardcoded dark in light mode.
+- **Status Bar Contrast**: Primary and secondary text in the status bar is derived from `ui.visuals()`. Diagnostic and save/LSP state accents branch by `dark_mode` for readable contrast in both themes.
+- **File Tree Git Colors**: Git status colors (`M`/`A`/`??`/`D`) use an explicit semantic model (`GitVisualStatus`) with separate light/dark palettes. Untracked files are now clearly visible in light mode.
+- **Tab Unsaved Indicator**: The `●` indicator in editor tabs renders through the active theme text color — no hardcoded light color.
+
 ## [0.9.1] - 2026-03-04
 
 ### Added

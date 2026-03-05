@@ -11,6 +11,8 @@ use std::sync::Arc;
 pub struct Highlighter {
     syntax_set: SyntaxSet,
     theme_set: ThemeSet,
+    /// Current theme name (for cache invalidation).
+    current_theme: std::sync::Mutex<String>,
     /// Fast full-file cache (for scrolling/rendering).
     /// Using Arc to avoid cloning massive LayoutJobs for large files.
     cache: std::sync::Mutex<HashMap<u64, Arc<egui::text::LayoutJob>>>,
@@ -21,7 +23,20 @@ impl Highlighter {
         Self {
             syntax_set: SyntaxSet::load_defaults_newlines(),
             theme_set: ThemeSet::load_defaults(),
+            current_theme: std::sync::Mutex::new("base16-ocean.dark".to_string()),
             cache: std::sync::Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Sets the theme and invalidates cache if theme changed.
+    pub fn set_theme(&self, theme_name: &str) {
+        let mut current = self
+            .current_theme
+            .lock()
+            .expect("Highlighter current_theme lock");
+        if current.as_str() != theme_name {
+            *current = theme_name.to_string();
+            self.cache.lock().expect("Highlighter cache lock").clear();
         }
     }
 
@@ -31,13 +46,15 @@ impl Highlighter {
         extension: &str,
         filename: &str,
         font_size: f32,
+        theme_name: &str,
     ) -> Arc<egui::text::LayoutJob> {
-        // Compute cache key
+        // Compute cache key (includes theme_name for cache invalidation)
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         text.hash(&mut hasher);
         extension.hash(&mut hasher);
         filename.hash(&mut hasher);
         ((font_size * 100.0) as u32).hash(&mut hasher);
+        theme_name.hash(&mut hasher);
         let key = hasher.finish();
 
         {
@@ -74,7 +91,11 @@ impl Highlighter {
             })
             .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text());
 
-        let theme = &self.theme_set.themes["base16-ocean.dark"];
+        let theme = self
+            .theme_set
+            .themes
+            .get(theme_name)
+            .unwrap_or_else(|| &self.theme_set.themes["base16-ocean.dark"]);
         let mut h = HighlightLines::new(syntax, theme);
 
         for line in LinesWithEndings::from(text) {
@@ -115,8 +136,12 @@ impl Highlighter {
         job_arc
     }
 
-    pub fn background_color(&self) -> egui::Color32 {
-        let theme = &self.theme_set.themes["base16-ocean.dark"];
+    pub fn background_color(&self, theme_name: &str) -> egui::Color32 {
+        let theme = self
+            .theme_set
+            .themes
+            .get(theme_name)
+            .unwrap_or_else(|| &self.theme_set.themes["base16-ocean.dark"]);
         if let Some(bg) = theme.settings.background {
             egui::Color32::from_rgb(bg.r, bg.g, bg.b)
         } else {
@@ -142,12 +167,24 @@ mod tests {
         println!("Starting benchmark for 10k lines...");
 
         let start = Instant::now();
-        let job1 = h.highlight(&text, "rs", "performance_test.rs", 14.0);
+        let job1 = h.highlight(
+            &text,
+            "rs",
+            "performance_test.rs",
+            14.0,
+            "base16-ocean.dark",
+        );
         let duration1 = start.elapsed();
         println!("First run (no cache): {:?}", duration1);
 
         let start = Instant::now();
-        let job2 = h.highlight(&text, "rs", "performance_test.rs", 14.0);
+        let job2 = h.highlight(
+            &text,
+            "rs",
+            "performance_test.rs",
+            14.0,
+            "base16-ocean.dark",
+        );
         let duration2 = start.elapsed();
         println!("Second run (with cache): {:?}", duration2);
 

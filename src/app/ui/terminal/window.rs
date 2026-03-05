@@ -33,7 +33,8 @@ impl StandardTerminalWindow {
         let mut interacted = false;
         let mut result = None;
 
-        let viewer_bg = egui::Color32::from_rgb(20, 20, 25);
+        // AI i build floating terminál sdílí StandardTerminalWindow, proto fill nesmí být hardcoded tmavý.
+        let viewer_bg = ctx.style().visuals.panel_fill;
         let screen_rect = ctx.screen_rect();
         let max_w = screen_rect.width() * 0.9;
         let max_h = screen_rect.height() * 0.9;

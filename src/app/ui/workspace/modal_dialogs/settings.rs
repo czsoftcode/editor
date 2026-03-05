@@ -3,12 +3,123 @@ use crate::app::ui::background::spawn_task;
 use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::i18n::I18n;
+use crate::settings::LightVariant;
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 
 pub enum SettingsModalAction {
     Save,
     Cancel,
+}
+
+fn light_variant_label_key(variant: &LightVariant) -> &'static str {
+    match variant {
+        LightVariant::WarmIvory => "settings-light-variant-warm-ivory",
+        LightVariant::CoolGray => "settings-light-variant-cool-gray",
+        LightVariant::Sepia => "settings-light-variant-sepia",
+    }
+}
+
+fn light_variant_swatch(variant: &LightVariant) -> egui::Color32 {
+    match variant {
+        LightVariant::WarmIvory => egui::Color32::from_rgb(250, 246, 235),
+        LightVariant::CoolGray => egui::Color32::from_rgb(236, 236, 236),
+        LightVariant::Sepia => egui::Color32::from_rgb(234, 223, 202),
+    }
+}
+
+fn show_light_variant_card(
+    ui: &mut egui::Ui,
+    draft: &mut crate::settings::Settings,
+    i18n: &I18n,
+    variant: LightVariant,
+) -> bool {
+    let is_selected = draft.light_variant == variant;
+    let border_color = if is_selected {
+        ui.visuals().selection.stroke.color
+    } else {
+        ui.visuals().widgets.noninteractive.bg_stroke.color
+    };
+
+    let card = egui::Frame::new()
+        .fill(ui.visuals().faint_bg_color)
+        .stroke(egui::Stroke::new(
+            if is_selected { 2.0 } else { 1.0 },
+            border_color,
+        ))
+        .corner_radius(8.0)
+        .inner_margin(egui::Margin::symmetric(10, 8))
+        .show(ui, |ui| {
+            ui.set_min_size(egui::vec2(180.0, 52.0));
+            ui.horizontal(|ui| {
+                let (swatch_rect, _) =
+                    ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::hover());
+                ui.painter()
+                    .rect_filled(swatch_rect, 4.0, light_variant_swatch(&variant));
+                ui.add_space(8.0);
+                ui.label(i18n.get(light_variant_label_key(&variant)));
+                if is_selected {
+                    ui.add_space(8.0);
+                    ui.label(
+                        egui::RichText::new("✓")
+                            .strong()
+                            .color(ui.visuals().selection.stroke.color),
+                    );
+                }
+            });
+        });
+
+    let card_id = ui.id().with(("settings-light-variant-card", light_variant_label_key(&variant)));
+    let response = ui.interact(card.response.rect, card_id, egui::Sense::click());
+    if response.clicked() && draft.light_variant != variant {
+        draft.light_variant = variant;
+        return true;
+    }
+    false
+}
+
+fn theme_fingerprint(settings: &crate::settings::Settings) -> (bool, LightVariant) {
+    (settings.dark_theme, settings.light_variant.clone())
+}
+
+fn should_persist_theme_change(
+    original: Option<&crate::settings::Settings>,
+    draft: &crate::settings::Settings,
+) -> bool {
+    original
+        .map(|snapshot| theme_fingerprint(snapshot) != theme_fingerprint(draft))
+        .unwrap_or(true)
+}
+
+fn apply_theme_preview(shared: &Arc<Mutex<AppShared>>, draft: &crate::settings::Settings) {
+    let mut shared_state = shared.lock().expect("lock");
+    shared_state.settings = Arc::new(draft.clone());
+    shared_state.settings_version.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+}
+
+fn restore_runtime_settings_from_snapshot(
+    shared: &Arc<Mutex<AppShared>>,
+    snapshot: crate::settings::Settings,
+) {
+    let mut shared_state = shared.lock().expect("lock");
+    let should_bump_version =
+        theme_fingerprint(&shared_state.settings) != theme_fingerprint(&snapshot);
+    shared_state.settings = Arc::new(snapshot);
+    if should_bump_version {
+        shared_state
+            .settings_version
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+pub(super) fn discard_settings_draft(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+) {
+    if let Some(snapshot) = ws.settings_original.take() {
+        restore_runtime_settings_from_snapshot(shared, snapshot);
+    }
+    ws.settings_draft = None;
 }
 
 pub fn show(
@@ -23,7 +134,9 @@ pub fn show(
     }
 
     if ws.settings_draft.is_none() {
-        ws.settings_draft = Some((*shared.lock().expect("lock").settings).clone());
+        let current_settings = (*shared.lock().expect("lock").settings).clone();
+        ws.settings_original = Some(current_settings.clone());
+        ws.settings_draft = Some(current_settings);
     }
 
     if let Some(rx) = ws.settings_folder_pick_rx.as_ref()
@@ -170,19 +283,46 @@ pub fn show(
                             ui.add_space(12.0);
 
                             ui.strong(i18n.get("settings-theme"));
+                            let theme_before = theme_fingerprint(draft);
+                            let mut theme_controls_changed = false;
                             ui.horizontal(|ui| {
-                                ui.radio_value(
-                                    &mut draft.dark_theme,
-                                    true,
-                                    i18n.get("settings-theme-dark"),
-                                );
-                                ui.radio_value(
-                                    &mut draft.dark_theme,
-                                    false,
-                                    i18n.get("settings-theme-light"),
-                                );
+                                theme_controls_changed |= ui
+                                    .radio_value(
+                                        &mut draft.dark_theme,
+                                        true,
+                                        i18n.get("settings-theme-dark"),
+                                    )
+                                    .changed();
+                                theme_controls_changed |= ui
+                                    .radio_value(
+                                        &mut draft.dark_theme,
+                                        false,
+                                        i18n.get("settings-theme-light"),
+                                    )
+                                    .changed();
                             });
                             ui.add_space(16.0);
+
+                            if !draft.dark_theme {
+                                ui.strong(i18n.get("settings-light-variant"));
+                                ui.add_space(6.0);
+                                ui.horizontal_wrapped(|ui| {
+                                    for variant in [
+                                        LightVariant::WarmIvory,
+                                        LightVariant::CoolGray,
+                                        LightVariant::Sepia,
+                                    ] {
+                                        theme_controls_changed |=
+                                            show_light_variant_card(ui, draft, i18n, variant);
+                                        ui.add_space(8.0);
+                                    }
+                                });
+                                ui.add_space(16.0);
+                            }
+
+                            if theme_controls_changed && theme_before != theme_fingerprint(draft) {
+                                apply_theme_preview(shared, draft);
+                            }
 
                             ui.strong(i18n.get("settings-editor-font"));
                             ui.add_space(4.0);
@@ -287,7 +427,9 @@ pub fn show(
         match act {
             SettingsModalAction::Save => {
                 if let Some(draft) = ws.settings_draft.take() {
-                    draft.save();
+                    if should_persist_theme_change(ws.settings_original.as_ref(), &draft) {
+                        draft.save();
+                    }
                     ws.wizard.path = draft.default_project_path.clone();
                     let lang = draft.lang.clone();
                     let mut s = shared.lock().expect("lock");
@@ -310,13 +452,13 @@ pub fn show(
 
                     s.settings = Arc::new(draft);
                     s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
-                    s.settings_version
-                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    s.settings_version.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 }
+                ws.settings_original = None;
                 ws.show_settings = false;
             }
             SettingsModalAction::Cancel => {
-                ws.settings_draft = None;
+                discard_settings_draft(ws, shared);
                 ws.show_settings = false;
             }
         }

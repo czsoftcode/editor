@@ -1,8 +1,10 @@
 pub mod backend;
 pub mod input;
 pub mod render;
+pub mod theme;
 
 use self::input::terminal_key_bytes;
+use self::theme::terminal_theme_for_visuals;
 use crate::config;
 use alacritty_terminal::grid::Dimensions;
 use eframe::egui;
@@ -180,6 +182,7 @@ impl Terminal {
         let terminal = {
             let backend = self.backend.as_mut()?;
             TerminalView::new(ui, backend)
+                .set_theme(terminal_theme_for_visuals(ui.visuals()))
                 .set_focus(focused && !self.exited)
                 .set_font(term_font)
                 .set_size(egui::Vec2::new(term_width, term_height))
@@ -342,6 +345,7 @@ impl Terminal {
 
         if !focused {
             let painter = ui.painter_at(response.rect);
+            let visuals = ui.visuals();
             let Some(content) = self.backend.as_ref().map(|b| b.last_content()) else {
                 return action;
             };
@@ -361,23 +365,31 @@ impl Terminal {
                 None
             };
 
+            let cursor_fill = if visuals.dark_mode {
+                visuals.panel_fill.gamma_multiply(0.85)
+            } else {
+                visuals.widgets.noninteractive.bg_fill.gamma_multiply(1.12)
+            };
+            let overlay_fill = if visuals.dark_mode {
+                egui::Color32::from_black_alpha(60)
+            } else {
+                egui::Color32::from_white_alpha(96)
+            };
+            let cursor_stroke = if visuals.dark_mode {
+                visuals.widgets.active.fg_stroke.color.gamma_multiply(1.1)
+            } else {
+                visuals.widgets.active.fg_stroke.color.gamma_multiply(0.85)
+            };
+
             if let Some(rect) = cursor_rect {
-                painter.rect_filled(
-                    rect,
-                    egui::CornerRadius::ZERO,
-                    egui::Color32::from_rgb(0x18, 0x18, 0x18),
-                );
+                painter.rect_filled(rect, egui::CornerRadius::ZERO, cursor_fill);
             }
-            painter.rect_filled(
-                response.rect,
-                egui::CornerRadius::ZERO,
-                egui::Color32::from_black_alpha(60),
-            );
+            painter.rect_filled(response.rect, egui::CornerRadius::ZERO, overlay_fill);
             if let Some(rect) = cursor_rect {
                 painter.rect_stroke(
                     rect,
                     egui::CornerRadius::ZERO,
-                    egui::Stroke::new(1.5, egui::Color32::from_gray(200)),
+                    egui::Stroke::new(1.5, cursor_stroke),
                     egui::StrokeKind::Middle,
                 );
             }

@@ -20,6 +20,7 @@ where
 use eframe::egui;
 
 use super::super::types::{AppShared, Toast};
+use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
 use crate::watcher::{FileEvent, FsChange};
 use std::sync::Mutex;
@@ -418,7 +419,7 @@ pub(super) fn process_background_events(
     if let Some(rx) = &ws.git_status_rx
         && let Ok(status) = rx.try_recv()
     {
-        ws.file_tree.set_git_colors(status);
+        ws.file_tree.set_git_statuses(status);
         ws.git_status_rx = None;
     }
 
@@ -548,8 +549,8 @@ pub(crate) fn fetch_git_branch(
     })
 }
 
-fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, egui::Color32> {
-    let mut colors = HashMap::new();
+fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, GitVisualStatus> {
+    let mut statuses = HashMap::new();
     let entries: Vec<&[u8]> = raw
         .split(|b| *b == 0)
         .filter(|chunk| !chunk.is_empty())
@@ -569,22 +570,16 @@ fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, egui
             path_bytes = entries[i];
         }
         let rel = String::from_utf8_lossy(path_bytes);
-        let color = match (x, y) {
-            ('?', '?') => egui::Color32::from_rgb(120, 190, 255),
-            ('D', _) | (_, 'D') => egui::Color32::from_rgb(210, 80, 80),
-            ('A', _) => egui::Color32::from_rgb(100, 200, 110),
-            _ => egui::Color32::from_rgb(220, 180, 60),
-        };
-        colors.insert(root.join(rel.as_ref()), color);
+        statuses.insert(root.join(rel.as_ref()), parse_porcelain_status(x, y));
         i += 1;
     }
-    colors
+    statuses
 }
 
 pub(crate) fn fetch_git_status(
     root: &std::path::Path,
     cancel: Arc<AtomicBool>,
-) -> mpsc::Receiver<HashMap<PathBuf, egui::Color32>> {
+) -> mpsc::Receiver<HashMap<PathBuf, GitVisualStatus>> {
     let root = root.to_path_buf();
     spawn_task(move || {
         let child = std::process::Command::new("git")

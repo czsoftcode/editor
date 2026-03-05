@@ -14,13 +14,14 @@ impl Editor {
         diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>,
         lsp_client: Option<&crate::app::lsp::LspClient>,
         is_readonly: bool,
+        theme_name: &str,
     ) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
             None => return false,
         };
 
-        let bg = self.highlighter.background_color();
+        let bg = self.highlighter.background_color(theme_name);
         let ext = self.extension();
         let fname = self.filename();
         let current_match = self.current_match;
@@ -110,6 +111,7 @@ impl Editor {
                                     &ext,
                                     &fname,
                                     Self::current_editor_font_size(ui),
+                                    theme_name,
                                 );
                                 // Cloned for dynamic overlays (wrap, search).
                                 let mut job = (*job_arc).clone();

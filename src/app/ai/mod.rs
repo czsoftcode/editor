@@ -6,6 +6,7 @@ pub use types::*;
 pub use tools::get_standard_tools;
 
 use crate::app::ui::workspace::state::WorkspaceState;
+use crate::app::ui::git_status::GitVisualStatus;
 
 /// Centralized logic for AI agents.
 pub struct AiManager;
@@ -128,7 +129,7 @@ MANDATORY RULES:
 
         // 5. Git context
         payload.git_branch = ws.git_branch.clone();
-        for (abs_path, color) in &ws.file_tree.git_colors {
+        for (abs_path, status) in &ws.file_tree.git_statuses {
             let rel = abs_path
                 .strip_prefix(&ws.root_path)
                 .unwrap_or(abs_path)
@@ -136,7 +137,7 @@ MANDATORY RULES:
                 .into_owned();
             payload.git_status.push(AiGitFileStatus {
                 path: rel,
-                status: git_color_to_status(*color).to_string(),
+                status: git_visual_status_to_code(*status).to_string(),
             });
         }
 
@@ -176,14 +177,13 @@ MANDATORY RULES:
 // Private helpers
 // ---------------------------------------------------------------------------
 
-/// Converts a git-status color (as stored in FileTree) back to a short status code.
-fn git_color_to_status(color: eframe::egui::Color32) -> &'static str {
-    let [r, g, b, _] = color.to_array();
-    match (r, g, b) {
-        (100, 200, 110) => "A",  // Added
-        (210, 80, 80) => "D",    // Deleted
-        (120, 190, 255) => "??", // Untracked
-        _ => "M",                // Modified (fallback)
+/// Converts semantic git status to the short status code expected by AI context.
+fn git_visual_status_to_code(status: GitVisualStatus) -> &'static str {
+    match status {
+        GitVisualStatus::Modified => "M",
+        GitVisualStatus::Added => "A",
+        GitVisualStatus::Deleted => "D",
+        GitVisualStatus::Untracked => "??",
     }
 }
 

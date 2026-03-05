@@ -16,6 +16,7 @@ use crate::app::types::{FocusedPanel, ProjectProfiles, Toast};
 use crate::app::ui::dialogs::WizardState;
 use crate::app::ui::editor::Editor;
 use crate::app::ui::file_tree::FileTree;
+use crate::app::ui::git_status::GitVisualStatus;
 use crate::app::ui::terminal::Terminal;
 use crate::app::ui::widgets::command_palette::CommandPaletteState;
 use crate::watcher::{FileWatcher, ProjectWatcher};
@@ -88,10 +89,11 @@ pub struct WorkspaceState {
     pub lsp_install_rx: Option<mpsc::Receiver<Result<(), String>>>,
     pub git_branch: Option<String>,
     pub git_branch_rx: Option<mpsc::Receiver<Option<String>>>,
-    pub git_status_rx: Option<mpsc::Receiver<std::collections::HashMap<PathBuf, egui::Color32>>>,
+    pub git_status_rx: Option<mpsc::Receiver<HashMap<PathBuf, GitVisualStatus>>>,
     pub git_last_refresh: std::time::Instant,
     pub lsp_last_retry: std::time::Instant,
     pub settings_draft: Option<crate::settings::Settings>,
+    pub settings_original: Option<crate::settings::Settings>,
     pub plugins_draft: Option<crate::settings::Settings>,
     pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
     pub ai_tool_available: HashMap<String, bool>,

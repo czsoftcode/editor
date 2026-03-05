@@ -3,6 +3,7 @@ pub mod node;
 pub mod ops;
 pub mod render;
 
+use crate::app::ui::git_status::GitVisualStatus;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -30,8 +31,8 @@ pub struct FileTree {
     pub(crate) pending_deleted: Option<PathBuf>,
     pub(crate) expand_to: Option<PathBuf>,
     pub(crate) pending_error: Option<String>,
-    /// File colors based on git status (absolute path → color)
-    pub(crate) git_colors: HashMap<PathBuf, eframe::egui::Color32>,
+    /// File statuses from git porcelain (absolute path -> semantic status)
+    pub(crate) git_statuses: HashMap<PathBuf, GitVisualStatus>,
 }
 
 impl FileTree {
@@ -57,13 +58,13 @@ impl FileTree {
             pending_deleted: None,
             expand_to: None,
             pending_error: None,
-            git_colors: HashMap::new(),
+            git_statuses: HashMap::new(),
         }
     }
 
-    /// Sets the mapping of absolute paths to colors from git status.
-    pub fn set_git_colors(&mut self, colors: HashMap<PathBuf, eframe::egui::Color32>) {
-        self.git_colors = colors;
+    /// Sets the mapping of absolute paths to semantic git statuses.
+    pub fn set_git_statuses(&mut self, statuses: HashMap<PathBuf, GitVisualStatus>) {
+        self.git_statuses = statuses;
     }
 
     /// Fetches a potential I/O operation error (to be displayed in a toast notification).
@@ -119,7 +120,7 @@ impl FileTree {
                 &mut action,
                 has_clipboard,
                 &expand_to,
-                &self.git_colors,
+                &self.git_statuses,
                 i18n,
                 is_sandbox,
             );

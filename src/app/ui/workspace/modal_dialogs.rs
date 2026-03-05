@@ -79,12 +79,15 @@ pub(super) fn render_dialogs(
 
     // 7. Global confirm discard dialog
     if crate::app::ui::widgets::modal::render_confirm_discard_dialog(ctx, ws, i18n) {
+        // Settings modal may have already pushed live preview into shared runtime settings.
+        // Confirm-discard must always restore snapshot and clear draft lifecycle state.
+        settings::discard_settings_draft(ws, shared);
+
         // If confirmed, close common modals
         ws.show_settings = false;
         ws.show_plugins = false;
         ws.show_new_project = false;
         ws.show_ai_chat = false;
-        ws.settings_draft = None;
         ws.plugins_draft = None;
     }
 

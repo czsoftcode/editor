@@ -130,6 +130,7 @@ pub fn init_workspace(
         git_last_refresh: std::time::Instant::now(),
         lsp_last_retry: std::time::Instant::now(),
         settings_draft: None,
+        settings_original: None,
         plugins_draft: None,
         settings_folder_pick_rx: None,
         ai_tool_available: HashMap::new(),

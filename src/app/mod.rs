@@ -115,6 +115,8 @@ impl EditorApp {
             };
 
         let settings = std::sync::Arc::new(crate::settings::Settings::load());
+        // Apply theme before first frame to avoid startup flash.
+        settings.apply(&cc.egui_ctx);
         let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
 
         let sandbox_root = paths_to_open
@@ -554,6 +556,8 @@ impl EditorApp {
                             .settings_version
                             .load(std::sync::atomic::Ordering::SeqCst);
                         if ws.applied_settings_version != v {
+                            let theme_name = shared.settings.syntect_theme_name();
+                            ws.editor.highlighter.set_theme(theme_name);
                             shared.settings.apply(ctx);
                             ws.applied_settings_version = v;
                         }
@@ -712,6 +716,10 @@ impl eframe::App for EditorApp {
                 .settings_version
                 .load(std::sync::atomic::Ordering::SeqCst);
             if self.applied_settings_version != v {
+                let theme_name = shared.settings.syntect_theme_name();
+                if let Some(ws) = &mut self.root_ws {
+                    ws.editor.highlighter.set_theme(theme_name);
+                }
                 shared.settings.apply(ctx);
                 self.applied_settings_version = v;
                 // If there's a workspace, sync its version too to prevent double-apply

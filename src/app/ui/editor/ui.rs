@@ -93,6 +93,7 @@ impl Editor {
         } else {
             false
         };
+        let theme_name = settings.syntect_theme_name();
 
         let clicked = if self.is_markdown() {
             self.ui_markdown_split(
@@ -102,6 +103,7 @@ impl Editor {
                 current_diagnostics.as_ref(),
                 lsp_client,
                 is_readonly,
+                theme_name,
             )
         } else {
             if self.is_svg() {
@@ -188,6 +190,7 @@ impl Editor {
                 current_diagnostics.as_ref(),
                 lsp_client,
                 is_readonly,
+                theme_name,
             )
         };
 
@@ -208,10 +211,26 @@ impl Editor {
             Some(t) => t,
             None => return,
         };
-        let primary_color = egui::Color32::from_rgb(235, 240, 248);
-        let secondary_color = egui::Color32::from_rgb(195, 205, 220);
-        let status_warn_color = egui::Color32::from_rgb(255, 200, 120);
-        let status_ok_color = egui::Color32::from_rgb(170, 230, 185);
+        let visuals = ui.visuals();
+        // Theme-aware status bar palette closes UAT gap for low contrast in light mode.
+        let primary_color = visuals.text_color();
+        let secondary_color = visuals.weak_text_color();
+        let (diag_error_color, diag_warning_color, status_warn_color, status_ok_color) =
+            if visuals.dark_mode {
+                (
+                    egui::Color32::from_rgb(240, 100, 100),
+                    egui::Color32::from_rgb(250, 180, 80),
+                    egui::Color32::from_rgb(255, 200, 120),
+                    egui::Color32::from_rgb(170, 230, 185),
+                )
+            } else {
+                (
+                    egui::Color32::from_rgb(170, 45, 45),
+                    egui::Color32::from_rgb(155, 95, 20),
+                    egui::Color32::from_rgb(155, 95, 20),
+                    egui::Color32::from_rgb(25, 120, 70),
+                )
+            };
 
         let cursor_text = tab.last_cursor_range.map(|cr| {
             let rc = cr.primary.rcursor;
@@ -289,14 +308,14 @@ impl Editor {
                             ui.add_space(12.0);
                             ui.label(
                                 egui::RichText::new(format!("✕ {}", error_count))
-                                    .color(egui::Color32::from_rgb(240, 100, 100)),
+                                    .color(diag_error_color),
                             );
                         }
                         if warning_count > 0 {
                             ui.add_space(8.0);
                             ui.label(
                                 egui::RichText::new(format!("⚠ {}", warning_count))
-                                    .color(egui::Color32::from_rgb(250, 180, 80)),
+                                    .color(diag_warning_color),
                             );
                         }
 

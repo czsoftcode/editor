@@ -211,7 +211,7 @@ ai-staged-bar-msg = ИИ предложил изменения в проекте
 ai-staged-bar-review = Проверить изменения
 ai-staged-bar-promote-all = Принять все
 ai-staged-modal-hint = Нажмите на файл, чтобы просмотреть различия и принять изменения:
-ai-staged-files = Предложенные изменения (Песочница)
+ai-staged-files = Предложенные изменения
 ai-staged-new = [НОВЫЙ]
 ai-staged-mod = [ИЗМ]
 ai-staged-del = [УДАЛЕН]
@@ -271,11 +271,12 @@ plugins-category-general = ⚙ Общее
 plugins-item-settings = Настройки
 plugins-item-welcome = Обзор
 plugins-welcome-title = Добро пожаловать в Менеджер плагинов
-plugins-welcome-text = PolyCredo Editor использует современную систему плагинов на базе технологии WebAssembly (WASM). Это обеспечивает высокую производительность и максимальную безопасность — плагины работают в изолированной среде (песочнице) и имеют доступ только к тому, что вы явно разрешите.
+plugins-welcome-text = PolyCredo Editor использует современную систему плагинов на базе технологии WebAssembly (WASM). Это обеспечивает высокую производительность и максимальную безопасность — плагины работают в изолированной среде (WASM) и имеют доступ только к тому, что вы явно разрешите.
 plugins-welcome-hint = Выберите категорию или конкретный плагин в списке слева для его настройки.
 plugins-security-info = 🛡 Безопасность: Вы можете управлять черным списком файлов/папок в основных настройках.
 plugins-settings-saved = Настройки плагинов сохранены. Для некоторых изменений рекомендуется перезапуск.
 plugins-placeholder-api-key = API-ключ (например, Gemini, Anthropic)
+plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
 
 ## Gemini AI
 
@@ -311,13 +312,13 @@ file-tree-delete-error = Невозможно удалить: { $reason }
 
 ## Диалог внешнего конфликта
 conflict-title = Файл изменён извне
-conflict-message = Файл «{ $name }» был изменён (вероятно, при переносе из песочницы), но в редакторе есть несохранённые изменения.
+conflict-message = Файл «{ $name }» был изменён вне редактора, но в редакторе есть несохранённые изменения.
 conflict-choose = Выберите, какую версию вы хотите сохранить:
-conflict-load-disk = Перезаписать из песочницы
-conflict-keep-editor = Сохранить из проекта
+conflict-load-disk = Загрузить с диска
+conflict-keep-editor = Сохранить версию редактора
 conflict-dismiss = Отмена
-conflict-hover-disk = Отменить несохранённые изменения в редакторе и загрузить версию, только что перенесённую из песочницы
-conflict-hover-keep = Оставить текущие изменения в редакторе; версия из песочницы на диске будет перезаписана при следующем сохранении (Ctrl+S)
+conflict-hover-disk = Отменить несохранённые изменения в редакторе и загрузить версию, изменённую на диске
+conflict-hover-keep = Оставить текущие изменения в редакторе; версия на диске будет перезаписана при следующем сохранении (Ctrl+S)
 conflict-hover-dismiss = Закрыть уведомление без внесения изменений
 
 md-open-external = ↗ Открыть во внешнем браузере
@@ -333,7 +334,7 @@ settings-conflict-message = Настройки были обновлены в д
 settings-conflict-reload = Перезагрузить
 settings-conflict-keep = Продолжить редактирование
 
-## Диалог синхронизации удаления в песочнице
+## AI Chat
 ai-chat-title = AI Chat Assistant
 ai-chat-label-response = Response:
 ai-chat-loading = AI is thinking…
@@ -348,57 +349,6 @@ ai-chat-label-system-prompt = System Prompt:
 ai-chat-default-prompt = Expert Rust Developer.
 command-name-plugin-ai-chat = Plugin: Ask AI Agent
 command-name-plugin-ollama = Plugin: Ask Ollama
-command-name-open-file = Open File
-command-name-project-search = Search in Project
-command-name-build = Build
-command-name-run = Run
-command-name-save = Save Current File
-command-name-close-tab = Close Current Tab
-command-name-new-project = New Project
-command-name-open-project = Open Project (in new window)
-command-name-open-folder = Open Folder (in this window)
-command-name-toggle-left = Toggle File Panel
-command-name-toggle-right = Toggle AI Panel
-command-name-toggle-build = Toggle Build Terminal
-command-name-toggle-float = Toggle Floating AI Panel
-command-name-show-about = About
-command-name-show-settings = Settings
-command-name-quit = Quit PolyCredo Editor
-command-name-plugin-hello = Plugin: Say Hello
-command-name-plugin-gemini = Plugin: Ask Gemini
-plugins-title = Plugin Manager
-plugins-list-label = Plugins List
-plugins-no-selection = Select a plugin from the list on the left
-plugins-enabled-label = Enable this plugin
-plugins-config-label = Plugin Configuration:
-plugins-unknown-agent = Unknown Agent
-plugins-category-ai = 🤖 AI Agents
-plugins-category-general = ⚙ General
-plugins-item-settings = Settings
-plugins-item-welcome = Overview
-plugins-welcome-title = Welcome to Plugin Manager
-plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (WASM) and only have access to what you explicitly authorize.
-plugins-welcome-hint = Select a category or a specific plugin from the list on the left to configure it.
-plugins-security-info = 🛡 Security: You can manage the file/directory blacklist in the main Settings.
-plugins-settings-saved = Plugin settings saved. Restart recommended for some changes.
-plugins-placeholder-api-key = API Key (e.g. Gemini, Anthropic)
-plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
-command-name-show-plugins = Plugins
-ai-chat-title = AI Chat Assistant
-ai-chat-label-response = Response:
-ai-chat-loading = AI is thinking…
-ai-chat-label-prompt = Your prompt:
-ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
-ai-chat-btn-send = Send
-ai-chat-btn-new = New Thread
-ai-chat-settings-title = AI Settings
-ai-chat-label-language = Language:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = System Prompt:
-ai-chat-default-prompt = Expert Rust Developer.
-command-name-plugin-gemini = Plugin: Ask Gemini
-command-name-plugin-ollama = Plugin: Ask Ollama
-command-name-plugin-ai-chat = Plugin: Ask AI Agent
 
 ## Support Modal
 support-modal-title = Поддержать разработку PolyCredo

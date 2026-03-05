@@ -21,19 +21,9 @@ btn-clean = ✖ Clean
 btn-create-deb = Create .deb
 hover-create-deb = Ein Entwicklungs-.deb-Paket mit Build-Nummer erstellen
 btn-run-profile = ▶ Run Profile...
-btn-git-profile =  Git...
+btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Edit
 runner-none = No profiles defined.
-## Dependency Wizard
-dep-wizard-title = Dependency Installation Wizard
-dep-wizard-install-question = Do you want to download and install { $tool } to { $path }?
-dep-wizard-install-cmd-question = Do you want to start the installation of { $tool } using a system command?
-dep-wizard-btn-install = Install
-dep-wizard-btn-run-cmd = Start Installation (requires sudo)
-dep-wizard-status-downloading = Downloading...
-dep-wizard-status-running = Installing...
-dep-wizard-status-success = Installation successful!
-dep-wizard-status-error = Installation error: { $error }
 
 ## Git-Operationen
 git-add-all = git add .
@@ -88,6 +78,17 @@ lsp-installing = Installiere rust-analyzer...
 lsp-install-success = rust-analyzer wurde erfolgreich installiert. LSP wird neu gestartet...
 lsp-install-error = Installation fehlgeschlagen: { $error }
 
+## Find References (Shift+F12)
+lsp-references-heading = Referenzen
+lsp-references-searching = Suche nach Referenzen...
+lsp-references-none = Keine Referenzen gefunden.
+lsp-references-found =
+    { $count ->
+        [one] 1 Referenz gefunden.
+       *[other] { $count } Referenzen gefunden.
+    }
+lsp-references-error = LSP: Fehler bei der Suche nach Referenzen.
+
 ## Terminal
 terminal-unavailable = Terminal ist nicht verfügbar.
 terminal-retry = Erneut versuchen
@@ -122,7 +123,6 @@ command-name-show-settings = Einstellungen
 command-name-quit = PolyCredo Editor beenden
 command-name-plugin-hello = Plugin: Hallo sagen
 command-name-plugin-gemini = Plugin: Gemini fragen
-command-name-show-plugins = Pluginy
 
 ## Schnelles Öffnen (Ctrl+P)
 file-picker-heading = Datei öffnen
@@ -178,6 +178,8 @@ ai-hover-checking = Verfügbarkeit der KI-CLI-Werkzeuge wird geprüft…
 ai-hover-start = Startet { $tool } (`{ $cmd }`) im Terminal
 ai-hover-missing = Befehl `{ $cmd }` nicht in PATH gefunden. Werkzeug installieren und ↻ klicken.
 ai-btn-start = ▶ Starten
+ai-diff-heading = Vorgeschlagene KI-Änderungen überprüfen
+ai-diff-new-file = Neue Datei vorgeschlagen
 ai-plugin-bar-label = KI:
 ai-plugin-bar-settings = ⚙
 ai-plugin-bar-start-hover = KI-Chat mit ausgewähltem Plugin starten
@@ -201,10 +203,8 @@ ai-promotion-success = Die Änderungen wurden erfolgreich in das Projekt überno
 ai-promotion-all-success = Erfolgreich { $count } Dateien in das Projekt übertragen.
 ai-promotion-failed = Änderungen konnten nicht angewendet werden: { $error }
 
-## Synchronisierung vor dem Start von AI
-
 ## Plugin-Berechtigungen
-plugin-auth-bar-msg = Das Plugin „{ $name }“ beantragt Internetzugriff ({ $hosts }).
+plugin-auth-bar-msg = Das Plugin „{ $name }" beantragt Internetzugriff ({ $hosts }).
 plugin-auth-bar-allow = Zulassen und Starten
 plugin-auth-bar-deny = Ablehnen
 
@@ -223,6 +223,10 @@ settings-light-variant-warm-ivory = Warmes Elfenbein
 settings-light-variant-cool-gray = Kühles Grau
 settings-light-variant-sepia = Sepia
 settings-auto-show-diff = KI-Änderungsvorschau automatisch öffnen
+settings-conflict-title = Einstellungen geändert
+settings-conflict-message = Einstellungen wurden in einem anderen Fenster aktualisiert. Neu laden oder aktuellen Entwurf beibehalten?
+settings-conflict-reload = Neu laden
+settings-conflict-keep = Weiter bearbeiten
 settings-diff-mode = KI-Diff-Layout
 settings-diff-inline = Zusammengefügt (+ / -)
 settings-diff-side-by-side = Nebeneinander
@@ -240,10 +244,6 @@ settings-blacklist-hint = Unterstützt Muster wie *.env, secret/*. Sperrt automa
 settings-blacklist-add = Muster hinzufügen
 settings-suggested-patterns = Empfohlene Muster:
 
-## Pluginy
-plugins-title = Plugin-Manager
-plugins-config-label = Plugin-Konfiguration:
-plugins-unknown-agent = Unbekannter Agent
 ## Plugins
 plugins-title = Plugin-Manager
 plugins-list-label = Plugin-Liste
@@ -261,9 +261,24 @@ plugins-welcome-hint = Wählen Sie eine Kategorie oder ein bestimmtes Plugin aus
 plugins-security-info = 🛡 Sicherheit: Sie können die Datei/Ordner-Blacklist in den Haupteinstellungen verwalten.
 plugins-settings-saved = Plugin-Einstellungen gespeichert. Neustart bei einigen Änderungen empfohlen.
 plugins-placeholder-api-key = API-Schlüssel (z. B. Gemini, Anthropic)
+plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
 command-name-show-plugins = Plugins
 
-## Gemini AI
+## AI Chat
+ai-chat-title = AI Chat Assistant
+ai-chat-label-response = Response:
+ai-chat-loading = AI is thinking…
+ai-chat-label-prompt = Your prompt:
+ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
+ai-chat-btn-send = Send
+ai-chat-btn-new = New Thread
+ai-chat-settings-title = AI Settings
+ai-chat-label-language = Language:
+ai-chat-btn-reset = Reset
+ai-chat-label-system-prompt = System Prompt:
+ai-chat-default-prompt = Expert Rust Developer.
+command-name-plugin-ai-chat = Plugin: Ask AI Agent
+command-name-plugin-ollama = Plugin: Ask Ollama
 
 ## Semantische Indexierung (RAG)
 semantic-indexing-title = Semantische Projektindexierung
@@ -294,10 +309,10 @@ file-tree-delete-error = Löschen nicht möglich: { $reason }
 
 ## Dialog für externen Konflikt
 conflict-title = Datei extern geändert
-conflict-message = Die Datei „{ $name }" wurde geändert (extern geändert), hat aber ungespeicherte Änderungen im Editor.
+conflict-message = Die Datei „{ $name }" wurde außerhalb des Editors geändert, hat aber ungespeicherte Änderungen im Editor.
 conflict-choose = Wählen Sie, welche Version Sie behalten möchten:
 conflict-load-disk = Von Festplatte laden
-conflict-keep-editor = Aus Projekt beibehalten
+conflict-keep-editor = Editor-Version beibehalten
 conflict-dismiss = Abbrechen
 conflict-hover-disk = Nicht gespeicherte Editor-Änderungen verwerfen und die auf der Festplatte geänderte Version laden
 conflict-hover-keep = In Arbeit befindliche Änderungen im Editor behalten; die Version auf der Festplatte wird beim nächsten Speichern (Strg+S) überschrieben
@@ -311,100 +326,22 @@ svg-modal-title = SVG-Datei
 svg-modal-body = Diese Datei ist ein SVG-Bild. Möchten Sie sie im Systembetrachter öffnen oder als XML-Text bearbeiten?
 svg-modal-edit = Als Text bearbeiten
 
-settings-conflict-title = Einstellungen geändert
-settings-conflict-message = Einstellungen wurden in einem anderen Fenster aktualisiert. Neu laden oder aktuellen Entwurf beibehalten?
-settings-conflict-reload = Neu laden
-settings-conflict-keep = Weiter bearbeiten
-
-panel-runners = Runners
-btn-run-profile = Run Profile...
-btn-edit-profiles = Edit
-runner-none = None
-
-## Find References (Shift+F12)
-lsp-references-heading = Referenzen
-lsp-references-searching = Suche nach Referenzen...
-lsp-references-none = Keine Referenzen gefunden.
-lsp-references-found =
-    { $count ->
-        [one] 1 Referenz gefunden.
-       *[other] { $count } Referenzen gefunden.
-    }
-lsp-references-error = LSP: Fehler bei der Suche nach Referenzen.
-
-ai-diff-heading = Vorgeschlagene KI-Änderungen überprüfen
-ai-diff-new-file = Neue Datei vorgeschlagen
-ai-chat-title = AI Chat Assistant
-ai-chat-label-response = Response:
-ai-chat-loading = AI is thinking…
-ai-chat-label-prompt = Your prompt:
-ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
-ai-chat-btn-send = Send
-ai-chat-btn-new = New Thread
-ai-chat-settings-title = AI Settings
-ai-chat-label-language = Language:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = System Prompt:
-ai-chat-default-prompt = Expert Rust Developer.
-command-name-plugin-ai-chat = Plugin: Ask AI Agent
-command-name-plugin-ollama = Plugin: Ask Ollama
-command-name-open-file = Open File
-command-name-project-search = Search in Project
-command-name-build = Build
-command-name-run = Run
-command-name-save = Save Current File
-command-name-close-tab = Close Current Tab
-command-name-new-project = New Project
-command-name-open-project = Open Project (in new window)
-command-name-open-folder = Open Folder (in this window)
-command-name-toggle-left = Toggle File Panel
-command-name-toggle-right = Toggle AI Panel
-command-name-toggle-build = Toggle Build Terminal
-command-name-toggle-float = Toggle Floating AI Panel
-command-name-show-about = About
-command-name-show-settings = Settings
-command-name-quit = Quit PolyCredo Editor
-command-name-plugin-hello = Plugin: Say Hello
-command-name-plugin-gemini = Plugin: Ask Gemini
-plugins-title = Plugin Manager
-plugins-list-label = Plugins List
-plugins-no-selection = Select a plugin from the list on the left
-plugins-enabled-label = Enable this plugin
-plugins-config-label = Plugin Configuration:
-plugins-unknown-agent = Unknown Agent
-plugins-category-ai = 🤖 AI Agents
-plugins-category-general = ⚙ General
-plugins-item-settings = Settings
-plugins-item-welcome = Overview
-plugins-welcome-title = Welcome to Plugin Manager
-plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (WASM) and only have access to what you explicitly authorize.
-plugins-welcome-hint = Select a category or a specific plugin from the list on the left to configure it.
-plugins-security-info = 🛡 Security: You can manage the file/directory blacklist in the main Settings.
-plugins-settings-saved = Plugin settings saved. Restart recommended for some changes.
-plugins-placeholder-api-key = API Key (e.g. Gemini, Anthropic)
-plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
-command-name-show-plugins = Plugins
-ai-chat-title = AI Chat Assistant
-ai-chat-label-response = Response:
-ai-chat-loading = AI is thinking…
-ai-chat-label-prompt = Your prompt:
-ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
-ai-chat-btn-send = Send
-ai-chat-btn-new = New Thread
-ai-chat-settings-title = AI Settings
-ai-chat-label-language = Language:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = System Prompt:
-ai-chat-default-prompt = Expert Rust Developer.
-command-name-plugin-gemini = Plugin: Ask Gemini
-command-name-plugin-ollama = Plugin: Ask Ollama
-command-name-plugin-ai-chat = Plugin: Ask AI Agent
-
 ## Support Modal
 support-modal-title = PolyCredo-Entwicklung unterstützen
 support-modal-body = PolyCredo Editor wird mit einer Vision von Privatsphäre, Geschwindigkeit und sicherer KI-Assistenten-Integration entwickelt. Wenn Ihnen das Projekt gefällt, wären wir für jede Unterstützung dankbar. Ihre Beiträge helfen uns, mehr Zeit für die Entwicklung neuer Funktionen und die Wartung aufzuwenden.
 support-modal-github = Auf GitHub folgen
 support-modal-donate = Zur Entwicklung beitragen
 semantic-indexing-btn-stop = Indizierung stoppen
+
+## Dependency Wizard
+dep-wizard-title = Dependency Installation Wizard
+dep-wizard-install-question = Do you want to download and install { $tool } to { $path }?
+dep-wizard-install-cmd-question = Do you want to start the installation of { $tool } using a system command?
+dep-wizard-btn-install = Install
+dep-wizard-btn-run-cmd = Start Installation (requires sudo)
+dep-wizard-status-downloading = Downloading...
+dep-wizard-status-running = Installing...
+dep-wizard-status-success = Installation successful!
+dep-wizard-status-error = Installation error: { $error }
 
 dep-wizard-appimagetool-desc = ...

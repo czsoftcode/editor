@@ -28,7 +28,6 @@ impl FileTree {
         expand_to: &Option<PathBuf>,
         git_statuses: &HashMap<PathBuf, GitVisualStatus>,
         i18n: &crate::i18n::I18n,
-        is_sandbox: bool,
     ) {
         let visuals = ui.visuals();
         let text_color = ui.visuals().text_color();
@@ -58,7 +57,6 @@ impl FileTree {
                         expand_to,
                         git_statuses,
                         i18n,
-                        is_sandbox,
                     );
                 }
             });
@@ -111,8 +109,8 @@ impl FileTree {
                 }
             });
         } else {
-            // Lazy calculate line count for files in sandbox
-            if is_sandbox && node.line_count.is_none() {
+            // Lazy calculate line count for files
+            if node.line_count.is_none() {
                 if let Ok(content) = std::fs::read_to_string(&node.path) {
                     node.line_count = Some(content.lines().count());
                 } else {
@@ -129,8 +127,7 @@ impl FileTree {
             let mut is_large = false;
             let mut is_very_large = false;
             let mut rounded_count = 0;
-            if is_sandbox
-                && let Some(count) = node.line_count
+            if let Some(count) = node.line_count
                 && count >= 500
             {
                 file_color = if visuals.dark_mode {

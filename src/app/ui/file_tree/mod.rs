@@ -93,7 +93,6 @@ impl FileTree {
         &mut self,
         ui: &mut eframe::egui::Ui,
         i18n: &crate::i18n::I18n,
-        is_sandbox: bool,
     ) -> FileTreeResult {
         let mut result = FileTreeResult::default();
 
@@ -122,7 +121,6 @@ impl FileTree {
                 &expand_to,
                 &self.git_statuses,
                 i18n,
-                is_sandbox,
             );
         }
 

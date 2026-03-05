@@ -25,8 +25,29 @@ pub fn render_bottom_panel(
 
     if ws.build_terminal_float {
         let mut is_open = true;
+        let label = ws
+            .build_terminal
+            .as_ref()
+            .map(|terminal| {
+                crate::app::ui::terminal::terminal_mode_label_for_workdir(
+                    &terminal.working_dir,
+                    &ws.sandbox.root,
+                    &ws.root_path,
+                )
+            })
+            .unwrap_or_else(|| {
+                crate::app::ui::terminal::terminal_mode_label(
+                    ws.sandbox_mode_enabled,
+                    &ws.root_path,
+                )
+            });
+        let build_title = format!(
+            "{} — {}",
+            i18n.get("panel-build"),
+            label
+        );
         let win = StandardTerminalWindow::new(
-            i18n.get("build-terminal-title"),
+            build_title,
             "build_terminal_float_win",
             FocusedPanel::Build,
         );

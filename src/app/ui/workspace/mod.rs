@@ -153,8 +153,14 @@ fn process_pending_sandbox_apply(
     };
     let notify = req.notify_on_apply;
 
+    let was_enabled = ws.sandbox_mode_enabled;
     ws.apply_sandbox_mode_change(ctx, target_mode);
     ws.pending_sandbox_apply = None;
+
+    if target_mode && !was_enabled {
+        let plan = ws.sandbox.get_sync_plan();
+        ws.sandbox_sync_confirmation = Some(plan);
+    }
 
     if notify {
         let message = if target_mode {
@@ -213,6 +219,7 @@ pub(crate) fn render_workspace(
     }
 
     // Background events
+    ws.tick_retired_terminals();
     process_background_events(ws, shared, i18n, ctx);
     refresh_sandbox_staged_cache_if_due(ws);
 
@@ -328,6 +335,7 @@ pub(crate) fn render_workspace(
         || ws.show_about
         || ws.show_semantic_indexing_modal
         || ws.sync_confirmation.is_some()
+        || ws.sandbox_sync_confirmation.is_some()
         || ws.show_sandbox_staged;
 
     let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
@@ -359,8 +367,22 @@ pub(crate) fn render_workspace(
     if ws.ai_viewport_open {
         let viewport_id =
             egui::ViewportId::from_hash_of(format!("ai_viewport_{}", ws.root_path.display()));
-        let ai_label =
-            crate::app::ui::terminal::terminal_mode_label(ws.sandbox_mode_enabled, &ws.root_path);
+        let ai_label = ws
+            .claude_tabs
+            .get(ws.claude_active_tab)
+            .map(|terminal| {
+                crate::app::ui::terminal::terminal_mode_label_for_workdir(
+                    &terminal.working_dir,
+                    &ws.sandbox.root,
+                    &ws.root_path,
+                )
+            })
+            .unwrap_or_else(|| {
+                crate::app::ui::terminal::terminal_mode_label(
+                    ws.sandbox_mode_enabled,
+                    &ws.root_path,
+                )
+            });
         ctx.show_viewport_immediate(
             viewport_id,
             egui::ViewportBuilder::default()

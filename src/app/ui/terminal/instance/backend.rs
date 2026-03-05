@@ -56,6 +56,7 @@ impl Terminal {
                 self.exited = false;
                 self.scroll_drag_acc = 0.0;
                 self.has_unread_output = false;
+                self.exit_requested = false;
             }
             Err(err) => {
                 self.backend = None;
@@ -64,6 +65,7 @@ impl Terminal {
                 self.exited = false;
                 self.scroll_drag_acc = 0.0;
                 self.has_unread_output = false;
+                self.exit_requested = false;
             }
         }
     }

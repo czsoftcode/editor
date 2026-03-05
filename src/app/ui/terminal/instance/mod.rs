@@ -42,6 +42,8 @@ pub struct Terminal {
     pub(crate) is_selecting: bool,
     /// Whether new output has arrived while the terminal was not focused.
     pub(crate) has_unread_output: bool,
+    /// Whether a graceful exit has already been requested.
+    pub(crate) exit_requested: bool,
 }
 
 impl Terminal {
@@ -67,6 +69,7 @@ impl Terminal {
                 path_cache: None,
                 is_selecting: false,
                 has_unread_output: false,
+                exit_requested: false,
             },
             Err(err) => Self {
                 id,
@@ -81,6 +84,7 @@ impl Terminal {
                 path_cache: None,
                 is_selecting: false,
                 has_unread_output: false,
+                exit_requested: false,
             },
         }
     }
@@ -98,6 +102,31 @@ impl Terminal {
 
     pub fn is_exited(&self) -> bool {
         self.exited
+    }
+
+    pub fn request_graceful_exit(&mut self) {
+        if self.exit_requested || self.exited {
+            return;
+        }
+        if let Some(backend) = &mut self.backend {
+            backend.process_command(egui_term::BackendCommand::Write(b"exit\n".to_vec()));
+            self.exit_requested = true;
+        }
+    }
+
+    pub fn tick_background(&mut self) {
+        if let Some(pty_receiver) = &self.pty_receiver {
+            for _ in 0..config::TERMINAL_MAX_EVENTS_PER_FRAME {
+                match pty_receiver.try_recv() {
+                    Ok((_, PtyEvent::Exit)) => {
+                        self.exited = true;
+                        break;
+                    }
+                    Ok(_) => {}
+                    Err(_) => break,
+                }
+            }
+        }
     }
 
     pub fn ui(
@@ -461,7 +490,7 @@ impl Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        if !self.exited
+        if !self.exited && !self.exit_requested
             && let Some(backend) = &mut self.backend
         {
             backend.process_command(egui_term::BackendCommand::Write(

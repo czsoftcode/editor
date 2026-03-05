@@ -78,6 +78,7 @@ pub struct WorkspaceState {
     pub next_claude_tab_id: u64,
     pub next_terminal_id: u64,
     pub build_terminal: Option<Terminal>,
+    pub retired_terminals: Vec<Terminal>,
     pub focused_panel: FocusedPanel,
     pub root_path: PathBuf,
     pub show_left_panel: bool,
@@ -159,6 +160,8 @@ pub struct WorkspaceState {
     pub ai_loading: bool,
     pub markdown_cache: egui_commonmark::CommonMarkCache,
     pub sync_confirmation: Option<crate::app::sandbox::SyncPlan>,
+    pub sandbox_sync_confirmation: Option<crate::app::sandbox::SyncPlan>,
+    pub sandbox_sync_rx: Option<mpsc::Receiver<Result<usize, String>>>,
     pub pending_agent_id: Option<String>,
     /// Stable sandbox mode loaded at workspace init; changes apply only after reopen.
     pub sandbox_mode_enabled: bool,
@@ -192,6 +195,18 @@ impl Drop for WorkspaceState {
 }
 
 impl WorkspaceState {
+    pub fn tick_retired_terminals(&mut self) {
+        for terminal in &mut self.retired_terminals {
+            terminal.tick_background();
+        }
+        self.retired_terminals.retain(|terminal| !terminal.is_exited());
+    }
+
+    pub fn retire_terminal(&mut self, mut terminal: Terminal) {
+        terminal.request_graceful_exit();
+        self.retired_terminals.push(terminal);
+    }
+
     pub fn apply_sandbox_mode_change(&mut self, ctx: &egui::Context, target_mode: bool) {
         if self.sandbox_mode_enabled == target_mode {
             return;
@@ -202,23 +217,32 @@ impl WorkspaceState {
         self.file_tree_in_sandbox = target_mode;
 
         let target_root = if target_mode {
-            &self.sandbox.root
+            self.sandbox.root.clone()
         } else {
-            &self.root_path
+            self.root_path.clone()
         };
-        self.file_tree.load(target_root);
+        self.file_tree.load(&target_root);
 
-        let mut new_tabs = Vec::with_capacity(self.claude_tabs.len());
-        for terminal in &self.claude_tabs {
-            let init_command = terminal.init_command.as_deref();
-            new_tabs.push(Terminal::new(terminal.id, ctx, target_root, init_command));
+        let old_tabs = std::mem::take(&mut self.claude_tabs);
+        let mut new_tabs = Vec::with_capacity(old_tabs.len());
+        for terminal in old_tabs {
+            let init_command = terminal.init_command.clone();
+            let id = terminal.id;
+            self.retire_terminal(terminal);
+            new_tabs.push(Terminal::new(
+                id,
+                ctx,
+                &target_root,
+                init_command.as_deref(),
+            ));
         }
         self.claude_tabs = new_tabs;
 
-        if self.build_terminal.is_some() {
+        if let Some(old_terminal) = self.build_terminal.take() {
+            self.retire_terminal(old_terminal);
             self.next_terminal_id += 1;
             self.build_terminal =
-                Some(Terminal::new(self.next_terminal_id, ctx, target_root, None));
+                Some(Terminal::new(self.next_terminal_id, ctx, &target_root, None));
         }
     }
 }

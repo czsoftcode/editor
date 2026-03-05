@@ -40,11 +40,29 @@ pub fn render_ai_panel(
 
     if ws.claude_float {
         let mut is_open = true;
-        let win = StandardTerminalWindow::new(
+        let label = ws
+            .claude_tabs
+            .get(ws.claude_active_tab)
+            .map(|terminal| {
+                crate::app::ui::terminal::terminal_mode_label_for_workdir(
+                    &terminal.working_dir,
+                    &ws.sandbox.root,
+                    &ws.root_path,
+                )
+            })
+            .unwrap_or_else(|| {
+                crate::app::ui::terminal::terminal_mode_label(
+                    ws.sandbox_mode_enabled,
+                    &ws.root_path,
+                )
+            });
+        let float_title = format!(
+            "{} — {}",
             i18n.get("ai-panel-title"),
-            "claude_float_win",
-            FocusedPanel::Claude,
+            label
         );
+        let win =
+            StandardTerminalWindow::new(float_title, "claude_float_win", FocusedPanel::Claude);
 
         let (interacted, res) = win.show(
             ctx,
@@ -317,7 +335,12 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
         TabBarAction::New => {
             let id = ws.next_claude_tab_id;
             ws.next_claude_tab_id += 1;
-            let root = ws.sandbox.root.clone();
+            let root = crate::app::ui::terminal::terminal_working_dir(
+                ws.sandbox_mode_enabled,
+                &ws.sandbox.root,
+                &ws.root_path,
+            )
+            .to_path_buf();
             ws.claude_tabs.push(Terminal::new(id, ctx, &root, None));
             ws.claude_active_tab = ws.claude_tabs.len() - 1;
         }

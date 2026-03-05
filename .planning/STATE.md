@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1.0
-milestone_name: Sandbox Removal
-status: defining
-stopped_at: null
-last_updated: "2026-03-05T22:00:00Z"
-last_activity: 2026-03-05 — Milestone v1.1.0 started
+milestone: v1.0
+milestone_name: milestone
+status: planning
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-03-05T20:54:57.505Z"
+last_activity: 2026-03-05 — Roadmap created (phases 9-12)
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05 after v1.1.0 start)
 
 **Core value:** Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí být minimální.
-**Current focus:** Milestone v1.1.0 — Sandbox Removal
+**Current focus:** Phase 9 — Core Sandbox Logic & Settings Removal
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 9 of 12 (Core Sandbox Logic & Settings Removal)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-05 — Milestone v1.1.0 started
+Status: Ready to plan
+Last activity: 2026-03-05 — Roadmap created (phases 9-12)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -44,6 +44,7 @@ Progress: [░░░░░░░░░░] 0%
 ### Decisions
 
 Key decisions logged in PROJECT.md Key Decisions table.
+- [Phase 09]: Kept sandbox.rs — removing it breaks too many dependent modules; Settings sandbox_mode removed with migration
 
 ### Known Tech Debt
 
@@ -61,6 +62,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T21:10:00Z
-Stopped at: Milestone v1.0.6 archived
-Resume file: —
+Last session: 2026-03-05T20:54:57.495Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: None

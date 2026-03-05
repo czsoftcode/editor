@@ -263,6 +263,10 @@ settings-light-variant-sepia = Sepia
 settings-auto-show-diff = Automaticky otvárať náhľad zmien AI
 settings-safe-mode = Bezpečný režim (Projekt iba na čítanie)
 settings-safe-mode-hint = Pri zapnutí sú zobrazenia a build prepnuté na Sandbox a nie je možné priamo ukladať do projektu.
+settings-safe-mode-tooltip = Vypnuté: pracujete priamo v koreňovom adresári projektu a terminály bežia v koreňovom adresári. Zmena sa prejaví po znovuotevrení projektu.
+settings-safe-mode-terminal-note = Po zmene režimu sa terminálové procesy po znovuotevrení projektu spustia znova.
+settings-sandbox-toast-off = Sandbox režim je vypnutý. Zmena sa prejaví po znovuotevrení projektu.
+settings-sandbox-toast-on = Sandbox režim je zapnutý. Po znovuotevrení sa terminály spustia v sandboxe.
 settings-diff-mode = Zobrazenie AI Diffu
 settings-diff-inline = Zlúčené (+ / -)
 settings-diff-side-by-side = Vedľa seba
@@ -352,6 +356,35 @@ sandbox-delete-title = Súbor zmazaný v sandboxe
 sandbox-delete-msg = Súbor „{ $name }" bol zmazaný v AI sandboxe, ale v projekte stále existuje. Čo si želáte urobiť?
 sandbox-delete-keep-project = Ponechať v projekte (obnoviť do sandboxu)
 sandbox-delete-also-project = Zmazať aj v projekte
+
+## Sandbox sandbox-off / staged / sync dialóg
+settings-sandbox-off-title = Vypnúť sandbox režim?
+settings-sandbox-off-message = Chystáte sa vypnúť sandbox režim. Terminály aj strom súborov sa prepnú do koreňa projektu.
+settings-sandbox-off-warning = Varovanie: zmeny sa budú zapisovať priamo do projektových súborov.
+settings-sandbox-off-blocked = Sandbox režim nemožno vypnúť, kým sú v sandboxe nevyriešené zmeny. Najprv ich preneste.
+settings-sandbox-apply-prompt = Je otvorený iný dialóg. Aplikovať zmenu sandboxu hneď, alebo ju odložiť?
+settings-sandbox-apply-now = Aplikovať hneď
+settings-sandbox-apply-defer = Odložiť
+settings-sandbox-remap-prompt = Sandbox režim bol prepnutý. Premapovať otvorené súbory podľa nového koreňa?
+settings-sandbox-remap-apply = Premapovať taby
+settings-sandbox-remap-skip = Nepremapovávať
+settings-sandbox-persist-actions = Nastavenia sa nepodarilo uložiť. Aplikovať dočasne, alebo vrátiť späť?
+settings-sandbox-persist-revert = Vrátiť
+settings-sandbox-persist-keep = Ponechať dočasne
+settings-sandbox-persist-unsaved = Nastavenia sú aplikované dočasne a nie sú uložené.
+settings-sandbox-persist-reverted = Nastavenia boli vrátené do posledného uloženého stavu.
+sandbox-sync-title = Synchronizovať projekt do sandboxu?
+sandbox-sync-msg = Sandbox režim bol zapnutý. Chcete preniesť najnovšie súbory z projektu do sandboxu?
+sandbox-sync-to-sandbox = Aktualizovať Sandbox ({ $count } novších v projekte)
+sandbox-sync-nothing = V projekte nie sú novšie súbory na prenesenie.
+sandbox-sync-btn-sync = Synchronizovať
+sandbox-sync-btn-skip = Preskočiť
+sandbox-sync-success = Sandbox bol aktualizovaný ({ $count } súborov).
+sandbox-sync-error = Synchronizácia sandboxu zlyhala: { $error }
+settings-conflict-title = Nastavenia zmenené
+settings-conflict-message = Nastavenia boli aktualizované v inom okne. Načítať najnovšie hodnoty, alebo pokračovať v úprave?
+settings-conflict-reload = Načítať
+settings-conflict-keep = Pokračovať v úprave
 
 ## Find References (Shift+F12)
 lsp-references-heading = Referencie

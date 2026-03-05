@@ -245,6 +245,10 @@ settings-light-variant-sepia = Sepia
 settings-auto-show-diff = KI-Änderungsvorschau automatisch öffnen
 settings-safe-mode = Sicherer Modus (Projekt schreibgeschützt)
 settings-safe-mode-hint = Wenn aktiviert, wechseln Dateibaum und Build zum Sandbox-Modus, und direktes Speichern im Projekt ist blockiert.
+settings-safe-mode-tooltip = Aus: Arbeiten direkt im Projektstamm und Terminals laufen im Projektstamm. Gilt nach erneutem Öffnen des Projekts.
+settings-safe-mode-terminal-note = Nach dem Moduswechsel werden Terminal-Prozesse nach erneutem Öffnen des Projekts neu gestartet.
+settings-sandbox-toast-off = Sandbox-Modus ausgeschaltet. Die Änderung gilt nach erneutem Öffnen des Projekts.
+settings-sandbox-toast-on = Sandbox-Modus eingeschaltet. Terminals starten nach dem erneuten Öffnen im Sandbox-Modus.
 settings-diff-mode = KI-Diff-Layout
 settings-diff-inline = Zusammengefügt (+ / -)
 settings-diff-side-by-side = Nebeneinander
@@ -332,6 +336,35 @@ svg-open-external = ⧉ Vorschau im Betrachter öffnen
 svg-modal-title = SVG-Datei
 svg-modal-body = Diese Datei ist ein SVG-Bild. Möchten Sie sie im Systembetrachter öffnen oder als XML-Text bearbeiten?
 svg-modal-edit = Als Text bearbeiten
+
+## Sandbox OFF / Staged / Sync Dialog
+settings-sandbox-off-title = Sandbox-Modus deaktivieren?
+settings-sandbox-off-message = Sie sind dabei, den Sandbox-Modus zu deaktivieren. Alle Terminals und der Dateibaum wechseln zum Projektstamm.
+settings-sandbox-off-warning = Warnung: Änderungen werden direkt in die Projektdateien geschrieben.
+settings-sandbox-off-blocked = Der Sandbox-Modus kann nicht deaktiviert werden, solange noch ausstehende Änderungen vorhanden sind. Lösen Sie diese zuerst.
+settings-sandbox-apply-prompt = Ein anderer Dialog ist geöffnet. Sandbox-Änderung jetzt anwenden oder verschieben?
+settings-sandbox-apply-now = Jetzt anwenden
+settings-sandbox-apply-defer = Verschieben
+settings-sandbox-remap-prompt = Sandbox-Modus wurde gewechselt. Offene Dateien auf den neuen Stamm umzuordnen?
+settings-sandbox-remap-apply = Tabs umordnen
+settings-sandbox-remap-skip = Beibehalten
+settings-sandbox-persist-actions = Einstellungen konnten nicht gespeichert werden. Vorübergehend anwenden oder zurücksetzen?
+settings-sandbox-persist-revert = Zurücksetzen
+settings-sandbox-persist-keep = Vorübergehend beibehalten
+settings-sandbox-persist-unsaved = Einstellungen sind vorübergehend angewendet und noch nicht gespeichert.
+settings-sandbox-persist-reverted = Einstellungen wurden auf den letzten gespeicherten Zustand zurückgesetzt.
+sandbox-sync-title = Projekt in Sandbox synchronisieren?
+sandbox-sync-msg = Sandbox-Modus wurde aktiviert. Neueste Projektdateien in die Sandbox übertragen?
+sandbox-sync-to-sandbox = Sandbox aktualisieren ({ $count } neuere im Projekt)
+sandbox-sync-nothing = Keine neueren Dateien im Projekt zum Übertragen.
+sandbox-sync-btn-sync = Jetzt synchronisieren
+sandbox-sync-btn-skip = Überspringen
+sandbox-sync-success = Sandbox aktualisiert ({ $count } Datei(en) synchronisiert).
+sandbox-sync-error = Sandbox-Synchronisierung fehlgeschlagen: { $error }
+settings-conflict-title = Einstellungen geändert
+settings-conflict-message = Einstellungen wurden in einem anderen Fenster aktualisiert. Neu laden oder aktuellen Entwurf beibehalten?
+settings-conflict-reload = Neu laden
+settings-conflict-keep = Weiter bearbeiten
 
 ## Dialog zur Synchronisation des Löschens in der Sandbox
 sandbox-delete-title = Datei in der Sandbox gelöscht

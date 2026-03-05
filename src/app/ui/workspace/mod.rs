@@ -153,9 +153,42 @@ fn process_pending_sandbox_apply(
     };
     let notify = req.notify_on_apply;
 
+    let from_root = if ws.sandbox_mode_enabled {
+        ws.sandbox.root.clone()
+    } else {
+        ws.root_path.clone()
+    };
+    let to_root = if target_mode {
+        ws.sandbox.root.clone()
+    } else {
+        ws.root_path.clone()
+    };
+
     let was_enabled = ws.sandbox_mode_enabled;
     ws.apply_sandbox_mode_change(ctx, target_mode);
     ws.pending_sandbox_apply = None;
+
+    if from_root != to_root && !ws.editor.tabs.is_empty() {
+        ws.pending_tab_remap = Some(crate::app::ui::workspace::state::TabRemapRequest {
+            from_root,
+            to_root,
+        });
+        ws.toasts.push(Toast::info_with_actions(
+            i18n.get("settings-sandbox-remap-prompt"),
+            vec![
+                ToastAction::new(
+                    "settings-sandbox-remap-apply",
+                    ToastActionKind::SandboxRemapTabs,
+                ),
+                ToastAction::new(
+                    "settings-sandbox-remap-skip",
+                    ToastActionKind::SandboxSkipRemap,
+                ),
+            ],
+        ));
+    } else {
+        ws.pending_tab_remap = None;
+    }
 
     if target_mode && !was_enabled {
         let plan = ws.sandbox.get_sync_plan();

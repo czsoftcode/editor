@@ -68,6 +68,11 @@ pub struct SettingsConflict {
     pub new_settings: crate::settings::Settings,
 }
 
+pub struct TabRemapRequest {
+    pub from_root: PathBuf,
+    pub to_root: PathBuf,
+}
+
 pub struct WorkspaceState {
     pub file_tree: FileTree,
     pub editor: Editor,
@@ -127,6 +132,7 @@ pub struct WorkspaceState {
     pub pending_sandbox_apply: Option<SandboxApplyRequest>,
     pub sandbox_persist_failure: Option<SandboxPersistFailure>,
     pub sandbox_persist_decision: Option<bool>,
+    pub pending_tab_remap: Option<TabRemapRequest>,
     pub ai_tool_available: HashMap<String, bool>,
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<String, bool>>>,
     pub ai_tool_last_check: std::time::Instant,

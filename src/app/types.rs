@@ -203,6 +203,8 @@ pub(crate) enum ToastActionKind {
     SandboxApplyLater,
     SandboxPersistRevert,
     SandboxPersistKeep,
+    SandboxRemapTabs,
+    SandboxSkipRemap,
 }
 
 #[derive(Clone, Debug)]

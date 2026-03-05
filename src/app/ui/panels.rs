@@ -306,6 +306,21 @@ pub(super) fn render_toasts(
             ToastActionKind::SandboxPersistKeep => {
                 ws.sandbox_persist_decision = Some(true);
             }
+            ToastActionKind::SandboxRemapTabs => {
+                if let Some(req) = ws.pending_tab_remap.take() {
+                    let summary =
+                        ws.editor
+                            .remap_tabs_for_root_change(&req.from_root, &req.to_root);
+                    if let Some(expand_to) = summary.expand_to {
+                        ws.file_tree.request_reload_and_expand(&expand_to);
+                    } else {
+                        ws.file_tree.request_reload();
+                    }
+                }
+            }
+            ToastActionKind::SandboxSkipRemap => {
+                ws.pending_tab_remap = None;
+            }
         }
     }
 }

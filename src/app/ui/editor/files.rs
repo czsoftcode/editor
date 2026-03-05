@@ -224,4 +224,128 @@ impl Editor {
             }
         }
     }
+
+    pub fn remap_tabs_for_root_change(
+        &mut self,
+        from_root: &std::path::Path,
+        to_root: &std::path::Path,
+    ) -> TabRemapSummary {
+        let mut remapped = 0;
+        let mut missing = 0;
+        let mut reload_paths: Vec<PathBuf> = Vec::new();
+
+        for tab in &mut self.tabs {
+            let Ok(rel_path) = tab.path.strip_prefix(from_root) else {
+                continue;
+            };
+            let new_path = to_root.join(rel_path);
+            let exists = new_path.exists();
+
+            tab.path = new_path.clone();
+            tab.canonical_path = new_path
+                .canonicalize()
+                .unwrap_or_else(|_| new_path.clone());
+            tab.deleted = !exists;
+
+            if exists && !tab.modified {
+                reload_paths.push(new_path);
+            } else if !exists {
+                missing += 1;
+            }
+
+            remapped += 1;
+        }
+
+        for path in reload_paths {
+            self.reload_path_from_disk(&path);
+        }
+
+        let expand_to = self
+            .active_tab
+            .and_then(|idx| self.tabs.get(idx))
+            .map(|tab| tab.path.clone())
+            .filter(|path| path.exists());
+
+        self.update_search();
+        self.scroll_to_active = true;
+
+        TabRemapSummary {
+            remapped,
+            missing,
+            expand_to,
+        }
+    }
+
+}
+
+pub struct TabRemapSummary {
+    pub remapped: usize,
+    pub missing: usize,
+    pub expand_to: Option<PathBuf>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_root(label: &str) -> PathBuf {
+        let mut dir = std::env::temp_dir();
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        dir.push(format!("polycredo_editor_test_{}_{}_{}", label, stamp, std::process::id()));
+        dir
+    }
+
+    fn write_file(path: &PathBuf, content: &str) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(path, content).unwrap();
+    }
+
+    #[test]
+    fn test_remap_tabs_reloads_when_target_exists() {
+        let old_root = temp_root("old");
+        let new_root = temp_root("new");
+        let rel = PathBuf::from("src/lib.rs");
+        let old_path = old_root.join(&rel);
+        let new_path = new_root.join(&rel);
+
+        write_file(&old_path, "old");
+        write_file(&new_path, "new");
+
+        let mut editor = Editor::new();
+        editor.open_file(&old_path);
+
+        let summary = editor.remap_tabs_for_root_change(&old_root, &new_root);
+        let tab = editor.tabs.first().unwrap();
+
+        assert_eq!(summary.remapped, 1);
+        assert_eq!(summary.missing, 0);
+        assert_eq!(tab.path, new_path);
+        assert!(!tab.deleted);
+        assert_eq!(tab.content, "new");
+    }
+
+    #[test]
+    fn test_remap_tabs_marks_missing_when_target_absent() {
+        let old_root = temp_root("old_missing");
+        let new_root = temp_root("new_missing");
+        let rel = PathBuf::from("src/main.rs");
+        let old_path = old_root.join(&rel);
+
+        write_file(&old_path, "old");
+
+        let mut editor = Editor::new();
+        editor.open_file(&old_path);
+
+        let summary = editor.remap_tabs_for_root_change(&old_root, &new_root);
+        let tab = editor.tabs.first().unwrap();
+
+        assert_eq!(summary.remapped, 1);
+        assert_eq!(summary.missing, 1);
+        assert!(tab.deleted);
+    }
 }

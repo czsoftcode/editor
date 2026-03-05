@@ -4,7 +4,7 @@ pub mod render;
 pub mod theme;
 
 use self::input::terminal_key_bytes;
-use self::theme::terminal_theme_for_visuals;
+use self::theme::terminal_theme_for_visuals_with_focus;
 use crate::config;
 use alacritty_terminal::grid::Dimensions;
 use eframe::egui;
@@ -211,7 +211,7 @@ impl Terminal {
         let terminal = {
             let backend = self.backend.as_mut()?;
             TerminalView::new(ui, backend)
-                .set_theme(terminal_theme_for_visuals(ui.visuals()))
+                .set_theme(terminal_theme_for_visuals_with_focus(ui.visuals(), focused))
                 .set_focus(focused && !self.exited)
                 .set_font(term_font)
                 .set_size(egui::Vec2::new(term_width, term_height))
@@ -399,12 +399,12 @@ impl Terminal {
             let cursor_fill = if visuals.dark_mode {
                 visuals.panel_fill.gamma_multiply(0.85)
             } else {
-                egui::Color32::from_rgb(205, 198, 186)
+                egui::Color32::from_rgb(190, 182, 166)
             };
             let overlay_fill = if visuals.dark_mode {
                 egui::Color32::from_black_alpha(60)
             } else {
-                egui::Color32::from_rgba_premultiplied(216, 210, 198, 160)
+                egui::Color32::from_rgba_premultiplied(0, 0, 0, 0)
             };
             let cursor_stroke = if visuals.dark_mode {
                 visuals.widgets.active.fg_stroke.color.gamma_multiply(1.1)
@@ -414,7 +414,7 @@ impl Terminal {
                     .noninteractive
                     .fg_stroke
                     .color
-                    .gamma_multiply(0.75)
+                    .gamma_multiply(0.9)
             };
 
             if let Some(rect) = cursor_rect {

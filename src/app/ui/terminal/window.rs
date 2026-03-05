@@ -33,8 +33,6 @@ impl StandardTerminalWindow {
         let mut interacted = false;
         let mut result = None;
 
-        // AI i build floating terminál sdílí StandardTerminalWindow, proto fill nesmí být hardcoded tmavý.
-        let viewer_bg = ctx.style().visuals.panel_fill;
         let screen_rect = ctx.screen_rect();
         let max_w = screen_rect.width() * 0.9;
         let max_h = screen_rect.height() * 0.9;
@@ -49,7 +47,6 @@ impl StandardTerminalWindow {
             .collapsible(true)
             .vscroll(false)
             .open(open)
-            .frame(egui::Frame::window(&ctx.style()).fill(viewer_bg))
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 0.0;

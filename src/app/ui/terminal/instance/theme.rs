@@ -127,6 +127,26 @@ pub(crate) fn terminal_theme_for_visuals(visuals: &egui::Visuals) -> TerminalThe
     TerminalTheme::new(Box::new(terminal_palette(visuals)))
 }
 
+pub(crate) fn terminal_theme_for_visuals_with_focus(
+    visuals: &egui::Visuals,
+    focused: bool,
+) -> TerminalTheme {
+    if focused || visuals.dark_mode {
+        return terminal_theme_for_visuals(visuals);
+    }
+
+    let mut palette = terminal_palette(visuals);
+    // Neaktivni terminal v light modu: jen lehce zesvetlit text, pozadi nemenit.
+    let tone = parse_hex_rgb(&palette.background);
+    palette.foreground = blend_hex(&palette.foreground, tone, 0.15);
+    palette.dim_foreground = blend_hex(&palette.dim_foreground, tone, 0.15);
+    palette.bright_foreground = palette
+        .bright_foreground
+        .as_ref()
+        .map(|color| blend_hex(color, tone, 0.12));
+    TerminalTheme::new(Box::new(palette))
+}
+
 #[cfg(test)]
 mod tests {
     use super::terminal_theme_for_visuals;

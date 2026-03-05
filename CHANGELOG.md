@@ -1,3 +1,9 @@
+## [1.0.3-dev] - 2026-03-05
+
+### Changed
+- **Floating Terminal Frame**: Floating terminal windows now use the default window frame styling, matching StandardModal borders.
+- **Inactive Terminal Text (Light Mode)**: Unfocused terminal text is subtly lightened (~15%) to reduce glare without losing readability.
+
 ## [1.0.2-dev] - 2026-03-05
 
 ### Added

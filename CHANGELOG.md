@@ -1,3 +1,23 @@
+## [1.1.0-dev] - 2026-03-06
+
+### Removed
+- **Sandbox režim**: Kompletní odstranění sandbox režimu ze všech vrstev aplikace (fáze 9–12):
+  - **Settings**: Odebrání `sandbox_mode` z konfigurace, migrace existujících nastavení.
+  - **Typy a struktury**: Odstranění sandbox struktur z `types.rs`, `state/mod.rs` a `sandbox.rs`.
+  - **UI**: Odebrání sandbox modálu, settings bloku, build bar labelu, gitignore filtru a `is_sandbox` parametru z file tree.
+  - **Editor a terminál**: Odstranění sandbox logiky z editor files, editor UI a terminálových instancí.
+  - **Watcher a migrace**: Odebrání sandbox filtru z watcheru a sandbox komentářů z migrace.
+  - **Pluginy**: Přejmenování `sandbox_root` na `project_root` v plugin registry, `exec_in_sandbox` na `exec` v AI tools a WASM pluginech.
+  - **i18n**: Odebrání všech sandbox i18n klíčů ze všech lokalizací (cs, en, de, ru, sk) a aktualizace sandbox-zmiňujících hodnot.
+
+### Fixed
+- **Build bar**: Odstranění přebytečného separátoru a zachování git barev ve file tree.
+- **WASM pluginy**: Přestavba pluginů pro přejmenování `exec` a oprava opětovného spouštění chyb pluginů.
+- **Compile warnings**: Odstranění 3 varování (nepoužitý import, parametry).
+
+### Changed
+- **Metadata**: Aktualizace autora na `stkremen@kremenservices.cz` a copyright na `(c) Copyright 2026 Kremen Services s.r.o.` v packager a deb metadatech.
+
 ## [1.0.6-dev] - 2026-03-05
 
 ### Added

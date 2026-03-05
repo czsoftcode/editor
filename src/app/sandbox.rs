@@ -183,6 +183,29 @@ impl Sandbox {
         Ok(())
     }
 
+    /// Applies a precomputed sync plan from project to sandbox.
+    pub fn sync_plan_to_sandbox(&self, plan: &SyncPlan) -> Result<usize, String> {
+        let mut copied = 0;
+        for rel_path in &plan.to_sandbox {
+            let src = self.project_root.join(rel_path);
+            let dst = self.root.join(rel_path);
+            if !src.exists() {
+                return Err(format!(
+                    "Missing source file for sync: {}",
+                    rel_path.display()
+                ));
+            }
+            if let Some(parent) = dst.parent()
+                && !parent.exists()
+            {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            fs::copy(&src, &dst).map_err(|e| e.to_string())?;
+            copied += 1;
+        }
+        Ok(copied)
+    }
+
     /// Checks if a path should be ignored during sandbox sync from project.
     fn is_ignored_in_project(path: &Path) -> bool {
         path.components().any(|c| {
@@ -278,5 +301,45 @@ impl Sandbox {
         let mut staged: Vec<PathBuf> = staged_set.into_iter().collect();
         staged.sort();
         staged
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Sandbox, SyncPlan};
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn create_temp_dir(label: &str) -> PathBuf {
+        let mut dir = std::env::temp_dir();
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis();
+        dir.push(format!("polycredo_sandbox_test_{}_{}", label, stamp));
+        let _ = fs::create_dir_all(&dir);
+        dir
+    }
+
+    #[test]
+    fn test_sync_plan_to_sandbox_copies_files() {
+        let project_root = create_temp_dir("project");
+        let sandbox_root = create_temp_dir("sandbox");
+
+        let src_path = project_root.join("src").join("main.rs");
+        if let Some(parent) = src_path.parent() {
+            fs::create_dir_all(parent).expect("create project dir");
+        }
+        fs::write(&src_path, "fn main() {}").expect("write source");
+
+        let mut plan = SyncPlan::default();
+        plan.to_sandbox.push(PathBuf::from("src/main.rs"));
+
+        let sandbox = Sandbox::new_with_roots(project_root.clone(), sandbox_root.clone());
+        let copied = sandbox.sync_plan_to_sandbox(&plan).expect("sync plan");
+
+        let dst_path = sandbox_root.join("src").join("main.rs");
+        assert!(dst_path.exists());
+        assert_eq!(copied, 1);
     }
 }

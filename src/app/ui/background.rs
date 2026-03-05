@@ -475,6 +475,28 @@ pub(super) fn process_background_events(
         ws.sandbox_staged_last_refresh = std::time::Instant::now();
     }
 
+    if let Some(rx) = &ws.sandbox_sync_rx
+        && let Ok(result) = rx.try_recv()
+    {
+        match result {
+            Ok(count) => {
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("count", count);
+                ws.toasts
+                    .push(Toast::info(i18n.get_args("sandbox-sync-success", &args)));
+            }
+            Err(err) => {
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("error", err);
+                ws.toasts
+                    .push(Toast::error(i18n.get_args("sandbox-sync-error", &args)));
+            }
+        }
+        ws.sandbox_sync_rx = None;
+        ws.sandbox_staged_dirty = true;
+        ws.sandbox_staged_last_dirty = std::time::Instant::now();
+    }
+
     if ws.external_change_conflict.is_none() {
         let read_only = shared.lock().expect("lock").settings.project_read_only;
         if let Some(err) = ws.editor.try_autosave(

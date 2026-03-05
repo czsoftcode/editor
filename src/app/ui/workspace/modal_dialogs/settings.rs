@@ -52,6 +52,7 @@ fn should_block_sandbox_apply(ws: &WorkspaceState) -> bool {
         || ws.show_support
         || ws.show_semantic_indexing_modal
         || ws.sync_confirmation.is_some()
+        || ws.sandbox_sync_confirmation.is_some()
         || ws.show_sandbox_staged
         || ws.confirm_discard_changes.is_some()
         || ws.pending_plugin_approval.is_some()

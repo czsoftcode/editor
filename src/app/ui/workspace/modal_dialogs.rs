@@ -9,6 +9,7 @@ mod about;
 mod ai_dialogs;
 mod conflict;
 mod plugins;
+mod sandbox;
 mod settings;
 mod terminal;
 
@@ -78,6 +79,9 @@ pub(super) fn render_dialogs(
 
     // 6. AI related dialogs (Promotion success, Sandbox staged files, Sync confirmation)
     ai_dialogs::show(ctx, ws, shared, i18n);
+
+    // 6a. Sandbox sync dialog (after enabling sandbox)
+    sandbox::show(ctx, ws, i18n);
 
     // 7. Global confirm discard dialog
     if crate::app::ui::widgets::modal::render_confirm_discard_dialog(ctx, ws, i18n) {

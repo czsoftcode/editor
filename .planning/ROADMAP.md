@@ -124,4 +124,4 @@ Plans:
 | 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 2/3 | In progress | - |
 | 10. UI & State Cleanup | v1.1.0 | 1/1 | Complete | 2026-03-05 |
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 2/2 | Complete | 2026-03-05 |
-| 12. I18n Cleanup & Integrity Verification | 2/2 | Complete   | 2026-03-05 | - |
+| 12. I18n Cleanup & Integrity Verification | 2/2 | Complete    | 2026-03-05 | - |

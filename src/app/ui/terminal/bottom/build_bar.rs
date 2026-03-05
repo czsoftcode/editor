@@ -11,8 +11,6 @@ pub fn render_build_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate
         ui.strong(i18n.get("panel-build"));
         ui.separator();
 
-        ui.separator();
-
         // Profile Dropdown
         let combo = egui::ComboBox::from_id_salt("runner_select_bottom")
             .selected_text(i18n.get("btn-run-profile"))

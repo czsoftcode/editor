@@ -118,7 +118,7 @@ impl FileTree {
                 }
             }
 
-            let mut file_color = resolve_file_tree_git_color(
+            let file_color = resolve_file_tree_git_color(
                 git_statuses.get(&node.path).copied(),
                 visuals,
                 text_color,
@@ -130,11 +130,6 @@ impl FileTree {
             if let Some(count) = node.line_count
                 && count >= 500
             {
-                file_color = if visuals.dark_mode {
-                    egui::Color32::WHITE
-                } else {
-                    egui::Color32::from_rgb(100, 60, 140)
-                };
                 is_large = true;
                 rounded_count = ((count as f32 / 10.0).round() * 10.0) as usize;
                 if count >= 1000 {

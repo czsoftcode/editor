@@ -87,7 +87,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 **Goal:** Po Save v Settings se sandbox režim aplikuje okamžitě bez reopen, bezpečně pro terminály, file tree, otevřené taby a staged/sync flow
 **Requirements**: SANDBOX-01, SANDBOX-02, SANDBOX-03, SANDBOX-04
 **Depends on:** Phase 4
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — Save/Cancel flow + runtime apply helper + multi-window dispatch

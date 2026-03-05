@@ -51,7 +51,7 @@
 - [x] **SANDBOX-01**: Změna sandbox režimu se po Save aplikuje okamžitě bez reopen a propaguje se do všech oken stejného projektu
 - [x] **SANDBOX-02**: Save/Cancel semantika je zachovaná; OFF vyžaduje potvrzení; persist probíhá před runtime apply; při chybě persistu je nabídnuta volba revert/keep
 - [ ] **SANDBOX-03**: Runtime apply restartuje terminály, přepíná file tree root a přemapuje otevřené taby
-- [ ] **SANDBOX-04**: OFF je blokováno při staged souborech; ON nabízí automatický sync do sandboxu
+- [x] **SANDBOX-04**: OFF je blokováno při staged souborech; ON nabízí automatický sync do sandboxu
 
 ### UI Panely a Widgety
 

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-05T06:13:45.791Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-05T06:50:46.603Z"
 last_activity: 2026-03-05 — Dokončen 05-01 (sandbox Save/Cancel + runtime apply)
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 16
-  completed_plans: 14
+  completed_plans: 16
   percent: 88
 ---
 
@@ -63,6 +63,7 @@ Progress: [█████████░] 88%
 | Phase 04-infrastructure P02 | 10min | 2 tasks | 1 files |
 | Phase 04-infrastructure P02 | 1 min | 2 tasks | 1 files |
 | Phase 05 P01 | 1751 | 3 tasks | 12 files |
+| Phase 05 P03 | 15 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,8 @@ Recent decisions affecting current work:
 - [Phase 04-infrastructure]: Poznamka o restartu terminalu po reopen se renderuje bez small() potlaceni.
 - [Phase 05]: Sandbox apply se planuje pres pending_sandbox_apply a spousti se az po persistu settings.
 - [Phase 05]: Persist failure resit toastem s explicitni volbou revert/keep.
+- [Phase 05]: Blokace OFF pri staged: should_block_sandbox_off_due_to_staged guard v settings modal, draft se vraci na original a show_sandbox_staged = true
+- [Phase 05]: Sync dialog pri ON: sandbox_sync_confirmation = Some(plan) nastaven v process_pending_sandbox_apply — async sync pres spawn_task
 
 ### Roadmap Evolution
 
@@ -115,6 +118,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-05T06:13:20.623Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-03-05T06:50:46.599Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None

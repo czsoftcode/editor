@@ -39,7 +39,7 @@ Archive: `.planning/milestones/v1.0.6-ROADMAP.md`
 - [ ] **Phase 9: Core Sandbox Logic & Settings Removal** - Odstraneni sandbox.rs, Sandbox/SyncPlan struktur a sandbox settings fieldu
 - [x] **Phase 10: UI & State Cleanup** - Odstraneni vsech sandbox UI prvku a sandbox-related state fieldu (completed 2026-03-05)
 - [x] **Phase 11: File Operations, Watcher & Guard Removal** - Odstraneni sandbox logiky z file ops, watcheru a git/build guardu (completed 2026-03-05)
-- [ ] **Phase 12: I18n Cleanup & Integrity Verification** - Odstraneni i18n klicu, verifikace kompilace, testu a funkcnosti
+- [x] **Phase 12: I18n Cleanup & Integrity Verification** - Odstraneni i18n klicu, verifikace kompilace, testu a funkcnosti (completed 2026-03-05)
 
 ## Phase Details
 
@@ -101,7 +101,7 @@ Plans:
   3. `cargo build` projde bez warnigu (zadne unused imports, dead code)
   4. Vsechny existujici testy prochasi (`cargo test`)
   5. Editor se spusti a je plne funkcni — otevirani souboru, editace, terminaly, git, build
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 12-01-PLAN.md — Smazat sandbox i18n klice ze vsech 5 jazyku a aktualizovat sandbox-mentioning hodnoty
@@ -124,4 +124,4 @@ Plans:
 | 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 2/3 | In progress | - |
 | 10. UI & State Cleanup | v1.1.0 | 1/1 | Complete | 2026-03-05 |
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 2/2 | Complete | 2026-03-05 |
-| 12. I18n Cleanup & Integrity Verification | 1/2 | In Progress|  | - |
+| 12. I18n Cleanup & Integrity Verification | 2/2 | Complete   | 2026-03-05 | - |

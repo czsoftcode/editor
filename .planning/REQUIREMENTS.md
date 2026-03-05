@@ -35,8 +35,8 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 
 ### I18n Cleanup
 
-- [ ] **I18N-01**: Všech ~40+ sandbox i18n klíčů odstraněno ze všech 5 jazyků (cs, en, de, ru, sk)
-- [ ] **I18N-02**: Test `all_lang_keys_match_english` stále prochází po odstranění
+- [x] **I18N-01**: Všech ~40+ sandbox i18n klíčů odstraněno ze všech 5 jazyků (cs, en, de, ru, sk)
+- [x] **I18N-02**: Test `all_lang_keys_match_english` stále prochází po odstranění
 
 ### File Operations
 
@@ -102,8 +102,8 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 | UI-06 | Phase 10 | Complete |
 | SET-01 | Phase 9 | Complete |
 | SET-02 | Phase 9 | Complete |
-| I18N-01 | Phase 12 | Pending |
-| I18N-02 | Phase 12 | Pending |
+| I18N-01 | Phase 12 | Complete |
+| I18N-02 | Phase 12 | Complete |
 | FILE-01 | Phase 11 | Complete |
 | FILE-02 | Phase 11 | Complete |
 | FILE-03 | Phase 11 | Complete |

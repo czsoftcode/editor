@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-03-05T23:00:41.000Z"
-last_activity: 2026-03-05 — Completed plan 12-02 (Integrity Verification, warnings fix, sandbox i18n cleanup)
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-06T00:05:00.000Z"
+last_activity: 2026-03-06 — Completed plan 12-01 (i18n sandbox keys removal)
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 8
-  completed_plans: 7
-  percent: 87
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v1.1.0 start)
 ## Current Position
 
 Phase: 12 of 12 (i18n Cleanup & Integrity Verification)
-Plan: 12-02 completed (1 of 2 plans in phase)
+Plan: 12-01 completed (2 of 2 plans in phase)
 Status: Executing
-Last activity: 2026-03-05 — Completed plan 12-02 (Integrity Verification, warnings fix, sandbox i18n cleanup)
+Last activity: 2026-03-06 — Completed plan 12-01 (i18n sandbox keys removal)
 
-Progress: [=========-] 87%
+Progress: [==========] 100%
 
 ## Performance Metrics
 
@@ -58,6 +58,8 @@ Key decisions logged in PROJECT.md Key Decisions table.
 - [Phase 12]: Removed unused re-export and parameters (3 compile warnings fixed)
 - [Phase 12]: Cleaned 43 sandbox i18n keys from non-EN locales, updated sandbox-referencing values
 - [Phase 12]: Removed orphaned settings-safe-mode* and error-safe-mode-blocked keys (unused in code)
+- [Phase 12]: Deleted gemini-default-prompt from all ai.ftl (code uses ai-chat-default-prompt)
+- [Phase 12]: Updated plugins-welcome-text, conflict-* values to remove sandbox terminology
 
 ### Known Tech Debt
 
@@ -75,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T23:00:41Z
-Stopped at: Completed 12-02-PLAN.md
-Resume file: .planning/phases/12-i18n-cleanup-integrity-verification/12-02-SUMMARY.md
+Last session: 2026-03-06T00:05:00Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: .planning/phases/12-i18n-cleanup-integrity-verification/12-01-SUMMARY.md

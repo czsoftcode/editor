@@ -34,8 +34,10 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, shared: &Arc<Mute
                     .unwrap_or_default(),
             )
         };
-        if let Err(e) = plugin_manager.authorize(&id, &config) {
-            ws.plugin_error = Some(format!("Auto-authorization failed: {}", e));
+        if ws.plugin_error.is_none() {
+            if let Err(e) = plugin_manager.authorize(&id, &config) {
+                ws.plugin_error = Some(format!("Auto-authorization failed: {}", e));
+            }
         }
         ui.ctx()
             .request_repaint_after(std::time::Duration::from_millis(100));

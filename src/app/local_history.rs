@@ -63,7 +63,7 @@ impl LocalHistory {
     /// Takes a snapshot of the current content if it differs from the last saved snapshot.
     /// Returns the Path to the snapshot if it was newly created, or None if skipped (unmodified).
     pub fn take_snapshot(&mut self, relative_file_path: &Path, content: &str) -> Option<PathBuf> {
-        // Never take snapshots of the internal .polycredo directory (history, sandbox, etc.)
+        // Never take snapshots of the internal .polycredo directory (history, etc.)
         if relative_file_path
             .components()
             .any(|c| c.as_os_str() == ".polycredo")

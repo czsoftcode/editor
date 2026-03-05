@@ -110,16 +110,12 @@ impl ProjectWatcher {
         let watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
             if let Ok(event) = res {
                 for p in &event.paths {
-                    // Optimized skip check: avoid iterating components and excessive allocations.
-                    // We only want to watch the sandbox inside .polycredo, everything else in .polycredo is ignored.
+                    // Skip the entire .polycredo directory and common high-frequency ignore directories.
                     let is_in_polycredo = p.as_path().to_string_lossy().contains(".polycredo");
-                    let is_in_sandbox =
-                        is_in_polycredo && p.as_path().to_string_lossy().contains("sandbox");
 
-                    let skip = if is_in_polycredo && !is_in_sandbox {
+                    let skip = if is_in_polycredo {
                         true
                     } else {
-                        // Check for common high-frequency ignore directories via components (only for non-polycredo paths)
                         p.components().any(|c| {
                             let s = c.as_os_str().to_string_lossy();
                             matches!(

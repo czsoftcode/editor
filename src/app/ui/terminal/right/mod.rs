@@ -109,14 +109,19 @@ pub fn render_ai_panel(
                     if let Some(terminal) = ws_arg.claude_tabs.get_mut(ws_arg.claude_active_tab) {
                         let terminal_action = terminal.ui(
                             ui,
-                            ws_arg.focused_panel == FocusedPanel::Claude,
+                            ws_arg.focused_panel == FocusedPanel::Claude && !config.dialog_open,
                             config.font_size,
                             i18n,
                         );
                         if let Some(act) = terminal_action {
                             match act {
-                                TerminalAction::Clicked | TerminalAction::Hovered => {
-                                    ws_arg.focused_panel = FocusedPanel::Claude;
+                                TerminalAction::Clicked => {
+                                    if !config.dialog_open {
+                                        ws_arg.focused_panel = FocusedPanel::Claude;
+                                    }
+                                }
+                                TerminalAction::Hovered => {
+                                    /* No-op: hover does not change focus */
                                 }
                                 TerminalAction::Navigate(path, line, col) => {
                                     let abs_path = if path.is_absolute() {
@@ -269,14 +274,13 @@ pub fn render_ai_panel_content(
         );
         match terminal_action {
             Some(TerminalAction::Clicked) => {
-                ws.focused_panel = FocusedPanel::Claude;
-                any_clicked = true;
-            }
-            Some(TerminalAction::Hovered) => {
                 if !config.dialog_open {
                     ws.focused_panel = FocusedPanel::Claude;
                 }
                 any_clicked = true;
+            }
+            Some(TerminalAction::Hovered) => {
+                /* No-op: hover does not change focus */
             }
             Some(TerminalAction::Navigate(path, line, col)) => {
                 let abs_path = if path.is_absolute() {

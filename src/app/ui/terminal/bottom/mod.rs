@@ -15,7 +15,7 @@ use crate::app::ui::terminal::StandardTerminalWindow;
 pub fn render_bottom_panel(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
-    _dialog_open: bool,
+    dialog_open: bool,
     i18n: &crate::i18n::I18n,
 ) -> bool {
     if !ws.show_build_terminal {
@@ -64,13 +64,18 @@ pub fn render_bottom_panel(
                 // BODY: Terminal + Errors
                 let font_size = config::EDITOR_FONT_SIZE * ws_arg.ai_font_scale as f32 / 100.0;
                 if let Some(terminal) = &mut ws_arg.build_terminal {
-                    let is_focused = ws_arg.focused_panel == FocusedPanel::Build;
+                    let is_focused = ws_arg.focused_panel == FocusedPanel::Build && !dialog_open;
                     let action = terminal.ui(ui, is_focused, font_size, i18n);
 
                     if let Some(act) = action {
                         match act {
-                            TerminalAction::Clicked | TerminalAction::Hovered => {
-                                ws_arg.focused_panel = FocusedPanel::Build;
+                            TerminalAction::Clicked => {
+                                if !dialog_open {
+                                    ws_arg.focused_panel = FocusedPanel::Build;
+                                }
+                            }
+                            TerminalAction::Hovered => {
+                                /* No-op: hover does not change focus */
                             }
                             TerminalAction::Navigate(path, line, col) => {
                                 let abs_path = if path.is_absolute() {
@@ -151,14 +156,13 @@ pub fn render_bottom_content(
 
             match action {
                 Some(TerminalAction::Clicked) => {
-                    ws.focused_panel = FocusedPanel::Build;
-                    interacted = true;
-                }
-                Some(TerminalAction::Hovered) => {
                     if !dialog_open {
                         ws.focused_panel = FocusedPanel::Build;
                     }
                     interacted = true;
+                }
+                Some(TerminalAction::Hovered) => {
+                    /* No-op: hover does not change focus */
                 }
                 Some(TerminalAction::Navigate(path, line, col)) => {
                     let abs_path = if path.is_absolute() {

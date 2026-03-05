@@ -12,6 +12,24 @@ pub enum SettingsModalAction {
     Cancel,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SandboxModeChange {
+    None,
+    Enabled,
+    Disabled,
+}
+
+fn sandbox_mode_change(
+    _original: Option<&crate::settings::Settings>,
+    _draft: &crate::settings::Settings,
+) -> SandboxModeChange {
+    unimplemented!("sandbox_mode_change not implemented yet")
+}
+
+fn requires_sandbox_off_confirm(_change: SandboxModeChange) -> bool {
+    unimplemented!("requires_sandbox_off_confirm not implemented yet")
+}
+
 fn light_variant_label_key(variant: &LightVariant) -> &'static str {
     match variant {
         LightVariant::WarmIvory => "settings-light-variant-warm-ivory",
@@ -69,7 +87,10 @@ fn show_light_variant_card(
             });
         });
 
-    let card_id = ui.id().with(("settings-light-variant-card", light_variant_label_key(&variant)));
+    let card_id = ui.id().with((
+        "settings-light-variant-card",
+        light_variant_label_key(&variant),
+    ));
     let response = ui.interact(card.response.rect, card_id, egui::Sense::click());
     if response.clicked() && draft.light_variant != variant {
         draft.light_variant = variant;
@@ -82,19 +103,19 @@ fn theme_fingerprint(settings: &crate::settings::Settings) -> (bool, LightVarian
     (settings.dark_theme, settings.light_variant.clone())
 }
 
-fn should_persist_theme_change(
+fn should_persist_settings_change(
     original: Option<&crate::settings::Settings>,
     draft: &crate::settings::Settings,
 ) -> bool {
-    original
-        .map(|snapshot| theme_fingerprint(snapshot) != theme_fingerprint(draft))
-        .unwrap_or(true)
+    original.map(|snapshot| snapshot != draft).unwrap_or(true)
 }
 
 fn apply_theme_preview(shared: &Arc<Mutex<AppShared>>, draft: &crate::settings::Settings) {
     let mut shared_state = shared.lock().expect("lock");
     shared_state.settings = Arc::new(draft.clone());
-    shared_state.settings_version.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    shared_state
+        .settings_version
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 }
 
 fn restore_runtime_settings_from_snapshot(
@@ -112,10 +133,7 @@ fn restore_runtime_settings_from_snapshot(
     }
 }
 
-pub(super) fn discard_settings_draft(
-    ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
-) {
+pub(super) fn discard_settings_draft(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
     if let Some(snapshot) = ws.settings_original.take() {
         restore_runtime_settings_from_snapshot(shared, snapshot);
     }
@@ -266,15 +284,25 @@ pub fn show(
 
                             ui.separator();
                             ui.add_space(10.0);
-                            ui.checkbox(
-                                &mut draft.project_read_only,
-                                i18n.get("settings-safe-mode"),
+                            let sandbox_mode_row = ui.allocate_ui_with_layout(
+                                egui::vec2(ui.available_width(), ui.spacing().interact_size.y),
+                                egui::Layout::left_to_right(egui::Align::Center),
+                                |ui| {
+                                    ui.checkbox(
+                                        &mut draft.sandbox_mode,
+                                        i18n.get("settings-safe-mode"),
+                                    );
+                                    ui.add_space(4.0);
+                                    ui.label(egui::RichText::new("ℹ").strong());
+                                },
                             );
+                            sandbox_mode_row
+                                .response
+                                .on_hover_text(i18n.get("settings-safe-mode-tooltip"));
                             ui.label(
-                                egui::RichText::new(i18n.get("settings-safe-mode-hint"))
-                                    .small()
-                                    .weak(),
+                                egui::RichText::new(i18n.get("settings-safe-mode-hint")).strong(),
                             );
+                            ui.label(i18n.get("settings-safe-mode-terminal-note"));
                         } else if selected_cat == "editor" {
                             ui.strong(
                                 egui::RichText::new(i18n.get("settings-category-editor"))
@@ -427,11 +455,14 @@ pub fn show(
         match act {
             SettingsModalAction::Save => {
                 if let Some(draft) = ws.settings_draft.take() {
-                    if should_persist_theme_change(ws.settings_original.as_ref(), &draft) {
+                    let original_settings = ws.settings_original.clone();
+                    if should_persist_settings_change(original_settings.as_ref(), &draft) {
                         draft.save();
                     }
+                    let draft_sandbox_mode = draft.sandbox_mode;
                     ws.wizard.path = draft.default_project_path.clone();
                     let lang = draft.lang.clone();
+                    let mut toast: Option<String> = None;
                     let mut s = shared.lock().expect("lock");
 
                     // Immediate agent registry update
@@ -450,9 +481,25 @@ pub fn show(
                         });
                     }
 
+                    if let Some(original) = original_settings.as_ref() {
+                        if original.sandbox_mode && !draft_sandbox_mode {
+                            if !s.sandbox_off_toast_shown {
+                                s.sandbox_off_toast_shown = true;
+                                toast = Some(i18n.get("settings-sandbox-toast-off"));
+                            }
+                        } else if !original.sandbox_mode && draft_sandbox_mode {
+                            toast = Some(i18n.get("settings-sandbox-toast-on"));
+                        }
+                    }
+
                     s.settings = Arc::new(draft);
                     s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
-                    s.settings_version.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    s.settings_version
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    drop(s);
+                    if let Some(message) = toast {
+                        ws.toasts.push(crate::app::types::Toast::info(message));
+                    }
                 }
                 ws.settings_original = None;
                 ws.show_settings = false;
@@ -462,5 +509,47 @@ pub fn show(
                 ws.show_settings = false;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SandboxModeChange, requires_sandbox_off_confirm, sandbox_mode_change};
+    use crate::settings::Settings;
+
+    #[test]
+    fn test_sandbox_mode_change_off_requires_confirm() {
+        let mut original = Settings::default();
+        original.sandbox_mode = true;
+        let mut draft = original.clone();
+        draft.sandbox_mode = false;
+
+        let change = sandbox_mode_change(Some(&original), &draft);
+        assert_eq!(change, SandboxModeChange::Disabled);
+        assert!(requires_sandbox_off_confirm(change));
+    }
+
+    #[test]
+    fn test_sandbox_mode_change_on_no_confirm() {
+        let mut original = Settings::default();
+        original.sandbox_mode = false;
+        let mut draft = original.clone();
+        draft.sandbox_mode = true;
+
+        let change = sandbox_mode_change(Some(&original), &draft);
+        assert_eq!(change, SandboxModeChange::Enabled);
+        assert!(!requires_sandbox_off_confirm(change));
+    }
+
+    #[test]
+    fn test_sandbox_mode_change_none() {
+        let mut original = Settings::default();
+        original.sandbox_mode = true;
+        let mut draft = original.clone();
+        draft.sandbox_mode = true;
+
+        let change = sandbox_mode_change(Some(&original), &draft);
+        assert_eq!(change, SandboxModeChange::None);
+        assert!(!requires_sandbox_off_confirm(change));
     }
 }

@@ -137,6 +137,11 @@ prepare_stage() {
     install -m 0644 "$ASSETS_DIR/polycredo-editor.svg" "$STAGE_DIR/usr/share/icons/hicolor/scalable/apps/polycredo-editor.svg"
     install -m 0644 "$ASSETS_DIR/copyright" "$STAGE_DIR/usr/share/doc/polycredo-editor/copyright"
     install -m 0644 "$ASSETS_DIR/io.github.czsoftcode.editor.metainfo.xml" "$STAGE_DIR/usr/share/metainfo/io.github.czsoftcode.editor.metainfo.xml"
+
+    # Bundled Nerd Font (not available in Debian repos)
+    local font_dir="$STAGE_DIR/usr/share/fonts/truetype/polycredo-nerd"
+    mkdir -p "$font_dir"
+    install -m 0644 "$ASSETS_DIR/fonts/JetBrainsMonoNerdFont-Regular.ttf" "$font_dir/JetBrainsMonoNerdFont-Regular.ttf"
     
     install -m 0755 "$ASSETS_DIR/preinst" "$DEBIAN_DIR/preinst"
     install -m 0755 "$ASSETS_DIR/postinst" "$DEBIAN_DIR/postinst"

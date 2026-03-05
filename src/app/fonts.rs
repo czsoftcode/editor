@@ -84,6 +84,11 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
             }
 
             if is_symbol_font {
+                // Skip bitmap/color emoji fonts (CBDT/CBLC) — egui can only render outline fonts
+                if filename_low.contains("coloremoji") || filename_low.contains("color-emoji") {
+                    eprintln!("fonts: skipping bitmap color font: {}", filename);
+                    continue;
+                }
                 if let Ok(data) = std::fs::read(path) {
                     let name = format!("fallback_sym_{}", filename);
                     if !fonts.font_data.contains_key(&name) {

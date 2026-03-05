@@ -38,7 +38,8 @@ pub fn show(
     let mut action = None;
 
     let modal = StandardModal::new(i18n.get("plugins-title"), "plugins_manager")
-        .with_hint(i18n.get("plugins-security-info"));
+        .with_hint(i18n.get("plugins-security-info"))
+        .with_close_on_click_outside(false);
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER

@@ -16,6 +16,7 @@ pub(crate) struct StandardModal {
     pub min_size: egui::Vec2,
     pub footer_hint: Option<String>,
     pub is_cancel_confirmed: bool,
+    pub close_on_click_outside: bool,
 }
 
 impl StandardModal {
@@ -27,6 +28,7 @@ impl StandardModal {
             min_size: egui::vec2(700.0, 500.0),
             footer_hint: None,
             is_cancel_confirmed: false,
+            close_on_click_outside: true,
         }
     }
 
@@ -47,6 +49,11 @@ impl StandardModal {
         self
     }
 
+    pub fn with_close_on_click_outside(mut self, close: bool) -> Self {
+        self.close_on_click_outside = close;
+        self
+    }
+
     /// Vykreslí modal s jednotným stylem.
     /// Nyní je posouvatelný a má zavírací tlačítko v záhlaví.
     /// Vykreslí poloprůhledný overlay za modalem, který blokuje interakci s pozadím.
@@ -61,29 +68,38 @@ impl StandardModal {
             return None;
         }
 
-        // 1. Vizuální overlay — tmavý backdrop přes celou obrazovku.
-        //    Backdrop je na Order::Middle (nad panely i float okny).
-        //    StandardModal Window je na Order::Foreground (nad backdropem).
+        // 1. Interaktivní backdrop — zachytí eventy za modalem.
+        //    Backdrop je na Order::Middle, Window na Order::Foreground.
         let screen = ctx.screen_rect();
-        let backdrop_layer =
-            egui::LayerId::new(egui::Order::Middle, self.id.with("_backdrop"));
-        ctx.layer_painter(backdrop_layer)
-            .rect_filled(screen, 0.0, egui::Color32::from_black_alpha(120));
+        let backdrop_resp = egui::Area::new(self.id.with("_backdrop"))
+            .order(egui::Order::Middle)
+            .fixed_pos(screen.min)
+            .show(ctx, |ui| {
+                let (_, resp) = ui.allocate_exact_size(
+                    screen.size(),
+                    egui::Sense::click(),
+                );
+                ui.painter().rect_filled(
+                    screen,
+                    0.0,
+                    egui::Color32::from_black_alpha(120),
+                );
+                resp
+            });
 
         // Sledujeme, zda byl modal otevřený v minulém frame.
-        // Pokud ne (právě se otevřel), přeskočíme detekci kliknutí mimo okno,
-        // aby klik, který modal otevřel, nezpůsobil jeho okamžité zavření.
         let was_open_key = self.id.with("_was_open");
         let was_open_prev_frame =
             ctx.data(|d| d.get_temp::<bool>(was_open_key).unwrap_or(false));
         ctx.data_mut(|d| d.insert_temp(was_open_key, true));
 
-        // 2. Window (Order::Middle — vykreslený po backdrop → nad ním)
+        // 2. Window na Order::Foreground (nad backdropem)
         let mut result = None;
 
         let window_response = egui::Window::new(&self.title)
             .id(self.id)
-            .open(show_flag) // Umožní zavření křížkem v záhlaví
+            .order(egui::Order::Foreground)
+            .open(show_flag)
             .collapsible(false)
             .resizable(true)
             .default_size(self.default_size)
@@ -96,19 +112,13 @@ impl StandardModal {
                 result = Some(content(ui));
             });
 
-        // 3. Kliknutí mimo okno → zavřít modal (přeskočíme první frame)
-        if was_open_prev_frame {
-            if let Some(inner) = window_response {
-                let window_rect = inner.response.rect;
-                if ctx.input(|i| i.pointer.any_click()) {
-                    if let Some(pos) = ctx.input(|i| i.pointer.interact_pos()) {
-                        if !window_rect.contains(pos) {
-                            *show_flag = false;
-                        }
-                    }
-                }
+        // 3. Kliknutí na backdrop → zavřít modal (přeskočíme první frame)
+        if self.close_on_click_outside && was_open_prev_frame {
+            if backdrop_resp.inner.clicked() {
+                *show_flag = false;
             }
         }
+        let _ = window_response;
 
         // Pokud se modal zavřel, vyčistíme stav
         if !*show_flag {

@@ -256,7 +256,8 @@ pub fn show(
     let mut show_flag = ws.show_settings;
     let was_open = show_flag;
 
-    let modal = StandardModal::new(i18n.get("settings-title"), "main_settings");
+    let modal = StandardModal::new(i18n.get("settings-title"), "main_settings")
+        .with_close_on_click_outside(false);
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER

@@ -25,22 +25,7 @@ pub fn render_bottom_panel(
 
     if ws.build_terminal_float {
         let mut is_open = true;
-        let label = ws
-            .build_terminal
-            .as_ref()
-            .map(|terminal| {
-                crate::app::ui::terminal::terminal_mode_label_for_workdir(
-                    &terminal.working_dir,
-                    &ws.sandbox.root,
-                    &ws.root_path,
-                )
-            })
-            .unwrap_or_else(|| {
-                crate::app::ui::terminal::terminal_mode_label(
-                    ws.sandbox_mode_enabled,
-                    &ws.root_path,
-                )
-            });
+        let label = "Terminal".to_string();
         let build_title = format!("{} — {}", i18n.get("panel-build"), label);
         let win = StandardTerminalWindow::new(
             build_title,
@@ -56,9 +41,7 @@ pub fn render_bottom_panel(
                 // HEAD: Control Bars
                 build_bar::render_build_bar(ui, ws_arg, i18n);
                 compile_bar::render_compile_bar(ui, ws_arg, i18n);
-                if !ws_arg.build_in_sandbox {
-                    git_bar::render_git_bar(ui, ws_arg, i18n);
-                }
+                git_bar::render_git_bar(ui, ws_arg, i18n);
             },
             |ui, ws_arg, _body_h| {
                 // BODY: Terminal + Errors
@@ -142,9 +125,7 @@ pub fn render_bottom_content(
         // 1. Control Bars (Stacked vertically to save width in narrow side panels)
         build_bar::render_build_bar(ui, ws, i18n);
         compile_bar::render_compile_bar(ui, ws, i18n);
-        if !ws.build_in_sandbox {
-            git_bar::render_git_bar(ui, ws, i18n);
-        }
+        git_bar::render_git_bar(ui, ws, i18n);
 
         ui.separator();
 

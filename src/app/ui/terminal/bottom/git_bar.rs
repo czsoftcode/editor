@@ -21,8 +21,7 @@ pub fn render_git_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate::
             }
             ui.separator();
 
-            let sandbox_clean = ws.sandbox_staged_files.is_empty();
-            ui.add_enabled_ui(sandbox_clean, |ui| {
+            ui.add_enabled_ui(true, |ui| {
                 if ui.button(i18n.get("git-add-all")).clicked() {
                     git_cmd = Some("git add .");
                 }

@@ -46,16 +46,10 @@ pub fn render_ai_bar(
         if start_response.clicked()
             && let Some(agent) = selected_agent
         {
-            let plan = ws.sandbox.get_sync_plan();
-            if plan.is_empty() {
-                let cmd = agent.command.clone();
-                let active = ws.claude_active_tab;
-                if let Some(terminal) = ws.claude_tabs.get_mut(active) {
-                    terminal.send_command(&cmd);
-                }
-            } else {
-                ws.sync_confirmation = Some(plan);
-                ws.pending_agent_id = Some(agent.id.clone());
+            let cmd = agent.command.clone();
+            let active = ws.claude_active_tab;
+            if let Some(terminal) = ws.claude_tabs.get_mut(active) {
+                terminal.send_command(&cmd);
             }
         }
     });

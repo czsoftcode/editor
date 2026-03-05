@@ -119,12 +119,12 @@ impl EditorApp {
         settings.apply(&cc.egui_ctx);
         let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
 
-        let sandbox_root = paths_to_open
+        let project_root_for_registry = paths_to_open
             .first()
-            .map(|p| p.join(".polycredo").join("sandbox"))
-            .unwrap_or_else(|| PathBuf::from("/tmp/polycredo-sandbox"));
+            .cloned()
+            .unwrap_or_else(|| PathBuf::from("/tmp/polycredo-editor"));
 
-        let mut registry = crate::app::registry::Registry::new(sandbox_root);
+        let mut registry = crate::app::registry::Registry::new(project_root_for_registry);
         *registry.plugins.action_sender.lock().expect("lock") = Some(action_tx);
         *registry.plugins.egui_ctx.lock().expect("lock") = Some(cc.egui_ctx.clone());
         registry.init_defaults();
@@ -224,7 +224,6 @@ impl EditorApp {
             is_internal_save: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             registry,
             settings_version: std::sync::atomic::AtomicU64::new(1),
-            sandbox_off_toast_shown: false,
             bert_model: None,
             bert_tokenizer: None,
         }));

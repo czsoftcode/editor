@@ -4,19 +4,11 @@ use crate::app::ui::workspace::state::WorkspaceState;
 use eframe::egui;
 
 pub fn render_compile_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, _i18n: &crate::i18n::I18n) {
-    // Only visible when Sandbox is OFF
-    if ws.build_in_sandbox {
-        return;
-    }
-
     ui.horizontal(|ui| {
         ui.strong("Compile");
         ui.separator();
 
-        // Enabled only when sandbox is clean (no staged files)
-        let sandbox_clean = ws.sandbox_staged_files.is_empty();
-
-        ui.add_enabled_ui(sandbox_clean, |ui| {
+        ui.add_enabled_ui(true, |ui| {
             #[cfg(target_os = "linux")]
             {
                 if ui
@@ -49,13 +41,5 @@ pub fn render_compile_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, _i18n: &cr
             }
         });
 
-        if !sandbox_clean {
-            ui.add_space(4.0);
-            ui.label(
-                egui::RichText::new("⚠ Move files from sandbox first")
-                    .small()
-                    .color(egui::Color32::from_rgb(255, 150, 50)),
-            );
-        }
     });
 }

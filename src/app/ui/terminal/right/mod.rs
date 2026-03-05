@@ -38,16 +38,7 @@ pub fn render_ai_panel(
 
     if ws.claude_float {
         let mut is_open = true;
-        let is_sandbox = ws
-            .claude_tabs
-            .get(ws.claude_active_tab)
-            .map(|terminal| terminal.working_dir.starts_with(&ws.sandbox.root))
-            .unwrap_or(ws.sandbox_mode_enabled);
-        let float_title = if is_sandbox {
-            format!("{} — Sandbox", i18n.get("ai-panel-title"))
-        } else {
-            i18n.get("ai-panel-title").to_string()
-        };
+        let float_title = i18n.get("ai-panel-title").to_string();
         let win =
             StandardTerminalWindow::new(float_title, "claude_float_win", FocusedPanel::Claude);
 
@@ -326,12 +317,7 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
         TabBarAction::New => {
             let id = ws.next_claude_tab_id;
             ws.next_claude_tab_id += 1;
-            let root = crate::app::ui::terminal::terminal_working_dir(
-                ws.sandbox_mode_enabled,
-                &ws.sandbox.root,
-                &ws.root_path,
-            )
-            .to_path_buf();
+            let root = ws.root_path.clone();
             ws.claude_tabs.push(Terminal::new(id, ctx, &root, None));
             ws.claude_active_tab = ws.claude_tabs.len() - 1;
         }

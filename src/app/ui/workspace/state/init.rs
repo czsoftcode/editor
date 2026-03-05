@@ -1,7 +1,8 @@
 use eframe::egui;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use super::{ProjectSearch, WorkspaceState};
@@ -21,17 +22,10 @@ pub fn init_workspace(
 ) -> WorkspaceState {
     let sandbox = crate::app::sandbox::Sandbox::new(&root_path);
     let mut file_tree = FileTree::new();
-    let file_tree_in_sandbox = false; // sandbox_mode removed from Settings (Phase 9)
-    let target_tree_root = if file_tree_in_sandbox {
-        &sandbox.root
-    } else {
-        &root_path
-    };
-    file_tree.load(target_tree_root);
+    file_tree.load(&root_path);
 
     let mut project_watcher = ProjectWatcher::new(&root_path);
     project_watcher.add_path(&sandbox.root);
-    let sandbox_staged_files = sandbox.get_staged_files();
 
     let git_cancel = Arc::new(AtomicBool::new(false));
     let git_branch_rx = fetch_git_branch(&root_path, Arc::clone(&git_cancel));
@@ -134,11 +128,6 @@ pub fn init_workspace(
         settings_original: None,
         plugins_draft: None,
         settings_folder_pick_rx: None,
-        pending_settings_save: None,
-        pending_sandbox_apply: None,
-        sandbox_persist_failure: None,
-        sandbox_persist_decision: None,
-        pending_tab_remap: None,
         ai_tool_available: HashMap::new(),
         ai_tool_check_rx: None,
         ai_tool_last_check: std::time::Instant::now(),
@@ -147,11 +136,8 @@ pub fn init_workspace(
         win_tool_last_check: std::time::Instant::now(),
         external_change_conflict: None,
         dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
-        sandbox_deletion_sync: None,
         terminal_close_requested: None,
         ai_viewport_open: false,
-        promotion_success: None,
-        show_sandbox_staged: false,
         plugin_error: None,
         settings_conflict: None,
         ai_prompt: String::new(),
@@ -203,21 +189,11 @@ pub fn init_workspace(
         ai_response: None,
         ai_loading: false,
         markdown_cache: egui_commonmark::CommonMarkCache::default(),
-        sync_confirmation: None,
-        sandbox_sync_confirmation: None,
-        sandbox_sync_rx: None,
         pending_agent_id: None,
-        sandbox_mode_enabled: false, // sandbox_mode removed from Settings (Phase 9)
-        build_in_sandbox: false, // sandbox_mode removed from Settings (Phase 9)
-        file_tree_in_sandbox,
+        file_tree_in_sandbox: false,
         git_cancel,
         local_history: crate::app::local_history::LocalHistory::new(&root_path),
         sandbox,
-        sandbox_staged_files,
-        sandbox_staged_rx: None,
-        sandbox_staged_dirty: false,
-        sandbox_staged_last_dirty: std::time::Instant::now(),
-        sandbox_staged_last_refresh: std::time::Instant::now(),
         background_io_rx: None,
         applied_settings_version: 0,
         pending_plugin_approval: None,
@@ -236,7 +212,6 @@ fn spawn_semantic_indexer(
     shared: Arc<Mutex<crate::app::types::AppShared>>,
 ) {
     let thread_root = root_path.clone();
-    let thread_sandbox_root = thread_root.join(".polycredo").join("sandbox");
 
     // Load ignore patterns from .gitignore
     let mut blacklist_strings = blacklist;
@@ -266,7 +241,7 @@ fn spawn_semantic_indexer(
     }
 
     std::thread::spawn(move || {
-        println!("[SemanticIndex] Thread started. Virtual Root: Sandbox.");
+        println!("[SemanticIndex] Thread started. Virtual Root: Project.");
 
         {
             let si = si_arc.lock().unwrap();
@@ -280,8 +255,8 @@ fn spawn_semantic_indexer(
         std::thread::sleep(std::time::Duration::from_millis(100));
 
         let mut files = Vec::new();
-        if thread_sandbox_root.exists() {
-            for entry in walkdir::WalkDir::new(&thread_sandbox_root)
+        if thread_root.exists() {
+            for entry in walkdir::WalkDir::new(&thread_root)
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
@@ -289,7 +264,7 @@ fn spawn_semantic_indexer(
                     continue;
                 }
 
-                if let Ok(rel) = entry.path().strip_prefix(&thread_sandbox_root) {
+                if let Ok(rel) = entry.path().strip_prefix(&thread_root) {
                     let path_str = rel.to_string_lossy();
                     let mut is_blacklisted = false;
 
@@ -385,7 +360,7 @@ fn spawn_semantic_indexer(
             }
             ctx.request_repaint();
 
-            let abs_path = thread_sandbox_root.join(rel_path);
+            let abs_path = thread_root.join(rel_path);
             let mtime = std::fs::metadata(&abs_path)
                 .and_then(|m| m.modified())
                 .ok()

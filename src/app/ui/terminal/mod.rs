@@ -76,7 +76,6 @@ mod tests {
         let project_root = std::path::Path::new("/home/user/project");
         let sandbox_root = project_root.join(".polycredo").join("sandbox");
         let label = terminal_mode_label_for_workdir(project_root, &sandbox_root, project_root);
-        assert!(label.contains("Terminal —"));
-        assert!(label.contains("project"));
+        assert_eq!(label, "Terminál");
     }
 }

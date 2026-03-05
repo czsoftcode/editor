@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use eframe::egui;
 
 use super::super::build_runner::run_build_check;
-use super::super::types::{AppShared, FocusedPanel, Toast, ToastAction, ToastActionKind};
+use super::super::types::{AppShared, FocusedPanel, Toast};
 use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{render_file_picker, render_project_search_dialog};
@@ -28,180 +28,6 @@ use crate::tr;
 pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
 use modal_dialogs::render_dialogs;
-
-fn trigger_sandbox_staged_refresh(ws: &mut WorkspaceState) {
-    if ws.sandbox_staged_rx.is_some() {
-        return; // Already scanning
-    }
-    let sandbox = ws.sandbox.root.clone();
-    let project = ws.root_path.clone();
-    let (tx, rx) = std::sync::mpsc::channel();
-    ws.sandbox_staged_rx = Some(rx);
-
-    std::thread::spawn(move || {
-        let sb = crate::app::sandbox::Sandbox::new_with_roots(project, sandbox);
-        let files = sb.get_staged_files();
-        let _ = tx.send(files);
-    });
-}
-
-fn refresh_sandbox_staged_cache_if_due(ws: &mut WorkspaceState) {
-    if !ws.sandbox_staged_dirty {
-        return;
-    }
-
-    // Debounce: Wait at least 1000ms after the LAST change to let things settle.
-    // Also wait at least 3000ms between scans to avoid I/O spam.
-    let debounce_ms = 1000;
-    let min_interval_ms = 3000;
-
-    let time_since_dirty = ws.sandbox_staged_last_dirty.elapsed().as_millis();
-    let time_since_refresh = ws.sandbox_staged_last_refresh.elapsed().as_millis();
-
-    if time_since_dirty >= debounce_ms && time_since_refresh >= min_interval_ms {
-        trigger_sandbox_staged_refresh(ws);
-        ws.sandbox_staged_dirty = false;
-    }
-}
-
-fn process_sandbox_persist_decision(
-    ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
-    i18n: &crate::i18n::I18n,
-    dialog_open: bool,
-) {
-    let Some(keep_temporary) = ws.sandbox_persist_decision.take() else {
-        return;
-    };
-    let Some(failure) = ws.sandbox_persist_failure.take() else {
-        return;
-    };
-
-    if keep_temporary {
-        let lang = failure.draft.lang.clone();
-        let mut s = shared.lock().expect("lock");
-        s.settings = Arc::new(failure.draft.clone());
-        s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
-        let new_version = s
-            .settings_version
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
-            + 1;
-        drop(s);
-
-        ws.pending_sandbox_apply = Some(crate::app::ui::workspace::state::SandboxApplyRequest {
-            target_mode: false, // sandbox_mode removed from Settings (Phase 9)
-            version: new_version,
-            defer_until_clear: dialog_open,
-            force_apply: false,
-            prompted: false,
-            notify_on_apply: true,
-        });
-        ws.toasts
-            .push(Toast::error(i18n.get("settings-sandbox-persist-unsaved")));
-    } else {
-        crate::app::ui::workspace::modal_dialogs::restore_runtime_settings_from_snapshot(
-            shared,
-            failure.original,
-        );
-        ws.pending_sandbox_apply = None;
-        ws.toasts
-            .push(Toast::info(i18n.get("settings-sandbox-persist-reverted")));
-    }
-}
-
-fn process_pending_sandbox_apply(
-    ctx: &egui::Context,
-    ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
-    i18n: &crate::i18n::I18n,
-    dialog_open: bool,
-) {
-    let Some(req) = ws.pending_sandbox_apply.as_mut() else {
-        return;
-    };
-
-    if !crate::app::ui::workspace::state::should_apply_sandbox_request(
-        req.defer_until_clear,
-        dialog_open,
-        req.force_apply,
-    ) {
-        if !req.prompted {
-            ws.toasts.push(Toast::info_with_actions(
-                i18n.get("settings-sandbox-apply-prompt"),
-                vec![
-                    ToastAction::new(
-                        "settings-sandbox-apply-now",
-                        ToastActionKind::SandboxApplyNow,
-                    ),
-                    ToastAction::new(
-                        "settings-sandbox-apply-defer",
-                        ToastActionKind::SandboxApplyLater,
-                    ),
-                ],
-            ));
-            req.prompted = true;
-        }
-        return;
-    }
-
-    let shared_mode = false; // sandbox_mode removed from Settings (Phase 9)
-    let target_mode = if req.target_mode != shared_mode {
-        req.target_mode = shared_mode;
-        shared_mode
-    } else {
-        req.target_mode
-    };
-    let notify = req.notify_on_apply;
-
-    let from_root = if ws.sandbox_mode_enabled {
-        ws.sandbox.root.clone()
-    } else {
-        ws.root_path.clone()
-    };
-    let to_root = if target_mode {
-        ws.sandbox.root.clone()
-    } else {
-        ws.root_path.clone()
-    };
-
-    let was_enabled = ws.sandbox_mode_enabled;
-    ws.apply_sandbox_mode_change(ctx, target_mode);
-    ws.pending_sandbox_apply = None;
-
-    if from_root != to_root && !ws.editor.tabs.is_empty() {
-        ws.pending_tab_remap =
-            Some(crate::app::ui::workspace::state::TabRemapRequest { from_root, to_root });
-        ws.toasts.push(Toast::info_with_actions(
-            i18n.get("settings-sandbox-remap-prompt"),
-            vec![
-                ToastAction::new(
-                    "settings-sandbox-remap-apply",
-                    ToastActionKind::SandboxRemapTabs,
-                ),
-                ToastAction::new(
-                    "settings-sandbox-remap-skip",
-                    ToastActionKind::SandboxSkipRemap,
-                ),
-            ],
-        ));
-    } else {
-        ws.pending_tab_remap = None;
-    }
-
-    if target_mode && !was_enabled {
-        let plan = ws.sandbox.get_sync_plan();
-        ws.sandbox_sync_confirmation = Some(plan);
-    }
-
-    if notify {
-        let message = if target_mode {
-            i18n.get("settings-sandbox-toast-on")
-        } else {
-            i18n.get("settings-sandbox-toast-off")
-        };
-        ws.toasts.push(Toast::info(message));
-    }
-}
 
 pub(crate) fn render_workspace(
     ctx: &egui::Context,
@@ -220,31 +46,20 @@ pub(crate) fn render_workspace(
 
     // Lazy initialization of terminals — only when the respective panel is visible
     if ws.show_right_panel && ws.claude_tabs.is_empty() {
-        let terminal_root = crate::app::ui::terminal::terminal_working_dir(
-            ws.sandbox_mode_enabled,
-            &ws.sandbox.root,
-            &ws.root_path,
-        )
-        .to_path_buf();
         let id = ws.next_claude_tab_id;
         ws.next_claude_tab_id += 1;
         ws.claude_tabs.push(crate::app::ui::terminal::Terminal::new(
             id,
             ctx,
-            &terminal_root,
+            &ws.root_path,
             None,
         ));
     }
     if ws.show_build_terminal && ws.build_terminal.is_none() {
-        let terminal_root = crate::app::ui::terminal::terminal_working_dir(
-            ws.sandbox_mode_enabled,
-            &ws.sandbox.root,
-            &ws.root_path,
-        );
         ws.build_terminal = Some(crate::app::ui::terminal::Terminal::new(
             1,
             ctx,
-            terminal_root,
+            &ws.root_path,
             None,
         ));
     }
@@ -252,7 +67,6 @@ pub(crate) fn render_workspace(
     // Background events
     ws.tick_retired_terminals();
     process_background_events(ws, shared, i18n, ctx);
-    refresh_sandbox_staged_cache_if_due(ws);
 
     // --- REPAINT THROTTLING (Focus-aware) ---
     let is_focused = ctx.input(|i| i.viewport().focused.unwrap_or(true));
@@ -326,7 +140,7 @@ pub(crate) fn render_workspace(
         let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
         if let Some(err) = ws
             .editor
-            .save(i18n, &internal_save, ws.sandbox_mode_enabled)
+            .save(i18n, &internal_save, false)
         {
             ws.toasts.push(Toast::error(err));
         }
@@ -338,12 +152,7 @@ pub(crate) fn render_workspace(
         if let Some(t) = &mut ws.build_terminal {
             t.send_command("cargo build 2>&1");
         }
-        let build_path = crate::app::ui::terminal::terminal_working_dir(
-            ws.sandbox_mode_enabled,
-            &ws.sandbox.root,
-            &ws.root_path,
-        )
-        .to_path_buf();
+        let build_path = ws.root_path.clone();
         ws.build_error_rx = Some(run_build_check(build_path));
         ws.build_errors.clear();
     }
@@ -364,10 +173,7 @@ pub(crate) fn render_workspace(
         || ws.show_settings
         || ws.show_new_project
         || ws.show_about
-        || ws.show_semantic_indexing_modal
-        || ws.sync_confirmation.is_some()
-        || ws.sandbox_sync_confirmation.is_some()
-        || ws.show_sandbox_staged;
+        || ws.show_semantic_indexing_modal;
 
     let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
     render_semantic_indexing_modal(ctx, ws, i18n);
@@ -398,22 +204,7 @@ pub(crate) fn render_workspace(
     if ws.ai_viewport_open {
         let viewport_id =
             egui::ViewportId::from_hash_of(format!("ai_viewport_{}", ws.root_path.display()));
-        let ai_label = ws
-            .claude_tabs
-            .get(ws.claude_active_tab)
-            .map(|terminal| {
-                crate::app::ui::terminal::terminal_mode_label_for_workdir(
-                    &terminal.working_dir,
-                    &ws.sandbox.root,
-                    &ws.root_path,
-                )
-            })
-            .unwrap_or_else(|| {
-                crate::app::ui::terminal::terminal_mode_label(
-                    ws.sandbox_mode_enabled,
-                    &ws.root_path,
-                )
-            });
+        let ai_label = "Terminal".to_string();
         ctx.show_viewport_immediate(
             viewport_id,
             egui::ViewportBuilder::default()
@@ -444,10 +235,7 @@ pub(crate) fn render_workspace(
 
     // --- 3. STATUS BARS ---
     let should_render_info_separator =
-        !ws.sandbox_staged_files.is_empty() || ws.lsp_binary_missing || ws.lsp_install_rx.is_some();
-
-    process_sandbox_persist_decision(ws, shared, i18n, dialog_open_base);
-    process_pending_sandbox_apply(ctx, ws, shared, i18n, dialog_open_base);
+        ws.lsp_binary_missing || ws.lsp_install_rx.is_some();
 
     if should_render_info_separator {
         egui::TopBottomPanel::top("info_bar_separator")
@@ -457,9 +245,7 @@ pub(crate) fn render_workspace(
             });
     }
 
-    render_sandbox_staged_bar(ctx, ws, i18n);
     render_lsp_setup_bar(ctx, ws, i18n);
-    render_sandbox_deletion_sync_dialog(ctx, ws, i18n);
 
     egui::TopBottomPanel::bottom("footer_separator")
         .exact_height(1.0)
@@ -517,7 +303,7 @@ pub(crate) fn render_workspace(
             i18n,
             ws.lsp_client.as_ref(),
             &settings,
-            ws.sandbox_mode_enabled,
+            false,
         );
         if editor_res.clicked {
             ws.focused_panel = FocusedPanel::Editor;
@@ -527,16 +313,9 @@ pub(crate) fn render_workspace(
             && action == crate::app::ui::editor::DiffAction::Accepted
         {
             let path = PathBuf::from(&path_str);
-            let rel_path = path
-                .strip_prefix(&ws.root_path)
-                .unwrap_or(&path)
-                .to_path_buf();
-            let _ = ws.sandbox.promote_file(&rel_path);
             if !ws.editor.tabs.iter().any(|t| t.path == path) {
-                open_file_in_ws(ws, path.clone());
+                open_file_in_ws(ws, path);
             }
-            ws.promotion_success = Some(path);
-            ws.sandbox_staged_dirty = true;
         }
     });
 
@@ -618,37 +397,6 @@ fn render_lsp_setup_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &cra
             }
             if ui.button("\u{00D7}").clicked() {
                 ws.lsp_binary_missing = false;
-            }
-        });
-    });
-}
-
-fn render_sandbox_staged_bar(
-    ctx: &egui::Context,
-    ws: &mut WorkspaceState,
-    i18n: &crate::i18n::I18n,
-) {
-    let staged_files = ws.sandbox_staged_files.clone();
-    if staged_files.is_empty() {
-        return;
-    }
-    egui::TopBottomPanel::top("sandbox_staged_bar").show(ctx, |ui| {
-        ui.horizontal(|ui| {
-            ui.visuals_mut().widgets.noninteractive.bg_fill = egui::Color32::from_rgb(80, 70, 20);
-            ui.label(
-                egui::RichText::new(format!("\u{26A0} {}", i18n.get("ai-staged-bar-msg")))
-                    .color(egui::Color32::from_rgb(200, 120, 0))
-                    .strong(),
-            );
-            ui.label(format!("({})", staged_files.len()));
-            if ui.button(i18n.get("ai-staged-bar-review")).clicked() {
-                ws.show_sandbox_staged = true;
-            }
-            if ui.button(i18n.get("ai-staged-bar-promote-all")).clicked() {
-                for f in staged_files {
-                    let _ = ws.sandbox.promote_file(&f);
-                }
-                ws.sandbox_staged_dirty = true;
             }
         });
     });
@@ -751,21 +499,3 @@ fn render_semantic_indexing_modal(
         });
 }
 
-fn render_sandbox_deletion_sync_dialog(
-    ctx: &egui::Context,
-    ws: &mut WorkspaceState,
-    i18n: &crate::i18n::I18n,
-) {
-    if let Some(rel_path) = ws.sandbox_deletion_sync.clone() {
-        egui::Window::new(i18n.get("sandbox-delete-title")).show(ctx, |ui| {
-            ui.label(format!("File deleted: {}", rel_path.display()));
-            if ui.button("Keep in project").clicked() {
-                ws.sandbox_deletion_sync = None;
-            }
-            if ui.button("Delete from project").clicked() {
-                let _ = std::fs::remove_file(ws.root_path.join(&rel_path));
-                ws.sandbox_deletion_sync = None;
-            }
-        });
-    }
-}

@@ -253,7 +253,7 @@ impl Terminal {
             }
         }
 
-        if response.clicked() || response.has_focus() {
+        if response.clicked() {
             action = Some(TerminalAction::Clicked);
         } else if response.hovered() {
             action = Some(TerminalAction::Hovered);

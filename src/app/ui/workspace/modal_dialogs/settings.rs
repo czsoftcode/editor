@@ -254,6 +254,7 @@ pub fn show(
         .clone()
         .unwrap_or_else(|| "general".to_string());
     let mut show_flag = ws.show_settings;
+    let was_open = show_flag;
 
     let modal = StandardModal::new(i18n.get("settings-title"), "main_settings");
 
@@ -514,6 +515,21 @@ pub fn show(
     });
 
     ws.selected_settings_category = Some(selected_cat);
+
+    // Detekce zavření backdropem nebo křížkem (bez explicitního Save/Cancel)
+    if was_open && !show_flag && !save_requested && !cancel_requested {
+        let has_changes = ws
+            .settings_draft
+            .as_ref()
+            .zip(ws.settings_original.as_ref())
+            .map(|(draft, original)| draft != original)
+            .unwrap_or(false);
+        if has_changes {
+            show_flag = true;
+            ws.confirm_discard_changes = Some("settings_backdrop_close".to_string());
+        }
+    }
+
     ws.show_settings = show_flag;
 
     let mut sandbox_change = ws

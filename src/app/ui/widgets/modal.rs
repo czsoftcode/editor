@@ -49,6 +49,8 @@ impl StandardModal {
 
     /// Vykreslí modal s jednotným stylem.
     /// Nyní je posouvatelný a má zavírací tlačítko v záhlaví.
+    /// Vykreslí poloprůhledný overlay za modalem, který blokuje interakci s pozadím.
+    /// Kliknutí na overlay zavře modal (nastaví show_flag = false).
     pub fn show<R>(
         &self,
         ctx: &egui::Context,
@@ -59,9 +61,27 @@ impl StandardModal {
             return None;
         }
 
+        // 1. Vizuální overlay — tmavý backdrop přes celou obrazovku.
+        //    Backdrop je na Order::Middle (nad panely i float okny).
+        //    StandardModal Window je na Order::Foreground (nad backdropem).
+        let screen = ctx.screen_rect();
+        let backdrop_layer =
+            egui::LayerId::new(egui::Order::Middle, self.id.with("_backdrop"));
+        ctx.layer_painter(backdrop_layer)
+            .rect_filled(screen, 0.0, egui::Color32::from_black_alpha(120));
+
+        // Sledujeme, zda byl modal otevřený v minulém frame.
+        // Pokud ne (právě se otevřel), přeskočíme detekci kliknutí mimo okno,
+        // aby klik, který modal otevřel, nezpůsobil jeho okamžité zavření.
+        let was_open_key = self.id.with("_was_open");
+        let was_open_prev_frame =
+            ctx.data(|d| d.get_temp::<bool>(was_open_key).unwrap_or(false));
+        ctx.data_mut(|d| d.insert_temp(was_open_key, true));
+
+        // 2. Window (Order::Middle — vykreslený po backdrop → nad ním)
         let mut result = None;
 
-        egui::Window::new(&self.title)
+        let window_response = egui::Window::new(&self.title)
             .id(self.id)
             .open(show_flag) // Umožní zavření křížkem v záhlaví
             .collapsible(false)
@@ -72,11 +92,28 @@ impl StandardModal {
             .pivot(egui::Align2::CENTER_CENTER)
             .default_pos(ctx.screen_rect().center())
             .show(ctx, |ui| {
-                // If mouse enters the window, we report it to the caller indirectly
-                // via the fact that we are currently processing this UI.
                 ui.set_min_height(self.min_size.y - 20.0);
                 result = Some(content(ui));
             });
+
+        // 3. Kliknutí mimo okno → zavřít modal (přeskočíme první frame)
+        if was_open_prev_frame {
+            if let Some(inner) = window_response {
+                let window_rect = inner.response.rect;
+                if ctx.input(|i| i.pointer.any_click()) {
+                    if let Some(pos) = ctx.input(|i| i.pointer.interact_pos()) {
+                        if !window_rect.contains(pos) {
+                            *show_flag = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pokud se modal zavřel, vyčistíme stav
+        if !*show_flag {
+            ctx.data_mut(|d| d.remove::<bool>(was_open_key));
+        }
 
         result
     }

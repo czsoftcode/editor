@@ -7,6 +7,8 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
+use eframe::egui;
+
 use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
 use crate::app::build_runner::BuildError;
 use crate::app::lsp::LspClient;
@@ -51,6 +53,8 @@ pub struct SandboxApplyRequest {
     pub version: u64,
     pub defer_until_clear: bool,
     pub force_apply: bool,
+    pub prompted: bool,
+    pub notify_on_apply: bool,
 }
 
 #[derive(Clone)]
@@ -121,6 +125,7 @@ pub struct WorkspaceState {
     pub pending_settings_save: Option<PendingSettingsSave>,
     pub pending_sandbox_apply: Option<SandboxApplyRequest>,
     pub sandbox_persist_failure: Option<SandboxPersistFailure>,
+    pub sandbox_persist_decision: Option<bool>,
     pub ai_tool_available: HashMap<String, bool>,
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<String, bool>>>,
     pub ai_tool_last_check: std::time::Instant,
@@ -183,5 +188,69 @@ impl Drop for WorkspaceState {
     fn drop(&mut self) {
         self.git_cancel
             .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl WorkspaceState {
+    pub fn apply_sandbox_mode_change(&mut self, ctx: &egui::Context, target_mode: bool) {
+        if self.sandbox_mode_enabled == target_mode {
+            return;
+        }
+
+        self.sandbox_mode_enabled = target_mode;
+        self.build_in_sandbox = target_mode;
+        self.file_tree_in_sandbox = target_mode;
+
+        let target_root = if target_mode {
+            &self.sandbox.root
+        } else {
+            &self.root_path
+        };
+        self.file_tree.load(target_root);
+
+        let mut new_tabs = Vec::with_capacity(self.claude_tabs.len());
+        for terminal in &self.claude_tabs {
+            let init_command = terminal.init_command.as_deref();
+            new_tabs.push(Terminal::new(terminal.id, ctx, target_root, init_command));
+        }
+        self.claude_tabs = new_tabs;
+
+        if self.build_terminal.is_some() {
+            self.next_terminal_id += 1;
+            self.build_terminal = Some(Terminal::new(
+                self.next_terminal_id,
+                ctx,
+                target_root,
+                None,
+            ));
+        }
+    }
+}
+
+pub(crate) fn should_apply_sandbox_request(
+    _defer_until_clear: bool,
+    _dialog_open: bool,
+    _force_apply: bool,
+) -> bool {
+    unimplemented!("should_apply_sandbox_request not implemented yet")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_apply_sandbox_request;
+
+    #[test]
+    fn test_should_apply_sandbox_request_blocks_when_deferred() {
+        assert!(!should_apply_sandbox_request(true, true, false));
+    }
+
+    #[test]
+    fn test_should_apply_sandbox_request_allows_when_clear() {
+        assert!(should_apply_sandbox_request(true, false, false));
+    }
+
+    #[test]
+    fn test_should_apply_sandbox_request_forces_apply() {
+        assert!(should_apply_sandbox_request(true, true, true));
     }
 }

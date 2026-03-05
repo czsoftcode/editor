@@ -87,9 +87,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 **Goal:** Po Save v Settings se sandbox režim aplikuje okamžitě bez reopen, bezpečně pro terminály, file tree, otevřené taby a staged/sync flow
 **Requirements**: SANDBOX-01, SANDBOX-02, SANDBOX-03, SANDBOX-04
 **Depends on:** Phase 4
-**Plans:** 3/3 plans complete
+**Plans:** 4 plans (3 original + 1 gap closure)
 
 Plans:
 - [ ] 05-01-PLAN.md — Save/Cancel flow + runtime apply helper + multi-window dispatch
 - [ ] 05-02-PLAN.md — Terminály + file tree + přemapování tabů
 - [ ] 05-03-PLAN.md — Staged blokace OFF + sync při ON
+- [ ] 05-04-PLAN.md — Gap closure: pending_tab_remap cleanup + label-timing dokumentace (SANDBOX-03)

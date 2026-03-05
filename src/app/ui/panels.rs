@@ -230,6 +230,20 @@ pub(super) fn render_toasts(
     i18n: &crate::i18n::I18n,
 ) {
     ws.toasts.retain(|t: &Toast| !t.is_expired());
+
+    // Cleanup: pokud remap toast expiroval bez interakce, pending_tab_remap
+    // nemá žádnou cestu ke zpracování — vymaž ho.
+    if ws.pending_tab_remap.is_some() {
+        let remap_toast_exists = ws.toasts.iter().any(|t| {
+            t.actions
+                .iter()
+                .any(|a| matches!(a.kind, ToastActionKind::SandboxRemapTabs))
+        });
+        if !remap_toast_exists {
+            ws.pending_tab_remap = None;
+        }
+    }
+
     if ws.toasts.is_empty() {
         return;
     }
@@ -308,9 +322,9 @@ pub(super) fn render_toasts(
             }
             ToastActionKind::SandboxRemapTabs => {
                 if let Some(req) = ws.pending_tab_remap.take() {
-                    let summary =
-                        ws.editor
-                            .remap_tabs_for_root_change(&req.from_root, &req.to_root);
+                    let summary = ws
+                        .editor
+                        .remap_tabs_for_root_change(&req.from_root, &req.to_root);
                     if let Some(expand_to) = summary.expand_to {
                         ws.file_tree.request_reload_and_expand(&expand_to);
                     } else {

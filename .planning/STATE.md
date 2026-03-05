@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-03-05T20:54:57.505Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-03-05T21:13:27.049Z"
 last_activity: 2026-03-05 — Roadmap created (phases 9-12)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -45,6 +45,10 @@ Progress: [░░░░░░░░░░] 0%
 
 Key decisions logged in PROJECT.md Key Decisions table.
 - [Phase 09]: Kept sandbox.rs — removing it breaks too many dependent modules; Settings sandbox_mode removed with migration
+- [Phase 09]: Kept sandbox.rs module (Sandbox struct still referenced) - full removal in Phase 10
+- [Phase 09]: Simplified Toast to message-only - removed ToastAction/ToastActionKind entirely
+- [Phase 09]: Semantic indexer now scans project root instead of sandbox root
+- [Phase 09]: Registry::new takes project root instead of sandbox root
 
 ### Known Tech Debt
 
@@ -62,6 +66,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T20:54:57.495Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-03-05T21:13:27.039Z
+Stopped at: Completed 09-02-PLAN.md
 Resume file: None

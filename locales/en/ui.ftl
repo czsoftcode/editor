@@ -250,6 +250,7 @@ settings-sandbox-toast-on = Sandbox mode is ON. Terminals will restart in the sa
 settings-sandbox-off-title = Turn Off Sandbox Mode?
 settings-sandbox-off-message = You are about to disable sandbox mode. This switches all terminals and the file tree to the project root.
 settings-sandbox-off-warning = Warning: edits will affect real project files directly.
+settings-sandbox-off-blocked = Sandbox mode cannot be turned off while there are staged changes. Resolve them first.
 settings-sandbox-apply-prompt = Another dialog is open. Apply the sandbox change now or defer it until dialogs are closed?
 settings-sandbox-apply-now = Apply now
 settings-sandbox-apply-defer = Defer

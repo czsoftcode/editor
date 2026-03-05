@@ -38,6 +38,13 @@ fn requires_sandbox_off_confirm(change: SandboxModeChange) -> bool {
     matches!(change, SandboxModeChange::Disabled)
 }
 
+fn should_block_sandbox_off_due_to_staged(
+    change: SandboxModeChange,
+    staged_files: &[std::path::PathBuf],
+) -> bool {
+    matches!(change, SandboxModeChange::Disabled) && !staged_files.is_empty()
+}
+
 fn should_block_sandbox_apply(ws: &WorkspaceState) -> bool {
     ws.show_plugins
         || ws.show_new_project
@@ -508,10 +515,26 @@ pub fn show(
     ws.selected_settings_category = Some(selected_cat);
     ws.show_settings = show_flag;
 
-    let sandbox_change = ws
+    let mut sandbox_change = ws
         .settings_draft
         .as_ref()
         .map(|draft| sandbox_mode_change(ws.settings_original.as_ref(), draft));
+
+    if let Some(change) = sandbox_change {
+        if should_block_sandbox_off_due_to_staged(change, &ws.sandbox_staged_files) {
+            if let Some(draft) = ws.settings_draft.as_mut()
+                && let Some(original) = ws.settings_original.as_ref()
+            {
+                draft.sandbox_mode = original.sandbox_mode;
+            }
+            ws.show_sandbox_staged = true;
+            ws.toasts.push(crate::app::types::Toast::error(
+                i18n.get("settings-sandbox-off-blocked"),
+            ));
+            sandbox_change = Some(SandboxModeChange::None);
+        }
+    }
+
     let requires_off_confirm = sandbox_change
         .map(requires_sandbox_off_confirm)
         .unwrap_or(false);
@@ -691,6 +714,7 @@ pub fn show(
 mod tests {
     use super::{SandboxModeChange, requires_sandbox_off_confirm, sandbox_mode_change};
     use crate::settings::Settings;
+    use std::path::PathBuf;
 
     #[test]
     fn test_sandbox_mode_change_off_requires_confirm() {
@@ -726,5 +750,53 @@ mod tests {
         let change = sandbox_mode_change(Some(&original), &draft);
         assert_eq!(change, SandboxModeChange::None);
         assert!(!requires_sandbox_off_confirm(change));
+    }
+
+    #[test]
+    fn test_sandbox_off_blocked_when_staged() {
+        let mut original = Settings::default();
+        original.sandbox_mode = true;
+        let mut draft = original.clone();
+        draft.sandbox_mode = false;
+
+        let change = sandbox_mode_change(Some(&original), &draft);
+        let staged_files = vec![PathBuf::from("src/main.rs")];
+
+        assert!(super::should_block_sandbox_off_due_to_staged(
+            change,
+            &staged_files
+        ));
+    }
+
+    #[test]
+    fn test_sandbox_off_not_blocked_without_staged() {
+        let mut original = Settings::default();
+        original.sandbox_mode = true;
+        let mut draft = original.clone();
+        draft.sandbox_mode = false;
+
+        let change = sandbox_mode_change(Some(&original), &draft);
+        let staged_files: Vec<PathBuf> = Vec::new();
+
+        assert!(!super::should_block_sandbox_off_due_to_staged(
+            change,
+            &staged_files
+        ));
+    }
+
+    #[test]
+    fn test_sandbox_on_not_blocked_even_with_staged() {
+        let mut original = Settings::default();
+        original.sandbox_mode = false;
+        let mut draft = original.clone();
+        draft.sandbox_mode = true;
+
+        let change = sandbox_mode_change(Some(&original), &draft);
+        let staged_files = vec![PathBuf::from("src/app.rs")];
+
+        assert!(!super::should_block_sandbox_off_due_to_staged(
+            change,
+            &staged_files
+        ));
     }
 }

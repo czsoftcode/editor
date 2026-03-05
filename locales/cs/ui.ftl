@@ -253,6 +253,7 @@ settings-sandbox-toast-on = Sandbox režim je zapnutý. Terminály se spustí v 
 settings-sandbox-off-title = Vypnout sandbox režim?
 settings-sandbox-off-message = Chystáte se vypnout sandbox režim. Terminály i strom souborů se přepnou do kořene projektu.
 settings-sandbox-off-warning = Varování: změny budou zapisovány přímo do projektových souborů.
+settings-sandbox-off-blocked = Sandbox režim nelze vypnout, dokud jsou v sandboxu nevyřešené změny. Nejprve je přeneste.
 settings-sandbox-apply-prompt = Je otevřený jiný dialog. Aplikovat změnu sandboxu hned, nebo ji odložit?
 settings-sandbox-apply-now = Aplikovat hned
 settings-sandbox-apply-defer = Odložit

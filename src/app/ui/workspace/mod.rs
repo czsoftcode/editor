@@ -81,18 +81,31 @@ pub(crate) fn render_workspace(
 
     // Lazy initialization of terminals — only when the respective panel is visible
     if ws.show_right_panel && ws.claude_tabs.is_empty() {
-        let root = ws.sandbox.root.clone();
+        let terminal_root = crate::app::ui::terminal::terminal_working_dir(
+            ws.sandbox_mode_enabled,
+            &ws.sandbox.root,
+            &ws.root_path,
+        )
+        .to_path_buf();
         let id = ws.next_claude_tab_id;
         ws.next_claude_tab_id += 1;
         ws.claude_tabs.push(crate::app::ui::terminal::Terminal::new(
-            id, ctx, &root, None,
+            id,
+            ctx,
+            &terminal_root,
+            None,
         ));
     }
     if ws.show_build_terminal && ws.build_terminal.is_none() {
+        let terminal_root = crate::app::ui::terminal::terminal_working_dir(
+            ws.sandbox_mode_enabled,
+            &ws.sandbox.root,
+            &ws.root_path,
+        );
         ws.build_terminal = Some(crate::app::ui::terminal::Terminal::new(
             1,
             ctx,
-            &ws.root_path,
+            terminal_root,
             None,
         ));
     }
@@ -170,12 +183,11 @@ pub(crate) fn render_workspace(
     }
 
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        let settings = Arc::clone(&shared.lock().expect("lock").settings);
-        if let Some(err) = ws.editor.save(
-            i18n,
-            &shared.lock().expect("lock").is_internal_save,
-            settings.project_read_only,
-        ) {
+        let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
+        if let Some(err) = ws
+            .editor
+            .save(i18n, &internal_save, ws.sandbox_mode_enabled)
+        {
             ws.toasts.push(Toast::error(err));
         }
     }
@@ -186,11 +198,12 @@ pub(crate) fn render_workspace(
         if let Some(t) = &mut ws.build_terminal {
             t.send_command("cargo build 2>&1");
         }
-        let build_path = if ws.build_in_sandbox {
-            ws.sandbox.root.clone()
-        } else {
-            ws.root_path.clone()
-        };
+        let build_path = crate::app::ui::terminal::terminal_working_dir(
+            ws.sandbox_mode_enabled,
+            &ws.sandbox.root,
+            &ws.root_path,
+        )
+        .to_path_buf();
         ws.build_error_rx = Some(run_build_check(build_path));
         ws.build_errors.clear();
     }
@@ -244,10 +257,12 @@ pub(crate) fn render_workspace(
     if ws.ai_viewport_open {
         let viewport_id =
             egui::ViewportId::from_hash_of(format!("ai_viewport_{}", ws.root_path.display()));
+        let ai_label =
+            crate::app::ui::terminal::terminal_mode_label(ws.sandbox_mode_enabled, &ws.root_path);
         ctx.show_viewport_immediate(
             viewport_id,
             egui::ViewportBuilder::default()
-                .with_title(format!("AI Terminal — {}", ws.root_path.display()))
+                .with_title(format!("{} — {}", i18n.get("ai-panel-title"), ai_label))
                 .with_inner_size([600.0, 500.0]),
             |ctx, _| {
                 egui::CentralPanel::default().show(ctx, |ui| {
@@ -344,6 +359,7 @@ pub(crate) fn render_workspace(
             i18n,
             ws.lsp_client.as_ref(),
             &settings,
+            ws.sandbox_mode_enabled,
         );
         if editor_res.clicked {
             ws.focused_panel = FocusedPanel::Editor;
@@ -414,7 +430,7 @@ pub(crate) fn render_workspace(
         }
     }
 
-    render_toasts(ctx, ws);
+    render_toasts(ctx, ws, i18n);
     open_here_path
 }
 

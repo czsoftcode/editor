@@ -1,4 +1,4 @@
-use super::super::types::{AppShared, FocusedPanel, Toast};
+use super::super::types::{AppShared, FocusedPanel, Toast, ToastActionKind};
 use super::workspace::open_file_in_ws;
 use super::workspace::state::WorkspaceState;
 use crate::config;
@@ -224,7 +224,11 @@ fn render_plugin_bar(
 }
 
 /// Renders toast notifications in the bottom right corner. Removes expired toasts.
-pub(super) fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
+pub(super) fn render_toasts(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    i18n: &crate::i18n::I18n,
+) {
     ws.toasts.retain(|t: &Toast| !t.is_expired());
     if ws.toasts.is_empty() {
         return;
@@ -235,12 +239,13 @@ pub(super) fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
     let toast_h = 40.0_f32;
     let padding = 12.0_f32;
     let start_y = screen.max.y - padding - (toast_h + padding) * ws.toasts.len() as f32;
+    let mut triggered_action: Option<(usize, ToastActionKind)> = None;
 
     egui::Area::new(egui::Id::new("toasts_area"))
         .fixed_pos(egui::pos2(screen.max.x - toast_w - padding, start_y))
         .order(egui::Order::Foreground)
         .show(ctx, |ui| {
-            for toast in &ws.toasts {
+            for (idx, toast) in ws.toasts.iter().enumerate() {
                 let (bg, fg) = if toast.is_error {
                     (
                         egui::Color32::from_rgb(90, 30, 30),
@@ -263,8 +268,42 @@ pub(super) fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
                                 .color(fg)
                                 .size(config::UI_FONT_SIZE),
                         );
+                        if !toast.actions.is_empty() {
+                            ui.add_space(6.0);
+                            ui.horizontal(|ui| {
+                                for action in &toast.actions {
+                                    if ui
+                                        .small_button(i18n.get(action.label_key))
+                                        .clicked()
+                                    {
+                                        triggered_action = Some((idx, action.kind.clone()));
+                                    }
+                                }
+                            });
+                        }
                     });
                 ui.add_space(padding);
             }
         });
+
+    if let Some((idx, action)) = triggered_action {
+        if idx < ws.toasts.len() {
+            ws.toasts.remove(idx);
+        }
+        match action {
+            ToastActionKind::SandboxApplyNow => {
+                if let Some(req) = ws.pending_sandbox_apply.as_mut() {
+                    req.defer_until_clear = false;
+                    req.force_apply = true;
+                }
+            }
+            ToastActionKind::SandboxApplyLater => {
+                if let Some(req) = ws.pending_sandbox_apply.as_mut() {
+                    req.defer_until_clear = true;
+                    req.force_apply = false;
+                }
+            }
+            ToastActionKind::SandboxPersistRevert | ToastActionKind::SandboxPersistKeep => {}
+        }
+    }
 }

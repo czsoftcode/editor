@@ -7,8 +7,6 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
-use eframe::egui;
-
 use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
 use crate::app::build_runner::BuildError;
 use crate::app::lsp::LspClient;
@@ -41,6 +39,30 @@ pub type PendingAskUser = (
     String,
     std::sync::mpsc::Sender<String>,
 );
+
+#[derive(Clone)]
+pub struct PendingSettingsSave {
+    pub sandbox_off_confirmed: bool,
+}
+
+#[derive(Clone)]
+pub struct SandboxApplyRequest {
+    pub target_mode: bool,
+    pub version: u64,
+    pub defer_until_clear: bool,
+    pub force_apply: bool,
+}
+
+#[derive(Clone)]
+pub struct SandboxPersistFailure {
+    pub draft: crate::settings::Settings,
+    pub original: crate::settings::Settings,
+}
+
+#[derive(Clone)]
+pub struct SettingsConflict {
+    pub new_settings: crate::settings::Settings,
+}
 
 pub struct WorkspaceState {
     pub file_tree: FileTree,
@@ -96,6 +118,9 @@ pub struct WorkspaceState {
     pub settings_original: Option<crate::settings::Settings>,
     pub plugins_draft: Option<crate::settings::Settings>,
     pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
+    pub pending_settings_save: Option<PendingSettingsSave>,
+    pub pending_sandbox_apply: Option<SandboxApplyRequest>,
+    pub sandbox_persist_failure: Option<SandboxPersistFailure>,
     pub ai_tool_available: HashMap<String, bool>,
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<String, bool>>>,
     pub ai_tool_last_check: std::time::Instant,
@@ -110,6 +135,7 @@ pub struct WorkspaceState {
     pub promotion_success: Option<PathBuf>,
     pub show_sandbox_staged: bool,
     pub plugin_error: Option<String>,
+    pub settings_conflict: Option<SettingsConflict>,
     pub ai_prompt: String,
     pub ai_history: Vec<String>,
     pub ai_history_index: Option<usize>,
@@ -129,6 +155,8 @@ pub struct WorkspaceState {
     pub markdown_cache: egui_commonmark::CommonMarkCache,
     pub sync_confirmation: Option<crate::app::sandbox::SyncPlan>,
     pub pending_agent_id: Option<String>,
+    /// Stable sandbox mode loaded at workspace init; changes apply only after reopen.
+    pub sandbox_mode_enabled: bool,
     pub build_in_sandbox: bool,
     pub file_tree_in_sandbox: bool,
     pub git_cancel: Arc<AtomicBool>,

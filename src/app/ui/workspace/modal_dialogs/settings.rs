@@ -1,4 +1,4 @@
-use crate::app::types::AppShared;
+use crate::app::types::{AppShared, ToastAction, ToastActionKind};
 use crate::app::ui::background::spawn_task;
 use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::state::WorkspaceState;
@@ -20,14 +20,84 @@ enum SandboxModeChange {
 }
 
 fn sandbox_mode_change(
-    _original: Option<&crate::settings::Settings>,
-    _draft: &crate::settings::Settings,
+    original: Option<&crate::settings::Settings>,
+    draft: &crate::settings::Settings,
 ) -> SandboxModeChange {
-    unimplemented!("sandbox_mode_change not implemented yet")
+    let Some(original) = original else {
+        return SandboxModeChange::None;
+    };
+
+    match (original.sandbox_mode, draft.sandbox_mode) {
+        (true, true) | (false, false) => SandboxModeChange::None,
+        (false, true) => SandboxModeChange::Enabled,
+        (true, false) => SandboxModeChange::Disabled,
+    }
 }
 
-fn requires_sandbox_off_confirm(_change: SandboxModeChange) -> bool {
-    unimplemented!("requires_sandbox_off_confirm not implemented yet")
+fn requires_sandbox_off_confirm(change: SandboxModeChange) -> bool {
+    matches!(change, SandboxModeChange::Disabled)
+}
+
+fn should_block_sandbox_apply(ws: &WorkspaceState) -> bool {
+    ws.show_plugins
+        || ws.show_new_project
+        || ws.show_about
+        || ws.show_support
+        || ws.show_semantic_indexing_modal
+        || ws.sync_confirmation.is_some()
+        || ws.show_sandbox_staged
+        || ws.confirm_discard_changes.is_some()
+        || ws.pending_plugin_approval.is_some()
+        || ws.pending_ask_user.is_some()
+        || ws.external_change_conflict.is_some()
+}
+
+fn show_sandbox_off_confirm(
+    ctx: &egui::Context,
+    i18n: &I18n,
+    id_salt: &std::ffi::OsStr,
+) -> Option<bool> {
+    let mut show_flag = true;
+    let mut decided = None;
+    let modal = StandardModal::new(
+        i18n.get("settings-sandbox-off-title"),
+        format!("sandbox_off_confirm_{}", id_salt.to_string_lossy()),
+    )
+    .with_size(520.0, 260.0);
+
+    modal.show(ctx, &mut show_flag, |ui| {
+        modal.ui_footer_actions(ui, i18n, |f| {
+            if f.button("btn-cancel").clicked() || f.close() {
+                decided = Some(false);
+                return Some(());
+            }
+            if f.button("btn-confirm").clicked() {
+                decided = Some(true);
+                return Some(());
+            }
+            None
+        });
+
+        modal.ui_body(ui, |ui| {
+            ui.add_space(8.0);
+            ui.label(
+                egui::RichText::new(i18n.get("settings-sandbox-off-message"))
+                    .size(14.0)
+                    .line_height(Some(20.0)),
+            );
+            ui.add_space(8.0);
+            ui.label(
+                egui::RichText::new(i18n.get("settings-sandbox-off-warning"))
+                    .color(egui::Color32::from_rgb(255, 210, 140)),
+            );
+        });
+    });
+
+    if !show_flag && decided.is_none() {
+        decided = Some(false);
+    }
+
+    decided
 }
 
 fn light_variant_label_key(variant: &LightVariant) -> &'static str {
@@ -145,7 +215,7 @@ pub fn show(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &I18n,
-    _id_salt: &std::ffi::OsStr,
+    id_salt: &std::ffi::OsStr,
 ) {
     if !ws.show_settings {
         return;
@@ -168,7 +238,8 @@ pub fn show(
         }
     }
 
-    let mut action = None;
+    let mut save_requested = false;
+    let mut cancel_requested = false;
     let mut browse_requested = false;
     let mut selected_cat = ws
         .selected_settings_category
@@ -180,11 +251,13 @@ pub fn show(
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
-        action = modal.ui_footer_actions(ui, i18n, |f| {
+        let _footer_action = modal.ui_footer_actions(ui, i18n, |f| {
             if f.confirm_cancel(ws) {
+                cancel_requested = true;
                 return Some(SettingsModalAction::Cancel);
             }
             if f.save() {
+                save_requested = true;
                 return Some(SettingsModalAction::Save);
             }
             None
@@ -435,6 +508,41 @@ pub fn show(
     ws.selected_settings_category = Some(selected_cat);
     ws.show_settings = show_flag;
 
+    let sandbox_change = ws.settings_draft.as_ref().map(|draft| {
+        sandbox_mode_change(ws.settings_original.as_ref(), draft)
+    });
+    let requires_off_confirm = sandbox_change
+        .map(requires_sandbox_off_confirm)
+        .unwrap_or(false);
+
+    if save_requested {
+        let already_confirmed = ws
+            .pending_settings_save
+            .as_ref()
+            .map(|pending| pending.sandbox_off_confirmed)
+            .unwrap_or(false);
+        if requires_off_confirm && !already_confirmed {
+            ws.pending_settings_save = Some(crate::app::ui::workspace::state::PendingSettingsSave {
+                sandbox_off_confirmed: false,
+            });
+            save_requested = false;
+        }
+    }
+
+    if let Some(pending) = ws.pending_settings_save.as_mut()
+        && requires_off_confirm
+        && !pending.sandbox_off_confirmed
+    {
+        if let Some(confirmed) = show_sandbox_off_confirm(ctx, i18n, id_salt) {
+            if confirmed {
+                pending.sandbox_off_confirmed = true;
+                save_requested = true;
+            } else {
+                ws.pending_settings_save = None;
+            }
+        }
+    }
+
     if browse_requested && ws.settings_folder_pick_rx.is_none() {
         let start_dir = ws
             .settings_draft
@@ -451,64 +559,98 @@ pub fn show(
         }));
     }
 
-    if let Some(act) = action {
-        match act {
-            SettingsModalAction::Save => {
-                if let Some(draft) = ws.settings_draft.take() {
-                    let original_settings = ws.settings_original.clone();
-                    if should_persist_settings_change(original_settings.as_ref(), &draft) {
-                        draft.save();
-                    }
-                    let draft_sandbox_mode = draft.sandbox_mode;
-                    ws.wizard.path = draft.default_project_path.clone();
-                    let lang = draft.lang.clone();
-                    let mut toast: Option<String> = None;
-                    let mut s = shared.lock().expect("lock");
-
-                    // Immediate agent registry update
-                    s.registry.agents.clear();
-                    for ca in &draft.custom_agents {
-                        let cmd = if ca.args.is_empty() {
-                            ca.command.clone()
-                        } else {
-                            format!("{} {}", ca.command, ca.args)
-                        };
-                        s.registry.agents.register(crate::app::registry::Agent {
-                            id: ca.name.to_lowercase().replace(' ', "_"),
-                            label: ca.name.clone(),
-                            command: cmd,
-                            context_aware: true,
-                        });
-                    }
-
-                    if let Some(original) = original_settings.as_ref() {
-                        if original.sandbox_mode && !draft_sandbox_mode {
-                            if !s.sandbox_off_toast_shown {
-                                s.sandbox_off_toast_shown = true;
-                                toast = Some(i18n.get("settings-sandbox-toast-off"));
-                            }
-                        } else if !original.sandbox_mode && draft_sandbox_mode {
-                            toast = Some(i18n.get("settings-sandbox-toast-on"));
-                        }
-                    }
-
-                    s.settings = Arc::new(draft);
-                    s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
-                    s.settings_version
-                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                    drop(s);
-                    if let Some(message) = toast {
-                        ws.toasts.push(crate::app::types::Toast::info(message));
-                    }
-                }
-                ws.settings_original = None;
-                ws.show_settings = false;
+    if cancel_requested {
+        ws.pending_settings_save = None;
+        ws.pending_sandbox_apply = None;
+        ws.sandbox_persist_failure = None;
+        discard_settings_draft(ws, shared);
+        ws.show_settings = false;
+    } else if save_requested {
+        if let Some(draft) = ws.settings_draft.take() {
+            let original_settings = ws.settings_original.clone();
+            let sandbox_change = sandbox_mode_change(original_settings.as_ref(), &draft);
+            let sandbox_dirty = !matches!(sandbox_change, SandboxModeChange::None);
+            if should_persist_settings_change(original_settings.as_ref(), &draft) {
+                draft.save();
             }
-            SettingsModalAction::Cancel => {
-                discard_settings_draft(ws, shared);
-                ws.show_settings = false;
+            let draft_sandbox_mode = draft.sandbox_mode;
+            ws.wizard.path = draft.default_project_path.clone();
+            let lang = draft.lang.clone();
+            let mut toast_message: Option<String> = None;
+            let mut should_prompt_apply = false;
+            let mut s = shared.lock().expect("lock");
+
+            // Immediate agent registry update
+            s.registry.agents.clear();
+            for ca in &draft.custom_agents {
+                let cmd = if ca.args.is_empty() {
+                    ca.command.clone()
+                } else {
+                    format!("{} {}", ca.command, ca.args)
+                };
+                s.registry.agents.register(crate::app::registry::Agent {
+                    id: ca.name.to_lowercase().replace(' ', "_"),
+                    label: ca.name.clone(),
+                    command: cmd,
+                    context_aware: true,
+                });
+            }
+
+            if sandbox_dirty {
+                match sandbox_change {
+                    SandboxModeChange::Disabled => {
+                        toast_message = Some(i18n.get("settings-sandbox-toast-off"));
+                        should_prompt_apply = should_block_sandbox_apply(ws);
+                    }
+                    SandboxModeChange::Enabled => {
+                        toast_message = Some(i18n.get("settings-sandbox-toast-on"));
+                        should_prompt_apply = should_block_sandbox_apply(ws);
+                    }
+                    SandboxModeChange::None => {}
+                }
+            }
+
+            s.settings = Arc::new(draft);
+            s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
+            let new_version =
+                s.settings_version
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                    + 1;
+            drop(s);
+
+            if sandbox_dirty {
+                ws.pending_sandbox_apply = Some(
+                    crate::app::ui::workspace::state::SandboxApplyRequest {
+                        target_mode: draft_sandbox_mode,
+                        version: new_version,
+                        defer_until_clear: should_prompt_apply,
+                        force_apply: false,
+                    },
+                );
+            }
+
+            if let Some(message) = toast_message {
+                ws.toasts.push(crate::app::types::Toast::info(message));
+            }
+            if should_prompt_apply {
+                ws.toasts.push(crate::app::types::Toast::info_with_actions(
+                    i18n.get("settings-sandbox-apply-prompt"),
+                    vec![
+                        ToastAction::new(
+                            "settings-sandbox-apply-now",
+                            ToastActionKind::SandboxApplyNow,
+                        ),
+                        ToastAction::new(
+                            "settings-sandbox-apply-defer",
+                            ToastActionKind::SandboxApplyLater,
+                        ),
+                    ],
+                ));
             }
         }
+        ws.pending_settings_save = None;
+        ws.settings_original = None;
+        ws.show_settings = false;
     }
 }
 

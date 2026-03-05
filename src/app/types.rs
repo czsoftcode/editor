@@ -178,6 +178,8 @@ pub(crate) struct AppShared {
     pub registry: crate::app::registry::Registry,
     /// Version of settings, incremented on change to ensure all viewports re-apply them (Audit S-4).
     pub settings_version: std::sync::atomic::AtomicU64,
+    /// Session-only guard for one-time sandbox OFF toast.
+    pub sandbox_off_toast_shown: bool,
     /// Shared BERT model for semantic search (all-MiniLM-L6-v2)
     pub bert_model: Option<std::sync::Arc<candle_transformers::models::bert::BertModel>>,
     /// Shared BERT tokenizer
@@ -192,6 +194,27 @@ pub(crate) struct Toast {
     pub message: String,
     pub created: std::time::Instant,
     pub is_error: bool,
+    pub actions: Vec<ToastAction>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum ToastActionKind {
+    SandboxApplyNow,
+    SandboxApplyLater,
+    SandboxPersistRevert,
+    SandboxPersistKeep,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ToastAction {
+    pub label_key: &'static str,
+    pub kind: ToastActionKind,
+}
+
+impl ToastAction {
+    pub(crate) fn new(label_key: &'static str, kind: ToastActionKind) -> Self {
+        Self { label_key, kind }
+    }
 }
 
 impl Toast {
@@ -200,6 +223,7 @@ impl Toast {
             message: message.into(),
             created: std::time::Instant::now(),
             is_error: true,
+            actions: Vec::new(),
         }
     }
 
@@ -208,11 +232,25 @@ impl Toast {
             message: message.into(),
             created: std::time::Instant::now(),
             is_error: false,
+            actions: Vec::new(),
+        }
+    }
+
+    pub(crate) fn info_with_actions(
+        message: impl Into<String>,
+        actions: Vec<ToastAction>,
+    ) -> Self {
+        Self {
+            message: message.into(),
+            created: std::time::Instant::now(),
+            is_error: false,
+            actions,
         }
     }
 
     pub(crate) fn is_expired(&self) -> bool {
-        self.created.elapsed().as_secs() >= 4
+        let lifetime = if self.actions.is_empty() { 4 } else { 10 };
+        self.created.elapsed().as_secs() >= lifetime
     }
 }
 

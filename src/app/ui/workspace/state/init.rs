@@ -21,7 +21,7 @@ pub fn init_workspace(
 ) -> WorkspaceState {
     let sandbox = crate::app::sandbox::Sandbox::new(&root_path);
     let mut file_tree = FileTree::new();
-    let file_tree_in_sandbox = settings.project_read_only;
+    let file_tree_in_sandbox = settings.sandbox_mode;
     let target_tree_root = if file_tree_in_sandbox {
         &sandbox.root
     } else {
@@ -133,6 +133,9 @@ pub fn init_workspace(
         settings_original: None,
         plugins_draft: None,
         settings_folder_pick_rx: None,
+        pending_settings_save: None,
+        pending_sandbox_apply: None,
+        sandbox_persist_failure: None,
         ai_tool_available: HashMap::new(),
         ai_tool_check_rx: None,
         ai_tool_last_check: std::time::Instant::now(),
@@ -147,6 +150,7 @@ pub fn init_workspace(
         promotion_success: None,
         show_sandbox_staged: false,
         plugin_error: None,
+        settings_conflict: None,
         ai_prompt: String::new(),
         ai_history: Vec::new(),
         ai_history_index: None,
@@ -198,7 +202,8 @@ pub fn init_workspace(
         markdown_cache: egui_commonmark::CommonMarkCache::default(),
         sync_confirmation: None,
         pending_agent_id: None,
-        build_in_sandbox: settings.project_read_only,
+        sandbox_mode_enabled: settings.sandbox_mode,
+        build_in_sandbox: settings.sandbox_mode,
         file_tree_in_sandbox,
         git_cancel,
         local_history: crate::app::local_history::LocalHistory::new(&root_path),

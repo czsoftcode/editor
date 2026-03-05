@@ -158,7 +158,7 @@ fn render_ai_tool_controls(
     if start_response.clicked()
         && let Some(agent) = current_agent
     {
-        // Start agent immediately (no sandbox sync needed)
+        // Start agent immediately
         let cmd = agent.command.clone();
         let active = ws.claude_active_tab;
         let context = format_context_for_terminal(&AiManager::generate_context(ws));

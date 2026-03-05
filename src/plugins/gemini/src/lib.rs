@@ -121,7 +121,7 @@ extern "ExtismHost" {
     fn list_project_files() -> String;
     fn search_project(query: String) -> String;
     fn semantic_search(query: String) -> String;
-    fn exec_in_sandbox(command: String) -> String;
+    fn exec(command: String) -> String;
     fn store_scratch(input: String);
     fn retrieve_scratch(key: String) -> String;
     fn store_fact(input: String);
@@ -257,8 +257,8 @@ pub fn ask_gemini(input_json: String) -> FnResult<String> {
                         Ok(res_str) => serde_json::from_str(&res_str).unwrap_or(serde_json::json!({"error": "invalid host response"})),
                         Err(e) => serde_json::json!({ "error": format!("Listing failed: {}", e) }),
                     }
-                } else if name == "exec_in_sandbox" {
-                    match unsafe { exec_in_sandbox(call.args["command"].as_str().unwrap_or("").to_string()) } {
+                } else if name == "exec" {
+                    match unsafe { exec(call.args["command"].as_str().unwrap_or("").to_string()) } {
                         Ok(res) => serde_json::json!({ "output": res }),
                         Err(e) => serde_json::json!({ "error": format!("Execution failed: {}", e) }),
                     }

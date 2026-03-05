@@ -103,8 +103,8 @@ pub fn get_standard_tools() -> Vec<AiToolDeclaration> {
             }),
         },
         AiToolDeclaration {
-            name: "exec_in_sandbox".to_string(),
-            description: "Executes a shell command within the project sandbox and returns output.".to_string(),
+            name: "exec".to_string(),
+            description: "Executes a shell command within the project directory and returns output.".to_string(),
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {

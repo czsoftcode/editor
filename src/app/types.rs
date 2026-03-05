@@ -236,10 +236,7 @@ impl Toast {
         }
     }
 
-    pub(crate) fn info_with_actions(
-        message: impl Into<String>,
-        actions: Vec<ToastAction>,
-    ) -> Self {
+    pub(crate) fn info_with_actions(message: impl Into<String>, actions: Vec<ToastAction>) -> Self {
         Self {
             message: message.into(),
             created: std::time::Instant::now(),

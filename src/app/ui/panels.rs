@@ -272,10 +272,7 @@ pub(super) fn render_toasts(
                             ui.add_space(6.0);
                             ui.horizontal(|ui| {
                                 for action in &toast.actions {
-                                    if ui
-                                        .small_button(i18n.get(action.label_key))
-                                        .clicked()
-                                    {
+                                    if ui.small_button(i18n.get(action.label_key)).clicked() {
                                         triggered_action = Some((idx, action.kind.clone()));
                                     }
                                 }

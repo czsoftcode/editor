@@ -217,12 +217,8 @@ impl WorkspaceState {
 
         if self.build_terminal.is_some() {
             self.next_terminal_id += 1;
-            self.build_terminal = Some(Terminal::new(
-                self.next_terminal_id,
-                ctx,
-                target_root,
-                None,
-            ));
+            self.build_terminal =
+                Some(Terminal::new(self.next_terminal_id, ctx, target_root, None));
         }
     }
 }

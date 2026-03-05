@@ -508,9 +508,10 @@ pub fn show(
     ws.selected_settings_category = Some(selected_cat);
     ws.show_settings = show_flag;
 
-    let sandbox_change = ws.settings_draft.as_ref().map(|draft| {
-        sandbox_mode_change(ws.settings_original.as_ref(), draft)
-    });
+    let sandbox_change = ws
+        .settings_draft
+        .as_ref()
+        .map(|draft| sandbox_mode_change(ws.settings_original.as_ref(), draft));
     let requires_off_confirm = sandbox_change
         .map(requires_sandbox_off_confirm)
         .unwrap_or(false);
@@ -522,9 +523,10 @@ pub fn show(
             .map(|pending| pending.sandbox_off_confirmed)
             .unwrap_or(false);
         if requires_off_confirm && !already_confirmed {
-            ws.pending_settings_save = Some(crate::app::ui::workspace::state::PendingSettingsSave {
-                sandbox_off_confirmed: false,
-            });
+            ws.pending_settings_save =
+                Some(crate::app::ui::workspace::state::PendingSettingsSave {
+                    sandbox_off_confirmed: false,
+                });
             save_requested = false;
         }
     }
@@ -641,23 +643,22 @@ pub fn show(
             } else {
                 s.settings = Arc::new(draft);
                 s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
-                let new_version =
-                    s.settings_version
-                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
-                        + 1;
+                let new_version = s
+                    .settings_version
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                    + 1;
                 drop(s);
 
                 if sandbox_dirty {
-                    ws.pending_sandbox_apply = Some(
-                        crate::app::ui::workspace::state::SandboxApplyRequest {
+                    ws.pending_sandbox_apply =
+                        Some(crate::app::ui::workspace::state::SandboxApplyRequest {
                             target_mode: draft_sandbox_mode,
                             version: new_version,
                             defer_until_clear: should_prompt_apply,
                             force_apply: false,
                             prompted: false,
                             notify_on_apply: false,
-                        },
-                    );
+                        });
                 }
 
                 if let Some(message) = toast_message {

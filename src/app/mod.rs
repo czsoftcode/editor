@@ -565,11 +565,10 @@ impl EditorApp {
 
                             if ws.sandbox_mode_enabled != settings_snapshot.sandbox_mode {
                                 if ws.settings_draft.is_some() {
-                                    ws.settings_conflict = Some(
-                                        crate::app::ui::workspace::state::SettingsConflict {
+                                    ws.settings_conflict =
+                                        Some(crate::app::ui::workspace::state::SettingsConflict {
                                             new_settings: settings_snapshot.clone(),
-                                        },
-                                    );
+                                        });
                                 }
                                 let needs_request = ws
                                     .pending_sandbox_apply
@@ -757,11 +756,10 @@ impl eframe::App for EditorApp {
                     ws.applied_settings_version = v;
                     if ws.sandbox_mode_enabled != settings_snapshot.sandbox_mode {
                         if ws.settings_draft.is_some() {
-                            ws.settings_conflict = Some(
-                                crate::app::ui::workspace::state::SettingsConflict {
+                            ws.settings_conflict =
+                                Some(crate::app::ui::workspace::state::SettingsConflict {
                                     new_settings: settings_snapshot.clone(),
-                                },
-                            );
+                                });
                         }
                         let needs_request = ws
                             .pending_sandbox_apply

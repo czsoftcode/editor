@@ -82,10 +82,10 @@ fn process_sandbox_persist_decision(
         let mut s = shared.lock().expect("lock");
         s.settings = Arc::new(failure.draft.clone());
         s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
-        let new_version =
-            s.settings_version
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
-                + 1;
+        let new_version = s
+            .settings_version
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            + 1;
         drop(s);
 
         ws.pending_sandbox_apply = Some(crate::app::ui::workspace::state::SandboxApplyRequest {
@@ -96,7 +96,8 @@ fn process_sandbox_persist_decision(
             prompted: false,
             notify_on_apply: true,
         });
-        ws.toasts.push(Toast::error(i18n.get("settings-sandbox-persist-unsaved")));
+        ws.toasts
+            .push(Toast::error(i18n.get("settings-sandbox-persist-unsaved")));
     } else {
         crate::app::ui::workspace::modal_dialogs::restore_runtime_settings_from_snapshot(
             shared,
@@ -143,11 +144,7 @@ fn process_pending_sandbox_apply(
         return;
     }
 
-    let shared_mode = shared
-        .lock()
-        .expect("lock")
-        .settings
-        .sandbox_mode;
+    let shared_mode = shared.lock().expect("lock").settings.sandbox_mode;
     let target_mode = if req.target_mode != shared_mode {
         req.target_mode = shared_mode;
         shared_mode

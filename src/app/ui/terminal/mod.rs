@@ -47,6 +47,18 @@ pub fn terminal_mode_label_for_workdir(
     }
 }
 
+pub fn terminal_working_dir<'a>(
+    sandbox_mode_enabled: bool,
+    sandbox_root: &'a std::path::Path,
+    project_root: &'a std::path::Path,
+) -> &'a std::path::Path {
+    if sandbox_mode_enabled {
+        sandbox_root
+    } else {
+        project_root
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::terminal_mode_label_for_workdir;
@@ -66,17 +78,5 @@ mod tests {
         let label = terminal_mode_label_for_workdir(project_root, &sandbox_root, project_root);
         assert!(label.contains("Terminal —"));
         assert!(label.contains("project"));
-    }
-}
-
-pub fn terminal_working_dir<'a>(
-    sandbox_mode_enabled: bool,
-    sandbox_root: &'a std::path::Path,
-    project_root: &'a std::path::Path,
-) -> &'a std::path::Path {
-    if sandbox_mode_enabled {
-        sandbox_root
-    } else {
-        project_root
     }
 }

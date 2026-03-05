@@ -198,6 +198,7 @@ pub(crate) struct Toast {
 }
 
 #[derive(Clone, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub(crate) enum ToastActionKind {
     SandboxApplyNow,
     SandboxApplyLater,

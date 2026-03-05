@@ -521,19 +521,19 @@ pub fn show(
         .as_ref()
         .map(|draft| sandbox_mode_change(ws.settings_original.as_ref(), draft));
 
-    if let Some(change) = sandbox_change {
-        if should_block_sandbox_off_due_to_staged(change, &ws.sandbox_staged_files) {
-            if let Some(draft) = ws.settings_draft.as_mut()
-                && let Some(original) = ws.settings_original.as_ref()
-            {
-                draft.sandbox_mode = original.sandbox_mode;
-            }
-            ws.show_sandbox_staged = true;
-            ws.toasts.push(crate::app::types::Toast::error(
-                i18n.get("settings-sandbox-off-blocked"),
-            ));
-            sandbox_change = Some(SandboxModeChange::None);
+    if let Some(change) = sandbox_change
+        && should_block_sandbox_off_due_to_staged(change, &ws.sandbox_staged_files)
+    {
+        if let Some(draft) = ws.settings_draft.as_mut()
+            && let Some(original) = ws.settings_original.as_ref()
+        {
+            draft.sandbox_mode = original.sandbox_mode;
         }
+        ws.show_sandbox_staged = true;
+        ws.toasts.push(crate::app::types::Toast::error(
+            i18n.get("settings-sandbox-off-blocked"),
+        ));
+        sandbox_change = Some(SandboxModeChange::None);
     }
 
     let requires_off_confirm = sandbox_change
@@ -558,14 +558,13 @@ pub fn show(
     if let Some(pending) = ws.pending_settings_save.as_mut()
         && requires_off_confirm
         && !pending.sandbox_off_confirmed
+        && let Some(confirmed) = show_sandbox_off_confirm(ctx, i18n, id_salt)
     {
-        if let Some(confirmed) = show_sandbox_off_confirm(ctx, i18n, id_salt) {
-            if confirmed {
-                pending.sandbox_off_confirmed = true;
-                save_requested = true;
-            } else {
-                ws.pending_settings_save = None;
-            }
+        if confirmed {
+            pending.sandbox_off_confirmed = true;
+            save_requested = true;
+        } else {
+            ws.pending_settings_save = None;
         }
     }
 
@@ -597,10 +596,10 @@ pub fn show(
             let sandbox_change = sandbox_mode_change(original_settings.as_ref(), &draft);
             let sandbox_dirty = !matches!(sandbox_change, SandboxModeChange::None);
             let mut persist_error: Option<String> = None;
-            if should_persist_settings_change(original_settings.as_ref(), &draft) {
-                if let Err(err) = draft.try_save() {
-                    persist_error = Some(err);
-                }
+            if should_persist_settings_change(original_settings.as_ref(), &draft)
+                && let Err(err) = draft.try_save()
+            {
+                persist_error = Some(err);
             }
             let draft_sandbox_mode = draft.sandbox_mode;
             ws.wizard.path = draft.default_project_path.clone();
@@ -719,8 +718,10 @@ mod tests {
 
     #[test]
     fn test_sandbox_mode_change_off_requires_confirm() {
-        let mut original = Settings::default();
-        original.sandbox_mode = true;
+        let original = Settings {
+            sandbox_mode: true,
+            ..Default::default()
+        };
         let mut draft = original.clone();
         draft.sandbox_mode = false;
 
@@ -731,8 +732,10 @@ mod tests {
 
     #[test]
     fn test_sandbox_mode_change_on_no_confirm() {
-        let mut original = Settings::default();
-        original.sandbox_mode = false;
+        let original = Settings {
+            sandbox_mode: false,
+            ..Default::default()
+        };
         let mut draft = original.clone();
         draft.sandbox_mode = true;
 
@@ -743,8 +746,10 @@ mod tests {
 
     #[test]
     fn test_sandbox_mode_change_none() {
-        let mut original = Settings::default();
-        original.sandbox_mode = true;
+        let original = Settings {
+            sandbox_mode: true,
+            ..Default::default()
+        };
         let mut draft = original.clone();
         draft.sandbox_mode = true;
 
@@ -755,8 +760,10 @@ mod tests {
 
     #[test]
     fn test_sandbox_off_blocked_when_staged() {
-        let mut original = Settings::default();
-        original.sandbox_mode = true;
+        let original = Settings {
+            sandbox_mode: true,
+            ..Default::default()
+        };
         let mut draft = original.clone();
         draft.sandbox_mode = false;
 
@@ -771,8 +778,10 @@ mod tests {
 
     #[test]
     fn test_sandbox_off_not_blocked_without_staged() {
-        let mut original = Settings::default();
-        original.sandbox_mode = true;
+        let original = Settings {
+            sandbox_mode: true,
+            ..Default::default()
+        };
         let mut draft = original.clone();
         draft.sandbox_mode = false;
 
@@ -787,8 +796,10 @@ mod tests {
 
     #[test]
     fn test_sandbox_on_not_blocked_even_with_staged() {
-        let mut original = Settings::default();
-        original.sandbox_mode = false;
+        let original = Settings {
+            sandbox_mode: false,
+            ..Default::default()
+        };
         let mut draft = original.clone();
         draft.sandbox_mode = true;
 

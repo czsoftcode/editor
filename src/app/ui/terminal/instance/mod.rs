@@ -394,20 +394,27 @@ impl Terminal {
                 None
             };
 
+            // Neaktivni terminal v light modu netreba "svitit do bila".
+            // Tlumi ho tmavou slonovou kosti, aby text pusobil sede a jemneji.
             let cursor_fill = if visuals.dark_mode {
                 visuals.panel_fill.gamma_multiply(0.85)
             } else {
-                visuals.widgets.noninteractive.bg_fill.gamma_multiply(1.12)
+                egui::Color32::from_rgb(205, 198, 186)
             };
             let overlay_fill = if visuals.dark_mode {
                 egui::Color32::from_black_alpha(60)
             } else {
-                egui::Color32::from_white_alpha(96)
+                egui::Color32::from_rgba_premultiplied(216, 210, 198, 160)
             };
             let cursor_stroke = if visuals.dark_mode {
                 visuals.widgets.active.fg_stroke.color.gamma_multiply(1.1)
             } else {
-                visuals.widgets.active.fg_stroke.color.gamma_multiply(0.85)
+                visuals
+                    .widgets
+                    .noninteractive
+                    .fg_stroke
+                    .color
+                    .gamma_multiply(0.75)
             };
 
             if let Some(rect) = cursor_rect {

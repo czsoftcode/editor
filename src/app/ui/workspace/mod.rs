@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use eframe::egui;
 
 use super::super::build_runner::run_build_check;
-use super::super::types::{AppShared, FocusedPanel, Toast};
+use super::super::types::{AppShared, FocusedPanel, Toast, ToastAction, ToastActionKind};
 use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{render_file_picker, render_project_search_dialog};
@@ -61,6 +61,111 @@ fn refresh_sandbox_staged_cache_if_due(ws: &mut WorkspaceState) {
     if time_since_dirty >= debounce_ms && time_since_refresh >= min_interval_ms {
         trigger_sandbox_staged_refresh(ws);
         ws.sandbox_staged_dirty = false;
+    }
+}
+
+fn process_sandbox_persist_decision(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+    dialog_open: bool,
+) {
+    let Some(keep_temporary) = ws.sandbox_persist_decision.take() else {
+        return;
+    };
+    let Some(failure) = ws.sandbox_persist_failure.take() else {
+        return;
+    };
+
+    if keep_temporary {
+        let lang = failure.draft.lang.clone();
+        let mut s = shared.lock().expect("lock");
+        s.settings = Arc::new(failure.draft.clone());
+        s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
+        let new_version =
+            s.settings_version
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                + 1;
+        drop(s);
+
+        ws.pending_sandbox_apply = Some(crate::app::ui::workspace::state::SandboxApplyRequest {
+            target_mode: failure.draft.sandbox_mode,
+            version: new_version,
+            defer_until_clear: dialog_open,
+            force_apply: false,
+            prompted: false,
+            notify_on_apply: true,
+        });
+        ws.toasts.push(Toast::error(i18n.get("settings-sandbox-persist-unsaved")));
+    } else {
+        crate::app::ui::workspace::modal_dialogs::restore_runtime_settings_from_snapshot(
+            shared,
+            failure.original,
+        );
+        ws.pending_sandbox_apply = None;
+        ws.toasts
+            .push(Toast::info(i18n.get("settings-sandbox-persist-reverted")));
+    }
+}
+
+fn process_pending_sandbox_apply(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+    dialog_open: bool,
+) {
+    let Some(req) = ws.pending_sandbox_apply.as_mut() else {
+        return;
+    };
+
+    if !crate::app::ui::workspace::state::should_apply_sandbox_request(
+        req.defer_until_clear,
+        dialog_open,
+        req.force_apply,
+    ) {
+        if !req.prompted {
+            ws.toasts.push(Toast::info_with_actions(
+                i18n.get("settings-sandbox-apply-prompt"),
+                vec![
+                    ToastAction::new(
+                        "settings-sandbox-apply-now",
+                        ToastActionKind::SandboxApplyNow,
+                    ),
+                    ToastAction::new(
+                        "settings-sandbox-apply-defer",
+                        ToastActionKind::SandboxApplyLater,
+                    ),
+                ],
+            ));
+            req.prompted = true;
+        }
+        return;
+    }
+
+    let shared_mode = shared
+        .lock()
+        .expect("lock")
+        .settings
+        .sandbox_mode;
+    let target_mode = if req.target_mode != shared_mode {
+        req.target_mode = shared_mode;
+        shared_mode
+    } else {
+        req.target_mode
+    };
+    let notify = req.notify_on_apply;
+
+    ws.apply_sandbox_mode_change(ctx, target_mode);
+    ws.pending_sandbox_apply = None;
+
+    if notify {
+        let message = if target_mode {
+            i18n.get("settings-sandbox-toast-on")
+        } else {
+            i18n.get("settings-sandbox-toast-off")
+        };
+        ws.toasts.push(Toast::info(message));
     }
 }
 
@@ -290,6 +395,9 @@ pub(crate) fn render_workspace(
     // --- 3. STATUS BARS ---
     let should_render_info_separator =
         !ws.sandbox_staged_files.is_empty() || ws.lsp_binary_missing || ws.lsp_install_rx.is_some();
+
+    process_sandbox_persist_decision(ws, shared, i18n, dialog_open_base);
+    process_pending_sandbox_apply(ctx, ws, shared, i18n, dialog_open_base);
 
     if should_render_info_separator {
         egui::TopBottomPanel::top("info_bar_separator")

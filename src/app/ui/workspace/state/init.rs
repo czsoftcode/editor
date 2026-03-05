@@ -136,6 +136,7 @@ pub fn init_workspace(
         pending_settings_save: None,
         pending_sandbox_apply: None,
         sandbox_persist_failure: None,
+        sandbox_persist_decision: None,
         ai_tool_available: HashMap::new(),
         ai_tool_check_rx: None,
         ai_tool_last_check: std::time::Instant::now(),

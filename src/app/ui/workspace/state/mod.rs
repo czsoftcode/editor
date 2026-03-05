@@ -228,11 +228,17 @@ impl WorkspaceState {
 }
 
 pub(crate) fn should_apply_sandbox_request(
-    _defer_until_clear: bool,
-    _dialog_open: bool,
-    _force_apply: bool,
+    defer_until_clear: bool,
+    dialog_open: bool,
+    force_apply: bool,
 ) -> bool {
-    unimplemented!("should_apply_sandbox_request not implemented yet")
+    if force_apply {
+        return true;
+    }
+    if defer_until_clear && dialog_open {
+        return false;
+    }
+    true
 }
 
 #[cfg(test)]

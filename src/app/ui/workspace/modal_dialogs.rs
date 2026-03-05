@@ -12,6 +12,8 @@ mod plugins;
 mod settings;
 mod terminal;
 
+pub(crate) use settings::restore_runtime_settings_from_snapshot;
+
 // ---------------------------------------------------------------------------
 // render_dialogs
 // ---------------------------------------------------------------------------

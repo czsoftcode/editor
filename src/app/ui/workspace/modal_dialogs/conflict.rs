@@ -11,12 +11,17 @@ pub enum ExternalConflictAction {
     Dismiss,
 }
 
+enum SettingsConflictAction {
+    ReloadSettings,
+    KeepEditing,
+}
+
 pub fn show(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &I18n,
-    _id_salt: &std::ffi::OsStr,
+    id_salt: &std::ffi::OsStr,
 ) {
     if let Some(conflict_path) = ws.external_change_conflict.clone() {
         let filename = conflict_path
@@ -93,12 +98,59 @@ pub fn show(
                         .lock()
                         .expect("Failed to lock AppShared for conflict resolution save")
                         .is_internal_save,
-                    shared.lock().expect("lock").settings.project_read_only,
+                    ws.sandbox_mode_enabled,
                 );
                 ws.external_change_conflict = None;
             }
             Some(ExternalConflictAction::Dismiss) => {
                 ws.external_change_conflict = None;
+            }
+            None => {}
+        }
+    }
+
+    if let Some(conflict) = ws.settings_conflict.clone() {
+        let mut action: Option<SettingsConflictAction> = None;
+        let mut show_flag = true;
+        let modal = StandardModal::new(
+            i18n.get("settings-conflict-title"),
+            format!("settings_conflict_modal_{}", id_salt.to_string_lossy()),
+        )
+        .with_size(520.0, 240.0);
+
+        modal.show(ctx, &mut show_flag, |ui| {
+            action = modal.ui_footer_actions(ui, i18n, |f| {
+                if f.button("settings-conflict-keep").clicked() || f.close() {
+                    return Some(SettingsConflictAction::KeepEditing);
+                }
+                if f.button("settings-conflict-reload").clicked() {
+                    return Some(SettingsConflictAction::ReloadSettings);
+                }
+                None
+            });
+
+            modal.ui_body(ui, |ui| {
+                ui.add_space(8.0);
+                ui.label(
+                    egui::RichText::new(i18n.get("settings-conflict-message"))
+                        .size(14.0)
+                        .line_height(Some(20.0)),
+                );
+            });
+        });
+
+        if !show_flag {
+            ws.settings_conflict = None;
+        }
+
+        match action {
+            Some(SettingsConflictAction::ReloadSettings) => {
+                ws.settings_draft = Some(conflict.new_settings.clone());
+                ws.settings_original = Some(conflict.new_settings);
+                ws.settings_conflict = None;
+            }
+            Some(SettingsConflictAction::KeepEditing) => {
+                ws.settings_conflict = None;
             }
             None => {}
         }

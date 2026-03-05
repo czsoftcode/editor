@@ -303,7 +303,12 @@ pub(super) fn render_toasts(
                     req.force_apply = false;
                 }
             }
-            ToastActionKind::SandboxPersistRevert | ToastActionKind::SandboxPersistKeep => {}
+            ToastActionKind::SandboxPersistRevert => {
+                ws.sandbox_persist_decision = Some(false);
+            }
+            ToastActionKind::SandboxPersistKeep => {
+                ws.sandbox_persist_decision = Some(true);
+            }
         }
     }
 }

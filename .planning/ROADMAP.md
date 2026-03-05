@@ -32,7 +32,7 @@ Archive: `.planning/milestones/v1.0.6-ROADMAP.md`
 
 </details>
 
-### 🚧 v1.1.0 Sandbox Removal (In Progress)
+### v1.1.0 Sandbox Removal (In Progress)
 
 **Milestone Goal:** Kompletne odstranit sandbox rezim z editoru — veskerý kód, UI prvky, logiku a settings.
 
@@ -101,7 +101,11 @@ Plans:
   3. `cargo build` projde bez warnigu (zadne unused imports, dead code)
   4. Vsechny existujici testy prochasi (`cargo test`)
   5. Editor se spusti a je plne funkcni — otevirani souboru, editace, terminaly, git, build
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Smazat sandbox i18n klice ze vsech 5 jazyku a aktualizovat sandbox-mentioning hodnoty
+- [ ] 12-02-PLAN.md — Opravit compile warningy, odstranit sandbox komentare a finalni verifikace integrity
 
 ## Progress
 
@@ -119,5 +123,5 @@ Plans:
 | ~~8. Focus Restore & Regression~~ | v1.0.6 | — | Cancelled | — |
 | 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 2/3 | In progress | - |
 | 10. UI & State Cleanup | v1.1.0 | 1/1 | Complete | 2026-03-05 |
-| 11. File Operations, Watcher & Guard Removal | 2/2 | Complete   | 2026-03-05 | - |
-| 12. I18n Cleanup & Integrity Verification | v1.1.0 | 0/? | Not started | - |
+| 11. File Operations, Watcher & Guard Removal | v1.1.0 | 2/2 | Complete | 2026-03-05 |
+| 12. I18n Cleanup & Integrity Verification | v1.1.0 | 0/2 | Not started | - |

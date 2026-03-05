@@ -1,3 +1,16 @@
+## [1.0.6-dev] - 2026-03-05
+
+### Added
+- **Modal Close Control**: `StandardModal` now supports `close_on_click_outside` flag — interactive modals (Settings, Plugins) can only be closed via Save/Cancel/X buttons.
+
+### Changed
+- **Modal Backdrop**: Backdrop is now an interactive `Area` at `Order::Middle` that captures events behind modal. Modal window renders at `Order::Foreground` — guaranteed to stay above backdrop and fully interactive.
+
+### Fixed
+- **Terminal Focus Suppression**: Hover over docked terminals no longer steals keyboard focus. All 4 `Hovered` handlers are now no-op. Float and docked terminal click handlers respect `dialog_open` guard.
+- **Modal Blocks Terminal Focus**: Open modals and AI Chat prevent terminal from capturing focus — keyboard input stays in the active dialog/chat.
+- **Settings Discard Prompt**: Closing Settings with unsaved changes (via X or Cancel) now triggers a discard confirmation dialog.
+
 ## [1.0.5-dev] - 2026-03-05
 
 ### Removed

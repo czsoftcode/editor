@@ -20,12 +20,10 @@ pub fn init_workspace(
     settings: &crate::settings::Settings,
     shared: Arc<Mutex<crate::app::types::AppShared>>,
 ) -> WorkspaceState {
-    let sandbox = crate::app::sandbox::Sandbox::new(&root_path);
     let mut file_tree = FileTree::new();
     file_tree.load(&root_path);
 
-    let mut project_watcher = ProjectWatcher::new(&root_path);
-    project_watcher.add_path(&sandbox.root);
+    let project_watcher = ProjectWatcher::new(&root_path);
 
     let git_cancel = Arc::new(AtomicBool::new(false));
     let git_branch_rx = fetch_git_branch(&root_path, Arc::clone(&git_cancel));
@@ -189,11 +187,8 @@ pub fn init_workspace(
         ai_response: None,
         ai_loading: false,
         markdown_cache: egui_commonmark::CommonMarkCache::default(),
-        pending_agent_id: None,
-        file_tree_in_sandbox: false,
         git_cancel,
         local_history: crate::app::local_history::LocalHistory::new(&root_path),
-        sandbox,
         background_io_rx: None,
         applied_settings_version: 0,
         pending_plugin_approval: None,

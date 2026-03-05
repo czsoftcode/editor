@@ -53,11 +53,12 @@ Archive: `.planning/milestones/v1.0.6-ROADMAP.md`
   3. `Settings.sandbox_mode` field neexistuje a settings serializace/deserializace funguje bez nej
   4. Legacy migrace `project_read_only` je odstranena a settings loading funguje korektne
   5. Projekt se kompiluje (warnings povoleny v teto fazi)
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
 - [ ] 09-01-PLAN.md — Smazat sandbox.rs, odstranit sandbox_mode ze Settings, pridat migraci
 - [ ] 09-02-PLAN.md — Odstranit vsechny sandbox struktury/fieldy/metody, opravit kompilaci
+- [ ] 09-03-PLAN.md — Gap closure: smazat sandbox.rs, odstranit sandbox field z WorkspaceState, opravit reference
 
 ### Phase 10: UI & State Cleanup
 **Goal**: Uzivatel nevidi zadne sandbox prvky v UI a interni state neobsahuje sandbox fieldy
@@ -91,7 +92,7 @@ Plans:
   1. Zadne sandbox i18n klice neexistuji v zadnem z 5 jazyku (cs, en, de, ru, sk)
   2. Test `all_lang_keys_match_english` prochazi
   3. `cargo build` projde bez warnigu (zadne unused imports, dead code)
-  4. Vsechny existujici testy prochazi (`cargo test`)
+  4. Vsechny existujici testy prochasi (`cargo test`)
   5. Editor se spusti a je plne funkcni — otevirani souboru, editace, terminaly, git, build
 **Plans**: TBD
 
@@ -109,7 +110,7 @@ Plans:
 | 6. Docked Terminal Focus Suppression | v1.0.6 | 1/1 | Complete | 2026-03-05 |
 | ~~7. Float Terminal Focus Suppression~~ | v1.0.6 | — | Cancelled | — |
 | ~~8. Focus Restore & Regression~~ | v1.0.6 | — | Cancelled | — |
-| 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 0/2 | Not started | - |
+| 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 2/3 | In progress | - |
 | 10. UI & State Cleanup | v1.1.0 | 0/? | Not started | - |
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 0/? | Not started | - |
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 0/? | Not started | - |

@@ -242,9 +242,7 @@ impl Editor {
             let exists = new_path.exists();
 
             tab.path = new_path.clone();
-            tab.canonical_path = new_path
-                .canonicalize()
-                .unwrap_or_else(|_| new_path.clone());
+            tab.canonical_path = new_path.canonicalize().unwrap_or_else(|_| new_path.clone());
             tab.deleted = !exists;
 
             if exists && !tab.modified {
@@ -275,7 +273,6 @@ impl Editor {
             expand_to,
         }
     }
-
 }
 
 pub struct TabRemapSummary {
@@ -294,7 +291,12 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos();
-        dir.push(format!("polycredo_editor_test_{}_{}_{}", label, stamp, std::process::id()));
+        dir.push(format!(
+            "polycredo_editor_test_{}_{}_{}",
+            label,
+            stamp,
+            std::process::id()
+        ));
         dir
     }
 

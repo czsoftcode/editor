@@ -169,10 +169,8 @@ fn process_pending_sandbox_apply(
     ws.pending_sandbox_apply = None;
 
     if from_root != to_root && !ws.editor.tabs.is_empty() {
-        ws.pending_tab_remap = Some(crate::app::ui::workspace::state::TabRemapRequest {
-            from_root,
-            to_root,
-        });
+        ws.pending_tab_remap =
+            Some(crate::app::ui::workspace::state::TabRemapRequest { from_root, to_root });
         ws.toasts.push(Toast::info_with_actions(
             i18n.get("settings-sandbox-remap-prompt"),
             vec![

@@ -490,7 +490,8 @@ impl Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        if !self.exited && !self.exit_requested
+        if !self.exited
+            && !self.exit_requested
             && let Some(backend) = &mut self.backend
         {
             backend.process_command(egui_term::BackendCommand::Write(

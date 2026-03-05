@@ -56,11 +56,7 @@ pub fn render_ai_panel(
                     &ws.root_path,
                 )
             });
-        let float_title = format!(
-            "{} — {}",
-            i18n.get("ai-panel-title"),
-            label
-        );
+        let float_title = format!("{} — {}", i18n.get("ai-panel-title"), label);
         let win =
             StandardTerminalWindow::new(float_title, "claude_float_win", FocusedPanel::Claude);
 

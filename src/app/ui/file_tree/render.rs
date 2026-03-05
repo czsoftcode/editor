@@ -271,11 +271,8 @@ mod tests {
         let text_color = Color32::WHITE;
         let warm_visuals = light_visuals(LightVariant::WarmIvory);
         let sepia_visuals = light_visuals(LightVariant::Sepia);
-        let warm = resolve_file_tree_git_color(
-            Some(GitVisualStatus::Modified),
-            &warm_visuals,
-            text_color,
-        );
+        let warm =
+            resolve_file_tree_git_color(Some(GitVisualStatus::Modified), &warm_visuals, text_color);
         let sepia = resolve_file_tree_git_color(
             Some(GitVisualStatus::Modified),
             &sepia_visuals,

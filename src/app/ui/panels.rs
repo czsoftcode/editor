@@ -230,20 +230,6 @@ pub(super) fn render_toasts(
     i18n: &crate::i18n::I18n,
 ) {
     ws.toasts.retain(|t: &Toast| !t.is_expired());
-
-    // Cleanup: pokud remap toast expiroval bez interakce, pending_tab_remap
-    // nemá žádnou cestu ke zpracování — vymaž ho.
-    if ws.pending_tab_remap.is_some() {
-        let remap_toast_exists = ws.toasts.iter().any(|t| {
-            t.actions
-                .iter()
-                .any(|a| matches!(a.kind, ToastActionKind::SandboxRemapTabs))
-        });
-        if !remap_toast_exists {
-            ws.pending_tab_remap = None;
-        }
-    }
-
     if ws.toasts.is_empty() {
         return;
     }

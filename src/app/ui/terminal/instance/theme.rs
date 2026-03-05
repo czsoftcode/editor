@@ -130,10 +130,10 @@ pub(crate) fn terminal_theme_for_visuals(visuals: &egui::Visuals) -> TerminalThe
 #[cfg(test)]
 mod tests {
     use super::terminal_theme_for_visuals;
-    use alacritty_terminal::vte::ansi::{Color, NamedColor};
     use crate::settings::{LightVariant, Settings};
+    use alacritty_terminal::vte::ansi::{Color, NamedColor};
     use eframe::egui::{Color32, Visuals};
-    use egui_term::{ColorPalette, TerminalTheme};
+    use egui_term::TerminalTheme;
     use std::collections::HashSet;
 
     fn srgb_to_linear(v: u8) -> f32 {
@@ -176,7 +176,10 @@ mod tests {
         let theme = terminal_theme_for_visuals(&visuals);
         let bg = theme.get_color(Color::Named(NamedColor::Background));
 
-        assert!(relative_luminance(bg) > 0.7, "expected light background, got {bg:?}");
+        assert!(
+            relative_luminance(bg) > 0.7,
+            "expected light background, got {bg:?}"
+        );
     }
 
     #[test]
@@ -214,7 +217,10 @@ mod tests {
         let theme = terminal_theme_for_visuals(&visuals);
         let bg = theme.get_color(Color::Named(NamedColor::Background));
 
-        assert!(relative_luminance(bg) < 0.2, "expected dark background, got {bg:?}");
+        assert!(
+            relative_luminance(bg) < 0.2,
+            "expected dark background, got {bg:?}"
+        );
     }
 
     #[test]
@@ -263,7 +269,7 @@ mod tests {
     #[test]
     fn terminal_theme_dark_palette_matches_default_theme_for_key_colors() {
         let dark_theme = terminal_theme_for_visuals(&Visuals::dark());
-        let default_theme = TerminalTheme::new(Box::new(ColorPalette::default()));
+        let default_theme = TerminalTheme::new(Box::default());
         let sample = [
             NamedColor::Background,
             NamedColor::Foreground,

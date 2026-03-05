@@ -41,11 +41,7 @@ pub fn render_bottom_panel(
                     &ws.root_path,
                 )
             });
-        let build_title = format!(
-            "{} — {}",
-            i18n.get("panel-build"),
-            label
-        );
+        let build_title = format!("{} — {}", i18n.get("panel-build"), label);
         let win = StandardTerminalWindow::new(
             build_title,
             "build_terminal_float_win",

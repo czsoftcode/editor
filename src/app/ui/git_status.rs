@@ -63,7 +63,9 @@ pub fn git_color_for_visuals(status: GitVisualStatus, visuals: &egui::Visuals) -
 
 #[cfg(test)]
 mod tests {
-    use super::{GitVisualStatus, git_color_for_mode, git_color_for_visuals, parse_porcelain_status};
+    use super::{
+        GitVisualStatus, git_color_for_mode, git_color_for_visuals, parse_porcelain_status,
+    };
     use crate::settings::{LightVariant, Settings};
     use eframe::egui::Visuals;
     use std::collections::HashSet;
@@ -131,10 +133,14 @@ mod tests {
 
     #[test]
     fn file_tree_git_light_variant_modified_tone_differs_between_warm_and_cool() {
-        let warm =
-            git_color_for_visuals(GitVisualStatus::Modified, &light_visuals(LightVariant::WarmIvory));
-        let cool =
-            git_color_for_visuals(GitVisualStatus::Modified, &light_visuals(LightVariant::CoolGray));
+        let warm = git_color_for_visuals(
+            GitVisualStatus::Modified,
+            &light_visuals(LightVariant::WarmIvory),
+        );
+        let cool = git_color_for_visuals(
+            GitVisualStatus::Modified,
+            &light_visuals(LightVariant::CoolGray),
+        );
 
         assert_ne!(
             warm, cool,
@@ -144,10 +150,14 @@ mod tests {
 
     #[test]
     fn file_tree_git_light_variant_untracked_tone_differs_between_cool_and_sepia() {
-        let cool =
-            git_color_for_visuals(GitVisualStatus::Untracked, &light_visuals(LightVariant::CoolGray));
-        let sepia =
-            git_color_for_visuals(GitVisualStatus::Untracked, &light_visuals(LightVariant::Sepia));
+        let cool = git_color_for_visuals(
+            GitVisualStatus::Untracked,
+            &light_visuals(LightVariant::CoolGray),
+        );
+        let sepia = git_color_for_visuals(
+            GitVisualStatus::Untracked,
+            &light_visuals(LightVariant::Sepia),
+        );
 
         assert_ne!(
             cool, sepia,

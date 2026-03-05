@@ -7,6 +7,7 @@ use std::time::Instant;
 impl Editor {
     // --- Normal editor ---
 
+    #[allow(clippy::too_many_arguments)]
     pub fn ui_normal(
         &mut self,
         ui: &mut egui::Ui,

@@ -5,8 +5,8 @@ pub use types::*;
 // Explicitly re-export standard tools
 pub use tools::get_standard_tools;
 
-use crate::app::ui::workspace::state::WorkspaceState;
 use crate::app::ui::git_status::GitVisualStatus;
+use crate::app::ui::workspace::state::WorkspaceState;
 
 /// Centralized logic for AI agents.
 pub struct AiManager;

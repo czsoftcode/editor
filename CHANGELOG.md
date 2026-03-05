@@ -1,3 +1,20 @@
+## [1.0.2-dev] - 2026-03-05
+
+### Added
+- **Sandbox Instant Apply**: Sandbox mode now applies immediately after clicking Save in Settings — no project reopen required. Terminals restart, file tree reloads, and open tabs are remapped to the new root.
+- **Tab Remap Toast**: After sandbox mode switch, a toast offers "Remap Tabs" / "Keep Current" — unresolvable tabs (files missing in new root) are marked as deleted. Pending remap state cleans up automatically if the toast expires without interaction.
+- **Sandbox OFF Confirmation**: Switching sandbox OFF now shows a confirmation dialog. If another dialog is open, the apply can be deferred via "Apply Later" toast.
+- **Staged Files Guard**: Sandbox OFF is blocked when staged git changes exist — a dialog explains the block and prompts to resolve staged files first.
+- **Sync on Sandbox ON**: Enabling sandbox mode offers an automatic project-to-sandbox sync dialog. Sync runs in a background thread; result is shown as a toast.
+- **Persist Failure Recovery**: If sandbox mode fails to persist to disk, a toast offers "Revert" or "Keep Temporarily" — the runtime state never diverges silently from disk.
+- **Multi-Window Propagation**: Sandbox mode changes propagate to all open windows of the same project via `settings_version` mechanism.
+
+### Changed
+- **Sandbox Mode Persistence**: Sandbox mode is now stored in `settings.toml` and applied consistently on project reopen (previously session-only).
+- **Sandbox Tooltip**: The sandbox toggle in Settings now has a full-row hover target for easier tooltip discovery.
+- **Sandbox Reopen Note**: The inline note about terminal restart on reopen is no longer visually suppressed (`small()` removed) — text is fully readable.
+- **Terminal Label Timing**: Terminal label reflects the new mode immediately on creation of a new instance; the old process finishes gracefully in `retired_terminals`. This is intentional behavior, documented in `apply_sandbox_mode_change()`.
+
 ## [1.0.0] - 2026-03-05
 
 ### Added

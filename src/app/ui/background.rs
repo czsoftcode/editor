@@ -498,7 +498,7 @@ pub(super) fn process_background_events(
     }
 
     if ws.external_change_conflict.is_none() {
-        let read_only = shared.lock().expect("lock").settings.project_read_only;
+        let read_only = ws.sandbox_mode_enabled;
         if let Some(err) = ws.editor.try_autosave(
             i18n,
             &shared.lock().expect("lock").is_internal_save,

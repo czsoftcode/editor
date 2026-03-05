@@ -12,6 +12,7 @@ impl Editor {
         i18n: &crate::i18n::I18n,
         lsp_client: Option<&crate::app::lsp::LspClient>,
         settings: &crate::settings::Settings,
+        sandbox_mode_enabled: bool,
     ) -> EditorUiResult {
         let mut diff_action = None;
 
@@ -84,7 +85,7 @@ impl Editor {
             }
         });
 
-        let is_readonly = if settings.project_read_only {
+        let is_readonly = if sandbox_mode_enabled {
             if let Some(path) = self.active_path() {
                 !path.to_string_lossy().contains(".polycredo/sandbox")
             } else {

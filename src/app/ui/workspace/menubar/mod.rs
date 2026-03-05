@@ -91,7 +91,7 @@ pub(super) fn process_menu_actions(
                 .lock()
                 .expect("Failed to lock AppShared for save action")
                 .is_internal_save,
-            shared.lock().expect("lock").settings.project_read_only,
+            ws.sandbox_mode_enabled,
         )
     {
         ws.toasts.push(Toast::error(err));
@@ -189,7 +189,13 @@ pub(super) fn process_menu_actions(
         if let Some(t) = &mut ws.build_terminal {
             t.send_command("cargo build 2>&1");
         }
-        ws.build_error_rx = Some(run_build_check(ws.root_path.clone()));
+        let build_path = crate::app::ui::terminal::terminal_working_dir(
+            ws.sandbox_mode_enabled,
+            &ws.sandbox.root,
+            &ws.root_path,
+        )
+        .to_path_buf();
+        ws.build_error_rx = Some(run_build_check(build_path));
         ws.build_errors.clear();
     }
     if actions.run

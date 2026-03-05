@@ -7,6 +7,7 @@ use std::time::Instant;
 impl Editor {
     // --- Markdown split view ---
 
+    #[allow(clippy::too_many_arguments)]
     pub fn ui_markdown_split(
         &mut self,
         ui: &mut egui::Ui,

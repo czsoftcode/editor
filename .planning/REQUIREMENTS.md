@@ -56,9 +56,9 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 
 ### Integrity
 
-- [ ] **INT-01**: Projekt se kompiluje bez warningů (unused imports, dead code)
-- [ ] **INT-02**: Existující testy procházejí
-- [ ] **INT-03**: Editor je plně funkční bez sandbox režimu
+- [x] **INT-01**: Projekt se kompiluje bez warningů (unused imports, dead code)
+- [x] **INT-02**: Existující testy procházejí
+- [x] **INT-03**: Editor je plně funkční bez sandbox režimu
 
 ## Future Requirements
 
@@ -111,9 +111,9 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 | WATCH-02 | Phase 11 | Complete |
 | GIT-01 | Phase 11 | Complete |
 | GIT-02 | Phase 11 | Complete |
-| INT-01 | Phase 12 | Pending |
-| INT-02 | Phase 12 | Pending |
-| INT-03 | Phase 12 | Pending |
+| INT-01 | Phase 12 | Complete |
+| INT-02 | Phase 12 | Complete |
+| INT-03 | Phase 12 | Complete |
 
 **Coverage:**
 - v1.1.0 requirements: 26 total

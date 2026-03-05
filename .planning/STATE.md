@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 11-01-PLAN.md and 11-02-PLAN.md
-last_updated: "2026-03-05T22:33:00.000Z"
-last_activity: 2026-03-05 — Completed plans 11-01 and 11-02 (File Operations & Plugin Registry Sandbox Removal)
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-03-05T23:00:41.000Z"
+last_activity: 2026-03-05 — Completed plan 12-02 (Integrity Verification, warnings fix, sandbox i18n cleanup)
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
-  percent: 0
+  completed_phases: 3
+  total_plans: 8
+  completed_plans: 7
+  percent: 87
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05 after v1.1.0 start)
 
 **Core value:** Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí být minimální.
-**Current focus:** Phase 11 — File Operations, Watcher Guard Removal
+**Current focus:** Phase 12 — i18n Cleanup & Integrity Verification
 
 ## Current Position
 
-Phase: 11 of 12 (File Operations, Watcher Guard Removal)
-Plan: 2 completed
+Phase: 12 of 12 (i18n Cleanup & Integrity Verification)
+Plan: 12-02 completed (1 of 2 plans in phase)
 Status: Executing
-Last activity: 2026-03-05 — Completed plans 11-01 and 11-02 (File Operations & Plugin Registry Sandbox Removal)
+Last activity: 2026-03-05 — Completed plan 12-02 (Integrity Verification, warnings fix, sandbox i18n cleanup)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [=========-] 87%
 
 ## Performance Metrics
 
@@ -55,6 +55,9 @@ Key decisions logged in PROJECT.md Key Decisions table.
 - [Phase 11]: Renamed exec_in_sandbox to exec in AI tools and WASM plugins
 - [Phase 11]: Removed read_only parameter from save/autosave/save_path - all callers passed false
 - [Phase 11]: Watcher now skips entire .polycredo/ directory without sandbox exception
+- [Phase 12]: Removed unused re-export and parameters (3 compile warnings fixed)
+- [Phase 12]: Cleaned 43 sandbox i18n keys from non-EN locales, updated sandbox-referencing values
+- [Phase 12]: Removed orphaned settings-safe-mode* and error-safe-mode-blocked keys (unused in code)
 
 ### Known Tech Debt
 
@@ -72,6 +75,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T22:33:00.000Z
-Stopped at: Completed 11-01-PLAN.md and 11-02-PLAN.md
-Resume file: .planning/phases/11-file-operations-watcher-guard-removal/11-01-SUMMARY.md
+Last session: 2026-03-05T23:00:41Z
+Stopped at: Completed 12-02-PLAN.md
+Resume file: .planning/phases/12-i18n-cleanup-integrity-verification/12-02-SUMMARY.md

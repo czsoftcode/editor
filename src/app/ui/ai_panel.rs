@@ -158,22 +158,15 @@ fn render_ai_tool_controls(
     if start_response.clicked()
         && let Some(agent) = current_agent
     {
-        let plan = ws.sandbox.get_sync_plan();
-        if plan.is_empty() {
-            // No sync needed, start immediately
-            let cmd = agent.command.clone();
-            let active = ws.claude_active_tab;
-            let context = format_context_for_terminal(&AiManager::generate_context(ws));
-            if let Some(terminal) = ws.claude_tabs.get_mut(active) {
-                terminal.send_command(&cmd);
-                if agent.context_aware {
-                    terminal.send_command(&context);
-                }
+        // Start agent immediately (no sandbox sync needed)
+        let cmd = agent.command.clone();
+        let active = ws.claude_active_tab;
+        let context = format_context_for_terminal(&AiManager::generate_context(ws));
+        if let Some(terminal) = ws.claude_tabs.get_mut(active) {
+            terminal.send_command(&cmd);
+            if agent.context_aware {
+                terminal.send_command(&context);
             }
-        } else {
-            // Differences found, show confirmation dialog
-            ws.sync_confirmation = Some(plan);
-            ws.pending_agent_id = Some(agent.id.clone());
         }
     }
 
@@ -218,7 +211,7 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
         TabBarAction::New => {
             let id = ws.next_claude_tab_id;
             ws.next_claude_tab_id += 1;
-            let root = ws.sandbox.root.clone();
+            let root = ws.root_path.clone();
             ws.claude_tabs.push(Terminal::new(id, ctx, &root, None));
             ws.claude_active_tab = ws.claude_tabs.len() - 1;
         }

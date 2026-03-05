@@ -343,7 +343,7 @@ fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool) {
         } else {
             ui.label("\u{1F4C1}");
         }
-        ui.label(egui::RichText::new(ws.sandbox.root.to_string_lossy()).weak());
+        ui.label(egui::RichText::new(ws.root_path.to_string_lossy()).weak());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.label(
                 egui::RichText::new(format!(

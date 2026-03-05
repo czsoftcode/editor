@@ -38,54 +38,14 @@ pub(super) fn render_left_panel(
                     ui.set_max_height(tree_height);
                     ui.set_min_height(tree_height);
 
-                    ui.horizontal(|ui| {
-                        let title = if ws.file_tree_in_sandbox {
-                            egui::RichText::new(i18n.get("panel-files-sandbox"))
-                                .color(egui::Color32::from_rgb(200, 120, 0))
-                                .strong()
-                        } else {
-                            egui::RichText::new(i18n.get("panel-files")).strong()
-                        };
-                        ui.heading(title);
-
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let prev_in_sandbox = ws.file_tree_in_sandbox;
-                            if ui
-                                .selectable_label(
-                                    !ws.file_tree_in_sandbox,
-                                    i18n.get("btn-tree-project"),
-                                )
-                                .clicked()
-                            {
-                                ws.file_tree_in_sandbox = false;
-                            }
-                            if ui
-                                .selectable_label(
-                                    ws.file_tree_in_sandbox,
-                                    i18n.get("btn-tree-sandbox"),
-                                )
-                                .clicked()
-                            {
-                                ws.file_tree_in_sandbox = true;
-                            }
-
-                            if ws.file_tree_in_sandbox != prev_in_sandbox {
-                                let target_dir = if ws.file_tree_in_sandbox {
-                                    &ws.sandbox.root
-                                } else {
-                                    &ws.root_path
-                                };
-                                ws.file_tree.load(target_dir);
-                            }
-                        });
-                    });
+                    ui.heading(egui::RichText::new(i18n.get("panel-files")).strong());
 
                     ui.separator();
                     egui::ScrollArea::both()
                         .auto_shrink([false, false])
                         .id_salt("file_tree_scroll")
                         .show(ui, |ui| {
-                            let result = ws.file_tree.ui(ui, i18n, ws.file_tree_in_sandbox);
+                            let result = ws.file_tree.ui(ui, i18n, false);
                             if let Some(err) = ws.file_tree.take_error() {
                                 ws.toasts.push(Toast::error(err));
                             }

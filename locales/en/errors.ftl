@@ -9,7 +9,6 @@ error-file-delete = Error deleting { $name }: { $reason }
 error-file-rename = Rename error: { $reason }
 error-file-create = Error creating file { $name }: { $reason }
 error-file-read-only-error = Cannot save "{ $name }" because it could not be read correctly. This tab is now read-only to prevent data loss.
-error-safe-mode-blocked = Project is in Safe Mode (read-only). You can only make changes in the Sandbox or disable Safe Mode in Settings.
 error-file-watch = File watching error
 
 ## Directories

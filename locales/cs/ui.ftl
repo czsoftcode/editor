@@ -2,9 +2,7 @@
 
 ## Panely
 panel-files = Soubory
-panel-files-sandbox = Soubory (Sandbox)
 btn-tree-project = Projekt
-btn-tree-sandbox = Sandbox
 panel-runners = Spouštěče
 panel-build = Sestavit
 panel-git = Git
@@ -17,17 +15,12 @@ panel-build-errors =
 
 ## Build tlačítka
 btn-build = ▶ Sestavit
-btn-build-sandbox-on = Sandbox ON
-btn-build-sandbox-off = Sandbox OFF
-hover-build-sandbox = Režim terminálu je převzatý z nastavení sandboxu (změna po Uložit).
 btn-run = ▶ Spustit
 btn-run-new = ▶ Spustit+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Vytvořit .deb
 hover-create-deb = Sestavit a vytvořit vývojový .deb balíček s číslem sestavení (build)
-hover-create-deb-disabled = Nelze vytvářet balíček v režimu sandboxu. Přepněte na Sandbox OFF.
-hover-build-menu-disabled = Sestavování je zakázáno v režimu Sandbox ON nebo pokud nejsou všechny soubory ze sandboxu přeneseny do projektu.
 btn-run-profile = ▶ Spustit...
 btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Upravit
@@ -43,7 +36,6 @@ git-checkout-file = git checkout (soubor)
 git-checkout-branch = git checkout (větev)
 git-pull = git pull
 git-reset-hard = git reset --hard
-hover-git-disabled-sandbox = Git operace jsou zakázány, dokud nejsou vyřešeny změny v sandboxu (použijte tlačítko 'Zkontrolovat změny' nebo 'Přenést vše' ve žluté liště).
 
 ## Status bar
 statusbar-line-col = Řádek { $line }, Sloupec { $col }
@@ -204,7 +196,7 @@ ai-staged-bar-msg = AI navrhlo změny v projektu
 ai-staged-bar-review = Zkontrolovat změny
 ai-staged-bar-promote-all = Přenést vše
 ai-staged-modal-hint = Klikněte na soubor pro zobrazení rozdílů a schválení změn:
-ai-staged-files = Navržené změny (Sandbox)
+ai-staged-files = Navržené změny
 ai-staged-new = [NOVÝ]
 ai-staged-mod = [MOD]
 ai-staged-del = [SMAZÁNO]
@@ -215,12 +207,6 @@ ai-promotion-all-success = Úspěšně přeneseno { $count } souborů do projekt
 ai-promotion-failed = Nepodařilo se aplikovat změny: { $error }
 
 ## Synchronizace před spuštěním AI
-ai-sync-title = Synchronizace před spuštěním
-ai-sync-msg = Byly detekovány rozdíly mezi projektem a sandboxem. Nejnovější verze souborů by měly být synchronizovány.
-ai-sync-to-sandbox = Aktualizovat Sandbox ({ $count } novějších v projektu)
-ai-sync-to-project = Povýšit do Projektu ({ $count } novějších v sandboxu)
-ai-sync-btn-sync = Synchronizovat a spustit
-ai-sync-btn-skip = Spustit bez synchronizace
 
 ## Oprávnění pluginů
 plugin-auth-bar-msg = Plugin „{ $name }“ žádá o přístup k internetu ({ $hosts }).
@@ -242,35 +228,6 @@ settings-light-variant-warm-ivory = Teplá slonová kost
 settings-light-variant-cool-gray = Studená šedá
 settings-light-variant-sepia = Sépie
 settings-auto-show-diff = Automaticky otevírat náhled změn AI
-settings-safe-mode = Režim sandboxu
-settings-safe-mode-hint = Změna se projeví okamžitě po Uložit.
-settings-safe-mode-tooltip = Vypnuto: pracujete přímo v kořeni projektu a terminály běží v kořeni projektu. Projeví se po Uložit.
-settings-safe-mode-terminal-note = Po změně režimu se terminálové relace okamžitě restartují.
-settings-sandbox-toast-off = Sandbox režim je vypnutý. Pracujete přímo v kořeni projektu.
-settings-sandbox-toast-on = Sandbox režim je zapnutý. Terminály se spustí v sandboxu.
-settings-sandbox-off-title = Vypnout sandbox režim?
-settings-sandbox-off-message = Chystáte se vypnout sandbox režim. Terminály i strom souborů se přepnou do kořene projektu.
-settings-sandbox-off-warning = Varování: změny budou zapisovány přímo do projektových souborů.
-settings-sandbox-off-blocked = Sandbox režim nelze vypnout, dokud jsou v sandboxu nevyřešené změny. Nejprve je přeneste.
-settings-sandbox-apply-prompt = Je otevřený jiný dialog. Aplikovat změnu sandboxu hned, nebo ji odložit?
-settings-sandbox-apply-now = Aplikovat hned
-settings-sandbox-apply-defer = Odložit
-settings-sandbox-remap-prompt = Sandbox režim byl přepnut. Přemapovat otevřené soubory podle nové root složky?
-settings-sandbox-remap-apply = Přemapovat taby
-settings-sandbox-remap-skip = Nepřemapovávat
-settings-sandbox-persist-actions = Nastavení se nepodařilo uložit. Aplikovat dočasně, nebo vrátit zpět?
-settings-sandbox-persist-revert = Vrátit
-settings-sandbox-persist-keep = Ponechat dočasně
-settings-sandbox-persist-unsaved = Nastavení je aplikováno dočasně a není uložené.
-settings-sandbox-persist-reverted = Nastavení bylo vráceno na poslední uložený stav.
-sandbox-sync-title = Synchronizovat projekt do sandboxu?
-sandbox-sync-msg = Sandbox režim byl zapnut. Chcete přenést nejnovější soubory z projektu do sandboxu?
-sandbox-sync-to-sandbox = Aktualizovat Sandbox ({ $count } novějších v projektu)
-sandbox-sync-nothing = V projektu nejsou novější soubory k přenosu.
-sandbox-sync-btn-sync = Synchronizovat
-sandbox-sync-btn-skip = Přeskočit
-sandbox-sync-success = Sandbox byl aktualizován ({ $count } souborů).
-sandbox-sync-error = Synchronizace sandboxu selhala: { $error }
 settings-conflict-title = Nastavení změněno
 settings-conflict-message = Nastavení bylo upraveno v jiném okně. Načtěte nejnovější hodnoty, nebo pokračujte v aktuálním návrhu.
 settings-conflict-reload = Načíst
@@ -303,7 +260,7 @@ plugins-category-general = ⚙ Obecné
 plugins-item-settings = Nastavení
 plugins-item-welcome = Přehled
 plugins-welcome-title = Vítejte ve Správci pluginů
-plugins-welcome-text = PolyCredo Editor používá moderní systém pluginů založený na technologii WebAssembly (WASM). To zajišťuje vysoký výkon a maximální bezpečnost — pluginy běží v izolovaném prostředí (sandboxu) a mají přístup pouze k tomu, co jim explicitně povolíte.
+plugins-welcome-text = PolyCredo Editor používá moderní systém pluginů založený na technologii WebAssembly (WASM). To zajišťuje vysoký výkon a maximální bezpečnost — pluginy běží v izolovaném prostředí (WASM) a mají přístup pouze k tomu, co jim explicitně povolíte.
 plugins-welcome-hint = Vyberte kategorii nebo konkrétní plugin v seznamu vlevo pro jeho konfiguraci.
 plugins-security-info = 🛡 Zabezpečení: Blacklist souborů a adresářů můžete spravovat v hlavním Nastavení.
 plugins-settings-saved = Nastavení pluginů uloženo. U některých změn je doporučen restart.
@@ -360,13 +317,13 @@ file-tree-delete-error = Nelze smazat: { $reason }
 
 ## Dialog externího konfliktu
 conflict-title = Soubor změněn externě
-conflict-message = Soubor „{ $name }" byl změněn (pravděpodobně převodem ze sandboxu), ale obsahuje neuložené změny v editoru.
+conflict-message = Soubor „{ $name }" byl změněn mimo editor, ale obsahuje neuložené změny v editoru.
 conflict-choose = Vyberte, kterou verzi chcete zachovat:
-conflict-load-disk = Přepsat ze sandboxu
-conflict-keep-editor = Zachovat z projektu
+conflict-load-disk = Načíst z disku
+conflict-keep-editor = Zachovat verzi editoru
 conflict-dismiss = Zrušit
-conflict-hover-disk = Zahodit neuložené změny v editoru a načíst verzi, která byla právě přenesena ze sandboxu
-conflict-hover-keep = Ponechat rozpracované změny v editoru; verze ze sandboxu na disku bude přepsána při vašem příštím uložení (Ctrl+S)
+conflict-hover-disk = Zahodit neuložené změny v editoru a načíst verzi změněnou na disku
+conflict-hover-keep = Ponechat rozpracované změny v editoru; verze na disku bude přepsána při vašem příštím uložení (Ctrl+S)
 conflict-hover-dismiss = Zavřít upozornění bez provedení změn
 
 md-open-external = ↗ Otevřít v externím prohlížeči
@@ -376,13 +333,6 @@ svg-open-external = ↗ Otevřít náhled v prohlížeči
 svg-modal-title = SVG soubor
 svg-modal-body = Tento soubor je SVG obrázek. Chcete ho otevřít v systémovém prohlížeči, nebo upravovat jako XML text?
 svg-modal-edit = Upravovat jako text
-
-## Dialog synchronizace smazání v sandboxu
-sandbox-delete-title = Soubor smazán v sandboxu
-sandbox-delete-msg = Soubor „{ $name }" byl smazán v AI sandboxu, ale v projektu stále existuje. Co si přejete udělat?
-sandbox-delete-keep-project = Ponechat v projektu (obnovit do sandboxu)
-sandbox-delete-also-project = Smazat i v projektu
-
 ## Support Modal
 support-modal-title = Podpořit vývoj PolyCredo
 support-modal-body = PolyCredo Editor je vyvíjen s vizí soukromí, rychlosti a bezpečné integrace AI asistentů. Pokud se vám projekt líbí, budeme vděční za jakoukoli podporu. Vaše příspěvky nám pomáhají věnovat více času vývoji nových funkcí a údržbě.

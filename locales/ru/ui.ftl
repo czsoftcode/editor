@@ -2,9 +2,7 @@
 
 ## Панели
 panel-files = Файлы
-panel-files-sandbox = Файлы (Sandbox)
 btn-tree-project = Проект
-btn-tree-sandbox = Sandbox
 panel-runners = Spouštěče
 panel-build = Build
 panel-git = Git
@@ -18,23 +16,16 @@ panel-build-errors =
 
 ## Кнопки сборки
 btn-build = ▶ Build
-btn-build-sandbox-on = Sandbox ВКЛ
-btn-build-sandbox-off = Sandbox ВЫКЛ
-hover-build-sandbox = Переключение между выполнением в корне проекта и в ИИ-песочнице
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Create .deb
 hover-create-deb = Собрать и создать разработческий .deb-пакет с номером сборки
-hover-create-deb-disabled = В режиме песочницы создание пакетов невозможно. Переключитесь в режим Sandbox ВЫКЛ.
-hover-build-menu-disabled = Сборка отключена в режиме Sandbox ВКЛ или при наличии непереданных файлов в песочнице.
 btn-run-profile = ▶ Запустить...
 btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Редактировать
 runner-none = Профили не определены.
-
-
 ## Dependency Wizard
 dep-wizard-title = Dependency Installation Wizard
 dep-wizard-install-question = Do you want to download and install { $tool } to { $path }?
@@ -45,12 +36,6 @@ dep-wizard-status-downloading = Downloading...
 dep-wizard-status-running = Installing...
 dep-wizard-status-success = Installation successful!
 dep-wizard-status-error = Installation error: { $error }
-
-
-
-
-
-
 ## Операции Git
 git-add-all = git add .
 git-commit = git commit -m "..."
@@ -61,7 +46,6 @@ git-checkout-file = git checkout (файл)
 git-checkout-branch = git checkout (ветка)
 git-pull = git pull
 git-reset-hard = git reset --hard
-hover-git-disabled-sandbox = Операции Git отключены до тех пор, пока не будут разрешены все изменения в песочнице (используйте кнопку «Проверить изменения» или «Принять все» на желтой панели).
 
 ## Строка состояния
 statusbar-line-col = Строка { $line }, Столбец { $col }
@@ -238,12 +222,6 @@ ai-promotion-all-success = Успешно перенесено { $count } фай
 ai-promotion-failed = Не удалось применить изменения: { $error }
 
 ## Синхронизация перед запуском ИИ
-ai-sync-title = Синхронизация перед запуском
-ai-sync-msg = Обнаружены различия между проектом и песочницей. Последние версии файлов должны быть синхронизированы.
-ai-sync-to-sandbox = Обновить песочницу ({ $count } новее в проекте)
-ai-sync-to-project = Перенести в проект ({ $count } новее в песочнице)
-ai-sync-btn-sync = Синхронизировать и запустить
-ai-sync-btn-skip = Запустить без синхронизации
 
 ## Разрешения плагинов
 plugin-auth-bar-msg = Плагин «{ $name }» запрашивает доступ к интернету ({ $hosts }).
@@ -265,12 +243,6 @@ settings-light-variant-warm-ivory = Теплая слоновая кость
 settings-light-variant-cool-gray = Холодный серый
 settings-light-variant-sepia = Сепия
 settings-auto-show-diff = Автоматически открывать предпросмотр изменений ИИ
-settings-safe-mode = Безопасный режим (Проект только для чтения)
-settings-safe-mode-hint = При включении дерево файлов и билд по умолчанию переходят в Sandbox, а прямое сохранение в проект заблокировано.
-settings-safe-mode-tooltip = Выключено: работа напрямую в корне проекта, терминалы запускаются в корне проекта. Изменение применяется после повторного открытия проекта.
-settings-safe-mode-terminal-note = После смены режима терминальные процессы перезапускаются после повторного открытия проекта.
-settings-sandbox-toast-off = Режим Sandbox выключен. Изменение применяется после повторного открытия проекта.
-settings-sandbox-toast-on = Режим Sandbox включен. Терминалы перезапустятся в Sandbox после повторного открытия.
 settings-diff-mode = Отображение AI Diff
 settings-diff-inline = Совмещенное (+ / -)
 settings-diff-side-by-side = Рядом
@@ -356,40 +328,12 @@ svg-modal-title = SVG-файл
 svg-modal-body = Этот файл является SVG-изображением. Хотите открыть его во внешнем браузере или редактировать как XML-текст?
 svg-modal-edit = Редактировать как текст
 
-## Диалог Sandbox OFF / staged / sync
-settings-sandbox-off-title = Отключить режим Sandbox?
-settings-sandbox-off-message = Вы собираетесь отключить режим Sandbox. Все терминалы и дерево файлов переключатся в корень проекта.
-settings-sandbox-off-warning = Предупреждение: изменения будут записываться напрямую в файлы проекта.
-settings-sandbox-off-blocked = Режим Sandbox невозможно отключить, пока есть незавершённые изменения. Сначала разрешите их.
-settings-sandbox-apply-prompt = Открыт другой диалог. Применить изменение Sandbox сейчас или отложить?
-settings-sandbox-apply-now = Применить сейчас
-settings-sandbox-apply-defer = Отложить
-settings-sandbox-remap-prompt = Режим Sandbox был переключён. Переназначить открытые файлы на новый корень?
-settings-sandbox-remap-apply = Переназначить вкладки
-settings-sandbox-remap-skip = Оставить как есть
-settings-sandbox-persist-actions = Настройки не удалось сохранить. Применить временно или откатить?
-settings-sandbox-persist-revert = Откатить
-settings-sandbox-persist-keep = Сохранить временно
-settings-sandbox-persist-unsaved = Настройки применены временно и ещё не сохранены.
-settings-sandbox-persist-reverted = Настройки откатились к последнему сохранённому состоянию.
-sandbox-sync-title = Синхронизировать проект в Sandbox?
-sandbox-sync-msg = Режим Sandbox был включён. Перенести последние файлы проекта в Sandbox?
-sandbox-sync-to-sandbox = Обновить Sandbox ({ $count } новее в проекте)
-sandbox-sync-nothing = Нет более новых файлов в проекте для переноса.
-sandbox-sync-btn-sync = Синхронизировать
-sandbox-sync-btn-skip = Пропустить
-sandbox-sync-success = Sandbox обновлён ({ $count } файл(ов) синхронизировано).
-sandbox-sync-error = Ошибка синхронизации Sandbox: { $error }
 settings-conflict-title = Настройки изменены
 settings-conflict-message = Настройки были обновлены в другом окне. Перезагрузить или продолжить редактирование текущего черновика?
 settings-conflict-reload = Перезагрузить
 settings-conflict-keep = Продолжить редактирование
 
 ## Диалог синхронизации удаления в песочнице
-sandbox-delete-title = Файл удален в песочнице
-sandbox-delete-msg = Файл «{ $name }» был удален в ИИ-песочнице, но все еще существует в проекте. Что вы хотите сделать?
-sandbox-delete-keep-project = Оставить в проекте (восстановить в песочницу)
-sandbox-delete-also-project = Удалить также в проекте
 ai-chat-title = AI Chat Assistant
 ai-chat-label-response = Response:
 ai-chat-loading = AI is thinking…
@@ -433,7 +377,7 @@ plugins-category-general = ⚙ General
 plugins-item-settings = Settings
 plugins-item-welcome = Overview
 plugins-welcome-title = Welcome to Plugin Manager
-plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (sandbox) and only have access to what you explicitly authorize.
+plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (WASM) and only have access to what you explicitly authorize.
 plugins-welcome-hint = Select a category or a specific plugin from the list on the left to configure it.
 plugins-security-info = 🛡 Security: You can manage the file/directory blacklist in the main Settings.
 plugins-settings-saved = Plugin settings saved. Restart recommended for some changes.

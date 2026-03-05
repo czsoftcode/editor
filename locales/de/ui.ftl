@@ -2,9 +2,7 @@
 
 ## Panels
 panel-files = Dateien
-panel-files-sandbox = Dateien (Sandbox)
 btn-tree-project = Projekt
-btn-tree-sandbox = Sandbox
 panel-runners = Runner
 panel-build = Build
 panel-git = Git
@@ -16,23 +14,16 @@ panel-build-errors =
 
 ## Build-Schaltflächen
 btn-build = ▶ Build
-btn-build-sandbox-on = Sandbox EIN
-btn-build-sandbox-off = Sandbox AUS
-hover-build-sandbox = Zwischen Projekt-Root und KI-Sandbox zum Ausführen umschalten
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Create .deb
 hover-create-deb = Ein Entwicklungs-.deb-Paket mit Build-Nummer erstellen
-hover-create-deb-disabled = Im Sandbox-Modus kann kein Paket erstellt werden. Wechseln Sie zu Sandbox AUS.
-hover-build-menu-disabled = Das Erstellen ist im Sandbox-Modus oder bei nicht übertragenen Sandbox-Dateien deaktiviert.
 btn-run-profile = ▶ Run Profile...
 btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Edit
 runner-none = No profiles defined.
-
-
 ## Dependency Wizard
 dep-wizard-title = Dependency Installation Wizard
 dep-wizard-install-question = Do you want to download and install { $tool } to { $path }?
@@ -44,10 +35,6 @@ dep-wizard-status-running = Installing...
 dep-wizard-status-success = Installation successful!
 dep-wizard-status-error = Installation error: { $error }
 
-
-
-
-
 ## Git-Operationen
 git-add-all = git add .
 git-commit = git commit -m "..."
@@ -58,7 +45,6 @@ git-checkout-file = git checkout (Datei)
 git-checkout-branch = git checkout (Zweig)
 git-pull = git pull
 git-reset-hard = git reset --hard
-hover-git-disabled-sandbox = Git-Operationen sind deaktiviert, bis alle Sandbox-Änderungen gelöst sind (Schaltfläche 'Änderungen überprüfen' oder 'Alle übernehmen' in der gelben Leiste verwenden).
 
 ## Statusleiste
 statusbar-line-col = Zeile { $line }, Spalte { $col }
@@ -205,7 +191,7 @@ ai-staged-bar-msg = KI hat Änderungen im Projekt vorgeschlagen
 ai-staged-bar-review = Änderungen überprüfen
 ai-staged-bar-promote-all = Alle übernehmen
 ai-staged-modal-hint = Klicken Sie auf eine Datei, um Unterschiede anzuzeigen und Änderungen zu genehmigen:
-ai-staged-files = Vorgeschlagene Änderungen (Sandbox)
+ai-staged-files = Vorgeschlagene Änderungen
 ai-staged-new = [NEU]
 ai-staged-mod = [MOD]
 ai-staged-del = [GELÖSCHT]
@@ -216,12 +202,6 @@ ai-promotion-all-success = Erfolgreich { $count } Dateien in das Projekt übertr
 ai-promotion-failed = Änderungen konnten nicht angewendet werden: { $error }
 
 ## Synchronisierung vor dem Start von AI
-ai-sync-title = Synchronisierung vor dem Start
-ai-sync-msg = Unterschiede zwischen Projekt und Sandbox erkannt. Die neuesten Versionen sollten synchronisiert werden.
-ai-sync-to-sandbox = Sandbox aktualisieren ({ $count } neuere im Projekt)
-ai-sync-to-project = Ins Projekt befördern ({ $count } neuere in der Sandbox)
-ai-sync-btn-sync = Synchronisieren und Starten
-ai-sync-btn-skip = Ohne Synchronisierung starten
 
 ## Plugin-Berechtigungen
 plugin-auth-bar-msg = Das Plugin „{ $name }“ beantragt Internetzugriff ({ $hosts }).
@@ -243,12 +223,6 @@ settings-light-variant-warm-ivory = Warmes Elfenbein
 settings-light-variant-cool-gray = Kühles Grau
 settings-light-variant-sepia = Sepia
 settings-auto-show-diff = KI-Änderungsvorschau automatisch öffnen
-settings-safe-mode = Sicherer Modus (Projekt schreibgeschützt)
-settings-safe-mode-hint = Wenn aktiviert, wechseln Dateibaum und Build zum Sandbox-Modus, und direktes Speichern im Projekt ist blockiert.
-settings-safe-mode-tooltip = Aus: Arbeiten direkt im Projektstamm und Terminals laufen im Projektstamm. Gilt nach erneutem Öffnen des Projekts.
-settings-safe-mode-terminal-note = Nach dem Moduswechsel werden Terminal-Prozesse nach erneutem Öffnen des Projekts neu gestartet.
-settings-sandbox-toast-off = Sandbox-Modus ausgeschaltet. Die Änderung gilt nach erneutem Öffnen des Projekts.
-settings-sandbox-toast-on = Sandbox-Modus eingeschaltet. Terminals starten nach dem erneuten Öffnen im Sandbox-Modus.
 settings-diff-mode = KI-Diff-Layout
 settings-diff-inline = Zusammengefügt (+ / -)
 settings-diff-side-by-side = Nebeneinander
@@ -282,7 +256,7 @@ plugins-category-general = ⚙ Allgemein
 plugins-item-settings = Einstellungen
 plugins-item-welcome = Übersicht
 plugins-welcome-title = Willkommen im Plugin-Manager
-plugins-welcome-text = Der PolyCredo Editor verwendet ein modernes Plugin-System basierend auf der WebAssembly (WASM) Technologie. Dies gewährleistet hohe Leistung und maximale Sicherheit — Plugins laufen in einer isolierten Umgebung (Sandbox) und haben nur Zugriff auf das, was Sie explizit erlauben.
+plugins-welcome-text = Der PolyCredo Editor verwendet ein modernes Plugin-System basierend auf der WebAssembly (WASM) Technologie. Dies gewährleistet hohe Leistung und maximale Sicherheit — Plugins laufen in einer isolierten Umgebung (WASM) und haben nur Zugriff auf das, was Sie explizit erlauben.
 plugins-welcome-hint = Wählen Sie eine Kategorie oder ein bestimmtes Plugin aus der Liste links, um es zu konfigurieren.
 plugins-security-info = 🛡 Sicherheit: Sie können die Datei/Ordner-Blacklist in den Haupteinstellungen verwalten.
 plugins-settings-saved = Plugin-Einstellungen gespeichert. Neustart bei einigen Änderungen empfohlen.
@@ -320,13 +294,13 @@ file-tree-delete-error = Löschen nicht möglich: { $reason }
 
 ## Dialog für externen Konflikt
 conflict-title = Datei extern geändert
-conflict-message = Die Datei „{ $name }" wurde geändert (wahrscheinlich durch Sandbox-Übernahme), hat aber ungespeicherte Änderungen im Editor.
+conflict-message = Die Datei „{ $name }" wurde geändert (extern geändert), hat aber ungespeicherte Änderungen im Editor.
 conflict-choose = Wählen Sie, welche Version Sie behalten möchten:
-conflict-load-disk = Aus Sandbox überschreiben
+conflict-load-disk = Von Festplatte laden
 conflict-keep-editor = Aus Projekt beibehalten
 conflict-dismiss = Abbrechen
-conflict-hover-disk = Nicht gespeicherte Editor-Änderungen verwerfen und die gerade aus der Sandbox übernommene Version laden
-conflict-hover-keep = In Arbeit befindliche Änderungen im Editor behalten; die Sandbox-Version auf der Festplatte wird beim nächsten Speichern (Strg+S) überschrieben
+conflict-hover-disk = Nicht gespeicherte Editor-Änderungen verwerfen und die auf der Festplatte geänderte Version laden
+conflict-hover-keep = In Arbeit befindliche Änderungen im Editor behalten; die Version auf der Festplatte wird beim nächsten Speichern (Strg+S) überschrieben
 conflict-hover-dismiss = Benachrichtigung schließen, ohne Änderungen vorzunehmen
 
 md-open-external = ⧉ In externem Betrachter öffnen
@@ -337,40 +311,11 @@ svg-modal-title = SVG-Datei
 svg-modal-body = Diese Datei ist ein SVG-Bild. Möchten Sie sie im Systembetrachter öffnen oder als XML-Text bearbeiten?
 svg-modal-edit = Als Text bearbeiten
 
-## Sandbox OFF / Staged / Sync Dialog
-settings-sandbox-off-title = Sandbox-Modus deaktivieren?
-settings-sandbox-off-message = Sie sind dabei, den Sandbox-Modus zu deaktivieren. Alle Terminals und der Dateibaum wechseln zum Projektstamm.
-settings-sandbox-off-warning = Warnung: Änderungen werden direkt in die Projektdateien geschrieben.
-settings-sandbox-off-blocked = Der Sandbox-Modus kann nicht deaktiviert werden, solange noch ausstehende Änderungen vorhanden sind. Lösen Sie diese zuerst.
-settings-sandbox-apply-prompt = Ein anderer Dialog ist geöffnet. Sandbox-Änderung jetzt anwenden oder verschieben?
-settings-sandbox-apply-now = Jetzt anwenden
-settings-sandbox-apply-defer = Verschieben
-settings-sandbox-remap-prompt = Sandbox-Modus wurde gewechselt. Offene Dateien auf den neuen Stamm umzuordnen?
-settings-sandbox-remap-apply = Tabs umordnen
-settings-sandbox-remap-skip = Beibehalten
-settings-sandbox-persist-actions = Einstellungen konnten nicht gespeichert werden. Vorübergehend anwenden oder zurücksetzen?
-settings-sandbox-persist-revert = Zurücksetzen
-settings-sandbox-persist-keep = Vorübergehend beibehalten
-settings-sandbox-persist-unsaved = Einstellungen sind vorübergehend angewendet und noch nicht gespeichert.
-settings-sandbox-persist-reverted = Einstellungen wurden auf den letzten gespeicherten Zustand zurückgesetzt.
-sandbox-sync-title = Projekt in Sandbox synchronisieren?
-sandbox-sync-msg = Sandbox-Modus wurde aktiviert. Neueste Projektdateien in die Sandbox übertragen?
-sandbox-sync-to-sandbox = Sandbox aktualisieren ({ $count } neuere im Projekt)
-sandbox-sync-nothing = Keine neueren Dateien im Projekt zum Übertragen.
-sandbox-sync-btn-sync = Jetzt synchronisieren
-sandbox-sync-btn-skip = Überspringen
-sandbox-sync-success = Sandbox aktualisiert ({ $count } Datei(en) synchronisiert).
-sandbox-sync-error = Sandbox-Synchronisierung fehlgeschlagen: { $error }
 settings-conflict-title = Einstellungen geändert
 settings-conflict-message = Einstellungen wurden in einem anderen Fenster aktualisiert. Neu laden oder aktuellen Entwurf beibehalten?
 settings-conflict-reload = Neu laden
 settings-conflict-keep = Weiter bearbeiten
 
-## Dialog zur Synchronisation des Löschens in der Sandbox
-sandbox-delete-title = Datei in der Sandbox gelöscht
-sandbox-delete-msg = Die Datei „{ $name }" wurde in der KI-Sandbox gelöscht, existiert aber im Projekt noch. Was möchten Sie tun?
-sandbox-delete-keep-project = Im Projekt behalten (in der Sandbox wiederherstellen)
-sandbox-delete-also-project = Auch im Projekt löschen
 panel-runners = Runners
 btn-run-profile = Run Profile...
 btn-edit-profiles = Edit
@@ -432,7 +377,7 @@ plugins-category-general = ⚙ General
 plugins-item-settings = Settings
 plugins-item-welcome = Overview
 plugins-welcome-title = Welcome to Plugin Manager
-plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (sandbox) and only have access to what you explicitly authorize.
+plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (WASM) and only have access to what you explicitly authorize.
 plugins-welcome-hint = Select a category or a specific plugin from the list on the left to configure it.
 plugins-security-info = 🛡 Security: You can manage the file/directory blacklist in the main Settings.
 plugins-settings-saved = Plugin settings saved. Restart recommended for some changes.

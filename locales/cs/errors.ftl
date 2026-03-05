@@ -9,7 +9,6 @@ error-file-delete = Chyba mazání souboru { $name }: { $reason }
 error-file-rename = Chyba přejmenování: { $reason }
 error-file-create = Chyba vytváření souboru { $name }: { $reason }
 error-file-read-only-error = Nelze uložit soubor „{ $name }“, protože jej nebylo možné správně přečíst. Tento tab je nyní pouze pro čtení, aby se zabránilo ztrátě dat.
-error-safe-mode-blocked = Projekt je v bezpečném režimu (pouze pro čtení). Změny můžete provádět pouze v Sandboxu nebo vypněte bezpečný režim v Nastavení.
 error-file-watch = Chyba sledování souborů
 
 ## Složky

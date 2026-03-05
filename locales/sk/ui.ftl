@@ -2,9 +2,7 @@
 
 ## Panely
 panel-files = Súbory
-panel-files-sandbox = Súbory (Sandbox)
 btn-tree-project = Projekt
-btn-tree-sandbox = Sandbox
 panel-runners = Spúšťače
 panel-build = Zostavenie
 panel-git = Git
@@ -17,23 +15,16 @@ panel-build-errors =
 
 ## Tlačidlá buildu
 btn-build = ▶ Build
-btn-build-sandbox-on = Sandbox ON
-btn-build-sandbox-off = Sandbox OFF
-hover-build-sandbox = Prepnúť medzi spúšťaním v projekte a v AI sandboxe
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Vytvoriť .deb
 hover-create-deb = Zostaviť a vytvoriť vývojový .deb balíček s číslom zostavenia (build)
-hover-create-deb-disabled = Nemožno vytvárať balíček v režime sandboxu. Prepnite na Sandbox OFF.
-hover-build-menu-disabled = Sestavovanie je zakázané v režime Sandbox ON alebo ak nie sú všetky súbory zo sandboxu prenesené do projektu.
 btn-run-profile = ▶ Spustiť...
 btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Upraviť
 runner-none = Nie sú definované žiadne profily.
-
-
 ## Dependency Wizard
 dep-wizard-title = Sprievodca inštaláciou závislostí
 dep-wizard-install-question = Chcete stiahnuť a nainštalovať { $tool } do { $path }?
@@ -45,10 +36,6 @@ dep-wizard-status-running = Inštalujem...
 dep-wizard-status-success = Inštalácia bola úspešná!
 dep-wizard-status-error = Chyba inštalácie: { $error }
 
-
-
-
-
 ## Git operácie
 git-add-all = git add .
 git-commit = git commit -m "..."
@@ -59,7 +46,6 @@ git-checkout-file = git checkout (súbor)
 git-checkout-branch = git checkout (vetva)
 git-pull = git pull
 git-reset-hard = git reset --hard
-hover-git-disabled-sandbox = Git operácie sú zakázané, kým nie sú vyriešené zmeny v sandboxe (použite tlačidlo 'Skontrolovať zmeny' alebo 'Preniesť všetko' v žltej lište).
 
 ## Status bar
 statusbar-line-col = Riadok { $line }, Stĺpec { $col }
@@ -209,7 +195,7 @@ ai-staged-bar-msg = AI navrhlo zmeny v projekte
 ai-staged-bar-review = Skontrolovať zmeny
 ai-staged-bar-promote-all = Preniesť všetko
 ai-staged-modal-hint = Kliknite na súbor pre zobrazenie rozdielov a schválenie zmien:
-ai-staged-files = Navrhnuté zmeny (Sandbox)
+ai-staged-files = Navrhnuté zmeny
 ai-staged-new = [NOVÝ]
 ai-staged-mod = [MOD]
 ai-staged-del = [ZMAZANÝ]
@@ -234,12 +220,6 @@ ai-chat-label-system-prompt = Systémový prompt:
 ai-chat-default-prompt = Expert na Rust.
 
 ## Synchronizácia pred spustením AI
-ai-sync-title = Synchronizácia pred spustením
-ai-sync-msg = Boli detegované rozdiely medzi projektom a sandboxom. Najnovšie verzie súborov by mali byť synchronizované.
-ai-sync-to-sandbox = Aktualizovať Sandbox ({ $count } novších v projekte)
-ai-sync-to-project = Povýšiť do Projektu ({ $count } novších v sandboxe)
-ai-sync-btn-sync = Synchronizovať a spustiť
-ai-sync-btn-skip = Spustiť bez synchronizácie
 
 ## Oprávnenia pluginov
 plugin-auth-bar-msg = Plugin „{ $name }“ žiada o prístup k internetu ({ $hosts }).
@@ -261,12 +241,6 @@ settings-light-variant-warm-ivory = Teplá slonovinová
 settings-light-variant-cool-gray = Studená sivá
 settings-light-variant-sepia = Sepia
 settings-auto-show-diff = Automaticky otvárať náhľad zmien AI
-settings-safe-mode = Bezpečný režim (Projekt iba na čítanie)
-settings-safe-mode-hint = Pri zapnutí sú zobrazenia a build prepnuté na Sandbox a nie je možné priamo ukladať do projektu.
-settings-safe-mode-tooltip = Vypnuté: pracujete priamo v koreňovom adresári projektu a terminály bežia v koreňovom adresári. Zmena sa prejaví po znovuotevrení projektu.
-settings-safe-mode-terminal-note = Po zmene režimu sa terminálové procesy po znovuotevrení projektu spustia znova.
-settings-sandbox-toast-off = Sandbox režim je vypnutý. Zmena sa prejaví po znovuotevrení projektu.
-settings-sandbox-toast-on = Sandbox režim je zapnutý. Po znovuotevrení sa terminály spustia v sandboxe.
 settings-diff-mode = Zobrazenie AI Diffu
 settings-diff-inline = Zlúčené (+ / -)
 settings-diff-side-by-side = Vedľa seba
@@ -297,7 +271,7 @@ plugins-category-general = ⚙ Všeobecné
 plugins-item-settings = Nastavenia
 plugins-item-welcome = Prehľad
 plugins-welcome-title = Vitajte v Správcovi pluginov
-plugins-welcome-text = PolyCredo Editor používa moderný systém pluginov založený na technológii WebAssembly (WASM). To zaisťuje vysoký výkon a maximálnu bezpečnosť — pluginy bežia v izolovanom prostredí (sandboxe) a majú prístup iba k tomu, čo im explicitne povolíte.
+plugins-welcome-text = PolyCredo Editor používa moderný systém pluginov založený na technológii WebAssembly (WASM). To zaisťuje vysoký výkon a maximálnu bezpečnosť — pluginy bežia v izolovanom prostredí (WASM) a majú prístup iba k tomu, čo im explicitne povolíte.
 plugins-welcome-hint = Vyberte kategóriu alebo konkrétny plugin v zozname vľavo pre jeho konfiguráciu.
 plugins-security-info = 🛡 Zabezpečenie: Blacklist súborov a adresárov môžete spravovať v hlavnom Nastavení.
 plugins-settings-saved = Nastavenia pluginov uložené. Pri niektorých zmenách je odporúčaný reštart.
@@ -334,13 +308,13 @@ file-tree-delete-error = Nemožno odstrániť: { $reason }
 
 ## Dialóg externého konfliktu
 conflict-title = Súbor zmenený externe
-conflict-message = Súbor „{ $name }" bol zmenený (pravdepodobne prevodom zo sandboxu), ale v editore má neuložené zmeny.
+conflict-message = Súbor „{ $name }" bol zmenený (mimo editor), ale v editore má neuložené zmeny.
 conflict-choose = Vyberte, ktorú verziu chcete zachovať:
-conflict-load-disk = Prepísať zo sandboxu
+conflict-load-disk = Načítať z disku
 conflict-keep-editor = Zachovať z projektu
 conflict-dismiss = Zrušiť
-conflict-hover-disk = Zahodiť neuložené zmeny v editore a načítať verziu, ktorá bola práve prenesená zo sandboxu
-conflict-hover-keep = Ponechať rozpracované zmeny v editore; verzia zo sandboxu na disku bude prepísaná pri vašom najbližšom uložení (Ctrl+S)
+conflict-hover-disk = Zahodiť neuložené zmeny v editore a načítať verziu, ktorá bola zmenenú na disku
+conflict-hover-keep = Ponechať rozpracované zmeny v editore; verzia na disku bude prepísaná pri vašom najbližšom uložení (Ctrl+S)
 conflict-hover-dismiss = Zatvoriť upozornenie bez vykonania zmien
 
 md-open-external = ⧉ Otvoriť vo vonkajšom prehliadači
@@ -350,37 +324,6 @@ svg-open-external = ⧉ Otvoriť náhľad v prehliadači
 svg-modal-title = SVG súbor
 svg-modal-body = Tento súbor je SVG obrázok. Chcete ho otvoriť v systémovom prehliadači, alebo upravovať ako XML text?
 svg-modal-edit = Upravovať ako text
-
-## Dialóg synchronizácie zmazania v sandboxe
-sandbox-delete-title = Súbor zmazaný v sandboxe
-sandbox-delete-msg = Súbor „{ $name }" bol zmazaný v AI sandboxe, ale v projekte stále existuje. Čo si želáte urobiť?
-sandbox-delete-keep-project = Ponechať v projekte (obnoviť do sandboxu)
-sandbox-delete-also-project = Zmazať aj v projekte
-
-## Sandbox sandbox-off / staged / sync dialóg
-settings-sandbox-off-title = Vypnúť sandbox režim?
-settings-sandbox-off-message = Chystáte sa vypnúť sandbox režim. Terminály aj strom súborov sa prepnú do koreňa projektu.
-settings-sandbox-off-warning = Varovanie: zmeny sa budú zapisovať priamo do projektových súborov.
-settings-sandbox-off-blocked = Sandbox režim nemožno vypnúť, kým sú v sandboxe nevyriešené zmeny. Najprv ich preneste.
-settings-sandbox-apply-prompt = Je otvorený iný dialóg. Aplikovať zmenu sandboxu hneď, alebo ju odložiť?
-settings-sandbox-apply-now = Aplikovať hneď
-settings-sandbox-apply-defer = Odložiť
-settings-sandbox-remap-prompt = Sandbox režim bol prepnutý. Premapovať otvorené súbory podľa nového koreňa?
-settings-sandbox-remap-apply = Premapovať taby
-settings-sandbox-remap-skip = Nepremapovávať
-settings-sandbox-persist-actions = Nastavenia sa nepodarilo uložiť. Aplikovať dočasne, alebo vrátiť späť?
-settings-sandbox-persist-revert = Vrátiť
-settings-sandbox-persist-keep = Ponechať dočasne
-settings-sandbox-persist-unsaved = Nastavenia sú aplikované dočasne a nie sú uložené.
-settings-sandbox-persist-reverted = Nastavenia boli vrátené do posledného uloženého stavu.
-sandbox-sync-title = Synchronizovať projekt do sandboxu?
-sandbox-sync-msg = Sandbox režim bol zapnutý. Chcete preniesť najnovšie súbory z projektu do sandboxu?
-sandbox-sync-to-sandbox = Aktualizovať Sandbox ({ $count } novších v projekte)
-sandbox-sync-nothing = V projekte nie sú novšie súbory na prenesenie.
-sandbox-sync-btn-sync = Synchronizovať
-sandbox-sync-btn-skip = Preskočiť
-sandbox-sync-success = Sandbox bol aktualizovaný ({ $count } súborov).
-sandbox-sync-error = Synchronizácia sandboxu zlyhala: { $error }
 settings-conflict-title = Nastavenia zmenené
 settings-conflict-message = Nastavenia boli aktualizované v inom okne. Načítať najnovšie hodnoty, alebo pokračovať v úprave?
 settings-conflict-reload = Načítať

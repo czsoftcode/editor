@@ -2,9 +2,7 @@
 
 ## Panels
 panel-files = Files
-panel-files-sandbox = Files (Sandbox)
 btn-tree-project = Project
-btn-tree-sandbox = Sandbox
 panel-runners = Runners
 panel-build = Build
 panel-git = Git
@@ -16,19 +14,14 @@ panel-build-errors =
 
 ## Build buttons
 btn-build = ▶ Build
-btn-build-sandbox-on = Sandbox ON
-btn-build-sandbox-off = Sandbox OFF
-hover-build-sandbox = Terminal mode follows the sandbox setting (changes apply after Save).
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Create .deb
 hover-create-deb = Build and create a development .deb package with build number
-hover-create-deb-disabled = Cannot create package in sandbox mode. Switch to Sandbox OFF.
-hover-build-menu-disabled = Building is disabled in Sandbox ON mode or if there are unpromoted files in the sandbox.
 btn-run-profile = ▶ Run Profile...
-btn-git-profile =  Git...
+btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Edit
 runner-none = No profiles defined.
 
@@ -42,7 +35,6 @@ git-checkout-file = git checkout (file)
 git-checkout-branch = git checkout (branch)
 git-pull = git pull
 git-reset-hard = git reset --hard
-hover-git-disabled-sandbox = Git operations are disabled until all sandbox changes are resolved (use 'Review Changes' or 'Promote All' in the yellow bar).
 
 ## Status bar
 statusbar-line-col = Line { $line }, Column { $col }
@@ -201,7 +193,7 @@ ai-staged-bar-msg = AI suggested changes to the project
 ai-staged-bar-review = Review Changes
 ai-staged-bar-promote-all = Promote All
 ai-staged-modal-hint = Click a file to review differences and accept changes:
-ai-staged-files = Suggested Changes (Sandbox)
+ai-staged-files = Suggested Changes
 ai-staged-new = [NEW]
 ai-staged-mod = [MOD]
 ai-staged-del = [DELETED]
@@ -210,14 +202,6 @@ ai-promotion-success-body = The following file has been successfully updated in 
 ai-promotion-success = Changes successfully applied to the project.
 ai-promotion-all-success = Successfully promoted { $count } files to project.
 ai-promotion-failed = Failed to apply changes: { $error }
-
-## Sync before starting AI
-ai-sync-title = Sync before start
-ai-sync-msg = Differences detected between project and sandbox. Latest versions should be synchronized.
-ai-sync-to-sandbox = Update Sandbox ({ $count } newer in project)
-ai-sync-to-project = Promote to Project ({ $count } newer in sandbox)
-ai-sync-btn-sync = Sync and Start
-ai-sync-btn-skip = Start without sync
 
 ## Plugin Permissions
 plugin-auth-bar-msg = Plugin "{ $name }" requests internet access ({ $hosts }).
@@ -239,35 +223,6 @@ settings-light-variant-warm-ivory = Warm Ivory
 settings-light-variant-cool-gray = Cool Gray
 settings-light-variant-sepia = Sepia
 settings-auto-show-diff = Automatically open AI change preview
-settings-safe-mode = Sandbox mode
-settings-safe-mode-hint = The change applies immediately after Save.
-settings-safe-mode-tooltip = Off: work directly in the project root and run terminals in the project root. Applies after Save.
-settings-safe-mode-terminal-note = Changing the mode restarts terminal sessions right away.
-settings-sandbox-toast-off = Sandbox mode is OFF. You are working directly in the project root.
-settings-sandbox-toast-on = Sandbox mode is ON. Terminals will restart in the sandbox.
-settings-sandbox-off-title = Turn Off Sandbox Mode?
-settings-sandbox-off-message = You are about to disable sandbox mode. This switches all terminals and the file tree to the project root.
-settings-sandbox-off-warning = Warning: edits will affect real project files directly.
-settings-sandbox-off-blocked = Sandbox mode cannot be turned off while there are staged changes. Resolve them first.
-settings-sandbox-apply-prompt = Another dialog is open. Apply the sandbox change now or defer it until dialogs are closed?
-settings-sandbox-apply-now = Apply now
-settings-sandbox-apply-defer = Defer
-settings-sandbox-remap-prompt = Sandbox mode changed. Remap open files to the new root?
-settings-sandbox-remap-apply = Remap tabs
-settings-sandbox-remap-skip = Keep as is
-settings-sandbox-persist-actions = Settings could not be saved. Apply temporarily or revert?
-settings-sandbox-persist-revert = Revert
-settings-sandbox-persist-keep = Keep temporarily
-settings-sandbox-persist-unsaved = Settings are applied temporarily and not yet saved.
-settings-sandbox-persist-reverted = Settings were reverted to the last saved state.
-sandbox-sync-title = Sync Project to Sandbox?
-sandbox-sync-msg = Sandbox mode was enabled. Sync the latest project files into the sandbox?
-sandbox-sync-to-sandbox = Update Sandbox ({ $count } newer in project)
-sandbox-sync-nothing = Nothing to sync from project to sandbox.
-sandbox-sync-btn-sync = Sync now
-sandbox-sync-btn-skip = Skip
-sandbox-sync-success = Sandbox updated ({ $count } file(s) synced).
-sandbox-sync-error = Sandbox sync failed: { $error }
 settings-conflict-title = Settings Changed
 settings-conflict-message = Settings were updated in another window. Reload to see the latest values, or keep editing your current draft.
 settings-conflict-reload = Reload
@@ -297,7 +252,7 @@ plugins-category-general = ⚙ General
 plugins-item-settings = Settings
 plugins-item-welcome = Overview
 plugins-welcome-title = Welcome to Plugin Manager
-plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (sandbox) and only have access to what you explicitly authorize.
+plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (WASM) and only have access to what you explicitly authorize.
 plugins-welcome-hint = Select a category or a specific plugin from the list on the left to configure it.
 plugins-security-info = 🛡 Security: You can manage the file/directory blacklist in the main Settings.
 plugins-settings-saved = Plugin settings saved. Restart recommended for some changes.
@@ -354,13 +309,13 @@ file-tree-delete-error = Cannot delete: { $reason }
 
 ## External conflict dialog
 conflict-title = File Changed Externally
-conflict-message = File "{ $name }" was changed (likely by sandbox promotion), but has unsaved changes in the editor.
+conflict-message = File "{ $name }" was changed outside the editor, but has unsaved changes in the editor.
 conflict-choose = Choose which version you want to keep:
-conflict-load-disk = Overwrite from Sandbox
-conflict-keep-editor = Keep Project Version
+conflict-load-disk = Load from Disk
+conflict-keep-editor = Keep Editor Version
 conflict-dismiss = Cancel
-conflict-hover-disk = Discard unsaved editor changes and load the version just promoted from sandbox
-conflict-hover-keep = Keep your work-in-progress changes in the editor; the sandbox version on disk will be overwritten when you save (Ctrl+S)
+conflict-hover-disk = Discard unsaved editor changes and load the version changed on disk
+conflict-hover-keep = Keep your work-in-progress changes in the editor; the version on disk will be overwritten when you save (Ctrl+S)
 conflict-hover-dismiss = Close notification without making changes
 
 md-open-external = ↗ Open in External Viewer
@@ -370,12 +325,6 @@ svg-open-external = ↗ Open preview in viewer
 svg-modal-title = SVG File
 svg-modal-body = This file is an SVG image. Do you want to open it in the system viewer, or edit it as XML text?
 svg-modal-edit = Edit as text
-
-## Sandbox Deletion Sync Dialog
-sandbox-delete-title = File Deleted in Sandbox
-sandbox-delete-msg = The file "{ $name }" was deleted in the AI sandbox, but still exists in the project. What would you like to do?
-sandbox-delete-keep-project = Keep in Project (Restore to Sandbox)
-sandbox-delete-also-project = Delete from Project Too
 
 ## Support Modal
 support-modal-title = Support PolyCredo Development
@@ -401,8 +350,5 @@ dep-wizard-status-error = Installation error: { $error }
 dep-wizard-install-cmd-question = This tool can be installed using your system package manager. Do you want to start the installation?
 dep-wizard-btn-run-cmd = Start Installation (requires sudo)
 dep-wizard-status-running = Installing...
-
-
-
 
 dep-wizard-appimagetool-desc = The appimagetool is required for the final packaging of the .AppImage bundle.

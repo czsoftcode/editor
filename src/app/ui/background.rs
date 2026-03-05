@@ -180,11 +180,9 @@ pub(super) fn process_background_events(
     }
 
     if ws.external_change_conflict.is_none() {
-        let read_only = false;
         if let Some(err) = ws.editor.try_autosave(
             i18n,
             &shared.lock().expect("lock").is_internal_save,
-            read_only,
         ) {
             ws.toasts.push(Toast::error(err));
         }

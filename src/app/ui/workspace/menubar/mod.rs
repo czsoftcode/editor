@@ -91,7 +91,6 @@ pub(super) fn process_menu_actions(
                 .lock()
                 .expect("Failed to lock AppShared for save action")
                 .is_internal_save,
-            false,
         )
     {
         ws.toasts.push(Toast::error(err));

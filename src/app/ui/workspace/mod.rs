@@ -140,7 +140,7 @@ pub(crate) fn render_workspace(
         let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
         if let Some(err) = ws
             .editor
-            .save(i18n, &internal_save, false)
+            .save(i18n, &internal_save)
         {
             ws.toasts.push(Toast::error(err));
         }
@@ -303,7 +303,6 @@ pub(crate) fn render_workspace(
             i18n,
             ws.lsp_client.as_ref(),
             &settings,
-            false,
         );
         if editor_res.clicked {
             ws.focused_panel = FocusedPanel::Editor;

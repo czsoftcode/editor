@@ -12,7 +12,6 @@ impl Editor {
         i18n: &crate::i18n::I18n,
         lsp_client: Option<&crate::app::lsp::LspClient>,
         settings: &crate::settings::Settings,
-        sandbox_mode_enabled: bool,
     ) -> EditorUiResult {
         let mut diff_action = None;
 
@@ -85,15 +84,7 @@ impl Editor {
             }
         });
 
-        let is_readonly = if sandbox_mode_enabled {
-            if let Some(path) = self.active_path() {
-                !path.to_string_lossy().contains(".polycredo/sandbox")
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let is_readonly = false;
         let theme_name = settings.syntect_theme_name();
 
         let clicked = if self.is_markdown() {

@@ -98,7 +98,6 @@ pub fn show(
                         .lock()
                         .expect("Failed to lock AppShared for conflict resolution save")
                         .is_internal_save,
-                    false,
                 );
                 ws.external_change_conflict = None;
             }

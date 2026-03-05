@@ -559,35 +559,8 @@ impl EditorApp {
                         if ws.applied_settings_version != v {
                             let theme_name = shared.settings.syntect_theme_name();
                             ws.editor.highlighter.set_theme(theme_name);
-                            let settings_snapshot = (*shared.settings).clone();
                             shared.settings.apply(ctx);
                             ws.applied_settings_version = v;
-
-                            if ws.sandbox_mode_enabled != settings_snapshot.sandbox_mode {
-                                if ws.settings_draft.is_some() {
-                                    ws.settings_conflict =
-                                        Some(crate::app::ui::workspace::state::SettingsConflict {
-                                            new_settings: settings_snapshot.clone(),
-                                        });
-                                }
-                                let needs_request = ws
-                                    .pending_sandbox_apply
-                                    .as_ref()
-                                    .map(|req| req.version != v)
-                                    .unwrap_or(true);
-                                if needs_request {
-                                    ws.pending_sandbox_apply = Some(
-                                        crate::app::ui::workspace::state::SandboxApplyRequest {
-                                            target_mode: settings_snapshot.sandbox_mode,
-                                            version: v,
-                                            defer_until_clear: true,
-                                            force_apply: false,
-                                            prompted: false,
-                                            notify_on_apply: true,
-                                        },
-                                    );
-                                }
-                            }
                         }
                     }
 
@@ -745,7 +718,6 @@ impl eframe::App for EditorApp {
                 .load(std::sync::atomic::Ordering::SeqCst);
             if self.applied_settings_version != v {
                 let theme_name = shared.settings.syntect_theme_name();
-                let settings_snapshot = (*shared.settings).clone();
                 if let Some(ws) = &mut self.root_ws {
                     ws.editor.highlighter.set_theme(theme_name);
                 }
@@ -754,30 +726,6 @@ impl eframe::App for EditorApp {
                 // If there's a workspace, sync its version too to prevent double-apply
                 if let Some(ws) = &mut self.root_ws {
                     ws.applied_settings_version = v;
-                    if ws.sandbox_mode_enabled != settings_snapshot.sandbox_mode {
-                        if ws.settings_draft.is_some() {
-                            ws.settings_conflict =
-                                Some(crate::app::ui::workspace::state::SettingsConflict {
-                                    new_settings: settings_snapshot.clone(),
-                                });
-                        }
-                        let needs_request = ws
-                            .pending_sandbox_apply
-                            .as_ref()
-                            .map(|req| req.version != v)
-                            .unwrap_or(true);
-                        if needs_request {
-                            ws.pending_sandbox_apply =
-                                Some(crate::app::ui::workspace::state::SandboxApplyRequest {
-                                    target_mode: settings_snapshot.sandbox_mode,
-                                    version: v,
-                                    defer_until_clear: true,
-                                    force_apply: false,
-                                    prompted: false,
-                                    notify_on_apply: true,
-                                });
-                        }
-                    }
                 }
             }
         }

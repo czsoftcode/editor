@@ -89,7 +89,7 @@ fn process_sandbox_persist_decision(
         drop(s);
 
         ws.pending_sandbox_apply = Some(crate::app::ui::workspace::state::SandboxApplyRequest {
-            target_mode: failure.draft.sandbox_mode,
+            target_mode: false, // sandbox_mode removed from Settings (Phase 9)
             version: new_version,
             defer_until_clear: dialog_open,
             force_apply: false,
@@ -144,7 +144,7 @@ fn process_pending_sandbox_apply(
         return;
     }
 
-    let shared_mode = shared.lock().expect("lock").settings.sandbox_mode;
+    let shared_mode = false; // sandbox_mode removed from Settings (Phase 9)
     let target_mode = if req.target_mode != shared_mode {
         req.target_mode = shared_mode;
         shared_mode

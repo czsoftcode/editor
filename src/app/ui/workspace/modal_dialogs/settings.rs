@@ -27,7 +27,7 @@ fn sandbox_mode_change(
         return SandboxModeChange::None;
     };
 
-    match (original.sandbox_mode, draft.sandbox_mode) {
+    match (false, false) { // sandbox_mode removed from Settings (Phase 9)
         (true, true) | (false, false) => SandboxModeChange::None,
         (false, true) => SandboxModeChange::Enabled,
         (true, false) => SandboxModeChange::Disabled,
@@ -371,8 +371,10 @@ pub fn show(
                                 egui::vec2(ui.available_width(), ui.spacing().interact_size.y),
                                 egui::Layout::left_to_right(egui::Align::Center),
                                 |ui| {
+                                    // sandbox_mode removed from Settings (Phase 9)
+                                    let mut _sandbox_stub = false;
                                     ui.checkbox(
-                                        &mut draft.sandbox_mode,
+                                        &mut _sandbox_stub,
                                         i18n.get("settings-safe-mode"),
                                     );
                                     ui.add_space(4.0);
@@ -544,7 +546,7 @@ pub fn show(
         if let Some(draft) = ws.settings_draft.as_mut()
             && let Some(original) = ws.settings_original.as_ref()
         {
-            draft.sandbox_mode = original.sandbox_mode;
+            // sandbox_mode removed from Settings (Phase 9)
         }
         ws.show_sandbox_staged = true;
         ws.toasts.push(crate::app::types::Toast::error(
@@ -618,7 +620,7 @@ pub fn show(
             {
                 persist_error = Some(err);
             }
-            let draft_sandbox_mode = draft.sandbox_mode;
+            let draft_sandbox_mode = false; // sandbox_mode removed from Settings (Phase 9)
             ws.wizard.path = draft.default_project_path.clone();
             let lang = draft.lang.clone();
             let mut toast_message: Option<String> = None;
@@ -727,105 +729,4 @@ pub fn show(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{SandboxModeChange, requires_sandbox_off_confirm, sandbox_mode_change};
-    use crate::settings::Settings;
-    use std::path::PathBuf;
-
-    #[test]
-    fn test_sandbox_mode_change_off_requires_confirm() {
-        let original = Settings {
-            sandbox_mode: true,
-            ..Default::default()
-        };
-        let mut draft = original.clone();
-        draft.sandbox_mode = false;
-
-        let change = sandbox_mode_change(Some(&original), &draft);
-        assert_eq!(change, SandboxModeChange::Disabled);
-        assert!(requires_sandbox_off_confirm(change));
-    }
-
-    #[test]
-    fn test_sandbox_mode_change_on_no_confirm() {
-        let original = Settings {
-            sandbox_mode: false,
-            ..Default::default()
-        };
-        let mut draft = original.clone();
-        draft.sandbox_mode = true;
-
-        let change = sandbox_mode_change(Some(&original), &draft);
-        assert_eq!(change, SandboxModeChange::Enabled);
-        assert!(!requires_sandbox_off_confirm(change));
-    }
-
-    #[test]
-    fn test_sandbox_mode_change_none() {
-        let original = Settings {
-            sandbox_mode: true,
-            ..Default::default()
-        };
-        let mut draft = original.clone();
-        draft.sandbox_mode = true;
-
-        let change = sandbox_mode_change(Some(&original), &draft);
-        assert_eq!(change, SandboxModeChange::None);
-        assert!(!requires_sandbox_off_confirm(change));
-    }
-
-    #[test]
-    fn test_sandbox_off_blocked_when_staged() {
-        let original = Settings {
-            sandbox_mode: true,
-            ..Default::default()
-        };
-        let mut draft = original.clone();
-        draft.sandbox_mode = false;
-
-        let change = sandbox_mode_change(Some(&original), &draft);
-        let staged_files = vec![PathBuf::from("src/main.rs")];
-
-        assert!(super::should_block_sandbox_off_due_to_staged(
-            change,
-            &staged_files
-        ));
-    }
-
-    #[test]
-    fn test_sandbox_off_not_blocked_without_staged() {
-        let original = Settings {
-            sandbox_mode: true,
-            ..Default::default()
-        };
-        let mut draft = original.clone();
-        draft.sandbox_mode = false;
-
-        let change = sandbox_mode_change(Some(&original), &draft);
-        let staged_files: Vec<PathBuf> = Vec::new();
-
-        assert!(!super::should_block_sandbox_off_due_to_staged(
-            change,
-            &staged_files
-        ));
-    }
-
-    #[test]
-    fn test_sandbox_on_not_blocked_even_with_staged() {
-        let original = Settings {
-            sandbox_mode: false,
-            ..Default::default()
-        };
-        let mut draft = original.clone();
-        draft.sandbox_mode = true;
-
-        let change = sandbox_mode_change(Some(&original), &draft);
-        let staged_files = vec![PathBuf::from("src/app.rs")];
-
-        assert!(!super::should_block_sandbox_off_due_to_staged(
-            change,
-            &staged_files
-        ));
-    }
-}
+// Tests for sandbox_mode_change removed — sandbox_mode removed from Settings (Phase 9)

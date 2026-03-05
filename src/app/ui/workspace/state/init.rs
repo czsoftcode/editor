@@ -21,7 +21,7 @@ pub fn init_workspace(
 ) -> WorkspaceState {
     let sandbox = crate::app::sandbox::Sandbox::new(&root_path);
     let mut file_tree = FileTree::new();
-    let file_tree_in_sandbox = settings.sandbox_mode;
+    let file_tree_in_sandbox = false; // sandbox_mode removed from Settings (Phase 9)
     let target_tree_root = if file_tree_in_sandbox {
         &sandbox.root
     } else {
@@ -207,8 +207,8 @@ pub fn init_workspace(
         sandbox_sync_confirmation: None,
         sandbox_sync_rx: None,
         pending_agent_id: None,
-        sandbox_mode_enabled: settings.sandbox_mode,
-        build_in_sandbox: settings.sandbox_mode,
+        sandbox_mode_enabled: false, // sandbox_mode removed from Settings (Phase 9)
+        build_in_sandbox: false, // sandbox_mode removed from Settings (Phase 9)
         file_tree_in_sandbox,
         git_cancel,
         local_history: crate::app::local_history::LocalHistory::new(&root_path),

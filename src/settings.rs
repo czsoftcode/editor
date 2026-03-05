@@ -123,11 +123,6 @@ pub struct Settings {
     #[serde(default = "default_auto_show_ai_diff")]
     pub auto_show_ai_diff: bool,
 
-    /// Whether the project runs in sandbox mode.
-    /// Legacy key `project_read_only` is accepted during migration.
-    #[serde(default = "default_true", alias = "project_read_only")]
-    pub sandbox_mode: bool,
-
     /// Configuration for individual plugins. Key = plugin ID (file stem).
     #[serde(default)]
     pub plugins: HashMap<String, PluginSettings>,
@@ -152,7 +147,6 @@ impl Default for Settings {
             diff_side_by_side: false,
             privacy_accepted: false,
             auto_show_ai_diff: true,
-            sandbox_mode: true,
             plugins: HashMap::new(),
             blacklist: vec![
                 ".env*".to_string(),
@@ -201,11 +195,48 @@ fn config_dir() -> PathBuf {
     dirs::config_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
+/// One-time migration: strip sandbox_mode and project_read_only from settings files.
+fn migrate_remove_sandbox_fields(path: &std::path::Path) {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return;
+    };
+    // TOML
+    if path.extension().map_or(false, |e| e == "toml") {
+        if let Ok(mut value) = content.parse::<toml::Value>() {
+            if let Some(table) = value.as_table_mut() {
+                let a = table.remove("sandbox_mode").is_some();
+                let b = table.remove("project_read_only").is_some();
+                if a || b {
+                    if let Ok(new_content) = toml::to_string_pretty(&value) {
+                        let _ = std::fs::write(path, new_content);
+                    }
+                }
+            }
+        }
+    }
+    // JSON (legacy)
+    if path.extension().map_or(false, |e| e == "json") {
+        if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(obj) = value.as_object_mut() {
+                let a = obj.remove("sandbox_mode").is_some();
+                let b = obj.remove("project_read_only").is_some();
+                if a || b {
+                    if let Ok(new_content) = serde_json::to_string_pretty(&value) {
+                        let _ = std::fs::write(path, new_content);
+                    }
+                }
+            }
+        }
+    }
+}
+
 impl Settings {
     fn load_from_config_dir(config_root: &std::path::Path) -> Self {
         let path = settings_path_in(config_root);
         if let Ok(content) = std::fs::read_to_string(&path) {
-            return toml::from_str(&content).unwrap_or_default();
+            let settings: Self = toml::from_str(&content).unwrap_or_default();
+            migrate_remove_sandbox_fields(&path);
+            return settings;
         }
 
         // Migration from JSON
@@ -213,6 +244,7 @@ impl Settings {
         if let Ok(content) = std::fs::read_to_string(&old_path) {
             let settings: Self = serde_json::from_str(&content).unwrap_or_default();
             let _ = settings.try_save_to_config_dir(config_root); // Save as TOML immediately
+            migrate_remove_sandbox_fields(&settings_path_in(config_root));
             let _ = std::fs::remove_file(old_path); // Cleanup
             return settings;
         }
@@ -580,49 +612,58 @@ default_project_path = "/home/test"
     }
 
     #[test]
-    fn test_sett02_canonical_toml_persists_sandbox_mode() {
-        let temp = TempConfigDir::new("sandbox-mode-roundtrip");
-        let settings = Settings {
-            sandbox_mode: false,
-            ..Default::default()
-        };
-
-        settings
-            .try_save_to_config_dir(&temp.path)
-            .expect("save settings");
-
-        let canonical_path = temp.app_config_dir().join(SETTINGS_FILE);
-        let canonical_content =
-            std::fs::read_to_string(&canonical_path).expect("read canonical settings.toml");
-        assert!(canonical_content.contains("sandbox_mode = false"));
-        assert!(!canonical_content.contains("project_read_only"));
-
-        let loaded = Settings::load_from_config_dir(&temp.path);
-        assert!(!loaded.sandbox_mode);
-    }
-
-    #[test]
-    fn test_sett05_legacy_project_read_only_maps_to_sandbox_mode() {
-        let temp = TempConfigDir::new("legacy-safe-mode-migration");
+    fn test_settings_migration_strips_sandbox_fields() {
+        let temp = TempConfigDir::new("migration-strips-sandbox");
         let app_config = temp.app_config_dir();
         std::fs::create_dir_all(&app_config).expect("create app config dir");
 
-        let legacy_path = app_config.join(OLD_SETTINGS_FILE);
-        let legacy_json = r#"
+        let toml_path = app_config.join(SETTINGS_FILE);
+        let toml_content = r#"
+editor_font_size = 14.0
+dark_theme = true
+sandbox_mode = true
+"#;
+        std::fs::write(&toml_path, toml_content).expect("write settings.toml with sandbox_mode");
+
+        let _loaded = Settings::load_from_config_dir(&temp.path);
+
+        let migrated_content =
+            std::fs::read_to_string(&toml_path).expect("read migrated settings.toml");
+        assert!(
+            !migrated_content.contains("sandbox_mode"),
+            "sandbox_mode should be stripped from TOML after migration"
+        );
+    }
+
+    #[test]
+    fn test_settings_migration_strips_project_read_only_from_json() {
+        let temp = TempConfigDir::new("migration-strips-json");
+        let app_config = temp.app_config_dir();
+        std::fs::create_dir_all(&app_config).expect("create app config dir");
+
+        let json_path = app_config.join(OLD_SETTINGS_FILE);
+        let json_content = r#"
 {
   "project_read_only": false,
+  "sandbox_mode": true,
   "editor_font_size": 16.0
 }
 "#;
-        std::fs::write(&legacy_path, legacy_json).expect("write legacy settings.json");
+        std::fs::write(&json_path, json_content).expect("write legacy settings.json");
 
-        let loaded = Settings::load_from_config_dir(&temp.path);
-        assert!(!loaded.sandbox_mode);
+        let _loaded = Settings::load_from_config_dir(&temp.path);
 
-        let canonical_path = app_config.join(SETTINGS_FILE);
-        let canonical_content =
-            std::fs::read_to_string(&canonical_path).expect("read canonical settings.toml");
-        assert!(canonical_content.contains("sandbox_mode = false"));
-        assert!(!canonical_content.contains("project_read_only"));
+        // JSON gets converted to TOML, check that the TOML output doesn't have sandbox fields
+        let toml_path = app_config.join(SETTINGS_FILE);
+        let migrated_content =
+            std::fs::read_to_string(&toml_path).expect("read migrated settings.toml");
+        assert!(
+            !migrated_content.contains("sandbox_mode"),
+            "sandbox_mode should be stripped from migrated TOML"
+        );
+        assert!(
+            !migrated_content.contains("project_read_only"),
+            "project_read_only should be stripped from migrated TOML"
+        );
     }
 }

@@ -51,8 +51,8 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 
 ### Git & Build Restrictions
 
-- [ ] **GIT-01**: Git disabled-in-sandbox guards odstraněny
-- [ ] **GIT-02**: Build/deb disabled-in-sandbox guards odstraněny
+- [x] **GIT-01**: Git disabled-in-sandbox guards odstraněny
+- [x] **GIT-02**: Build/deb disabled-in-sandbox guards odstraněny
 
 ### Integrity
 
@@ -109,8 +109,8 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 | FILE-03 | Phase 11 | Pending |
 | WATCH-01 | Phase 11 | Pending |
 | WATCH-02 | Phase 11 | Pending |
-| GIT-01 | Phase 11 | Pending |
-| GIT-02 | Phase 11 | Pending |
+| GIT-01 | Phase 11 | Complete |
+| GIT-02 | Phase 11 | Complete |
 | INT-01 | Phase 12 | Pending |
 | INT-02 | Phase 12 | Pending |
 | INT-03 | Phase 12 | Pending |

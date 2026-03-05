@@ -38,7 +38,7 @@ Archive: `.planning/milestones/v1.0.6-ROADMAP.md`
 
 - [ ] **Phase 9: Core Sandbox Logic & Settings Removal** - Odstraneni sandbox.rs, Sandbox/SyncPlan struktur a sandbox settings fieldu
 - [x] **Phase 10: UI & State Cleanup** - Odstraneni vsech sandbox UI prvku a sandbox-related state fieldu (completed 2026-03-05)
-- [ ] **Phase 11: File Operations, Watcher & Guard Removal** - Odstraneni sandbox logiky z file ops, watcheru a git/build guardu
+- [x] **Phase 11: File Operations, Watcher & Guard Removal** - Odstraneni sandbox logiky z file ops, watcheru a git/build guardu (completed 2026-03-05)
 - [ ] **Phase 12: I18n Cleanup & Integrity Verification** - Odstraneni i18n klicu, verifikace kompilace, testu a funkcnosti
 
 ## Phase Details
@@ -85,7 +85,7 @@ Plans:
   3. Terminaly vzdy pouzivaji projektovy adresar bez sandbox working directory switchingu
   4. Git operace a build/deb akce jsou vzdy povoleny bez sandbox guardu
   5. Projekt se kompiluje (warnings povoleny v teto fazi)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 11-01-PLAN.md — Odstranit sandbox logiku z editor files, terminal funkcí, watcheru a settings migrace
@@ -119,5 +119,5 @@ Plans:
 | ~~8. Focus Restore & Regression~~ | v1.0.6 | — | Cancelled | — |
 | 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 2/3 | In progress | - |
 | 10. UI & State Cleanup | v1.1.0 | 1/1 | Complete | 2026-03-05 |
-| 11. File Operations, Watcher & Guard Removal | v1.1.0 | 0/2 | Not started | - |
+| 11. File Operations, Watcher & Guard Removal | 2/2 | Complete   | 2026-03-05 | - |
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 0/? | Not started | - |

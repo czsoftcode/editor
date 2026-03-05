@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-03-05T22:03:52.023Z"
-last_activity: 2026-03-05 — Roadmap created (phases 9-12)
+status: executing
+stopped_at: Completed 11-01-PLAN.md and 11-02-PLAN.md
+last_updated: "2026-03-05T22:33:00.000Z"
+last_activity: 2026-03-05 — Completed plans 11-01 and 11-02 (File Operations & Plugin Registry Sandbox Removal)
 progress:
   total_phases: 4
   completed_phases: 2
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05 after v1.1.0 start)
 
 **Core value:** Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí být minimální.
-**Current focus:** Phase 9 — Core Sandbox Logic & Settings Removal
+**Current focus:** Phase 11 — File Operations, Watcher Guard Removal
 
 ## Current Position
 
-Phase: 9 of 12 (Core Sandbox Logic & Settings Removal)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-05 — Roadmap created (phases 9-12)
+Phase: 11 of 12 (File Operations, Watcher Guard Removal)
+Plan: 2 completed
+Status: Executing
+Last activity: 2026-03-05 — Completed plans 11-01 and 11-02 (File Operations & Plugin Registry Sandbox Removal)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -51,6 +51,10 @@ Key decisions logged in PROJECT.md Key Decisions table.
 - [Phase 09]: Registry::new takes project root instead of sandbox root
 - [Phase 09]: AI agent starts directly without sandbox sync plan check
 - [Phase 10]: Line count and large file highlighting promoted from sandbox-only to global features
+- [Phase 11]: Renamed sandbox_root to project_root in entire plugin registry
+- [Phase 11]: Renamed exec_in_sandbox to exec in AI tools and WASM plugins
+- [Phase 11]: Removed read_only parameter from save/autosave/save_path - all callers passed false
+- [Phase 11]: Watcher now skips entire .polycredo/ directory without sandbox exception
 
 ### Known Tech Debt
 
@@ -68,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T21:59:04.052Z
-Stopped at: Completed 10-01-PLAN.md
-Resume file: None
+Last session: 2026-03-05T22:30:07.000Z
+Stopped at: Completed 11-02-PLAN.md
+Resume file: .planning/phases/11-file-operations-watcher-guard-removal/11-02-SUMMARY.md

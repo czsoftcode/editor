@@ -40,14 +40,14 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 
 ### File Operations
 
-- [ ] **FILE-01**: Tab remapping logika pro sandbox odstraněna z `editor/files.rs`
-- [ ] **FILE-02**: File tree sandbox/project root switching logika odstraněna
-- [ ] **FILE-03**: Terminal working directory sandbox switching odstraněno
+- [x] **FILE-01**: Tab remapping logika pro sandbox odstraněna z `editor/files.rs`
+- [x] **FILE-02**: File tree sandbox/project root switching logika odstraněna
+- [x] **FILE-03**: Terminal working directory sandbox switching odstraněno
 
 ### Watcher & Background
 
-- [ ] **WATCH-01**: Sandbox-specific logika ve `watcher.rs` odstraněna (staged detection, auto-sync)
-- [ ] **WATCH-02**: Background tasks pro sandbox sync a staging detection odstraněny
+- [x] **WATCH-01**: Sandbox-specific logika ve `watcher.rs` odstraněna (staged detection, auto-sync)
+- [x] **WATCH-02**: Background tasks pro sandbox sync a staging detection odstraněny
 
 ### Git & Build Restrictions
 
@@ -104,11 +104,11 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 | SET-02 | Phase 9 | Complete |
 | I18N-01 | Phase 12 | Pending |
 | I18N-02 | Phase 12 | Pending |
-| FILE-01 | Phase 11 | Pending |
-| FILE-02 | Phase 11 | Pending |
-| FILE-03 | Phase 11 | Pending |
-| WATCH-01 | Phase 11 | Pending |
-| WATCH-02 | Phase 11 | Pending |
+| FILE-01 | Phase 11 | Complete |
+| FILE-02 | Phase 11 | Complete |
+| FILE-03 | Phase 11 | Complete |
+| WATCH-01 | Phase 11 | Complete |
+| WATCH-02 | Phase 11 | Complete |
 | GIT-01 | Phase 11 | Complete |
 | GIT-02 | Phase 11 | Complete |
 | INT-01 | Phase 12 | Pending |

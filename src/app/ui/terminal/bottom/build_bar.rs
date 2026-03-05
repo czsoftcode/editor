@@ -56,7 +56,7 @@ pub fn render_build_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate
             });
         let label_text = if ws.sandbox_mode_enabled {
             egui::RichText::new(mode_label)
-                .color(egui::Color32::from_rgb(255, 230, 100))
+                .color(egui::Color32::from_rgb(200, 120, 0))
                 .strong()
         } else {
             egui::RichText::new(mode_label)

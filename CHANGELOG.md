@@ -1,3 +1,14 @@
+## [1.0.5-dev] - 2026-03-05
+
+### Changed
+- **Terminal Headers**: Simplified terminal title bar — shows "Terminál" or "Sandbox" without path; AI panel shows "AI Terminál" or "AI Terminál — Sandbox".
+- **Sandbox Label Color**: Replaced yellow sandbox labels with orange (`rgb(200, 120, 0)`) for better readability in light mode.
+- **Large File Color (Light Mode)**: Files with 500+ lines in sandbox file tree now use purple (`rgb(100, 60, 140)`) instead of white for light mode readability.
+- **Git Button Icon**: Git bar button now uses GitHub icon (U+F09B) from Nerd Font.
+
+### Fixed
+- **Build Target Dir**: `build.rs` now expands `$HOME` for `target-dir` in `.cargo/config.toml` — fixes spurious `./~/.cache/` directory appearing in the project file tree.
+
 ## [1.0.4-dev] - 2026-03-05
 
 ### Added

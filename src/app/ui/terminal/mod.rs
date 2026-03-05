@@ -27,23 +27,23 @@ fn shorten_project_path(project_root: &std::path::Path) -> String {
     }
 }
 
-pub fn terminal_mode_label(sandbox_mode_enabled: bool, project_root: &std::path::Path) -> String {
+pub fn terminal_mode_label(sandbox_mode_enabled: bool, _project_root: &std::path::Path) -> String {
     if sandbox_mode_enabled {
         "Sandbox".to_string()
     } else {
-        format!("Terminal — {}", shorten_project_path(project_root))
+        "Terminál".to_string()
     }
 }
 
 pub fn terminal_mode_label_for_workdir(
     working_dir: &std::path::Path,
     sandbox_root: &std::path::Path,
-    project_root: &std::path::Path,
+    _project_root: &std::path::Path,
 ) -> String {
     if working_dir.starts_with(sandbox_root) {
         "Sandbox".to_string()
     } else {
-        format!("Terminal — {}", shorten_project_path(project_root))
+        "Terminál".to_string()
     }
 }
 

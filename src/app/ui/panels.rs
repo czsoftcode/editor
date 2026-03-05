@@ -41,7 +41,7 @@ pub(super) fn render_left_panel(
                     ui.horizontal(|ui| {
                         let title = if ws.file_tree_in_sandbox {
                             egui::RichText::new(i18n.get("panel-files-sandbox"))
-                                .color(egui::Color32::from_rgb(255, 230, 100))
+                                .color(egui::Color32::from_rgb(200, 120, 0))
                                 .strong()
                         } else {
                             egui::RichText::new(i18n.get("panel-files")).strong()

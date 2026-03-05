@@ -637,7 +637,7 @@ fn render_sandbox_staged_bar(
             ui.visuals_mut().widgets.noninteractive.bg_fill = egui::Color32::from_rgb(80, 70, 20);
             ui.label(
                 egui::RichText::new(format!("\u{26A0} {}", i18n.get("ai-staged-bar-msg")))
-                    .color(egui::Color32::from_rgb(255, 230, 100))
+                    .color(egui::Color32::from_rgb(200, 120, 0))
                     .strong(),
             );
             ui.label(format!("({})", staged_files.len()));

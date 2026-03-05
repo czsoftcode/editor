@@ -18,9 +18,10 @@ fn main() {
         let _ = fs::create_dir_all(config_dir);
     }
 
+    let home = std::env::var("HOME").unwrap_or_else(|_| "~".to_string());
     let config_content = format!(
-        "[build]\njobs = {}\ntarget-dir = \"~/.cache/polycredo-editor/target\"\n\n[env]\nRAYON_NUM_THREADS = \"{}\"\nTOKIO_WORKER_THREADS = \"{}\"\n",
-        build_jobs, env_threads, env_threads
+        "[build]\njobs = {}\ntarget-dir = \"{}/.cache/polycredo-editor/target\"\n\n[env]\nRAYON_NUM_THREADS = \"{}\"\nTOKIO_WORKER_THREADS = \"{}\"\n",
+        build_jobs, home, env_threads, env_threads
     );
 
     // Zapíšeme pouze pokud se obsah změnil (aby se zbytečně neaktualizovaly časy souborů)

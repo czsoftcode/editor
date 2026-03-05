@@ -62,7 +62,7 @@ pub(crate) fn show_support_dialog(
                     // GitHub Button
                     let github_btn = ui.add_sized(
                         [btn_width, 40.0],
-                        egui::Button::new(format!("⭐ {}", i18n.get("support-modal-github"))),
+                        egui::Button::new(format!("\u{f09b} {}", i18n.get("support-modal-github"))),
                     );
                     if github_btn.clicked() {
                         ui.ctx().open_url(egui::OpenUrl::new_tab(

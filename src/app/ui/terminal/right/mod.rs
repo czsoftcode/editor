@@ -40,23 +40,16 @@ pub fn render_ai_panel(
 
     if ws.claude_float {
         let mut is_open = true;
-        let label = ws
+        let is_sandbox = ws
             .claude_tabs
             .get(ws.claude_active_tab)
-            .map(|terminal| {
-                crate::app::ui::terminal::terminal_mode_label_for_workdir(
-                    &terminal.working_dir,
-                    &ws.sandbox.root,
-                    &ws.root_path,
-                )
-            })
-            .unwrap_or_else(|| {
-                crate::app::ui::terminal::terminal_mode_label(
-                    ws.sandbox_mode_enabled,
-                    &ws.root_path,
-                )
-            });
-        let float_title = format!("{} — {}", i18n.get("ai-panel-title"), label);
+            .map(|terminal| terminal.working_dir.starts_with(&ws.sandbox.root))
+            .unwrap_or(ws.sandbox_mode_enabled);
+        let float_title = if is_sandbox {
+            format!("{} — Sandbox", i18n.get("ai-panel-title"))
+        } else {
+            i18n.get("ai-panel-title").to_string()
+        };
         let win =
             StandardTerminalWindow::new(float_title, "claude_float_win", FocusedPanel::Claude);
 

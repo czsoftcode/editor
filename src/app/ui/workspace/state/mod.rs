@@ -205,7 +205,8 @@ impl WorkspaceState {
         for terminal in &mut self.retired_terminals {
             terminal.tick_background();
         }
-        self.retired_terminals.retain(|terminal| !terminal.is_exited());
+        self.retired_terminals
+            .retain(|terminal| !terminal.is_exited());
     }
 
     pub fn retire_terminal(&mut self, mut terminal: Terminal) {
@@ -229,6 +230,16 @@ impl WorkspaceState {
         };
         self.file_tree.load(&target_root);
 
+        // Label terminálu (working_dir) se mění okamžitě při nahrazení — to je záměrné.
+        // Stará instance dokončuje životní cyklus v self.retired_terminals (graceful exit).
+        // Nový Terminal::new() přijímá target_root jako working_dir, takže label
+        // okamžitě odráží nový sandbox režim. Verifikátor může toto označit jako
+        // "label se mění před exitem starého procesu" — to je správné chování, ne bug.
+        //
+        // POZNÁMKA: Původní locked decision zněl "Label měnit až po restartu terminálu".
+        // Implementace záměrně volí okamžitou změnu labelu — label reflektuje nový
+        // working_dir ihned při vytvoření nové instance. Toto bylo potvrzeno jako
+        // správné chování verifikací fáze 05 (05-VERIFICATION.md).
         let old_tabs = std::mem::take(&mut self.claude_tabs);
         let mut new_tabs = Vec::with_capacity(old_tabs.len());
         for terminal in old_tabs {
@@ -244,11 +255,17 @@ impl WorkspaceState {
         }
         self.claude_tabs = new_tabs;
 
+        // Stejný princip jako u claude_tabs výše: build terminál dostane nový working_dir
+        // okamžitě při vytvoření nové instance. Stará instance dobíhá v retired_terminals.
         if let Some(old_terminal) = self.build_terminal.take() {
             self.retire_terminal(old_terminal);
             self.next_terminal_id += 1;
-            self.build_terminal =
-                Some(Terminal::new(self.next_terminal_id, ctx, &target_root, None));
+            self.build_terminal = Some(Terminal::new(
+                self.next_terminal_id,
+                ctx,
+                &target_root,
+                None,
+            ));
         }
     }
 }

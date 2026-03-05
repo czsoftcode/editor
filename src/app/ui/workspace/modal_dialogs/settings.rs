@@ -188,7 +188,7 @@ fn apply_theme_preview(shared: &Arc<Mutex<AppShared>>, draft: &crate::settings::
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 }
 
-fn restore_runtime_settings_from_snapshot(
+pub(crate) fn restore_runtime_settings_from_snapshot(
     shared: &Arc<Mutex<AppShared>>,
     snapshot: crate::settings::Settings,
 ) {
@@ -570,8 +570,11 @@ pub fn show(
             let original_settings = ws.settings_original.clone();
             let sandbox_change = sandbox_mode_change(original_settings.as_ref(), &draft);
             let sandbox_dirty = !matches!(sandbox_change, SandboxModeChange::None);
+            let mut persist_error: Option<String> = None;
             if should_persist_settings_change(original_settings.as_ref(), &draft) {
-                draft.save();
+                if let Err(err) = draft.try_save() {
+                    persist_error = Some(err);
+                }
             }
             let draft_sandbox_mode = draft.sandbox_mode;
             ws.wizard.path = draft.default_project_path.clone();
@@ -610,42 +613,71 @@ pub fn show(
                 }
             }
 
-            s.settings = Arc::new(draft);
-            s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
-            let new_version =
-                s.settings_version
-                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
-                    + 1;
-            drop(s);
-
-            if sandbox_dirty {
-                ws.pending_sandbox_apply = Some(
-                    crate::app::ui::workspace::state::SandboxApplyRequest {
-                        target_mode: draft_sandbox_mode,
-                        version: new_version,
-                        defer_until_clear: should_prompt_apply,
-                        force_apply: false,
-                    },
-                );
-            }
-
-            if let Some(message) = toast_message {
-                ws.toasts.push(crate::app::types::Toast::info(message));
-            }
-            if should_prompt_apply {
+            if let Some(err) = persist_error {
+                let original_snapshot = original_settings
+                    .as_ref()
+                    .cloned()
+                    .unwrap_or_else(|| draft.clone());
+                ws.sandbox_persist_failure =
+                    Some(crate::app::ui::workspace::state::SandboxPersistFailure {
+                        draft,
+                        original: original_snapshot,
+                    });
+                ws.toasts.push(crate::app::types::Toast::error(err));
                 ws.toasts.push(crate::app::types::Toast::info_with_actions(
-                    i18n.get("settings-sandbox-apply-prompt"),
+                    i18n.get("settings-sandbox-persist-actions"),
                     vec![
                         ToastAction::new(
-                            "settings-sandbox-apply-now",
-                            ToastActionKind::SandboxApplyNow,
+                            "settings-sandbox-persist-revert",
+                            ToastActionKind::SandboxPersistRevert,
                         ),
                         ToastAction::new(
-                            "settings-sandbox-apply-defer",
-                            ToastActionKind::SandboxApplyLater,
+                            "settings-sandbox-persist-keep",
+                            ToastActionKind::SandboxPersistKeep,
                         ),
                     ],
                 ));
+                ws.pending_sandbox_apply = None;
+            } else {
+                s.settings = Arc::new(draft);
+                s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
+                let new_version =
+                    s.settings_version
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                        + 1;
+                drop(s);
+
+                if sandbox_dirty {
+                    ws.pending_sandbox_apply = Some(
+                        crate::app::ui::workspace::state::SandboxApplyRequest {
+                            target_mode: draft_sandbox_mode,
+                            version: new_version,
+                            defer_until_clear: should_prompt_apply,
+                            force_apply: false,
+                            prompted: false,
+                            notify_on_apply: false,
+                        },
+                    );
+                }
+
+                if let Some(message) = toast_message {
+                    ws.toasts.push(crate::app::types::Toast::info(message));
+                }
+                if should_prompt_apply {
+                    ws.toasts.push(crate::app::types::Toast::info_with_actions(
+                        i18n.get("settings-sandbox-apply-prompt"),
+                        vec![
+                            ToastAction::new(
+                                "settings-sandbox-apply-now",
+                                ToastActionKind::SandboxApplyNow,
+                            ),
+                            ToastAction::new(
+                                "settings-sandbox-apply-defer",
+                                ToastActionKind::SandboxApplyLater,
+                            ),
+                        ],
+                    ));
+                }
             }
         }
         ws.pending_settings_save = None;

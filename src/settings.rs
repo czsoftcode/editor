@@ -10,7 +10,7 @@ const CONFIG_DIR_NAME: &str = "polycredo-editor";
 // PluginSettings — configuration for individual WASM plugins
 // ---------------------------------------------------------------------------
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 pub struct PluginSettings {
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -86,7 +86,7 @@ pub enum LightVariant {
 // Settings — persistent application configuration
 // ---------------------------------------------------------------------------
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 pub struct Settings {
     /// Editor font size in px (10–24).
     #[serde(default = "default_editor_font_size")]
@@ -123,9 +123,10 @@ pub struct Settings {
     #[serde(default = "default_auto_show_ai_diff")]
     pub auto_show_ai_diff: bool,
 
-    /// Whether the main project is read-only (Safe Mode).
-    #[serde(default = "default_true")]
-    pub project_read_only: bool,
+    /// Whether the project runs in sandbox mode.
+    /// Legacy key `project_read_only` is accepted during migration.
+    #[serde(default = "default_true", alias = "project_read_only")]
+    pub sandbox_mode: bool,
 
     /// Configuration for individual plugins. Key = plugin ID (file stem).
     #[serde(default)]
@@ -151,7 +152,7 @@ impl Default for Settings {
             diff_side_by_side: false,
             privacy_accepted: false,
             auto_show_ai_diff: true,
-            project_read_only: true,
+            sandbox_mode: true,
             plugins: HashMap::new(),
             blacklist: vec![
                 ".env*".to_string(),
@@ -211,7 +212,7 @@ impl Settings {
         let old_path = old_settings_path_in(config_root);
         if let Ok(content) = std::fs::read_to_string(&old_path) {
             let settings: Self = serde_json::from_str(&content).unwrap_or_default();
-            settings.save_to_config_dir(config_root); // Save as TOML immediately
+            let _ = settings.try_save_to_config_dir(config_root); // Save as TOML immediately
             let _ = std::fs::remove_file(old_path); // Cleanup
             return settings;
         }
@@ -219,24 +220,21 @@ impl Settings {
         Self::default()
     }
 
-    fn save_to_config_dir(&self, config_root: &std::path::Path) {
+    fn try_save_to_config_dir(&self, config_root: &std::path::Path) -> Result<(), String> {
         let path = settings_path_in(config_root);
         if let Some(parent) = path.parent()
             && let Err(e) = std::fs::create_dir_all(parent)
         {
-            eprintln!(
+            return Err(format!(
                 "settings: cannot create directory {}: {e}",
                 parent.display()
-            );
-            return;
+            ));
         }
-        if let Ok(toml_str) = toml::to_string_pretty(self) {
-            if let Err(e) = std::fs::write(&path, toml_str) {
-                eprintln!("settings: cannot write {}: {e}", path.display());
-            }
-        } else {
-            eprintln!("settings: TOML serialization failed");
-        }
+        let toml_str = toml::to_string_pretty(self)
+            .map_err(|_| "settings: TOML serialization failed".to_string())?;
+        std::fs::write(&path, toml_str)
+            .map_err(|e| format!("settings: cannot write {}: {e}", path.display()))?;
+        Ok(())
     }
 
     /// Returns the syntect theme name for the current mode.
@@ -286,7 +284,13 @@ impl Settings {
 
     /// Saves settings to disk (~/.config/polycredo-editor/settings.toml).
     pub fn save(&self) {
-        self.save_to_config_dir(&config_dir());
+        if let Err(err) = self.try_save() {
+            eprintln!("{err}");
+        }
+    }
+
+    pub fn try_save(&self) -> Result<(), String> {
+        self.try_save_to_config_dir(&config_dir())
     }
 
     /// Applies settings to the egui Context (theme + editor font size).
@@ -533,7 +537,9 @@ default_project_path = "/home/test"
             ..Default::default()
         };
 
-        settings.save_to_config_dir(&temp.path);
+        settings
+            .try_save_to_config_dir(&temp.path)
+            .expect("save settings");
         let saved_path = temp.app_config_dir().join(SETTINGS_FILE);
         assert!(saved_path.is_file());
 
@@ -571,5 +577,52 @@ default_project_path = "/home/test"
         let canonical: Settings = toml::from_str(&canonical_content).expect("parse canonical TOML");
         assert!(!canonical.dark_theme);
         assert_eq!(canonical.light_variant, LightVariant::CoolGray);
+    }
+
+    #[test]
+    fn test_sett02_canonical_toml_persists_sandbox_mode() {
+        let temp = TempConfigDir::new("sandbox-mode-roundtrip");
+        let settings = Settings {
+            sandbox_mode: false,
+            ..Default::default()
+        };
+
+        settings
+            .try_save_to_config_dir(&temp.path)
+            .expect("save settings");
+
+        let canonical_path = temp.app_config_dir().join(SETTINGS_FILE);
+        let canonical_content =
+            std::fs::read_to_string(&canonical_path).expect("read canonical settings.toml");
+        assert!(canonical_content.contains("sandbox_mode = false"));
+        assert!(!canonical_content.contains("project_read_only"));
+
+        let loaded = Settings::load_from_config_dir(&temp.path);
+        assert!(!loaded.sandbox_mode);
+    }
+
+    #[test]
+    fn test_sett05_legacy_project_read_only_maps_to_sandbox_mode() {
+        let temp = TempConfigDir::new("legacy-safe-mode-migration");
+        let app_config = temp.app_config_dir();
+        std::fs::create_dir_all(&app_config).expect("create app config dir");
+
+        let legacy_path = app_config.join(OLD_SETTINGS_FILE);
+        let legacy_json = r#"
+{
+  "project_read_only": false,
+  "editor_font_size": 16.0
+}
+"#;
+        std::fs::write(&legacy_path, legacy_json).expect("write legacy settings.json");
+
+        let loaded = Settings::load_from_config_dir(&temp.path);
+        assert!(!loaded.sandbox_mode);
+
+        let canonical_path = app_config.join(SETTINGS_FILE);
+        let canonical_content =
+            std::fs::read_to_string(&canonical_path).expect("read canonical settings.toml");
+        assert!(canonical_content.contains("sandbox_mode = false"));
+        assert!(!canonical_content.contains("project_read_only"));
     }
 }

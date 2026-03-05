@@ -1,33 +1,43 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0.2
-milestone_name: Dark/Light Mode
-status: complete
-stopped_at: Milestone v1.0.2 complete
-last_updated: "2026-03-05"
-last_activity: 2026-03-05 — Milestone v1.0.2 shipped
+milestone: v1.1.0
+milestone_name: Sandbox Removal
+status: defining
+stopped_at: null
+last_updated: "2026-03-05T22:00:00Z"
+last_activity: 2026-03-05 — Milestone v1.1.0 started
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-05 after v1.0.2)
+See: .planning/PROJECT.md (updated 2026-03-05 after v1.1.0 start)
 
 **Core value:** Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí být minimální.
-**Current focus:** Planning next milestone (Performance Optimization)
+**Current focus:** Milestone v1.1.0 — Sandbox Removal
 
 ## Current Position
 
-Milestone v1.0.2 Dark/Light Mode: COMPLETE
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-05 — Milestone v1.1.0 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- v1.0.2: 17 plans completed (5 phases)
+- v1.0.6: 1 plan completed (1 phase, covered 3 planned phases)
+- Total: 18 plans across 6 phases
 
 ## Accumulated Context
 
@@ -37,9 +47,9 @@ Key decisions logged in PROJECT.md Key Decisions table.
 
 ### Known Tech Debt
 
-- Nyquist VALIDATION.md: 5 fází ve stavu draft (testy nebyly generovány)
+- Nyquist VALIDATION.md: 6 fází ve stavu draft (testy nebyly generovány)
 - Warning text kontrast v light mode (Settings modal — nahlášeno při UAT fáze 5)
-- UI-02: záložkový indikátor ● chybí dedikovaný kontrast test
+- UI-02: záložkový indikátor nemá dedikovaný kontrast test
 
 ### Pending Todos
 
@@ -51,5 +61,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05
-Stopped at: Milestone v1.0.2 complete — ready for /gsd:new-milestone
+Last session: 2026-03-05T21:10:00Z
+Stopped at: Milestone v1.0.6 archived
+Resume file: —

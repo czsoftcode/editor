@@ -1,5 +1,9 @@
 ## [1.0.5-dev] - 2026-03-05
 
+### Removed
+- **AI Context Sync**: Removed automatic context sending (open files, build errors) to AI CLI agents on start. Agents now receive only the launch command.
+- **Sync Button**: Removed "⟳ Sync" button from AI bar and all related i18n keys (cs, en, de, ru, sk).
+
 ### Changed
 - **Terminal Headers**: Simplified terminal title bar — shows "Terminál" or "Sandbox" without path; AI panel shows "AI Terminál" or "AI Terminál — Sandbox".
 - **Sandbox Label Color**: Replaced yellow sandbox labels with orange (`rgb(200, 120, 0)`) for better readability in light mode.

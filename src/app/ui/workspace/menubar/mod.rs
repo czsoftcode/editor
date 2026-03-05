@@ -131,14 +131,8 @@ pub(super) fn process_menu_actions(
             if let Some(agent) = agents.iter().find(|a| a.id == agent_id) {
                 let cmd = agent.command.clone();
                 let active = ws.claude_active_tab;
-                let context = crate::app::ui::terminal::right::format_context_for_terminal(
-                    &crate::app::ai::AiManager::generate_context(ws, shared),
-                );
                 if let Some(terminal) = ws.claude_tabs.get_mut(active) {
                     terminal.send_command(&cmd);
-                    if agent.context_aware {
-                        terminal.send_command(&context);
-                    }
                 }
             }
         }

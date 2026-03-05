@@ -399,8 +399,6 @@ lsp-references-found =
 lsp-references-error = LSP: Chyba pri hľadaní referencií.
 
 ## AI panel updates
-ai-btn-sync = ⟳ Synchronizovať
-ai-hover-sync = Odoslať kontext (otvorené súbory, chyby kompilácie) AI agentovi
 ai-diff-heading = Kontrola zmien navrhnutých AI
 ai-diff-new-file = Navrhnutý nový súbor
 

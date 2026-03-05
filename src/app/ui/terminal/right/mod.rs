@@ -1,7 +1,5 @@
 pub mod ai_bar;
 
-pub use ai_bar::format_context_for_terminal;
-
 use crate::app::types::{AppShared, FocusedPanel};
 use crate::app::ui::terminal::StandardTerminalWindow;
 use crate::app::ui::terminal::instance::{Terminal, TerminalAction};

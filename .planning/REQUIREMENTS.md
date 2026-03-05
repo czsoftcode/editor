@@ -14,19 +14,19 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 
 ### State Cleanup
 
-- [ ] **STATE-01**: Všech ~15 sandbox-related fieldů odstraněno z `WorkspaceState`
-- [ ] **STATE-02**: `SandboxApplyRequest`, `SandboxPersistFailure`, `PendingSettingsSave.sandbox_off_confirmed` odstraněny
-- [ ] **STATE-03**: `ToastActionKind` varianty pro sandbox (6 variant) odstraněny z `types.rs`
-- [ ] **STATE-04**: `AppShared.sandbox_off_toast_shown` odstraněno
+- [x] **STATE-01**: Všech ~15 sandbox-related fieldů odstraněno z `WorkspaceState`
+- [x] **STATE-02**: `SandboxApplyRequest`, `SandboxPersistFailure`, `PendingSettingsSave.sandbox_off_confirmed` odstraněny
+- [x] **STATE-03**: `ToastActionKind` varianty pro sandbox (6 variant) odstraněny z `types.rs`
+- [x] **STATE-04**: `AppShared.sandbox_off_toast_shown` odstraněno
 
 ### UI Removal
 
-- [ ] **UI-01**: Settings toggle pro sandbox mode odstraněn ze Settings dialogu
-- [ ] **UI-02**: Sandbox sync confirmation modal (`modal_dialogs/sandbox.rs`) odstraněn
-- [ ] **UI-03**: Sandbox OFF confirmation dialog odstraněn ze settings
-- [ ] **UI-04**: File tree "Sandbox" toggle button a "Soubory (Sandbox)" label odstraněny
-- [ ] **UI-05**: Build bar "Sandbox ON/OFF" indikátor odstraněn
-- [ ] **UI-06**: Toast akce (Apply now/Defer, Remap/Skip, Revert/Keep) odstraněny
+- [x] **UI-01**: Settings toggle pro sandbox mode odstraněn ze Settings dialogu
+- [x] **UI-02**: Sandbox sync confirmation modal (`modal_dialogs/sandbox.rs`) odstraněn
+- [x] **UI-03**: Sandbox OFF confirmation dialog odstraněn ze settings
+- [x] **UI-04**: File tree "Sandbox" toggle button a "Soubory (Sandbox)" label odstraněny
+- [x] **UI-05**: Build bar "Sandbox ON/OFF" indikátor odstraněn
+- [x] **UI-06**: Toast akce (Apply now/Defer, Remap/Skip, Revert/Keep) odstraněny
 
 ### Settings Cleanup
 
@@ -90,16 +90,16 @@ Requirements for sandbox removal milestone. Each maps to roadmap phases.
 |-------------|-------|--------|
 | CORE-01 | Phase 9 | Complete |
 | CORE-02 | Phase 9 | Complete |
-| STATE-01 | Phase 10 | Pending |
-| STATE-02 | Phase 10 | Pending |
-| STATE-03 | Phase 10 | Pending |
-| STATE-04 | Phase 10 | Pending |
-| UI-01 | Phase 10 | Pending |
-| UI-02 | Phase 10 | Pending |
-| UI-03 | Phase 10 | Pending |
-| UI-04 | Phase 10 | Pending |
-| UI-05 | Phase 10 | Pending |
-| UI-06 | Phase 10 | Pending |
+| STATE-01 | Phase 10 | Complete |
+| STATE-02 | Phase 10 | Complete |
+| STATE-03 | Phase 10 | Complete |
+| STATE-04 | Phase 10 | Complete |
+| UI-01 | Phase 10 | Complete |
+| UI-02 | Phase 10 | Complete |
+| UI-03 | Phase 10 | Complete |
+| UI-04 | Phase 10 | Complete |
+| UI-05 | Phase 10 | Complete |
+| UI-06 | Phase 10 | Complete |
 | SET-01 | Phase 9 | Complete |
 | SET-02 | Phase 9 | Complete |
 | I18N-01 | Phase 12 | Pending |

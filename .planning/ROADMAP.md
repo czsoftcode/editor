@@ -37,7 +37,7 @@ Archive: `.planning/milestones/v1.0.6-ROADMAP.md`
 **Milestone Goal:** Kompletne odstranit sandbox rezim z editoru — veskerý kód, UI prvky, logiku a settings.
 
 - [ ] **Phase 9: Core Sandbox Logic & Settings Removal** - Odstraneni sandbox.rs, Sandbox/SyncPlan struktur a sandbox settings fieldu
-- [ ] **Phase 10: UI & State Cleanup** - Odstraneni vsech sandbox UI prvku a sandbox-related state fieldu
+- [x] **Phase 10: UI & State Cleanup** - Odstraneni vsech sandbox UI prvku a sandbox-related state fieldu (completed 2026-03-05)
 - [ ] **Phase 11: File Operations, Watcher & Guard Removal** - Odstraneni sandbox logiky z file ops, watcheru a git/build guardu
 - [ ] **Phase 12: I18n Cleanup & Integrity Verification** - Odstraneni i18n klicu, verifikace kompilace, testu a funkcnosti
 
@@ -70,7 +70,7 @@ Plans:
   3. Build bar nezobrazuje "Sandbox ON/OFF" indikator
   4. Zadne sandbox-related toast akce (Apply now/Defer, Remap/Skip, Revert/Keep) se nemohou zobrazit
   5. Projekt se kompiluje (warnings povoleny v teto fazi)
-**Plans:** 1 plans
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 10-01-PLAN.md — Odstranit sandbox UI prvky (settings, modal, build bar, file tree) a vycistit gitignore filtr
@@ -114,6 +114,6 @@ Plans:
 | ~~7. Float Terminal Focus Suppression~~ | v1.0.6 | — | Cancelled | — |
 | ~~8. Focus Restore & Regression~~ | v1.0.6 | — | Cancelled | — |
 | 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 2/3 | In progress | - |
-| 10. UI & State Cleanup | v1.1.0 | 0/1 | Not started | - |
+| 10. UI & State Cleanup | 1/1 | Complete   | 2026-03-05 | - |
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 0/? | Not started | - |
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 0/? | Not started | - |

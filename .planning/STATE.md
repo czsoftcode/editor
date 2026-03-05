@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-05T06:50:46.603Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-03-05T07:07:36.587Z"
 last_activity: 2026-03-05 — Dokončen 05-01 (sandbox Save/Cancel + runtime apply)
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 17
+  completed_plans: 17
   percent: 88
 ---
 
@@ -64,6 +64,7 @@ Progress: [█████████░] 88%
 | Phase 04-infrastructure P02 | 1 min | 2 tasks | 1 files |
 | Phase 05 P01 | 1751 | 3 tasks | 12 files |
 | Phase 05 P03 | 15 | 2 tasks | 8 files |
+| Phase 05 P04 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Persist failure resit toastem s explicitni volbou revert/keep.
 - [Phase 05]: Blokace OFF pri staged: should_block_sandbox_off_due_to_staged guard v settings modal, draft se vraci na original a show_sandbox_staged = true
 - [Phase 05]: Sync dialog pri ON: sandbox_sync_confirmation = Some(plan) nastaven v process_pending_sandbox_apply — async sync pres spawn_task
+- [Phase 05]: pending_tab_remap se vymaže ihned po retain() pokud žádný SandboxRemapTabs toast neexistuje — zombie request není možný
+- [Phase 05]: Label terminálu se mění okamžitě při vytvoření nové instance — záměrné chování potvrzeno verifikací fáze 05
 
 ### Roadmap Evolution
 
@@ -118,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-05T06:50:46.599Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-03-05T07:07:36.582Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None

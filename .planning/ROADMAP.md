@@ -70,7 +70,10 @@ Plans:
   3. Build bar nezobrazuje "Sandbox ON/OFF" indikator
   4. Zadne sandbox-related toast akce (Apply now/Defer, Remap/Skip, Revert/Keep) se nemohou zobrazit
   5. Projekt se kompiluje (warnings povoleny v teto fazi)
-**Plans**: TBD
+**Plans:** 1 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Odstranit sandbox UI prvky (settings, modal, build bar, file tree) a vycistit gitignore filtr
 
 ### Phase 11: File Operations, Watcher & Guard Removal
 **Goal**: Editor pracuje primo s projektovymi soubory bez sandbox presmerovani a bez sandbox guardu
@@ -111,6 +114,6 @@ Plans:
 | ~~7. Float Terminal Focus Suppression~~ | v1.0.6 | — | Cancelled | — |
 | ~~8. Focus Restore & Regression~~ | v1.0.6 | — | Cancelled | — |
 | 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 2/3 | In progress | - |
-| 10. UI & State Cleanup | v1.1.0 | 0/? | Not started | - |
+| 10. UI & State Cleanup | v1.1.0 | 0/1 | Not started | - |
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 0/? | Not started | - |
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 0/? | Not started | - |

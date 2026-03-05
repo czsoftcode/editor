@@ -9,9 +9,6 @@ mod about;
 mod ai_dialogs;
 mod conflict;
 mod plugins;
-// TODO: Phase 10 — remove modal_dialogs/sandbox.rs entirely
-#[cfg(never)]
-mod sandbox;
 mod settings;
 mod terminal;
 
@@ -81,8 +78,6 @@ pub(super) fn render_dialogs(
 
     // 6. AI related dialogs (Promotion success, Sandbox staged files, Sync confirmation)
     ai_dialogs::show(ctx, ws, shared, i18n);
-
-    // 6a. Sandbox sync dialog removed (Phase 9)
 
     // 7. Global confirm discard dialog
     if crate::app::ui::widgets::modal::render_confirm_discard_dialog(ctx, ws, i18n) {

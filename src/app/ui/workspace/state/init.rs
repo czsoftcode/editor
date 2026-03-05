@@ -215,7 +215,7 @@ fn spawn_semantic_indexer(
         for line in content.lines() {
             let line = line.trim();
             if !line.is_empty() && !line.starts_with('#') {
-                if line.contains(".polycredo") || line.contains("sandbox") {
+                if line.contains(".polycredo") {
                     continue;
                 }
                 blacklist_strings.push(line.to_string());

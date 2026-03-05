@@ -11,10 +11,6 @@ pub fn render_build_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate
         ui.strong(i18n.get("panel-build"));
         ui.separator();
 
-        let mode_label = "Terminal".to_string();
-        ui.label(egui::RichText::new(mode_label))
-            .on_hover_text(i18n.get("hover-build-sandbox"));
-
         ui.separator();
 
         // Profile Dropdown

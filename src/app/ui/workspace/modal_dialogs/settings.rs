@@ -268,30 +268,6 @@ pub fn show(
                                 }
                             });
                             ui.add_space(20.0);
-
-                            ui.separator();
-                            ui.add_space(10.0);
-                            let sandbox_mode_row = ui.allocate_ui_with_layout(
-                                egui::vec2(ui.available_width(), ui.spacing().interact_size.y),
-                                egui::Layout::left_to_right(egui::Align::Center),
-                                |ui| {
-                                    // sandbox_mode removed from Settings (Phase 9)
-                                    let mut _sandbox_stub = false;
-                                    ui.checkbox(
-                                        &mut _sandbox_stub,
-                                        i18n.get("settings-safe-mode"),
-                                    );
-                                    ui.add_space(4.0);
-                                    ui.label(egui::RichText::new("ℹ").strong());
-                                },
-                            );
-                            sandbox_mode_row
-                                .response
-                                .on_hover_text(i18n.get("settings-safe-mode-tooltip"));
-                            ui.label(
-                                egui::RichText::new(i18n.get("settings-safe-mode-hint")).strong(),
-                            );
-                            ui.label(i18n.get("settings-safe-mode-terminal-note"));
                         } else if selected_cat == "editor" {
                             ui.strong(
                                 egui::RichText::new(i18n.get("settings-category-editor"))

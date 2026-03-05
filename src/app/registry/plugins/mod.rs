@@ -15,7 +15,7 @@ pub use self::types::{HostContext, LoadedPlugin, PluginMetadata, PluginStatus};
 /// Manages loading and communication with WASM plugins.
 pub struct PluginManager {
     pub plugins: Arc<Mutex<Vec<LoadedPlugin>>>,
-    pub sandbox_root: PathBuf,
+    pub project_root: PathBuf,
     pub blacklist: Arc<Mutex<Blacklist>>,
     pub current_context: Arc<Mutex<HostContext>>,
     pub action_sender: Arc<Mutex<Option<std::sync::mpsc::Sender<crate::app::types::AppAction>>>>,
@@ -23,14 +23,14 @@ pub struct PluginManager {
 }
 
 impl PluginManager {
-    pub fn new(sandbox_root: PathBuf) -> Self {
+    pub fn new(project_root: PathBuf) -> Self {
         let initial_context = HostContext {
             agent_memory: Arc::new(Mutex::new(types::AgentMemory::load())),
             ..Default::default()
         };
         Self {
             plugins: Arc::new(Mutex::new(Vec::new())),
-            sandbox_root,
+            project_root,
             blacklist: Arc::new(Mutex::new(Blacklist::default())),
             current_context: Arc::new(Mutex::new(initial_context)),
             action_sender: Arc::new(Mutex::new(None)),
@@ -45,7 +45,7 @@ impl PluginManager {
 
     pub fn set_blacklist(&self, mut blacklist_strings: Vec<String>) {
         let gitignore_path = self
-            .sandbox_root
+            .project_root
             .parent()
             .and_then(|p| p.parent().map(|p| p.join(".gitignore")));
         if let Some(path) = gitignore_path
@@ -217,7 +217,7 @@ impl PluginManager {
 
         let host_state = HostState {
             plugin_id: plugin_id.to_string(),
-            sandbox_root: self.sandbox_root.clone(),
+            project_root: self.project_root.clone(),
             blacklist: Arc::clone(&self.blacklist),
             context: Arc::clone(&self.current_context),
             action_sender: self.action_sender.lock().expect("lock").clone(),
@@ -312,11 +312,11 @@ impl PluginManager {
                 host_get_active_content,
             ),
             Function::new(
-                "exec_in_sandbox",
+                "exec",
                 [ValType::I64],
                 [ValType::I64],
                 UserData::new(host_state.clone()),
-                host_exec_in_sandbox,
+                host_exec,
             ),
             Function::new(
                 "log_monologue",

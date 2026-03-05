@@ -36,7 +36,7 @@ pub fn compile_glob(pattern: &str) -> Option<regex::Regex> {
 #[derive(Clone)]
 pub struct HostState {
     pub plugin_id: String,
-    pub sandbox_root: PathBuf,
+    pub project_root: PathBuf,
     pub blacklist: Arc<Mutex<Blacklist>>,
     pub context: Arc<Mutex<HostContext>>,
     pub action_sender: Option<std::sync::mpsc::Sender<crate::app::types::AppAction>>,

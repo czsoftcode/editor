@@ -50,7 +50,7 @@ pub fn host_get_active_content(
     Ok(())
 }
 
-pub fn host_exec_in_sandbox(
+pub fn host_exec(
     plugin: &mut CurrentPlugin,
     inputs: &[Val],
     outputs: &mut [Val],
@@ -161,8 +161,8 @@ pub fn host_exec_in_sandbox(
 
     match request_plugin_approval(
         &state,
-        "exec_in_sandbox",
-        "Spustit příkaz v Sandboxu",
+        "exec",
+        "Spustit příkaz v projektu",
         &command_str,
     ) {
         Ok(true) => {}
@@ -181,7 +181,7 @@ pub fn host_exec_in_sandbox(
     let output = std::process::Command::new("sh")
         .arg("-c")
         .arg(&command_str)
-        .current_dir(&state.sandbox_root)
+        .current_dir(&state.project_root)
         .output();
 
     let result = match output {

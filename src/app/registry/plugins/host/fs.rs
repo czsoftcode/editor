@@ -34,7 +34,7 @@ pub fn host_read_file(
         return Ok(());
     }
 
-    let full_path = state.sandbox_root.join(rel_path);
+    let full_path = state.project_root.join(rel_path);
     let full_content = fs::read_to_string(full_path)
         .unwrap_or_else(|_| "File not found or unreadable".to_string());
 
@@ -131,7 +131,7 @@ pub fn host_write_file(
         }
     }
 
-    let full_path = state.sandbox_root.join(rel_path);
+    let full_path = state.project_root.join(rel_path);
 
     if let Some(parent) = full_path.parent() {
         let _ = fs::create_dir_all(parent);
@@ -182,7 +182,7 @@ pub fn host_replace_file(
         return Ok(());
     }
 
-    let full_path = state.sandbox_root.join(rel_path);
+    let full_path = state.project_root.join(rel_path);
     let current_content = match fs::read_to_string(&full_path) {
         Ok(c) => c,
         Err(e) => {
@@ -460,7 +460,7 @@ pub fn host_list_files(
 
     // Reset search chain count on actual work
     *state.search_chain_count.lock().expect("lock") = 0;
-    let root = &state.sandbox_root;
+    let root = &state.project_root;
 
     let mut files = Vec::new();
     for entry in walkdir::WalkDir::new(root)

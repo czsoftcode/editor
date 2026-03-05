@@ -17,7 +17,7 @@ pub fn host_search_project(
     let _query: String = plugin.memory_get_val(&inputs[0])?;
 
     // TEMPORARY: Return empty list to fix compilation and allow restart.
-    // Agents should use 'exec_in_sandbox' with 'rg' for now.
+    // Agents should use 'exec' with 'rg' for now.
     let result_json = "[]";
 
     let h = plugin.memory_alloc(result_json.len() as u64)?;

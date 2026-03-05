@@ -156,12 +156,12 @@ pub struct Registry {
 }
 
 impl Registry {
-    pub fn new(sandbox_root: std::path::PathBuf) -> Self {
+    pub fn new(project_root: std::path::PathBuf) -> Self {
         Self {
             commands: CommandRegistry::new(),
             agents: AgentRegistry::new(),
             panels: PanelRegistry::new(),
-            plugins: Arc::new(PluginManager::new(sandbox_root)),
+            plugins: Arc::new(PluginManager::new(project_root)),
         }
     }
 

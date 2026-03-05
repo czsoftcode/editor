@@ -66,7 +66,7 @@ pub(crate) fn render_workspace(
 
     // Background events
     ws.tick_retired_terminals();
-    process_background_events(ws, shared, i18n, ctx);
+    process_background_events(ws, shared, i18n);
 
     // --- REPAINT THROTTLING (Focus-aware) ---
     let is_focused = ctx.input(|i| i.viewport().focused.unwrap_or(true));

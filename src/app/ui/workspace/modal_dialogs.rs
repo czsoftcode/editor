@@ -12,8 +12,6 @@ mod plugins;
 mod settings;
 mod terminal;
 
-pub(crate) use settings::restore_runtime_settings_from_snapshot;
-
 // ---------------------------------------------------------------------------
 // render_dialogs
 // ---------------------------------------------------------------------------
@@ -38,7 +36,7 @@ pub(super) fn render_dialogs(
     crate::app::ui::dialogs::show_support_dialog(ctx, ws, i18n);
 
     // 2. Settings dialog
-    settings::show(ctx, ws, shared, i18n, &id_salt);
+    settings::show(ctx, ws, shared, i18n);
 
     // 3. Plugins dialog
     plugins::show(ctx, ws, shared, i18n, &id_salt);

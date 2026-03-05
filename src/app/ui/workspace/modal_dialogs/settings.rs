@@ -127,7 +127,6 @@ pub fn show(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &I18n,
-    id_salt: &std::ffi::OsStr,
 ) {
     if !ws.show_settings {
         return;

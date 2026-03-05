@@ -17,8 +17,6 @@ where
     rx
 }
 
-use eframe::egui;
-
 use super::super::types::{AppShared, Toast};
 use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
@@ -30,7 +28,6 @@ pub(super) fn process_background_events(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
-    egui_ctx: &egui::Context,
 ) {
     // --- 1. Background I/O results ---
     if let Some(rx) = &ws.background_io_rx

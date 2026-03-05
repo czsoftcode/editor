@@ -7,12 +7,37 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
 
-    let search_dirs = [
-        home.join(".local/share/fonts"),
-        home.join(".fonts"),
-        PathBuf::from("/usr/share/fonts"),
-        PathBuf::from("/usr/local/share/fonts"),
-    ];
+    let mut search_dirs = vec![];
+
+    #[cfg(target_os = "linux")]
+    {
+        search_dirs.extend([
+            home.join(".local/share/fonts"),
+            home.join(".fonts"),
+            PathBuf::from("/usr/share/fonts"),
+            PathBuf::from("/usr/local/share/fonts"),
+        ]);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        search_dirs.extend([
+            home.join("Library/Fonts"),
+            PathBuf::from("/Library/Fonts"),
+            PathBuf::from("/System/Library/Fonts"),
+        ]);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        search_dirs.push(PathBuf::from(
+            std::env::var("WINDIR")
+                .unwrap_or_else(|_| r"C:\Windows".to_string()),
+        ).join("Fonts"));
+        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+            search_dirs.push(PathBuf::from(local).join(r"Microsoft\Windows\Fonts"));
+        }
+    }
 
     // Search patterns (normalized: no spaces, lowercase)
     let preferred_mono = [
@@ -21,6 +46,11 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
         "dejavusansmono",
         "ubuntumono",
         "liberationmono",
+        "consolas",     // Windows
+        "cascadiamono", // Windows
+        "menlo",        // macOS
+        "sfmono",       // macOS
+        "monaco",       // macOS
     ];
     let preferred_prop = [
         "ubunturegular",
@@ -30,6 +60,10 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
         "ubuntu",
         "roboto",
         "liberationsans",
+        "segoeui",      // Windows
+        "arial",        // Windows / macOS
+        "sfpro",        // macOS
+        "helvetica",    // macOS
     ];
     let preferred_symbols = [
         "symbola",
@@ -89,6 +123,20 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
                     eprintln!("fonts: skipping bitmap color font: {}", filename);
                     continue;
                 }
+                // Skip symbol font variants (bold, italic, etc.) — they don't add new glyphs
+                if filename_low.contains("italic")
+                    || filename_low.contains("oblique")
+                    || filename_low.contains("bold")
+                    || filename_low.contains("thin")
+                    || filename_low.contains("condensed")
+                    || filename_low.contains("extrabold")
+                    || filename_low.contains("semibold")
+                    || filename_low.contains("medium")
+                    || filename_low.contains("extralight")
+                    || filename_low.contains("black")
+                {
+                    continue;
+                }
                 if let Ok(data) = std::fs::read(path) {
                     let name = format!("fallback_sym_{}", filename);
                     if !fonts.font_data.contains_key(&name) {
@@ -145,20 +193,7 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
                 }
             }
 
-            // Optimization: stop if we have everything we need
-            if loaded_primary_mono.is_some()
-                && loaded_primary_prop.is_some()
-                && loaded_symbols.len() > 10
-            {
-                break;
             }
-        }
-        if loaded_primary_mono.is_some()
-            && loaded_primary_prop.is_some()
-            && !loaded_symbols.is_empty()
-        {
-            break;
-        }
     }
 
     // Apply to families: [Primary, Symbol1, Symbol2..., egui_defaults...]

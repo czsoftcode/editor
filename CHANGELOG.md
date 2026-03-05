@@ -1,3 +1,12 @@
+## [1.0.4-dev] - 2026-03-05
+
+### Added
+- **Bundled Nerd Font**: JetBrains Mono Nerd Font is now included in the `.deb` package and installed to `/usr/share/fonts/truetype/polycredo-nerd/`. Covers Nerd Font glyphs (git branch icon, etc.) and extended Unicode symbols out of the box.
+
+### Fixed
+- **Bitmap Font Filter**: `fonts.rs` now skips bitmap color emoji fonts (NotoColorEmoji CBDT) that egui cannot render, preventing invisible fallback glyphs.
+- **Font Cache in .deb**: `postinst` runs `fc-cache` after install and `postrm` refreshes cache after removal so the bundled font is available immediately.
+
 ## [1.0.3-dev] - 2026-03-05
 
 ### Changed

@@ -121,8 +121,6 @@ command-name-toggle-float = Schwebendes KI-Panel umschalten
 command-name-show-about = Über
 command-name-show-settings = Einstellungen
 command-name-quit = PolyCredo Editor beenden
-command-name-plugin-hello = Plugin: Hallo sagen
-command-name-plugin-gemini = Plugin: Gemini fragen
 
 ## Schnelles Öffnen (Ctrl+P)
 file-picker-heading = Datei öffnen
@@ -200,9 +198,6 @@ ai-promotion-all-success = Erfolgreich { $count } Dateien in das Projekt übertr
 ai-promotion-failed = Änderungen konnten nicht angewendet werden: { $error }
 
 ## Plugin-Berechtigungen
-plugin-auth-bar-msg = Das Plugin „{ $name }" beantragt Internetzugriff ({ $hosts }).
-plugin-auth-bar-allow = Zulassen und Starten
-plugin-auth-bar-deny = Ablehnen
 
 ## Einstellungen
 settings-title = Einstellungen
@@ -241,28 +236,8 @@ settings-blacklist-add = Muster hinzufügen
 settings-suggested-patterns = Empfohlene Muster:
 
 ## Plugins
-plugins-title = Plugin-Manager
-plugins-list-label = Plugin-Liste
-plugins-no-selection = Wählen Sie ein Plugin aus der Liste links
-plugins-enabled-label = Dieses Plugin aktivieren
-plugins-config-label = Plugin-Konfiguration:
-plugins-unknown-agent = Unbekannter Agent
-plugins-category-ai = 🤖 KI-Agenten
-plugins-category-general = ⚙ Allgemein
-plugins-item-settings = Einstellungen
-plugins-item-welcome = Übersicht
-plugins-welcome-title = Willkommen im Plugin-Manager
-plugins-welcome-text = Der PolyCredo Editor verwendet ein modernes Plugin-System basierend auf der WebAssembly (WASM) Technologie. Dies gewährleistet hohe Leistung und maximale Sicherheit — Plugins laufen in einer isolierten Umgebung (WASM) und haben nur Zugriff auf das, was Sie explizit erlauben.
-plugins-welcome-hint = Wählen Sie eine Kategorie oder ein bestimmtes Plugin aus der Liste links, um es zu konfigurieren.
-plugins-security-info = 🛡 Sicherheit: Sie können die Datei/Ordner-Blacklist in den Haupteinstellungen verwalten.
-plugins-settings-saved = Plugin-Einstellungen gespeichert. Neustart bei einigen Änderungen empfohlen.
-plugins-placeholder-api-key = API-Schlüssel (z. B. Gemini, Anthropic)
-plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
-command-name-show-plugins = Plugins
 
 ## Command Palette – KI-Plugins
-command-name-plugin-ai-chat = Plugin: KI-Agent fragen
-command-name-plugin-ollama = Plugin: Ollama fragen
 
 ## Semantische Indexierung (RAG)
 semantic-indexing-title = Semantische Projektindexierung
@@ -272,8 +247,6 @@ semantic-indexing-btn-bg = Im Hintergrund ausführen
 semantic-indexing-status-bar = Projekt-Indexierung...
 
 ## Plugin-Fehler
-plugin-error-title = Plugin-Fehler
-plugin-error-heading = Plugin-Fehlgeschlagen
 
 ## Dateibaum
 file-tree-new-file = Neue Datei

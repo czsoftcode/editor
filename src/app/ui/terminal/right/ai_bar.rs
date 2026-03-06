@@ -72,7 +72,7 @@ pub fn render_ai_bar(
         let label = if let Some(agent) = selected_agent {
             agent.label.clone()
         } else {
-            i18n.get("plugins-unknown-agent")
+            "—".to_string()
         };
 
         egui::ComboBox::from_id_salt(combo_id)

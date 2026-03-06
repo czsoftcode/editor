@@ -76,7 +76,7 @@ fn render_ai_tool_picker(
     let label = if let Some(agent) = selected_agent {
         ai_tool_status_label(agent, available, checking, i18n)
     } else {
-        i18n.get("plugins-unknown-agent")
+        "—".to_string()
     };
 
     egui::ComboBox::from_id_salt(id_salt)

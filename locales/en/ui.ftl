@@ -121,8 +121,6 @@ command-name-toggle-float = Toggle Floating AI Panel
 command-name-show-about = About
 command-name-show-settings = Settings
 command-name-quit = Quit PolyCredo Editor
-command-name-plugin-hello = Plugin: Say Hello
-command-name-plugin-gemini = Plugin: Ask Gemini
 
 ## Quick file open (Ctrl+P)
 file-picker-heading = Open File
@@ -200,9 +198,6 @@ ai-promotion-all-success = Successfully promoted { $count } files to project.
 ai-promotion-failed = Failed to apply changes: { $error }
 
 ## Plugin Permissions
-plugin-auth-bar-msg = Plugin "{ $name }" requests internet access ({ $hosts }).
-plugin-auth-bar-allow = Allow and Start
-plugin-auth-bar-deny = Deny
 
 ## Settings
 settings-title = Settings
@@ -237,29 +232,8 @@ settings-ai-add = Add agent
 settings-ai-hint = Here you can define your own CLI tools (e.g., gemini, claude, aider). If the list is empty, defaults will be used.
 
 ## Plugins
-plugins-title = Plugin Manager
-plugins-list-label = Plugins List
-plugins-no-selection = Select a plugin from the list on the left
-plugins-enabled-label = Enable this plugin
-plugins-config-label = Plugin Configuration:
-plugins-unknown-agent = Unknown Agent
-plugins-category-ai = 🤖 AI Agents
-plugins-category-general = ⚙ General
-plugins-item-settings = Settings
-plugins-item-welcome = Overview
-plugins-welcome-title = Welcome to Plugin Manager
-plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (WASM) and only have access to what you explicitly authorize.
-plugins-welcome-hint = Select a category or a specific plugin from the list on the left to configure it.
-plugins-security-info = 🛡 Security: You can manage the file/directory blacklist in the main Settings.
-plugins-settings-saved = Plugin settings saved. Restart recommended for some changes.
-plugins-placeholder-api-key = API Key (e.g. Gemini, Anthropic)
-plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
-command-name-show-plugins = Plugins
 
 ## Command Palette – AI plugins
-command-name-plugin-gemini = Plugin: Ask Gemini
-command-name-plugin-ollama = Plugin: Ask Ollama
-command-name-plugin-ai-chat = Plugin: Ask AI Agent
 
 ## Semantic Indexing (RAG)
 semantic-indexing-title = Semantic Project Indexing
@@ -272,8 +246,6 @@ semantic-indexing-status-bar = Indexing project...
 settings-suggested-patterns = Suggested patterns:
 
 ## Plugin Error
-plugin-error-title = Plugin Error
-plugin-error-heading = Plugin Failure
 
 ## File tree
 file-tree-new-file = New File

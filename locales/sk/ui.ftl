@@ -122,9 +122,6 @@ command-name-toggle-float = Prepnúť plávajúci AI panel
 command-name-show-about = O aplikácii
 command-name-show-settings = Nastavenia
 command-name-quit = Ukončiť PolyCredo Editor
-command-name-plugin-hello = Plugin: Pozdraviť svet
-command-name-plugin-gemini = Plugin: Spýtať sa Gemini
-command-name-show-plugins = Pluginy
 
 ## Rýchle otvorenie súboru (Ctrl+P)
 file-picker-heading = Otvoriť súbor
@@ -205,9 +202,6 @@ ai-promotion-failed = Nepodarilo sa aplikovať zmeny: { $error }
 ## Synchronizácia pred spustením AI
 
 ## Oprávnenia pluginov
-plugin-auth-bar-msg = Plugin „{ $name }“ žiada o prístup k internetu ({ $hosts }).
-plugin-auth-bar-allow = Povoliť a spustiť
-plugin-auth-bar-deny = Zakázať
 
 ## Nastavenia
 settings-title = Nastavenia
@@ -243,24 +237,6 @@ settings-suggested-patterns = Odporúčané vzory:
 
 ## Pluginy
 ## Pluginy
-plugins-title = Správca pluginov
-plugins-list-label = Zoznam pluginov
-plugins-no-selection = Vyberte plugin zo zoznamu vľavo
-plugins-enabled-label = Povoliť tento plugin
-plugins-config-label = Konfigurácia pluginu:
-plugins-unknown-agent = Neznámý agent
-plugins-category-ai = 🤖 AI agenti
-plugins-category-general = ⚙ Všeobecné
-plugins-item-settings = Nastavenia
-plugins-item-welcome = Prehľad
-plugins-welcome-title = Vitajte v Správcovi pluginov
-plugins-welcome-text = PolyCredo Editor používa moderný systém pluginov založený na technológii WebAssembly (WASM). To zaisťuje vysoký výkon a maximálnu bezpečnosť — pluginy bežia v izolovanom prostredí (WASM) a majú prístup iba k tomu, čo im explicitne povolíte.
-plugins-welcome-hint = Vyberte kategóriu alebo konkrétny plugin v zozname vľavo pre jeho konfiguráciu.
-plugins-security-info = 🛡 Zabezpečenie: Blacklist súborov a adresárov môžete spravovať v hlavnom Nastavení.
-plugins-settings-saved = Nastavenia pluginov uložené. Pri niektorých zmenách je odporúčaný reštart.
-plugins-placeholder-api-key = API kľúč (napr. Gemini, Anthropic)
-plugins-placeholder-model = ID modelu (napr. gemini-1.5-flash)
-command-name-show-plugins = Pluginy
 
 ## Sémantická indexácia (RAG)
 semantic-indexing-title = Sémantická indexácia projektu
@@ -270,8 +246,6 @@ semantic-indexing-btn-bg = Spustiť na pozadí
 semantic-indexing-status-bar = Indexácia projektu...
 
 ## Chyba pluginu
-plugin-error-title = Chyba pluginu
-plugin-error-heading = Zlyhanie pluginu
 
 ## Strom súborov
 file-tree-new-file = Nový súbor
@@ -329,13 +303,6 @@ ai-diff-heading = Kontrola zmien navrhnutých AI
 ai-diff-new-file = Navrhnutý nový súbor
 
 ## Pluginy
-plugins-security-info = 🛡 Zabezpečenie: Blacklist súborov a adresárov môžete spravovať v hlavných Nastaveniach.
-plugins-settings-saved = Nastavenia pluginov uložené. Pri niektorých zmenách sa odporúča reštart.
-plugins-placeholder-api-key = API kľúč (napr. Gemini, Anthropic)
-plugins-placeholder-model = ID modelu (napr. gemini-1.5-flash)
-command-name-plugin-ollama = Plugin: Spýtať sa Ollama
-command-name-plugin-ai-chat = Plugin: Spýtať sa AI agenta
-command-name-show-plugins = Pluginy
 
 ## Support Modal
 support-modal-title = Podporiť vývoj PolyCredo

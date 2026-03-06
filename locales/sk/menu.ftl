@@ -11,8 +11,6 @@ menu-help = Pomocník
 menu-file-open-folder = Otvoriť priečinok
 menu-file-save = Uložiť
 menu-file-close-tab = Zatvoriť súbor
-menu-file-plugins = Pluginy
-menu-file-plugins-manager = Správca pluginov...
 menu-file-settings = Nastavenia...
 menu-file-quit = Ukončiť
 

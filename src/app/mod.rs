@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
-pub mod ai;
+pub mod cli;
 mod build_runner;
 mod fonts;
 pub mod local_history;

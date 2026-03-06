@@ -1,3 +1,4 @@
+pub mod audit;
 pub mod ollama;
 pub mod provider;
 pub mod security;

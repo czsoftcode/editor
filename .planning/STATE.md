@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 13-03-PLAN.md
-last_updated: "2026-03-06T09:13:21.031Z"
-last_activity: 2026-03-06 — Completed AiProvider trait + OllamaProvider
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-03-06T10:25:06Z"
+last_activity: 2026-03-06 — Extracted ChatState + OllamaState into AiState
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 10
+  total_plans: 4
+  completed_plans: 4
+  percent: 15
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
-**Current focus:** v1.2.0 AI Chat Rewrite — Phase 13: Provider Foundation
+**Current focus:** v1.2.0 AI Chat Rewrite — Phase 14: State Refactor
 
 ## Current Position
 
-Phase: 13 (Provider Foundation) — 1 of 5 in v1.2.0
-Plan: 13-01 complete, 13-02 in progress
+Phase: 14 (State Refactor) — 2 of 5 in v1.2.0
+Plan: 14-01 complete
 Status: Executing
-Last activity: 2026-03-06 — Completed AiProvider trait + OllamaProvider
+Last activity: 2026-03-06 — Extracted ChatState + OllamaState into AiState
 
-Progress: [██░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 15%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Recent for v1.2.0:
 - State refactor early to avoid widespread renames after UI wiring
 - WASM removal last — both systems coexist until native path validated
 - [Phase 13]: Port-based URL validation: ~~reject URLs without explicit port~~ reverted (quick-5) — accept cloud endpoints without explicit port
+- [Phase 14]: AI state consolidated into AiState sub-struct with ChatState, OllamaState, AiSettings nested structs
 
 ### Known Tech Debt
 
@@ -75,10 +76,9 @@ None.
 | 3 | Remove systemd-run wrapper — launch program directly | 2026-03-06 | 6f50509 | [3-remove-systemd-run-wrapper-launch-progra](./quick/3-remove-systemd-run-wrapper-launch-progra/) |
 | 4 | Move compile bar next to build bar, remove compile_bar.rs | 2026-03-06 | 9c4b211 | [4-move-compile-bar-next-to-build-bar-remov](./quick/4-move-compile-bar-next-to-build-bar-remov/) |
 | 5 | Revert validate_ollama_url port restriction + Bearer auth | 2026-03-06 | 3cc63a0 | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
-| Phase 13 P03 | 1min | 2 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-03-06T09:31:34Z
-Stopped at: Completed quick-5 plan
-Resume file: None
+Last session: 2026-03-06T10:25:06Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: .planning/phases/14-state-refactor/14-01-SUMMARY.md

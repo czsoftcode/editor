@@ -80,7 +80,10 @@ Plans:
   1. Vsechna ai_* pole z WorkspaceState jsou presunuta do AiChatState sub-structu (ws.ai.*)
   2. Existujici AI chat funkcionalita funguje identicky po refaktoru — zadna regrese
   3. Codebase kompiluje bez warningu po rename
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [x] 14-01-PLAN.md — Vytvorit AiState struct + extrahovat ChatState a OllamaState (completed 2026-03-06)
+- [ ] 14-02-PLAN.md — Extrahovat AiSettings + top-level pole + finalni overeni
 
 ### Phase 15: Streaming Chat UI
 **Goal**: Uzivatel muze vest konverzaci s AI pres novy nativni chat s plnym streamingem a vizualnim formatovanim
@@ -92,6 +95,7 @@ Plans:
   3. Chat respektuje dark/light mode — barvy se meni s tematem pres ui.visuals()
   4. Uzivatel muze vybrat model z ComboBoxu s dostupnymi Ollama modely
   5. Konverzacni historie funguje (multi-turn), input ma historii promptu (sipky nahoru/dolu), a uzivatel muze prerusit generovani Stop tlacitkem
+  6. Ollama settings (API URL, API Key) jsou v Settings dialogu pod "PolyCredo CLI > Ollama" (ne v plugin settings), zmeny se aplikuji bez restartu editoru
 **Plans**: TBD
 
 ### Phase 16: Tool Execution
@@ -134,7 +138,7 @@ Plans:
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
-| 14. State Refactor | v1.2.0 | 0/? | Not started | - |
+| 14. State Refactor | v1.2.0 | 1/2 | In Progress | - |
 | 15. Streaming Chat UI | v1.2.0 | 0/? | Not started | - |
 | 16. Tool Execution | v1.2.0 | 0/? | Not started | - |
 | 17. i18n & WASM Cleanup | v1.2.0 | 0/? | Not started | - |

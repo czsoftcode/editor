@@ -54,7 +54,7 @@ Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
 - [x] **Phase 15: Streaming Chat UI** - Hybrid CLI layout, streaming rendering, dark/light mode, markdown, historie, model picker (completed 2026-03-06)
 - [x] **Phase 16: Tool Execution** - Editor kontext, file read/write tools, command execution, approval UI (completed 2026-03-06)
 - [x] **Phase 17: i18n & WASM Cleanup** - Nove i18n klice, odstraneni starych WASM klicu, odstraneni WASM plugin systemu (completed 2026-03-06)
-- [ ] **Phase 18: Phase 16 Verification & i18n Fixes** - Gap closure: verifikace TOOL-01..06, i18n bug fix, hardcoded stringy, orphaned key, stale checkboxy
+- [x] **Phase 18: Phase 16 Verification & i18n Fixes** - Gap closure: verifikace TOOL-01..06, i18n bug fix, hardcoded stringy, orphaned key, stale checkboxy (completed 2026-03-06)
 
 ## Phase Details
 
@@ -157,7 +157,7 @@ Plans:
 | 15. Streaming Chat UI | v1.2.0 | 5/5 | Complete | 2026-03-06 |
 | 16. Tool Execution | v1.2.0 | 4/4 | Complete | 2026-03-06 |
 | 17. i18n & WASM Cleanup | v1.2.0 | 3/3 | Complete | 2026-03-06 |
-| 18. Phase 16 Verification & i18n Fixes | v1.2.0 | 0/2 | Not started | - |
+| 18. Phase 16 Verification & i18n Fixes | 2/2 | Complete   | 2026-03-06 | - |
 
 ### Phase 18: Phase 16 Verification & i18n Fixes
 **Goal**: Uzavrit vsechny mezery z milestone auditu — formalni verifikace Phase 16, oprava i18n bugu, lokalizace hardcoded stringu, cleanup
@@ -172,7 +172,7 @@ Plans:
   5. Orphaned cli-tool-approval-heading key je odstranen z 5 locales
   6. ROADMAP plan checkboxy pro 13-01..13-03, 15-00, 15-02, 15-03, 16-01..16-04 jsou oznaceny [x]
   7. REQUIREMENTS.md checkboxy pro PROV-01, PROV-02, CHAT-01, CHAT-06 jsou oznaceny [x]
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 18-01-PLAN.md — Documentation artifacts (16-04-SUMMARY, 16-VERIFICATION) + checkbox updates
 - [ ] 18-02-PLAN.md — i18n fixes: ask-heading bug, hardcoded strings, orphaned key

@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 17-03-PLAN.md
-last_updated: "2026-03-06T19:54:49.170Z"
-last_activity: "2026-03-06 — UAT gap closure: i18n localization + compiler warnings (17-03)"
+stopped_at: Completed 18-01-PLAN.md and 18-02-PLAN.md
+last_updated: "2026-03-06T20:52:00Z"
+last_activity: "2026-03-06 — Documentation artifacts + checkbox updates (18-01)"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 17 (i18n + WASM Cleanup) — 5 of 5 in v1.2.0
-Plan: 17-03 complete (3 of 3)
-Status: Phase 17 complete
-Last activity: 2026-03-06 — UAT gap closure: i18n localization + compiler warnings (17-03)
+Phase: 18 (Phase 16 Verification & i18n Fixes)
+Plan: 18-02 complete (2 of 2)
+Status: Phase 18 in progress
+Last activity: 2026-03-06 — i18n coverage: ask-heading fix + hardcoded string replacement (18-02)
 
 Progress: [████████████] 100%
 
@@ -63,6 +63,7 @@ Recent for v1.2.0:
 - [Phase 17-01]: Renamed ai-chat-*/ai-plugin-bar-* to cli-chat-*/cli-bar-*, build_options() DRY helper for Ollama params, seed=0 means random
 - [Phase 17-02]: Complete WASM plugin removal (~6500 LOC), AI init reads top-level Settings, old WASM approval UI removed
 - [Phase 17-03]: ComboBox selected_text uses match-based i18n dispatch, render_head extended with i18n parameter
+- [Phase 18-02]: Threaded i18n through send_query_to_agent/handle_action, fluent_bundle::FluentArgs for all parameterized i18n
 
 ### Known Tech Debt
 

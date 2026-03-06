@@ -1,5 +1,6 @@
 pub mod ollama;
 pub mod provider;
+pub mod security;
 pub mod state;
 pub mod tools;
 pub mod types;
@@ -54,11 +55,16 @@ MANDATORY RULES:
     }
 
     /// Generates a unified context payload from the current workspace state.
+    /// `terminal_output` and `lsp_diagnostics` are passed by caller (wired in Plan 04).
     pub fn generate_context(
         ws: &WorkspaceState,
         shared: &std::sync::Arc<std::sync::Mutex<crate::app::types::AppShared>>,
+        terminal_output: Option<String>,
+        lsp_diagnostics: Vec<String>,
     ) -> AiContextPayload {
         let mut payload = AiContextPayload::default();
+        payload.terminal_output = terminal_output;
+        payload.lsp_diagnostics = lsp_diagnostics;
 
         // 0. Get memory keys
         if let Ok(sh) = shared.try_lock()
@@ -151,6 +157,28 @@ MANDATORY RULES:
         payload.cargo_toml_summary = extract_cargo_summary(&ws.root_path);
 
         payload
+    }
+
+    /// Builds a system message containing the full editor context.
+    /// Called before each stream_chat to inject current state per CONTEXT.md locked decision:
+    /// "Kontext se pripoji jako system message pri KAZDE zprave"
+    pub fn build_system_message(
+        ws: &WorkspaceState,
+        shared: &std::sync::Arc<std::sync::Mutex<crate::app::types::AppShared>>,
+    ) -> AiMessage {
+        let payload = Self::generate_context(ws, shared, None, Vec::new());
+        let content = payload.to_system_message();
+        AiMessage {
+            role: "system".to_string(),
+            content,
+            monologue: Vec::new(),
+            timestamp: 0,
+            tool_call_name: None,
+            tool_call_id: None,
+            tool_result_for_id: None,
+            tool_is_error: false,
+            tool_call_arguments: None,
+        }
     }
 
     /// Returns the centralized ASCII logo for all CLI agents.

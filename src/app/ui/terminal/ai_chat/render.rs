@@ -255,9 +255,14 @@ fn render_chat_content(
 
                 let max_prompt_h = font_size * 1.6 * 5.0 + font_size;
                 ui.horizontal(|ui| {
+                    // Reserve width for Stop button so ScrollArea doesn't overflow
+                    let button_reserve = if loading { 55.0 } else { 0.0 };
+                    let input_width = (ui.available_width() - button_reserve).max(100.0);
+
                     let input_result = egui::ScrollArea::vertical()
                         .id_salt("ai_prompt_scroll")
                         .max_height(max_prompt_h)
+                        .max_width(input_width)
                         .auto_shrink([false, true])
                         .stick_to_bottom(true)
                         .show(ui, |ui| {

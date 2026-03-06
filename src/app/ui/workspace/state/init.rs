@@ -6,7 +6,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use super::{ProjectSearch, WorkspaceState};
-use crate::app::ai::state::{AiState, AiSettings, ChatState, OllamaState, OllamaConnectionStatus};
+use crate::app::ai::state::{AiState, AiSettings, ChatState, OllamaConnectionStatus, OllamaState};
 use crate::app::project_config::load_profiles;
 use crate::app::types::{FocusedPanel, PersistentState};
 use crate::app::ui::background::{fetch_git_branch, fetch_git_status};
@@ -213,26 +213,6 @@ pub fn init_workspace(
         settings_conflict: None,
         ai,
         git_cancel,
-        // --- Ollama native provider (will move to ai.ollama in Task 2) ---
-        ollama_status: OllamaConnectionStatus::Checking,
-        ollama_models: Vec::new(),
-        ollama_selected_model: panel_state
-            .ollama_selected_model
-            .clone()
-            .unwrap_or_default(),
-        ollama_check_rx: None,
-        ollama_last_check: std::time::Instant::now()
-            - std::time::Duration::from_secs(crate::config::OLLAMA_CHECK_INTERVAL_SECS),
-        ollama_base_url: settings
-            .plugins
-            .get("ollama")
-            .and_then(|p| p.config.get("API_URL"))
-            .and_then(|url| crate::app::ai::ollama::validate_ollama_url(url))
-            .unwrap_or_else(|| crate::config::OLLAMA_DEFAULT_URL.to_string()),
-        ollama_api_key: settings
-            .plugins
-            .get("ollama")
-            .and_then(|p| p.config.get("API_KEY").cloned()),
         local_history: crate::app::local_history::LocalHistory::new(&root_path),
         background_io_rx: None,
         applied_settings_version: 0,

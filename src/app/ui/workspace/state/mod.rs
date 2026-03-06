@@ -7,8 +7,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
-use crate::app::ai::{AiState, OllamaStatus};
-pub use crate::app::ai::state::OllamaConnectionStatus;
+use crate::app::ai::AiState;
 use crate::app::build_runner::BuildError;
 use crate::app::lsp::LspClient;
 use crate::app::types::{FocusedPanel, ProjectProfiles, Toast};
@@ -122,14 +121,6 @@ pub struct WorkspaceState {
     pub confirm_discard_changes: Option<String>,
     /// Last time the user pressed a key. Used for repaint capping during active typing.
     pub last_keystroke_time: Option<std::time::Instant>,
-    // --- Ollama native provider state ---
-    pub ollama_status: OllamaConnectionStatus,
-    pub ollama_models: Vec<String>,
-    pub ollama_selected_model: String,
-    pub ollama_check_rx: Option<mpsc::Receiver<OllamaStatus>>,
-    pub ollama_last_check: std::time::Instant,
-    pub ollama_base_url: String,
-    pub ollama_api_key: Option<String>,
 }
 
 impl Drop for WorkspaceState {

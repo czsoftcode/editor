@@ -13,7 +13,7 @@ pub fn render_ai_bar(
 ) {
     ui.horizontal(|ui| {
         // --- Ollama status icon ---
-        let (color, tooltip) = match ws.ollama_status {
+        let (color, tooltip) = match ws.ai.ollama.status {
             OllamaConnectionStatus::Connected => (
                 egui::Color32::from_rgb(0, 180, 0),
                 "Ollama: connected",
@@ -37,7 +37,7 @@ pub fn render_ai_bar(
         ui.add_space(4.0);
 
         // --- Ollama model ComboBox ---
-        if ws.ollama_models.is_empty() {
+        if ws.ai.ollama.models.is_empty() {
             let resp = ui.add_enabled(
                 false,
                 egui::Button::new("No models available"),
@@ -45,12 +45,12 @@ pub fn render_ai_bar(
             resp.on_disabled_hover_text("Run 'ollama pull <model>' to download a model");
         } else {
             egui::ComboBox::from_id_salt("ollama_model_picker")
-                .selected_text(&ws.ollama_selected_model)
+                .selected_text(&ws.ai.ollama.selected_model)
                 .width(160.0)
                 .show_ui(ui, |ui| {
-                    for model in &ws.ollama_models {
+                    for model in &ws.ai.ollama.models {
                         ui.selectable_value(
-                            &mut ws.ollama_selected_model,
+                            &mut ws.ai.ollama.selected_model,
                             model.clone(),
                             model,
                         );

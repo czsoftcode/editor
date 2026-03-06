@@ -171,34 +171,34 @@ pub(super) fn process_background_events(
     }
 
     // --- 4b. Ollama polling ---
-    if let Some(rx) = &ws.ollama_check_rx
+    if let Some(rx) = &ws.ai.ollama.check_rx
         && let Ok(status) = rx.try_recv()
     {
         match status {
             OllamaStatus::Available(models) => {
-                ws.ollama_status = OllamaConnectionStatus::Connected;
-                if ws.ollama_selected_model.is_empty()
-                    || !models.contains(&ws.ollama_selected_model)
+                ws.ai.ollama.status = OllamaConnectionStatus::Connected;
+                if ws.ai.ollama.selected_model.is_empty()
+                    || !models.contains(&ws.ai.ollama.selected_model)
                 {
                     if let Some(first) = models.first() {
-                        ws.ollama_selected_model = first.clone();
+                        ws.ai.ollama.selected_model = first.clone();
                     }
                 }
-                ws.ollama_models = models;
+                ws.ai.ollama.models = models;
             }
             OllamaStatus::Unavailable => {
-                ws.ollama_status = OllamaConnectionStatus::Disconnected;
-                ws.ollama_models.clear();
+                ws.ai.ollama.status = OllamaConnectionStatus::Disconnected;
+                ws.ai.ollama.models.clear();
             }
         }
-        ws.ollama_check_rx = None;
-        ws.ollama_last_check = std::time::Instant::now();
+        ws.ai.ollama.check_rx = None;
+        ws.ai.ollama.last_check = std::time::Instant::now();
     }
-    if ws.ollama_last_check.elapsed().as_secs() >= crate::config::OLLAMA_CHECK_INTERVAL_SECS
-        && ws.ollama_check_rx.is_none()
+    if ws.ai.ollama.last_check.elapsed().as_secs() >= crate::config::OLLAMA_CHECK_INTERVAL_SECS
+        && ws.ai.ollama.check_rx.is_none()
         && !ws.ai.chat.loading
     {
-        ws.ollama_check_rx = Some(spawn_ollama_check(ws.ollama_base_url.clone(), ws.ollama_api_key.clone()));
+        ws.ai.ollama.check_rx = Some(spawn_ollama_check(ws.ai.ollama.base_url.clone(), ws.ai.ollama.api_key.clone()));
     }
 
     // --- 5. Async results ---

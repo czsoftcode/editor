@@ -124,7 +124,7 @@ fn render_chat_content(
     let prompt_h_prev = ui
         .memory(|m| m.data.get_temp::<f32>(prompt_mem_id))
         .unwrap_or(font_size * 2.0 + 16.0);
-    let history_content_h_prev = ui
+    let _history_content_h_prev = ui
         .memory(|m| m.data.get_temp::<f32>(history_mem_id))
         .unwrap_or(0.0);
 
@@ -136,7 +136,7 @@ fn render_chat_content(
     // Maximum height before a scrollbar is needed
     let history_h_max = (body_h - reserved_h).max(60.0);
     // Actual rendered height of the history area (capped at max)
-    let history_display_h = history_content_h_prev.min(history_h_max).max(0.0);
+    let history_display_h = history_h_max;
     // Gap between prompt bottom and footer
     let gap_h = (body_h - history_display_h - reserved_h).max(0.0);
 
@@ -144,7 +144,7 @@ fn render_chat_content(
     let scroll_out = egui::ScrollArea::both()
         .id_salt("ai_chat_terminal_history")
         .auto_shrink([false, false])
-        .max_height(history_display_h.max(1.0))
+        .max_height(history_h_max)
         .stick_to_bottom(ws.ai.chat.auto_scroll)
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
@@ -187,7 +187,14 @@ fn render_chat_content(
     });
 
     // Auto-scroll detection: stop auto-scroll when user scrolls up during streaming
-    if ws.ai.chat.loading {
+    // Skip detection when auto_scroll was just re-enabled (button click) — let stick_to_bottom
+    // take effect on the next frame before checking position.
+    let scroll_to_bottom_id = egui::Id::new("ai_scroll_to_bottom_clicked");
+    let just_clicked = ui
+        .memory(|m| m.data.get_temp::<bool>(scroll_to_bottom_id))
+        .unwrap_or(false);
+
+    if ws.ai.chat.loading && !just_clicked {
         let at_bottom = scroll_out.state.offset.y
             >= scroll_out.content_size.y - scroll_out.inner_rect.height() - 30.0;
         if !at_bottom {
@@ -195,12 +202,17 @@ fn render_chat_content(
         }
     }
 
+    // Clear the "just clicked" flag (it persists for one frame only)
+    ui.memory_mut(|m| m.data.insert_temp(scroll_to_bottom_id, false));
+
     // Scroll-to-bottom button when auto-scroll is disabled during streaming
     if !ws.ai.chat.auto_scroll && ws.ai.chat.loading {
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.small_button("\u{2193} Scroll to bottom").clicked() {
                     ws.ai.chat.auto_scroll = true;
+                    // Set flag so auto-scroll detection skips the next frame
+                    ui.memory_mut(|m| m.data.insert_temp(scroll_to_bottom_id, true));
                 }
             });
         });

@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 16 (Tool Execution) — 4 of 5 in v1.2.0
-Plan: 16-02 complete (2 of 4)
+Plan: 16-03 complete (3 of 4)
 Status: Executing
-Last activity: 2026-03-06 — Ollama tools API + editor context injection (16-02)
+Last activity: 2026-03-06 — Native ToolExecutor with 14 tool handlers (16-03)
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Recent for v1.2.0:
 - [Phase 15]: faint_bg_color for AI messages, explicit green status, one-frame memory flag for scroll-to-bottom, dynamic reasoning depth injection
 - [Phase 16-01]: LazyLock for static regex, manual ISO 8601 timestamps (no chrono), audit eprintln errors
 - [Phase 16-02]: stream:false when tools present, AtomicU32 tool call ID counter, context params deferred to Plan 04
+- [Phase 16-03]: ToolExecutor combined Tasks 1+2, exec timeout via thread+mpsc, facts in .polycredo/ai-facts.json
 
 ### Known Tech Debt
 
@@ -87,6 +88,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T15:06:53Z
-Stopped at: Completed 16-02-PLAN.md
-Resume file: .planning/phases/16-tool-execution/16-02-SUMMARY.md
+Last session: 2026-03-06T15:12:51Z
+Stopped at: Completed 16-03-PLAN.md
+Resume file: .planning/phases/16-tool-execution/16-03-SUMMARY.md

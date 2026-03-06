@@ -31,7 +31,7 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 - [x] **TOOL-03**: File write/replace tool — AI upravuje soubory s approval a diff preview
 - [x] **TOOL-04**: Command execution tool — AI spousti prikazy s approval
 - [ ] **TOOL-05**: Approval UI — Approve/Deny/Always workflow pro tool volani
-- [ ] **TOOL-06**: Ask-user tool — AI se muze zeptat uzivatele na upresneni
+- [x] **TOOL-06**: Ask-user tool — AI se muze zeptat uzivatele na upresneni
 
 ### Cleanup
 
@@ -84,7 +84,7 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 | TOOL-03 | Phase 16 | Complete |
 | TOOL-04 | Phase 16 | Complete |
 | TOOL-05 | Phase 16 | Pending |
-| TOOL-06 | Phase 16 | Pending |
+| TOOL-06 | Phase 16 | Complete |
 | CLEN-01 | Phase 14 | Complete |
 | CLEN-02 | Phase 17 | Pending |
 | CLEN-03 | Phase 17 | Pending |

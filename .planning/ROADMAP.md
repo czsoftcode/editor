@@ -113,7 +113,7 @@ Plans:
   3. AI muze upravovat soubory (s approval) a uzivatel vidi diff preview pred schvalenim
   4. AI muze spoustet prikazy (s approval) a uzivatel vidi vystup prikazu
   5. Approval UI nabizi Approve/Deny/Always workflow a AI se muze zeptat uzivatele na upresneni (ask-user tool)
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 Plans:
 - [ ] 16-01-PLAN.md — Security infrastructure: PathSandbox, SecretsFilter, CommandBlacklist, FileBlacklist, RateLimiter, AuditLogger
 - [ ] 16-02-PLAN.md — Ollama tools API: tool declarations v requestu, tool_calls parsing, context enhancement
@@ -150,5 +150,5 @@ Plans:
 | 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
 | 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
 | 15. Streaming Chat UI | 5/5 | Complete    | 2026-03-06 | - |
-| 16. Tool Execution | 2/4 | In Progress|  | - |
+| 16. Tool Execution | 3/4 | In Progress|  | - |
 | 17. i18n & WASM Cleanup | v1.2.0 | 0/? | Not started | - |

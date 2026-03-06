@@ -17,7 +17,7 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
     ui.horizontal(|ui| {
         // Ollama connection status indicator
         let status_color = match ws.ai.ollama.status {
-            OllamaConnectionStatus::Connected => ui.visuals().selection.bg_fill,
+            OllamaConnectionStatus::Connected => egui::Color32::from_rgb(0, 180, 0),
             OllamaConnectionStatus::Checking => ui.visuals().warn_fg_color,
             OllamaConnectionStatus::Disconnected => ui.visuals().error_fg_color,
         };

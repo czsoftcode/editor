@@ -91,7 +91,7 @@ pub fn ui_conversation(
 
         // Agent Answer
         if !a.is_empty() {
-            let ai_bg = ui.visuals().extreme_bg_color;
+            let ai_bg = ui.visuals().faint_bg_color;
             let weak_color = ui.visuals().weak_text_color();
 
             // Metadata bar

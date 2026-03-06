@@ -173,7 +173,8 @@ pub(crate) fn render_workspace(
         || ws.show_settings
         || ws.show_new_project
         || ws.show_about
-        || ws.show_semantic_indexing_modal;
+        || ws.show_semantic_indexing_modal
+        || ws.show_ai_chat;
 
     let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
     render_semantic_indexing_modal(ctx, ws, i18n);

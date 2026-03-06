@@ -191,7 +191,7 @@ impl AiProvider for OllamaProvider {
                 Ok(r) => (r, has_tools),
                 Err(e) if has_tools => {
                     // Model may not support tools — fallback to streaming without tools
-                    eprintln!("[Ollama] Tools request failed ({e}), falling back to streaming without tools");
+                    eprintln!("[Ollama] Tools request failed ({}), falling back to streaming without tools", e);
                     let mut fallback_body = serde_json::json!({
                         "model": config.model,
                         "messages": msgs,
@@ -205,7 +205,10 @@ impl AiProvider for OllamaProvider {
                     fallback_body.as_object_mut().map(|o| o.remove("tools"));
                     let fallback_req = make_req(&agent, &url, &config.api_key);
                     match fallback_req.send_json(&fallback_body) {
-                        Ok(r) => (r, false),
+                        Ok(r) => {
+                            eprintln!("[Ollama] Fallback streaming request succeeded");
+                            (r, false)
+                        }
                         Err(e2) => {
                             let _ = tx.send(StreamEvent::Error(format!("Ollama request failed: {e2}")));
                             return;

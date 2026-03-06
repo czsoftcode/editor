@@ -143,6 +143,7 @@ candle-transformers = { version = "0.9" }
 tokenizers = "0.21"
 hf-hub = "0.4"
 url = "2.5.8"
+ureq = { version = "2", features = ["json"] }
 
 [patch.crates-io]
 egui_term = { path = "vendor/egui_term" }

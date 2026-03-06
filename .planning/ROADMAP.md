@@ -4,7 +4,8 @@
 
 - ✅ **v1.0.2 Dark/Light Mode** — Phases 1-5 (shipped 2026-03-05)
 - ✅ **v1.0.6 Focus Management** — Phase 6 (shipped 2026-03-05)
-- 🚧 **v1.1.0 Sandbox Removal** — Phases 9-12 (in progress)
+- ✅ **v1.1.0 Sandbox Removal** — Phases 9-12 (shipped 2026-03-06)
+- 🚧 **v1.2.0 AI Chat Rewrite** — Phases 13-17 (in progress)
 
 ## Phases
 
@@ -32,84 +33,90 @@ Archive: `.planning/milestones/v1.0.6-ROADMAP.md`
 
 </details>
 
-### v1.1.0 Sandbox Removal (In Progress)
+<details>
+<summary>✅ v1.1.0 Sandbox Removal (Phases 9-12) — SHIPPED 2026-03-06</summary>
 
-**Milestone Goal:** Kompletne odstranit sandbox rezim z editoru — veskerý kód, UI prvky, logiku a settings.
+- [x] Phase 9: Core Sandbox Logic & Settings Removal — 3/3 plans — completed 2026-03-05
+- [x] Phase 10: UI & State Cleanup — 1/1 plans — completed 2026-03-05
+- [x] Phase 11: File Operations, Watcher & Guard Removal — 2/2 plans — completed 2026-03-05
+- [x] Phase 12: I18n Cleanup & Integrity Verification — 2/2 plans — completed 2026-03-05
 
-- [ ] **Phase 9: Core Sandbox Logic & Settings Removal** - Odstraneni sandbox.rs, Sandbox/SyncPlan struktur a sandbox settings fieldu
-- [x] **Phase 10: UI & State Cleanup** - Odstraneni vsech sandbox UI prvku a sandbox-related state fieldu (completed 2026-03-05)
-- [x] **Phase 11: File Operations, Watcher & Guard Removal** - Odstraneni sandbox logiky z file ops, watcheru a git/build guardu (completed 2026-03-05)
-- [x] **Phase 12: I18n Cleanup & Integrity Verification** - Odstraneni i18n klicu, verifikace kompilace, testu a funkcnosti (completed 2026-03-05)
+Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
+
+</details>
+
+### 🚧 v1.2.0 AI Chat Rewrite (In Progress)
+
+**Milestone Goal:** Kompletni prestava AI Chat asistenta — nativni Rust providery misto WASM, terminalovy hybrid UI, plna integrace s editorem (kontext + tools)
+
+- [ ] **Phase 13: Provider Foundation** - AiProvider trait, OllamaProvider s NDJSON streaming, auto-detect
+- [ ] **Phase 14: State Refactor** - AiChatState sub-struct, konsolidace ~30 ai_* poli z WorkspaceState
+- [ ] **Phase 15: Streaming Chat UI** - Hybrid CLI layout, streaming rendering, dark/light mode, markdown, historie, model picker
+- [ ] **Phase 16: Tool Execution** - Editor kontext, file read/write tools, command execution, approval UI
+- [ ] **Phase 17: i18n & WASM Cleanup** - Nove i18n klice, odstraneni starych WASM klicu, odstraneni WASM plugin systemu
 
 ## Phase Details
 
-### Phase 9: Core Sandbox Logic & Settings Removal
-**Goal**: Sandbox modul a jeho datove struktury jiz neexistuji v codebase
-**Depends on**: Nothing (first phase of v1.1.0)
-**Requirements**: CORE-01, CORE-02, SET-01, SET-02
+### Phase 13: Provider Foundation
+**Goal**: AI provider abstrakce funguje a komunikuje s Ollama serverem
+**Depends on**: Nothing (first phase of v1.2.0)
+**Requirements**: PROV-01, PROV-02, PROV-03
 **Success Criteria** (what must be TRUE):
-  1. Soubor `src/app/sandbox.rs` neexistuje a `mod sandbox` deklarace je odstranena z `app/mod.rs`
-  2. Struktury `Sandbox`, `SyncPlan` a vsechny sandbox metody neexistuji v zadnem souboru
-  3. `Settings.sandbox_mode` field neexistuje a settings serializace/deserializace funguje bez nej
-  4. Legacy migrace `project_read_only` je odstranena a settings loading funguje korektne
-  5. Projekt se kompiluje (warnings povoleny v teto fazi)
-**Plans:** 3 plans
-
+  1. AiProvider trait existuje s metodami send_chat(), stream_chat(), name(), available_models()
+  2. OllamaProvider dokaze streamovat odpoved z Ollama /api/chat endpointu token po tokenu na background threadu
+  3. Editor automaticky detekuje bezici Ollama server na localhost:11434 a zobrazi dostupne modely
+  4. Streaming nepblokuje UI thread — editor zustava responzivni behem generovani odpovedi
+**Plans:** 2 plans
 Plans:
-- [ ] 09-01-PLAN.md — Smazat sandbox.rs, odstranit sandbox_mode ze Settings, pridat migraci
-- [ ] 09-02-PLAN.md — Odstranit vsechny sandbox struktury/fieldy/metody, opravit kompilaci
-- [ ] 09-03-PLAN.md — Gap closure: smazat sandbox.rs, odstranit sandbox field z WorkspaceState, opravit reference
+- [ ] 13-01-PLAN.md — AiProvider trait + OllamaProvider s NDJSON streaming
+- [ ] 13-02-PLAN.md — Ollama auto-detect polling + status ikona + model ComboBox v AI baru
 
-### Phase 10: UI & State Cleanup
-**Goal**: Uzivatel nevidi zadne sandbox prvky v UI a interni state neobsahuje sandbox fieldy
-**Depends on**: Phase 9
-**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, STATE-01, STATE-02, STATE-03, STATE-04
+### Phase 14: State Refactor
+**Goal**: AI stav je konsolidovany v dedicke strukture, codebase pripraveny pro napojeni provideru na UI
+**Depends on**: Phase 13
+**Requirements**: CLEN-01
 **Success Criteria** (what must be TRUE):
-  1. Settings dialog neobsahuje sandbox toggle, tooltip ani inline poznamku
-  2. File tree nezobrazuje "Sandbox" toggle button ani "Soubory (Sandbox)" label
-  3. Build bar nezobrazuje "Sandbox ON/OFF" indikator
-  4. Zadne sandbox-related toast akce (Apply now/Defer, Remap/Skip, Revert/Keep) se nemohou zobrazit
-  5. Projekt se kompiluje (warnings povoleny v teto fazi)
-**Plans:** 1/1 plans complete
+  1. Vsechna ai_* pole z WorkspaceState jsou presunuta do AiChatState sub-structu (ws.ai.*)
+  2. Existujici AI chat funkcionalita funguje identicky po refaktoru — zadna regrese
+  3. Codebase kompiluje bez warningu po rename
+**Plans**: TBD
 
-Plans:
-- [ ] 10-01-PLAN.md — Odstranit sandbox UI prvky (settings, modal, build bar, file tree) a vycistit gitignore filtr
-
-### Phase 11: File Operations, Watcher & Guard Removal
-**Goal**: Editor pracuje primo s projektovymi soubory bez sandbox presmerovani a bez sandbox guardu
-**Depends on**: Phase 10
-**Requirements**: FILE-01, FILE-02, FILE-03, WATCH-01, WATCH-02, GIT-01, GIT-02
+### Phase 15: Streaming Chat UI
+**Goal**: Uzivatel muze vest konverzaci s AI pres novy nativni chat s plnym streamingem a vizualnim formatovanim
+**Depends on**: Phase 13, Phase 14
+**Requirements**: CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06, CHAT-07, PROV-04
 **Success Criteria** (what must be TRUE):
-  1. Otevirani a ukladani souboru probiha primo bez sandbox tab remappingu
-  2. File tree vzdy zobrazuje projektový koren bez sandbox/project root switchingu
-  3. Terminaly vzdy pouzivaji projektovy adresar bez sandbox working directory switchingu
-  4. Git operace a build/deb akce jsou vzdy povoleny bez sandbox guardu
-  5. Projekt se kompiluje (warnings povoleny v teto fazi)
-**Plans:** 2/2 plans complete
+  1. Chat ma hybrid CLI layout — prompt dole, odpovedi nahore s vizualnim oddelenim
+  2. Odpovedi se zobrazuji prubezne token po tokenu (streaming), vcetne markdown formatovani (code blocks, bold/italic)
+  3. Chat respektuje dark/light mode — barvy se meni s tematem pres ui.visuals()
+  4. Uzivatel muze vybrat model z ComboBoxu s dostupnymi Ollama modely
+  5. Konverzacni historie funguje (multi-turn), input ma historii promptu (sipky nahoru/dolu), a uzivatel muze prerusit generovani Stop tlacitkem
+**Plans**: TBD
 
-Plans:
-- [ ] 11-01-PLAN.md — Odstranit sandbox logiku z editor files, terminal funkcí, watcheru a settings migrace
-- [ ] 11-02-PLAN.md — Přejmenovat sandbox_root na project_root v plugin registry a exec_in_sandbox na exec v AI tools
-
-### Phase 12: I18n Cleanup & Integrity Verification
-**Goal**: Editor je ciste zkompilovan bez warnigu, vsechny testy prochasi a editor je plne funkcni
-**Depends on**: Phase 11
-**Requirements**: I18N-01, I18N-02, INT-01, INT-02, INT-03
+### Phase 16: Tool Execution
+**Goal**: AI muze cist/editovat soubory a spoustet prikazy s uzivatelem schvalenym approval workflow
+**Depends on**: Phase 15
+**Requirements**: TOOL-01, TOOL-02, TOOL-03, TOOL-04, TOOL-05, TOOL-06
 **Success Criteria** (what must be TRUE):
-  1. Zadne sandbox i18n klice neexistuji v zadnem z 5 jazyku (cs, en, de, ru, sk)
-  2. Test `all_lang_keys_match_english` prochazi
-  3. `cargo build` projde bez warnigu (zadne unused imports, dead code)
-  4. Vsechny existujici testy prochasi (`cargo test`)
-  5. Editor se spusti a je plne funkcni — otevirani souboru, editace, terminaly, git, build
-**Plans:** 2/2 plans complete
+  1. AI automaticky vidi editor kontext — otevrene soubory, git stav, build errory — bez manualni akce uzivatele
+  2. AI muze cist soubory (s approval) a uzivatel vidi obsah souboru v chatovem kontextu
+  3. AI muze upravovat soubory (s approval) a uzivatel vidi diff preview pred schvalenim
+  4. AI muze spoustet prikazy (s approval) a uzivatel vidi vystup prikazu
+  5. Approval UI nabizi Approve/Deny/Always workflow a AI se muze zeptat uzivatele na upresneni (ask-user tool)
+**Plans**: TBD
 
-Plans:
-- [ ] 12-01-PLAN.md — Smazat sandbox i18n klice ze vsech 5 jazyku a aktualizovat sandbox-mentioning hodnoty
-- [ ] 12-02-PLAN.md — Opravit compile warningy, odstranit sandbox komentare a finalni verifikace integrity
+### Phase 17: i18n & WASM Cleanup
+**Goal**: Novy chat je plne lokalizovany a stary WASM plugin system je kompletne odstranen
+**Depends on**: Phase 16
+**Requirements**: CLEN-02, CLEN-03
+**Success Criteria** (what must be TRUE):
+  1. Vsechny nove UI retezce maji i18n klice ve vsech 5 jazycich (cs, en, de, ru, sk)
+  2. Stare WASM-specificke i18n klice jsou odstraneny
+  3. extism dependency a PluginManager jsou kompletne odstraneny (~2000 LOC)
+  4. Editor kompiluje a funguje bez WASM runtime — vsechny AI funkce bezi nativne
+**Plans**: TBD
 
 ## Progress
-
-**Execution Order:** 9 → 10 → 11 → 12
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -121,7 +128,12 @@ Plans:
 | 6. Docked Terminal Focus Suppression | v1.0.6 | 1/1 | Complete | 2026-03-05 |
 | ~~7. Float Terminal Focus Suppression~~ | v1.0.6 | — | Cancelled | — |
 | ~~8. Focus Restore & Regression~~ | v1.0.6 | — | Cancelled | — |
-| 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 2/3 | In progress | - |
+| 9. Core Sandbox Logic & Settings Removal | v1.1.0 | 3/3 | Complete | 2026-03-05 |
 | 10. UI & State Cleanup | v1.1.0 | 1/1 | Complete | 2026-03-05 |
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 2/2 | Complete | 2026-03-05 |
-| 12. I18n Cleanup & Integrity Verification | 2/2 | Complete    | 2026-03-05 | - |
+| 12. I18n Cleanup & Integrity Verification | v1.1.0 | 2/2 | Complete | 2026-03-05 |
+| 13. Provider Foundation | v1.2.0 | 0/2 | Planning | - |
+| 14. State Refactor | v1.2.0 | 0/? | Not started | - |
+| 15. Streaming Chat UI | v1.2.0 | 0/? | Not started | - |
+| 16. Tool Execution | v1.2.0 | 0/? | Not started | - |
+| 17. i18n & WASM Cleanup | v1.2.0 | 0/? | Not started | - |

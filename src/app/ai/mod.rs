@@ -1,7 +1,11 @@
+pub mod ollama;
+pub mod provider;
 pub mod tools;
 pub mod types;
 
 pub use types::*;
+pub use provider::*;
+pub use ollama::{OllamaProvider, OllamaStatus, spawn_ollama_check};
 // Explicitly re-export standard tools
 pub use tools::get_standard_tools;
 

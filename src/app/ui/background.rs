@@ -20,6 +20,7 @@ where
 use super::super::types::{AppShared, Toast};
 use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
+use crate::app::ai::provider::StreamEvent;
 use crate::app::ai::state::OllamaConnectionStatus;
 use crate::app::ai::{OllamaStatus, spawn_ollama_check};
 use crate::watcher::{FileEvent, FsChange};
@@ -199,6 +200,66 @@ pub(super) fn process_background_events(
         && !ws.ai.chat.loading
     {
         ws.ai.ollama.check_rx = Some(spawn_ollama_check(ws.ai.ollama.base_url.clone(), ws.ai.ollama.api_key.clone()));
+    }
+
+    // --- 4c. Chat streaming ---
+    let has_stream = ws.ai.chat.stream_rx.is_some();
+    if has_stream {
+        let mut events = Vec::new();
+        if let Some(ref rx) = ws.ai.chat.stream_rx {
+            loop {
+                match rx.try_recv() {
+                    Ok(evt) => events.push(evt),
+                    Err(std::sync::mpsc::TryRecvError::Empty) => break,
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        events.push(StreamEvent::Error("Stream disconnected".into()));
+                        break;
+                    }
+                }
+            }
+        }
+        // Process collected events
+        let mut done = false;
+        let mut tokens_this_frame = 0u32;
+        for evt in events {
+            match evt {
+                StreamEvent::Token(text) => {
+                    ws.ai.chat.streaming_buffer.push_str(&text);
+                    tokens_this_frame += 1;
+                }
+                StreamEvent::Done {
+                    prompt_tokens,
+                    completion_tokens,
+                    ..
+                } => {
+                    ws.ai.chat.in_tokens += prompt_tokens as u32;
+                    ws.ai.chat.out_tokens += completion_tokens as u32;
+                    done = true;
+                }
+                StreamEvent::Error(msg) => {
+                    if !ws.ai.chat.streaming_buffer.is_empty() {
+                        ws.ai.chat
+                            .streaming_buffer
+                            .push_str(&format!("\n\n*[error: {}]*", msg));
+                    } else {
+                        ws.toasts.push(Toast::error(format!("AI: {}", msg)));
+                    }
+                    done = true;
+                }
+                StreamEvent::ToolCall { .. } => { /* Phase 16 */ }
+            }
+        }
+        // Update conversation display
+        if tokens_this_frame > 0 || done {
+            if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                last.1 = ws.ai.chat.streaming_buffer.clone();
+            }
+        }
+        if done {
+            ws.ai.chat.streaming_buffer.clear();
+            ws.ai.chat.loading = false;
+            ws.ai.chat.stream_rx = None;
+        }
     }
 
     // --- 5. Async results ---

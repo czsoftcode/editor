@@ -12,15 +12,15 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 - [ ] **PROV-01**: AiProvider trait s metodami send_chat(), stream_chat(), name(), available_models()
 - [ ] **PROV-02**: OllamaProvider implementuje AiProvider s NDJSON streaming pres ureq + std::thread
 - [x] **PROV-03**: Auto-detect Ollama serveru na localhost:11434 (GET /api/tags)
-- [ ] **PROV-04**: Model picker — ComboBox s dostupnymi modely z Ollama API
+- [x] **PROV-04**: Model picker — ComboBox s dostupnymi modely z Ollama API
 
 ### Chat UI
 
 - [ ] **CHAT-01**: Hybrid CLI layout — prompt dole jako CLI, odpovedi nahore s vizualnim oddelenim
-- [ ] **CHAT-02**: Streaming rendering — prubezne zobrazovani odpovedi token po tokenu
+- [x] **CHAT-02**: Streaming rendering — prubezne zobrazovani odpovedi token po tokenu
 - [ ] **CHAT-03**: Dark/light mode — theme-aware barvy z ui.visuals() misto hardcoded
 - [ ] **CHAT-04**: Markdown v odpovedich — code blocks, inline code, bold/italic
-- [ ] **CHAT-05**: Konverzacni historie — multi-turn chat s persistenci v session
+- [x] **CHAT-05**: Konverzacni historie — multi-turn chat s persistenci v session
 - [ ] **CHAT-06**: Input s historii promptu (sipky nahoru/dolu)
 - [ ] **CHAT-07**: Cancel/Stop tlacitko pro preruseni generovani
 
@@ -71,12 +71,12 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 | PROV-01 | Phase 13 | Pending |
 | PROV-02 | Phase 13 | Pending |
 | PROV-03 | Phase 13 | Complete |
-| PROV-04 | Phase 15 | Pending |
+| PROV-04 | Phase 15 | Complete |
 | CHAT-01 | Phase 15 | Pending |
-| CHAT-02 | Phase 15 | Pending |
+| CHAT-02 | Phase 15 | Complete |
 | CHAT-03 | Phase 15 | Pending |
 | CHAT-04 | Phase 15 | Pending |
-| CHAT-05 | Phase 15 | Pending |
+| CHAT-05 | Phase 15 | Complete |
 | CHAT-06 | Phase 15 | Pending |
 | CHAT-07 | Phase 15 | Pending |
 | TOOL-01 | Phase 16 | Pending |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-03-06T10:34:27.591Z"
-last_activity: 2026-03-06 — Validated AiSettings extraction + full AI state consolidation (CLEN-01)
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-03-06T12:07:21Z"
+last_activity: 2026-03-06 — Native OllamaProvider streaming + background polling (15-01)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 20
+  total_plans: 8
+  completed_plans: 6
+  percent: 30
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
-**Current focus:** v1.2.0 AI Chat Rewrite — Phase 14: State Refactor
+**Current focus:** v1.2.0 AI Chat Rewrite — Phase 15: Streaming Chat UI
 
 ## Current Position
 
-Phase: 14 (State Refactor) — 2 of 5 in v1.2.0
-Plan: 14-02 complete
+Phase: 15 (Streaming Chat UI) — 3 of 5 in v1.2.0
+Plan: 15-01 complete
 Status: Executing
-Last activity: 2026-03-06 — Validated AiSettings extraction + full AI state consolidation (CLEN-01)
+Last activity: 2026-03-06 — Native OllamaProvider streaming + background polling (15-01)
 
-Progress: [██░░░░░░░░] 20%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
@@ -53,6 +53,8 @@ Recent for v1.2.0:
 - WASM removal last — both systems coexist until native path validated
 - [Phase 13]: Port-based URL validation: ~~reject URLs without explicit port~~ reverted (quick-5) — accept cloud endpoints without explicit port
 - [Phase 14]: AI state consolidated into AiState sub-struct with ChatState, OllamaState, AiSettings nested structs
+- [Phase 15-00]: Wave 0 pre-provisioning — added streaming fields + AI settings fields with defaults before implementation plans
+- [Phase 15-01]: Direct OllamaProvider.stream_chat() call, collect-then-process pattern in background polling
 
 ### Known Tech Debt
 
@@ -79,6 +81,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T10:30:16Z
-Stopped at: Completed 14-02-PLAN.md
-Resume file: .planning/phases/14-state-refactor/14-02-SUMMARY.md
+Last session: 2026-03-06T12:07:21Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: .planning/phases/15-streaming-chat-ui/15-01-SUMMARY.md

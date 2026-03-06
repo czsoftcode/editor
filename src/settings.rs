@@ -54,6 +54,10 @@ fn default_auto_show_ai_diff() -> bool {
     true
 }
 
+fn default_ollama_base_url() -> String {
+    "http://localhost:11434".to_string()
+}
+
 pub fn default_project_path() -> String {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("/"))
@@ -134,6 +138,32 @@ pub struct Settings {
     /// User-defined CLI AI agents.
     #[serde(default)]
     pub custom_agents: Vec<CustomAgent>,
+
+    // --- AI provider settings (migrated from plugin config) ---
+
+    /// Ollama base URL (e.g. "http://localhost:11434").
+    #[serde(default = "default_ollama_base_url")]
+    pub ollama_base_url: String,
+
+    /// Ollama API key (empty = no auth).
+    #[serde(default)]
+    pub ollama_api_key: String,
+
+    /// AI expertise role preference.
+    #[serde(default)]
+    pub ai_expertise: AiExpertiseRole,
+
+    /// AI reasoning depth preference.
+    #[serde(default)]
+    pub ai_reasoning_depth: AiReasoningDepth,
+
+    /// Default AI model name (e.g. "llama3.2").
+    #[serde(default)]
+    pub ai_default_model: String,
+
+    /// Whether plugin AI settings have already been migrated to top-level fields.
+    #[serde(default)]
+    pub ai_settings_migrated: bool,
 }
 
 impl Default for Settings {
@@ -171,6 +201,12 @@ impl Default for Settings {
                     args: "".to_string(),
                 },
             ],
+            ollama_base_url: default_ollama_base_url(),
+            ollama_api_key: String::new(),
+            ai_expertise: AiExpertiseRole::default(),
+            ai_reasoning_depth: AiReasoningDepth::default(),
+            ai_default_model: String::new(),
+            ai_settings_migrated: false,
         }
     }
 }
@@ -286,6 +322,32 @@ impl Settings {
 
     pub fn try_save(&self) -> Result<(), String> {
         self.try_save_to_config_dir(&config_dir())
+    }
+
+    /// Migrates AI-related settings from the legacy plugin config map into
+    /// top-level Settings fields. Returns `true` if migration was performed,
+    /// `false` if already migrated or no plugin config found.
+    pub fn migrate_plugin_ai_settings(&mut self) -> bool {
+        if self.ai_settings_migrated {
+            return false;
+        }
+
+        if let Some(plugin) = self.plugins.get("ollama") {
+            if let Some(url) = plugin.config.get("OLLAMA_URL") {
+                self.ollama_base_url = url.clone();
+            }
+            if let Some(key) = plugin.config.get("OLLAMA_API_KEY") {
+                self.ollama_api_key = key.clone();
+            }
+            if let Some(model) = plugin.config.get("MODEL") {
+                self.ai_default_model = model.clone();
+            }
+            self.ai_expertise = plugin.expertise.clone();
+            self.ai_reasoning_depth = plugin.reasoning_depth.clone();
+        }
+
+        self.ai_settings_migrated = true;
+        true
     }
 
     /// Applies settings to the egui Context (theme + editor font size).
@@ -572,6 +634,81 @@ default_project_path = "/home/test"
         let canonical: Settings = toml::from_str(&canonical_content).expect("parse canonical TOML");
         assert!(!canonical.dark_theme);
         assert_eq!(canonical.light_variant, LightVariant::CoolGray);
+    }
+
+    // --- AI settings tests (Phase 15, Plan 00) ---
+
+    #[test]
+    fn settings_serde_roundtrip_with_ai_fields() {
+        let mut s = Settings::default();
+        s.ollama_base_url = "http://example.com:11434".to_string();
+        s.ollama_api_key = "test-key".to_string();
+        s.ai_default_model = "llama3.2".to_string();
+
+        let toml_str = toml::to_string(&s).unwrap();
+        let restored: Settings = toml::from_str(&toml_str).unwrap();
+
+        assert_eq!(restored.ollama_base_url, "http://example.com:11434");
+        assert_eq!(restored.ollama_api_key, "test-key");
+        assert_eq!(restored.ai_default_model, "llama3.2");
+    }
+
+    #[test]
+    fn settings_backward_compat_no_ai_fields() {
+        // Simulate old TOML format without AI fields
+        let old_toml = r#"
+editor_font_size = 14.0
+dark_theme = true
+default_project_path = ""
+lang = "en"
+diff_side_by_side = false
+privacy_accepted = false
+auto_show_ai_diff = false
+"#;
+        let s: Settings = toml::from_str(old_toml).unwrap();
+        assert_eq!(s.ollama_base_url, "http://localhost:11434");
+        assert!(s.ollama_api_key.is_empty());
+        assert!(s.ai_default_model.is_empty());
+        assert!(!s.ai_settings_migrated);
+    }
+
+    #[test]
+    fn migrate_plugin_ai_settings_reads_ollama_url() {
+        let mut s = Settings::default();
+        let mut config = HashMap::new();
+        config.insert("OLLAMA_URL".to_string(), "http://remote:11434".to_string());
+        config.insert("MODEL".to_string(), "codellama".to_string());
+        s.plugins.insert("ollama".to_string(), PluginSettings {
+            config,
+            expertise: AiExpertiseRole::default(),
+            reasoning_depth: AiReasoningDepth::default(),
+            ..Default::default()
+        });
+
+        let migrated = s.migrate_plugin_ai_settings();
+        assert!(migrated);
+        assert_eq!(s.ollama_base_url, "http://remote:11434");
+        assert_eq!(s.ai_default_model, "codellama");
+        assert!(s.ai_settings_migrated);
+    }
+
+    #[test]
+    fn migrate_plugin_ai_settings_runs_only_once() {
+        let mut s = Settings::default();
+        s.ai_settings_migrated = true;
+
+        let mut config = HashMap::new();
+        config.insert("OLLAMA_URL".to_string(), "http://should-not-apply:11434".to_string());
+        s.plugins.insert("ollama".to_string(), PluginSettings {
+            config,
+            expertise: AiExpertiseRole::default(),
+            reasoning_depth: AiReasoningDepth::default(),
+            ..Default::default()
+        });
+
+        let migrated = s.migrate_plugin_ai_settings();
+        assert!(!migrated);
+        assert_eq!(s.ollama_base_url, "http://localhost:11434"); // unchanged
     }
 
 }

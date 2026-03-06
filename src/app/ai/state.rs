@@ -26,6 +26,12 @@ pub struct ChatState {
     pub last_payload: String,
     pub in_tokens: u32,
     pub out_tokens: u32,
+    /// Receiver for streaming tokens from the provider.
+    pub stream_rx: Option<mpsc::Receiver<super::provider::StreamEvent>>,
+    /// Buffer accumulating streamed tokens for the current response.
+    pub streaming_buffer: String,
+    /// Whether the chat view should auto-scroll to the latest content.
+    pub auto_scroll: bool,
 }
 
 impl Default for ChatState {
@@ -43,6 +49,9 @@ impl Default for ChatState {
             last_payload: String::new(),
             in_tokens: 0,
             out_tokens: 0,
+            stream_rx: None,
+            streaming_buffer: String::new(),
+            auto_scroll: true,
         }
     }
 }
@@ -115,5 +124,18 @@ impl Default for AiState {
             cancellation_token: Arc::new(AtomicBool::new(false)),
             markdown_cache: egui_commonmark::CommonMarkCache::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chat_state_default_has_streaming_fields() {
+        let cs = ChatState::default();
+        assert!(cs.streaming_buffer.is_empty(), "streaming_buffer should be empty by default");
+        assert!(cs.auto_scroll, "auto_scroll should be true by default");
+        assert!(cs.stream_rx.is_none(), "stream_rx should be None by default");
     }
 }

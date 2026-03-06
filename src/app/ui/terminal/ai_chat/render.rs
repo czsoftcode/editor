@@ -1,5 +1,5 @@
 use super::AiChatAction;
-use super::approval::{render_approval_ui, render_ask_user_ui};
+use super::approval::{render_approval_ui, render_ask_user_ui, render_tool_approval_ui, render_tool_ask_ui};
 use super::inspector::render_inspector;
 use crate::app::types::AppShared;
 use crate::app::ui::widgets::ai::AiChatWidget;
@@ -215,6 +215,10 @@ fn render_chat_content(
     } else if let Some((id, question, options, mut input_buf, sender)) = ws.pending_ask_user.take()
     {
         render_ask_user_ui(ui, id, question, options, &mut input_buf, sender, ws);
+    } else if ws.pending_tool_approval.is_some() {
+        render_tool_approval_ui(ui, ws);
+    } else if ws.pending_tool_ask.is_some() {
+        render_tool_ask_ui(ui, ws);
     } else {
         ui.add_space(4.0);
         ui.scope(|ui| {

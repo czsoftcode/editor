@@ -399,6 +399,39 @@ pub fn show(
                             });
                             ui.add_space(16.0);
 
+                            ui.add_space(16.0);
+                            ui.separator();
+                            ui.add_space(8.0);
+
+                            // AI File Blacklist Patterns
+                            ui.strong("File Blacklist Patterns");
+                            ui.add_space(4.0);
+                            ui.label(
+                                egui::RichText::new(
+                                    "Glob patterns pro soubory, ke kterym AI nesmi pristupovat (jeden vzor na radek)"
+                                )
+                                .weak()
+                                .small(),
+                            );
+                            ui.add_space(4.0);
+
+                            // Convert Vec<String> to newline-separated string for editing
+                            let mut patterns_text = draft.ai_file_blacklist_patterns.join("\n");
+                            let changed = ui.add(
+                                egui::TextEdit::multiline(&mut patterns_text)
+                                    .desired_width(400.0)
+                                    .desired_rows(6)
+                                    .hint_text(".env*\n*.pem\n*.key\nid_rsa*\ncredentials.*\nsecrets.*"),
+                            ).changed();
+                            if changed {
+                                draft.ai_file_blacklist_patterns = patterns_text
+                                    .lines()
+                                    .map(|l| l.trim().to_string())
+                                    .filter(|l| !l.is_empty())
+                                    .collect();
+                            }
+
+                            ui.add_space(16.0);
                             ui.separator();
                             ui.add_space(8.0);
 

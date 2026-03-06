@@ -22,7 +22,14 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
     // Initialize tool executor lazily on first AI chat
     if ws.tool_executor.is_none() {
         let root = ws.root_path.clone();
-        ws.tool_executor = Some(crate::app::ai::executor::ToolExecutor::new(root, None, None));
+        // Load blacklist patterns from settings
+        let settings = crate::settings::Settings::load();
+        let blacklist = if settings.ai_file_blacklist_patterns.is_empty() {
+            None
+        } else {
+            Some(settings.ai_file_blacklist_patterns)
+        };
+        ws.tool_executor = Some(crate::app::ai::executor::ToolExecutor::new(root, blacklist, None));
     }
 
     // Build messages from conversation history

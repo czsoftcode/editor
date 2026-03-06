@@ -58,6 +58,19 @@ fn default_ollama_base_url() -> String {
     "http://localhost:11434".to_string()
 }
 
+fn default_ai_file_blacklist() -> Vec<String> {
+    vec![
+        ".env*".to_string(),
+        "*.pem".to_string(),
+        "*.key".to_string(),
+        "id_rsa*".to_string(),
+        "credentials.*".to_string(),
+        "secrets.*".to_string(),
+        "*.pfx".to_string(),
+        "*.p12".to_string(),
+    ]
+}
+
 pub fn default_project_path() -> String {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("/"))
@@ -164,6 +177,11 @@ pub struct Settings {
     /// Whether plugin AI settings have already been migrated to top-level fields.
     #[serde(default)]
     pub ai_settings_migrated: bool,
+
+    /// File blacklist patterns for AI tool executor (glob patterns).
+    /// Prevents AI from reading/writing files matching these patterns.
+    #[serde(default = "default_ai_file_blacklist")]
+    pub ai_file_blacklist_patterns: Vec<String>,
 }
 
 impl Default for Settings {
@@ -207,6 +225,7 @@ impl Default for Settings {
             ai_reasoning_depth: AiReasoningDepth::default(),
             ai_default_model: String::new(),
             ai_settings_migrated: false,
+            ai_file_blacklist_patterns: default_ai_file_blacklist(),
         }
     }
 }

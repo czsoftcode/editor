@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 17-01-PLAN.md
-last_updated: "2026-03-06T18:36:07.184Z"
-last_activity: 2026-03-06 — CLI i18n keys + Ollama generation params (17-01)
+stopped_at: Completed 17-02-PLAN.md
+last_updated: "2026-03-06T19:22:24Z"
+last_activity: 2026-03-06 — WASM plugin system removal (17-02)
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 14
-  completed_plans: 14
-  percent: 80
+  completed_phases: 5
+  total_plans: 15
+  completed_plans: 15
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 17 (i18n + WASM Cleanup) — 5 of 5 in v1.2.0
-Plan: 17-01 complete (1 of 2)
-Status: Executing
-Last activity: 2026-03-06 — CLI i18n keys + Ollama generation params (17-01)
+Plan: 17-02 complete (2 of 2)
+Status: Phase 17 complete
+Last activity: 2026-03-06 — WASM plugin system removal + plugin i18n cleanup (17-02)
 
-Progress: [██████████░░] 80%
+Progress: [████████████] 100%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Recent for v1.2.0:
 - [Phase 16-02]: stream:false when tools present, AtomicU32 tool call ID counter, context params deferred to Plan 04
 - [Phase 16-03]: ToolExecutor combined Tasks 1+2, exec timeout via thread+mpsc, facts in .polycredo/ai-facts.json
 - [Phase 17-01]: Renamed ai-chat-*/ai-plugin-bar-* to cli-chat-*/cli-bar-*, build_options() DRY helper for Ollama params, seed=0 means random
+- [Phase 17-02]: Complete WASM plugin removal (~6500 LOC), AI init reads top-level Settings, old WASM approval UI removed
 
 ### Known Tech Debt
 
@@ -89,6 +90,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T19:04:11Z
-Stopped at: Completed 17-01-PLAN.md
-Resume file: .planning/phases/17-i18n-wasm-cleanup/17-02-PLAN.md
+Last session: 2026-03-06T19:22:24Z
+Stopped at: Completed 17-02-PLAN.md

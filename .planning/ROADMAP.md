@@ -53,7 +53,7 @@ Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
 - [x] **Phase 14: State Refactor** - AiChatState sub-struct, konsolidace ~30 ai_* poli z WorkspaceState (completed 2026-03-06)
 - [x] **Phase 15: Streaming Chat UI** - Hybrid CLI layout, streaming rendering, dark/light mode, markdown, historie, model picker (completed 2026-03-06)
 - [ ] **Phase 16: Tool Execution** - Editor kontext, file read/write tools, command execution, approval UI
-- [ ] **Phase 17: i18n & WASM Cleanup** - Nove i18n klice, odstraneni starych WASM klicu, odstraneni WASM plugin systemu
+- [x] **Phase 17: i18n & WASM Cleanup** - Nove i18n klice, odstraneni starych WASM klicu, odstraneni WASM plugin systemu (completed 2026-03-06)
 
 ## Phase Details
 
@@ -129,7 +129,7 @@ Plans:
   2. Stare WASM-specificke i18n klice jsou odstraneny
   3. extism dependency a PluginManager jsou kompletne odstraneny (~2000 LOC)
   4. Editor kompiluje a funguje bez WASM runtime — vsechny AI funkce bezi nativne
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 17-01-PLAN.md — i18n: cli.ftl, rename keys, replace hardcoded strings, Ollama params (completed 2026-03-06)
 - [ ] 17-02-PLAN.md — WASM removal: delete plugin system, clean references, remove extism
@@ -154,7 +154,7 @@ Plans:
 | 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
 | 15. Streaming Chat UI | 5/5 | Complete    | 2026-03-06 | - |
 | 16. Tool Execution | 4/4 | In Progress|  | - |
-| 17. i18n & WASM Cleanup | v1.2.0 | 1/2 | In Progress | - |
+| 17. i18n & WASM Cleanup | 2/2 | Complete   | 2026-03-06 | - |
 
 ## Known Issues / TODO
 

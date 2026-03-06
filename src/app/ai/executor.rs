@@ -832,7 +832,7 @@ impl ToolExecutor {
         use std::sync::mpsc;
         use std::time::Duration;
 
-        let mut child = match Command::new("sh")
+        let child = match Command::new("sh")
             .arg("-c")
             .arg(command)
             .current_dir(&self.project_root)
@@ -952,7 +952,7 @@ fn find_fuzzy_match(content: &str, old_string: &str) -> Option<Range<usize>> {
 
 /// Generates a standard unified diff with 3 lines context using the `similar` crate.
 pub fn generate_unified_diff(old_content: &str, new_content: &str, file_path: &str) -> String {
-    use similar::{ChangeTag, TextDiff};
+    use similar::TextDiff;
 
     let diff = TextDiff::from_lines(old_content, new_content);
     let mut output = String::new();

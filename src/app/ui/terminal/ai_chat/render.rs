@@ -10,38 +10,47 @@ use std::sync::{Arc, Mutex};
 
 // ── HEAD ─────────────────────────────────────────────────────────────────────
 
-/// Checks whether the selected AI plugin still needs authorization and triggers
-/// it automatically. Shows nothing visible when no authorization is pending.
-pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
-    let pending_auth = {
-        let sh = shared.lock().expect("lock");
-        sh.registry
-            .plugins
-            .get_pending_authorizations()
-            .into_iter()
-            .find(|(id, _)| id == &ws.ai.settings.selected_provider)
-    };
+/// Renders the chat header: Ollama status indicator, model picker, token counts.
+pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mutex<AppShared>>) {
+    use crate::app::ai::state::OllamaConnectionStatus;
 
-    if let Some((id, _meta)) = pending_auth {
-        let (plugin_manager, config) = {
-            let sh = shared.lock().expect("lock");
-            (
-                Arc::clone(&sh.registry.plugins),
-                sh.settings
-                    .plugins
-                    .get(&id)
-                    .map(|s| s.config.clone())
-                    .unwrap_or_default(),
-            )
+    ui.horizontal(|ui| {
+        // Ollama connection status indicator
+        let status_color = match ws.ai.ollama.status {
+            OllamaConnectionStatus::Connected => ui.visuals().selection.bg_fill,
+            OllamaConnectionStatus::Checking => ui.visuals().warn_fg_color,
+            OllamaConnectionStatus::Disconnected => ui.visuals().error_fg_color,
         };
-        if ws.plugin_error.is_none() {
-            if let Err(e) = plugin_manager.authorize(&id, &config) {
-                ws.plugin_error = Some(format!("Auto-authorization failed: {}", e));
-            }
-        }
-        ui.ctx()
-            .request_repaint_after(std::time::Duration::from_millis(100));
-    }
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
+        ui.painter().circle_filled(rect.center(), 5.0, status_color);
+
+        // Model picker ComboBox
+        egui::ComboBox::from_id_salt("ai_chat_model_picker")
+            .selected_text(&ws.ai.ollama.selected_model)
+            .width(180.0)
+            .show_ui(ui, |ui| {
+                for model in &ws.ai.ollama.models {
+                    ui.selectable_value(
+                        &mut ws.ai.ollama.selected_model,
+                        model.clone(),
+                        model,
+                    );
+                }
+            });
+
+        // Token counter on the right
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let weak_color = ui.visuals().weak_text_color();
+            ui.label(
+                egui::RichText::new(format!(
+                    "In: {} | Out: {}",
+                    ws.ai.chat.in_tokens, ws.ai.chat.out_tokens
+                ))
+                .color(weak_color)
+                .small(),
+            );
+        });
+    });
 }
 
 // ── BODY ─────────────────────────────────────────────────────────────────────

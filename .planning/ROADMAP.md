@@ -80,7 +80,7 @@ Plans:
   1. Vsechna ai_* pole z WorkspaceState jsou presunuta do AiChatState sub-structu (ws.ai.*)
   2. Existujici AI chat funkcionalita funguje identicky po refaktoru — zadna regrese
   3. Codebase kompiluje bez warningu po rename
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 14-01-PLAN.md — Vytvorit AiState struct + extrahovat ChatState a OllamaState (completed 2026-03-06)
 - [x] 14-02-PLAN.md — Extrahovat AiSettings + top-level pole + finalni overeni (completed 2026-03-06)
@@ -96,7 +96,11 @@ Plans:
   4. Uzivatel muze vybrat model z ComboBoxu s dostupnymi Ollama modely
   5. Konverzacni historie funguje (multi-turn), input ma historii promptu (sipky nahoru/dolu), a uzivatel muze prerusit generovani Stop tlacitkem
   6. Ollama settings (API URL, API Key) jsou v Settings dialogu pod "PolyCredo CLI > Ollama" (ne v plugin settings), zmeny se aplikuji bez restartu editoru
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 15-01-PLAN.md — Streaming backend: ChatState rozsireni + prepojeni na OllamaProvider + background polling
+- [ ] 15-02-PLAN.md — Chat UI: theme-aware barvy, barevne bloky, Stop/Send, auto-scroll, model picker
+- [ ] 15-03-PLAN.md — AI Settings: Ollama konfigurace v Settings modal + migrace z plugin settings
 
 ### Phase 16: Tool Execution
 **Goal**: AI muze cist/editovat soubory a spoustet prikazy s uzivatelem schvalenym approval workflow
@@ -138,7 +142,7 @@ Plans:
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
-| 14. State Refactor | v1.2.0 | 2/2 | Complete | 2026-03-06 |
-| 15. Streaming Chat UI | v1.2.0 | 0/? | Not started | - |
+| 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
+| 15. Streaming Chat UI | v1.2.0 | 0/3 | Planned | - |
 | 16. Tool Execution | v1.2.0 | 0/? | Not started | - |
 | 17. i18n & WASM Cleanup | v1.2.0 | 0/? | Not started | - |

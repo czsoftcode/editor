@@ -14,8 +14,20 @@ cli-chat-btn-reset = Сброс
 cli-chat-label-system-prompt = Системный промпт:
 cli-chat-default-prompt = Expert Rust Developer.
 
+## Ранг / Глубина
+cli-chat-label-rank = Ранг:
+cli-chat-label-depth = Глубина:
+cli-chat-rank-junior = Младший
+cli-chat-rank-senior = Старший
+cli-chat-rank-master = Мастер
+cli-chat-depth-fast = Быстро
+cli-chat-depth-balanced = Сбалансированно
+cli-chat-depth-deep = Глубоко
+cli-chat-placeholder-model = Модель...
+cli-chat-placeholder-filter = Фильтр...
+
 ## Панель плагинов (переименовано из ai-plugin-bar-*)
-cli-bar-label = ИИ:
+cli-bar-label = CLI:
 cli-bar-settings = ⚙
 cli-bar-start-hover = Запустить чат с выбранным плагином
 cli-bar-settings-hover = Открыть настройки выбранного плагина

@@ -48,7 +48,7 @@ pub fn show(
         ws,
         &mut show_flag,
         |ui, ws_arg| {
-            render::render_head(ui, ws_arg, shared);
+            render::render_head(ui, ws_arg, shared, i18n);
         },
         |ui, ws_arg, body_h| {
             render::render_body(ui, ws_arg, i18n, &mut prompt, font_size, loading, body_h)

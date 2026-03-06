@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 // ── HEAD ─────────────────────────────────────────────────────────────────────
 
 /// Renders the chat header: Ollama status indicator, model picker, token counts.
-pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mutex<AppShared>>) {
+pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mutex<AppShared>>, i18n: &I18n) {
     use crate::app::ai::state::OllamaConnectionStatus;
 
     ui.horizontal(|ui| {
@@ -30,9 +30,9 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
         let btn_resp = ui.add(
             egui::Button::new(
                 egui::RichText::new(if ws.ai.ollama.selected_model.is_empty() {
-                    "Model..."
+                    i18n.get("cli-chat-placeholder-model")
                 } else {
-                    &ws.ai.ollama.selected_model
+                    ws.ai.ollama.selected_model.clone()
                 })
             ).min_size(egui::vec2(180.0, 0.0)),
         );
@@ -65,7 +65,7 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
             ui.set_max_height(350.0);
             let filter_resp = ui.add(
                 egui::TextEdit::singleline(&mut ws.ai.ollama.model_filter)
-                    .hint_text("Filter...")
+                    .hint_text(i18n.get("cli-chat-placeholder-filter"))
                     .desired_width(200.0),
             );
             if btn_resp.clicked() {

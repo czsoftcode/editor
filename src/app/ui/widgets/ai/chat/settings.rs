@@ -15,34 +15,44 @@ pub fn ui_settings(
         ui.add_space(4.0);
 
         ui.horizontal(|ui| {
-            ui.label("Rank:");
+            ui.label(i18n.get("cli-chat-label-rank"));
+            let expertise_text = match expertise {
+                AiExpertiseRole::Junior => i18n.get("cli-chat-rank-junior"),
+                AiExpertiseRole::Senior => i18n.get("cli-chat-rank-senior"),
+                AiExpertiseRole::Master => i18n.get("cli-chat-rank-master"),
+            };
             egui::ComboBox::from_id_salt("ai_expertise")
-                .selected_text(expertise.as_str())
+                .selected_text(expertise_text)
                 .show_ui(ui, |ui| {
                     changed |= ui
-                        .selectable_value(expertise, AiExpertiseRole::Junior, "Junior")
+                        .selectable_value(expertise, AiExpertiseRole::Junior, i18n.get("cli-chat-rank-junior"))
                         .changed();
                     changed |= ui
-                        .selectable_value(expertise, AiExpertiseRole::Senior, "Senior")
+                        .selectable_value(expertise, AiExpertiseRole::Senior, i18n.get("cli-chat-rank-senior"))
                         .changed();
                     changed |= ui
-                        .selectable_value(expertise, AiExpertiseRole::Master, "Master")
+                        .selectable_value(expertise, AiExpertiseRole::Master, i18n.get("cli-chat-rank-master"))
                         .changed();
                 });
 
             ui.add_space(8.0);
-            ui.label("Depth:");
+            ui.label(i18n.get("cli-chat-label-depth"));
+            let depth_text = match depth {
+                AiReasoningDepth::Fast => i18n.get("cli-chat-depth-fast"),
+                AiReasoningDepth::Balanced => i18n.get("cli-chat-depth-balanced"),
+                AiReasoningDepth::Deep => i18n.get("cli-chat-depth-deep"),
+            };
             egui::ComboBox::from_id_salt("ai_depth")
-                .selected_text(depth.as_str())
+                .selected_text(depth_text)
                 .show_ui(ui, |ui| {
                     changed |= ui
-                        .selectable_value(depth, AiReasoningDepth::Fast, "Fast")
+                        .selectable_value(depth, AiReasoningDepth::Fast, i18n.get("cli-chat-depth-fast"))
                         .changed();
                     changed |= ui
-                        .selectable_value(depth, AiReasoningDepth::Balanced, "Balanced")
+                        .selectable_value(depth, AiReasoningDepth::Balanced, i18n.get("cli-chat-depth-balanced"))
                         .changed();
                     changed |= ui
-                        .selectable_value(depth, AiReasoningDepth::Deep, "Deep")
+                        .selectable_value(depth, AiReasoningDepth::Deep, i18n.get("cli-chat-depth-deep"))
                         .changed();
                 });
 

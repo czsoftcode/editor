@@ -129,10 +129,11 @@ Plans:
   2. Stare WASM-specificke i18n klice jsou odstraneny
   3. extism dependency a PluginManager jsou kompletne odstraneny (~2000 LOC)
   4. Editor kompiluje a funguje bez WASM runtime — vsechny AI funkce bezi nativne
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans
 Plans:
 - [x] 17-01-PLAN.md — i18n: cli.ftl, rename keys, replace hardcoded strings, Ollama params (completed 2026-03-06)
-- [ ] 17-02-PLAN.md — WASM removal: delete plugin system, clean references, remove extism
+- [x] 17-02-PLAN.md — WASM removal: delete plugin system, clean references, remove extism (completed 2026-03-06)
+- [ ] 17-03-PLAN.md — Gap closure: localize remaining hardcoded strings, CLI bar label, fix ai/ warnings
 
 ## Progress
 
@@ -154,7 +155,7 @@ Plans:
 | 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
 | 15. Streaming Chat UI | 5/5 | Complete    | 2026-03-06 | - |
 | 16. Tool Execution | 4/4 | In Progress|  | - |
-| 17. i18n & WASM Cleanup | 2/2 | Complete    | 2026-03-06 | - |
+| 17. i18n & WASM Cleanup | 2/3 | In Progress | 2026-03-06 | - |
 
 ## Known Issues / TODO
 

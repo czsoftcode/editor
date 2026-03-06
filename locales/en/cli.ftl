@@ -14,8 +14,20 @@ cli-chat-btn-reset = Reset
 cli-chat-label-system-prompt = System Prompt:
 cli-chat-default-prompt = Expert Rust Developer.
 
+## Rank / Depth labels
+cli-chat-label-rank = Rank:
+cli-chat-label-depth = Depth:
+cli-chat-rank-junior = Junior
+cli-chat-rank-senior = Senior
+cli-chat-rank-master = Master
+cli-chat-depth-fast = Fast
+cli-chat-depth-balanced = Balanced
+cli-chat-depth-deep = Deep
+cli-chat-placeholder-model = Model...
+cli-chat-placeholder-filter = Filter...
+
 ## Plugin bar (renamed from ai-plugin-bar-*)
-cli-bar-label = AI:
+cli-bar-label = CLI:
 cli-bar-settings = ⚙
 cli-bar-start-hover = Launch AI chat with selected plugin
 cli-bar-settings-hover = Open settings for the selected AI plugin

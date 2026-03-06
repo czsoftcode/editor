@@ -14,8 +14,20 @@ cli-chat-btn-reset = Reset
 cli-chat-label-system-prompt = Systémový prompt:
 cli-chat-default-prompt = Expert Rust Developer.
 
+## Hodnost / Hloubka
+cli-chat-label-rank = Hodnost:
+cli-chat-label-depth = Hloubka:
+cli-chat-rank-junior = Junior
+cli-chat-rank-senior = Senior
+cli-chat-rank-master = Master
+cli-chat-depth-fast = Rychle
+cli-chat-depth-balanced = Vyváženě
+cli-chat-depth-deep = Hluboko
+cli-chat-placeholder-model = Model...
+cli-chat-placeholder-filter = Filtr...
+
 ## Lišta pluginů (přejmenováno z ai-plugin-bar-*)
-cli-bar-label = AI:
+cli-bar-label = CLI:
 cli-bar-settings = ⚙
 cli-bar-start-hover = Spustit AI chat s vybraným pluginem
 cli-bar-settings-hover = Otevřít nastavení vybraného AI pluginu

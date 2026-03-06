@@ -174,17 +174,20 @@ pub(super) fn process_background_events(
     // --- 4b-sync. Sync Ollama config from Settings ---
     {
         let sh = shared.lock().expect("lock");
-        if ws.ai.ollama.base_url != sh.settings.ollama_base_url {
+        let url_changed = ws.ai.ollama.base_url != sh.settings.ollama_base_url;
+        if url_changed {
             ws.ai.ollama.base_url = sh.settings.ollama_base_url.clone();
-            ws.ai.ollama.api_key = if sh.settings.ollama_api_key.is_empty() {
-                None
-            } else {
-                Some(sh.settings.ollama_api_key.clone())
-            };
             ws.ai.ollama.last_check =
                 std::time::Instant::now() - std::time::Duration::from_secs(999);
             ws.ai.ollama.status = OllamaConnectionStatus::Checking;
         }
+        // Always sync API key (user may change key without changing URL)
+        let new_key = if sh.settings.ollama_api_key.is_empty() {
+            None
+        } else {
+            Some(sh.settings.ollama_api_key.clone())
+        };
+        ws.ai.ollama.api_key = new_key;
         if !sh.settings.ai_default_model.is_empty() && ws.ai.ollama.selected_model.is_empty() {
             ws.ai.ollama.selected_model = sh.settings.ai_default_model.clone();
         }

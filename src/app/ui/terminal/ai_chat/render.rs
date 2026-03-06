@@ -102,8 +102,8 @@ fn render_chat_content(
     loading: bool,
     body_h: f32,
 ) -> Option<AiChatAction> {
-    let viewer_bg = egui::Color32::from_rgb(20, 20, 25);
-    let prompt_bg = egui::Color32::from_rgb(45, 55, 65);
+    let viewer_bg = ui.visuals().extreme_bg_color;
+    let prompt_bg = ui.visuals().faint_bg_color;
     let mut action = None;
 
     ui.spacing_mut().item_spacing.y = 0.0;
@@ -136,7 +136,7 @@ fn render_chat_content(
         .id_salt("ai_chat_terminal_history")
         .auto_shrink([false, false])
         .max_height(history_display_h.max(1.0))
-        .stick_to_bottom(true)
+        .stick_to_bottom(ws.ai.chat.auto_scroll)
         .show(ui, |ui| {
             ui.set_min_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = 8.0;
@@ -177,6 +177,26 @@ fn render_chat_content(
             .insert_temp(history_mem_id, scroll_out.content_size.y)
     });
 
+    // Auto-scroll detection: stop auto-scroll when user scrolls up during streaming
+    if ws.ai.chat.loading {
+        let at_bottom = scroll_out.state.offset.y
+            >= scroll_out.content_size.y - scroll_out.inner_rect.height() - 30.0;
+        if !at_bottom {
+            ws.ai.chat.auto_scroll = false;
+        }
+    }
+
+    // Scroll-to-bottom button when auto-scroll is disabled during streaming
+    if !ws.ai.chat.auto_scroll && ws.ai.chat.loading {
+        ui.horizontal(|ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.small_button("\u{2193} Scroll to bottom").clicked() {
+                    ws.ai.chat.auto_scroll = true;
+                }
+            });
+        });
+    }
+
     // ── APPROVAL UI  /  ASK USER  /  PROMPT ──────────────────────────────────
     if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
         render_approval_ui(ui, id, action_name, details, sender, ws);
@@ -186,8 +206,9 @@ fn render_chat_content(
     } else {
         ui.add_space(4.0);
         ui.scope(|ui| {
+            let sep_color = ui.visuals().widgets.noninteractive.bg_stroke.color;
             ui.visuals_mut().widgets.noninteractive.bg_stroke =
-                egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+                egui::Stroke::new(1.0, sep_color);
             ui.separator();
         });
 
@@ -204,6 +225,7 @@ fn render_chat_content(
         ui.add_space(4.0);
 
         // Prompt — measure height, store for next frame
+        let text_color = ui.visuals().text_color();
         let prompt_resp = egui::Frame::new()
             .fill(prompt_bg)
             .inner_margin(egui::Margin::symmetric(8, 2))
@@ -211,34 +233,47 @@ fn render_chat_content(
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 let visuals = ui.visuals_mut();
-                visuals.override_text_color = Some(egui::Color32::from_rgb(200, 200, 200));
+                visuals.override_text_color = Some(text_color);
                 visuals.extreme_bg_color = prompt_bg;
                 visuals.selection.stroke = egui::Stroke::NONE;
                 visuals.widgets.hovered.expansion = 0.0;
                 visuals.widgets.active.expansion = 0.0;
 
+                // Stop/Escape handler during streaming
                 if loading && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-                    ws.ai.cancellation_token
-                        .store(true, std::sync::atomic::Ordering::Relaxed);
+                    stop_streaming(ws);
                 }
 
                 let max_prompt_h = font_size * 1.6 * 5.0 + font_size;
-                egui::ScrollArea::vertical()
-                    .id_salt("ai_prompt_scroll")
-                    .max_height(max_prompt_h)
-                    .auto_shrink([false, true])
-                    .stick_to_bottom(true)
-                    .show(ui, |ui| {
-                        AiChatWidget::ui_input(
-                            ui,
-                            prompt,
-                            font_size,
-                            &i18n.get("ai-chat-placeholder-prompt"),
-                            &ws.ai.chat.history,
-                            &mut ws.ai.chat.history_index,
-                        )
-                    })
-                    .inner
+                ui.horizontal(|ui| {
+                    let input_result = egui::ScrollArea::vertical()
+                        .id_salt("ai_prompt_scroll")
+                        .max_height(max_prompt_h)
+                        .auto_shrink([false, true])
+                        .stick_to_bottom(true)
+                        .show(ui, |ui| {
+                            AiChatWidget::ui_input(
+                                ui,
+                                prompt,
+                                font_size,
+                                &i18n.get("ai-chat-placeholder-prompt"),
+                                &ws.ai.chat.history,
+                                &mut ws.ai.chat.history_index,
+                            )
+                        })
+                        .inner;
+
+                    // Stop/Send toggle button
+                    if loading {
+                        let stop_color = ui.visuals().error_fg_color;
+                        if ui.button(egui::RichText::new("Stop").color(stop_color)).clicked() {
+                            stop_streaming(ws);
+                        }
+                    }
+
+                    input_result
+                })
+                .inner
             });
 
         ui.memory_mut(|m| {
@@ -259,11 +294,13 @@ fn render_chat_content(
     // ── SETTINGS PANEL ────────────────────────────────────────────────────────
     if ws.ai.settings.show_settings {
         ui.add_space(8.0);
+        let settings_fill = ui.visuals().faint_bg_color;
+        let settings_stroke_color = ui.visuals().widgets.noninteractive.bg_stroke.color;
         egui::Frame::new()
-            .fill(egui::Color32::from_rgb(30, 35, 45))
+            .fill(settings_fill)
             .inner_margin(12.0)
             .corner_radius(4.0)
-            .stroke(egui::Stroke::new(1.0, egui::Color32::from_gray(60)))
+            .stroke(egui::Stroke::new(1.0, settings_stroke_color))
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 AiChatWidget::ui_settings(
@@ -342,21 +379,46 @@ pub fn render_footer(
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
 fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool) {
+    let weak_color = ui.visuals().weak_text_color();
     ui.horizontal(|ui| {
         if loading {
             ui.spinner();
+            ui.label(
+                egui::RichText::new("Generating...")
+                    .color(weak_color)
+                    .small(),
+            );
         } else {
             ui.label("\u{1F4C1}");
+            ui.label(
+                egui::RichText::new(ws.root_path.to_string_lossy())
+                    .color(weak_color),
+            );
         }
-        ui.label(egui::RichText::new(ws.root_path.to_string_lossy()).weak());
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.label(
                 egui::RichText::new(format!(
                     "In: {} | Out: {}",
                     ws.ai.chat.in_tokens, ws.ai.chat.out_tokens
                 ))
-                .weak(),
+                .color(weak_color),
             );
         });
     });
+}
+
+/// Stops an in-progress streaming response.
+fn stop_streaming(ws: &mut WorkspaceState) {
+    ws.ai.cancellation_token
+        .store(true, std::sync::atomic::Ordering::Relaxed);
+    // Preserve partial response with interruption marker
+    if !ws.ai.chat.streaming_buffer.is_empty() {
+        if let Some(last) = ws.ai.chat.conversation.last_mut() {
+            last.1 = format!("{}\n\n*[preruseno]*", ws.ai.chat.streaming_buffer);
+        }
+    }
+    ws.ai.chat.streaming_buffer.clear();
+    ws.ai.chat.loading = false;
+    ws.ai.chat.stream_rx = None;
+    ws.ai.chat.auto_scroll = true;
 }

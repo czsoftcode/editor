@@ -178,20 +178,47 @@ impl AiProvider for OllamaProvider {
                 body["tools"] = Value::Array(tools_json);
             }
 
-            let req = if let Some(ref key) = config.api_key {
-                agent.post(&url).set("Authorization", &format!("Bearer {key}"))
-            } else {
-                agent.post(&url)
+            let make_req = |agent: &ureq::Agent, url: &str, key: &Option<String>| {
+                if let Some(k) = key {
+                    agent.post(url).set("Authorization", &format!("Bearer {k}"))
+                } else {
+                    agent.post(url)
+                }
             };
-            let resp = match req.send_json(&body) {
-                Ok(r) => r,
+
+            let req = make_req(&agent, &url, &config.api_key);
+            let (resp, tools_active) = match req.send_json(&body) {
+                Ok(r) => (r, has_tools),
+                Err(e) if has_tools => {
+                    // Model may not support tools — fallback to streaming without tools
+                    eprintln!("[Ollama] Tools request failed ({e}), falling back to streaming without tools");
+                    let mut fallback_body = serde_json::json!({
+                        "model": config.model,
+                        "messages": msgs,
+                        "stream": true,
+                        "options": {
+                            "temperature": config.temperature,
+                            "num_ctx": config.num_ctx,
+                        }
+                    });
+                    // Remove tools from body
+                    fallback_body.as_object_mut().map(|o| o.remove("tools"));
+                    let fallback_req = make_req(&agent, &url, &config.api_key);
+                    match fallback_req.send_json(&fallback_body) {
+                        Ok(r) => (r, false),
+                        Err(e2) => {
+                            let _ = tx.send(StreamEvent::Error(format!("Ollama request failed: {e2}")));
+                            return;
+                        }
+                    }
+                }
                 Err(e) => {
                     let _ = tx.send(StreamEvent::Error(format!("Ollama request failed: {e}")));
                     return;
                 }
             };
 
-            if has_tools {
+            if tools_active {
                 // Non-streaming: read full response, parse tool_calls or content
                 let text = match resp.into_string() {
                     Ok(t) => t,

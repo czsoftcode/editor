@@ -140,33 +140,6 @@ pub(crate) enum AppAction {
     AddRecent(PathBuf),
     /// Terminate the whole application
     QuitAll,
-    /// Result from a background plugin call
-    PluginResponse(String, Result<String, String>),
-    /// Incremental "thought" or log from a plugin
-    PluginMonologue(String, String),
-    /// Token usage info from a plugin (id, in_tokens, out_tokens)
-    PluginUsage(String, u32, u32),
-    /// RAW JSON payload from a plugin for inspection
-    PluginPayload(String, String),
-    /// Request for user approval for a dangerous AI action (plugin_id, action_name, action_details, sender)
-    PluginApprovalRequest(
-        String,
-        String,
-        String,
-        std::sync::mpsc::Sender<PluginApprovalResponse>,
-    ),
-    /// Agent asks the user a clarifying question and blocks for the answer.
-    /// (plugin_id, question, options, response_sender)
-    PluginAskUser(String, String, Vec<String>, std::sync::mpsc::Sender<String>),
-    /// Agent signals successful task completion with a summary.
-    /// (plugin_id, summary)
-    PluginCompleted(String, String),
-}
-
-pub(crate) enum PluginApprovalResponse {
-    Approve,
-    ApproveAlways,
-    Deny,
 }
 
 pub(crate) struct AppShared {

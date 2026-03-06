@@ -1,41 +1,9 @@
 use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 const SETTINGS_FILE: &str = "settings.toml";
 const OLD_SETTINGS_FILE: &str = "settings.json";
 const CONFIG_DIR_NAME: &str = "polycredo-editor";
-
-// ---------------------------------------------------------------------------
-// PluginSettings — configuration for individual WASM plugins
-// ---------------------------------------------------------------------------
-
-#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq)]
-pub struct PluginSettings {
-    #[serde(default = "default_true")]
-    pub enabled: bool,
-    #[serde(default)]
-    pub expertise: AiExpertiseRole,
-    #[serde(default)]
-    pub reasoning_depth: AiReasoningDepth,
-    #[serde(default)]
-    pub config: HashMap<String, String>,
-}
-
-impl Default for PluginSettings {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            expertise: AiExpertiseRole::default(),
-            reasoning_depth: AiReasoningDepth::default(),
-            config: HashMap::new(),
-        }
-    }
-}
-
-fn default_true() -> bool {
-    true
-}
 
 // ---------------------------------------------------------------------------
 // Default values (needed for serde default attrs)
@@ -140,11 +108,7 @@ pub struct Settings {
     #[serde(default = "default_auto_show_ai_diff")]
     pub auto_show_ai_diff: bool,
 
-    /// Configuration for individual plugins. Key = plugin ID (file stem).
-    #[serde(default)]
-    pub plugins: HashMap<String, PluginSettings>,
-
-    /// Global blacklist for plugins (glob patterns, e.g. ["*.env", "secret/*"]).
+    /// Global blacklist (glob patterns, e.g. ["*.env", "secret/*"]).
     #[serde(default)]
     pub blacklist: Vec<String>,
 
@@ -173,10 +137,6 @@ pub struct Settings {
     /// Default AI model name (e.g. "llama3.2").
     #[serde(default)]
     pub ai_default_model: String,
-
-    /// Whether plugin AI settings have already been migrated to top-level fields.
-    #[serde(default)]
-    pub ai_settings_migrated: bool,
 
     /// File blacklist patterns for AI tool executor (glob patterns).
     /// Prevents AI from reading/writing files matching these patterns.
@@ -215,7 +175,6 @@ impl Default for Settings {
             diff_side_by_side: false,
             privacy_accepted: false,
             auto_show_ai_diff: true,
-            plugins: HashMap::new(),
             blacklist: vec![
                 ".env*".to_string(),
                 "*.key".to_string(),
@@ -244,7 +203,6 @@ impl Default for Settings {
             ai_expertise: AiExpertiseRole::default(),
             ai_reasoning_depth: AiReasoningDepth::default(),
             ai_default_model: String::new(),
-            ai_settings_migrated: false,
             ai_file_blacklist_patterns: default_ai_file_blacklist(),
             ollama_top_p: default_top_p(),
             ollama_top_k: default_top_k(),
@@ -365,32 +323,6 @@ impl Settings {
 
     pub fn try_save(&self) -> Result<(), String> {
         self.try_save_to_config_dir(&config_dir())
-    }
-
-    /// Migrates AI-related settings from the legacy plugin config map into
-    /// top-level Settings fields. Returns `true` if migration was performed,
-    /// `false` if already migrated or no plugin config found.
-    pub fn migrate_plugin_ai_settings(&mut self) -> bool {
-        if self.ai_settings_migrated {
-            return false;
-        }
-
-        if let Some(plugin) = self.plugins.get("ollama") {
-            if let Some(url) = plugin.config.get("OLLAMA_URL") {
-                self.ollama_base_url = url.clone();
-            }
-            if let Some(key) = plugin.config.get("OLLAMA_API_KEY") {
-                self.ollama_api_key = key.clone();
-            }
-            if let Some(model) = plugin.config.get("MODEL") {
-                self.ai_default_model = model.clone();
-            }
-            self.ai_expertise = plugin.expertise.clone();
-            self.ai_reasoning_depth = plugin.reasoning_depth.clone();
-        }
-
-        self.ai_settings_migrated = true;
-        true
     }
 
     /// Applies settings to the egui Context (theme + editor font size).
@@ -712,46 +644,6 @@ auto_show_ai_diff = false
         assert_eq!(s.ollama_base_url, "http://localhost:11434");
         assert!(s.ollama_api_key.is_empty());
         assert!(s.ai_default_model.is_empty());
-        assert!(!s.ai_settings_migrated);
-    }
-
-    #[test]
-    fn migrate_plugin_ai_settings_reads_ollama_url() {
-        let mut s = Settings::default();
-        let mut config = HashMap::new();
-        config.insert("OLLAMA_URL".to_string(), "http://remote:11434".to_string());
-        config.insert("MODEL".to_string(), "codellama".to_string());
-        s.plugins.insert("ollama".to_string(), PluginSettings {
-            config,
-            expertise: AiExpertiseRole::default(),
-            reasoning_depth: AiReasoningDepth::default(),
-            ..Default::default()
-        });
-
-        let migrated = s.migrate_plugin_ai_settings();
-        assert!(migrated);
-        assert_eq!(s.ollama_base_url, "http://remote:11434");
-        assert_eq!(s.ai_default_model, "codellama");
-        assert!(s.ai_settings_migrated);
-    }
-
-    #[test]
-    fn migrate_plugin_ai_settings_runs_only_once() {
-        let mut s = Settings::default();
-        s.ai_settings_migrated = true;
-
-        let mut config = HashMap::new();
-        config.insert("OLLAMA_URL".to_string(), "http://should-not-apply:11434".to_string());
-        s.plugins.insert("ollama".to_string(), PluginSettings {
-            config,
-            expertise: AiExpertiseRole::default(),
-            reasoning_depth: AiReasoningDepth::default(),
-            ..Default::default()
-        });
-
-        let migrated = s.migrate_plugin_ai_settings();
-        assert!(!migrated);
-        assert_eq!(s.ollama_base_url, "http://localhost:11434"); // unchanged
     }
 
 }

@@ -65,38 +65,33 @@ pub fn init_workspace(
     let selected_provider = panel_state
         .ai_selected_provider
         .clone()
-        .unwrap_or_else(|| "gemini".to_string());
-    let ai_plugin_settings = settings.plugins.get(&selected_provider);
+        .unwrap_or_else(|| "ollama".to_string());
 
     let expertise = panel_state
         .ai_expertise
-        .unwrap_or_else(|| ai_plugin_settings.map(|s| s.expertise).unwrap_or_default());
+        .unwrap_or_else(|| settings.ai_expertise.clone());
     let reasoning_depth = panel_state
         .ai_reasoning_depth
-        .unwrap_or_else(|| ai_plugin_settings.map(|s| s.reasoning_depth).unwrap_or_default());
+        .unwrap_or_else(|| settings.ai_reasoning_depth.clone());
+
+    let model_name = if !settings.ai_default_model.is_empty() {
+        settings.ai_default_model.clone()
+    } else {
+        "llama3.1".to_string()
+    };
 
     let chat = ChatState {
         conversation: vec![(
             String::new(),
             crate::app::ai::AiManager::get_logo(
                 crate::config::CLI_VERSION,
-                &ai_plugin_settings
-                    .and_then(|s| s.config.get("MODEL").cloned())
-                    .unwrap_or_else(|| {
-                        if selected_provider == "ollama" {
-                            "llama3.1".to_string()
-                        } else {
-                            "gemini-1.5-flash".to_string()
-                        }
-                    }),
+                &model_name,
                 expertise,
                 reasoning_depth,
             ),
         )],
         system_prompt: panel_state.ai_system_prompt.clone().unwrap_or_else(|| {
-            ai_plugin_settings
-                .and_then(|s| s.config.get("SYSTEM_PROMPT").cloned())
-                .unwrap_or_else(|| i18n.get("cli-chat-default-prompt"))
+            i18n.get("cli-chat-default-prompt")
         }),
         focus_requested: true,
         ..ChatState::default()
@@ -107,9 +102,7 @@ pub fn init_workspace(
         reasoning_depth,
         font_scale: panel_state.ai_font_scale,
         language: panel_state.ai_language.clone().unwrap_or_else(|| {
-            ai_plugin_settings
-                .and_then(|s| s.config.get("LANGUAGE").cloned())
-                .unwrap_or_else(|| i18n.lang().to_string())
+            i18n.lang().to_string()
         }),
         selected_provider: selected_provider.clone(),
         show_settings: false,
@@ -129,16 +122,16 @@ pub fn init_workspace(
             .unwrap_or_default(),
         last_check: std::time::Instant::now()
             - std::time::Duration::from_secs(crate::config::OLLAMA_CHECK_INTERVAL_SECS),
-        base_url: settings
-            .plugins
-            .get("ollama")
-            .and_then(|p| p.config.get("API_URL"))
-            .and_then(|url| crate::app::ai::ollama::validate_ollama_url(url))
-            .unwrap_or_else(|| crate::config::OLLAMA_DEFAULT_URL.to_string()),
-        api_key: settings
-            .plugins
-            .get("ollama")
-            .and_then(|p| p.config.get("API_KEY").cloned()),
+        base_url: if !settings.ollama_base_url.is_empty() {
+            settings.ollama_base_url.clone()
+        } else {
+            crate::config::OLLAMA_DEFAULT_URL.to_string()
+        },
+        api_key: if !settings.ollama_api_key.is_empty() {
+            Some(settings.ollama_api_key.clone())
+        } else {
+            None
+        },
         ..OllamaState::default()
     };
 
@@ -170,10 +163,8 @@ pub fn init_workspace(
         show_about: false,
         show_support: false,
         show_settings: false,
-        show_plugins: false,
         show_ai_chat: false,
         show_semantic_indexing_modal: true,
-        selected_plugin_id: None,
         selected_settings_category: None,
         profiles,
         build_errors: Vec::new(),
@@ -203,7 +194,6 @@ pub fn init_workspace(
         lsp_last_retry: std::time::Instant::now(),
         settings_draft: None,
         settings_original: None,
-        plugins_draft: None,
         settings_folder_pick_rx: None,
         ai_tool_available: HashMap::new(),
         ai_tool_check_rx: None,
@@ -215,15 +205,12 @@ pub fn init_workspace(
         dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
         terminal_close_requested: None,
         ai_viewport_open: false,
-        plugin_error: None,
         settings_conflict: None,
         ai,
         git_cancel,
         local_history: crate::app::local_history::LocalHistory::new(&root_path),
         background_io_rx: None,
         applied_settings_version: 0,
-        pending_plugin_approval: None,
-        pending_ask_user: None,
         confirm_discard_changes: None,
         last_keystroke_time: None,
         tool_executor: None,

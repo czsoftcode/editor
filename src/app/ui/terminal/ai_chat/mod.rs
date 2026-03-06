@@ -74,11 +74,11 @@ pub fn handle_action(act: AiChatAction, ws: &mut WorkspaceState, shared: &Arc<Mu
         AiChatAction::NewQuery => {
             let model = {
                 let sh = shared.lock().expect("lock");
-                sh.settings
-                    .plugins
-                    .get(&ws.ai.settings.selected_provider)
-                    .and_then(|s| s.config.get("MODEL").cloned())
-                    .unwrap_or_else(|| "gemini-1.5-flash".to_string())
+                if !sh.settings.ai_default_model.is_empty() {
+                    sh.settings.ai_default_model.clone()
+                } else {
+                    "llama3.1".to_string()
+                }
             };
             ws.ai.chat.response = None;
             ws.ai.chat.prompt.clear();
@@ -99,16 +99,8 @@ pub fn handle_action(act: AiChatAction, ws: &mut WorkspaceState, shared: &Arc<Mu
         AiChatAction::SaveSettings => {
             let mut sh = shared.lock().expect("lock");
             let mut settings = (*sh.settings).clone();
-            let ps = settings
-                .plugins
-                .entry(ws.ai.settings.selected_provider.clone())
-                .or_default();
-            ps.expertise = ws.ai.settings.expertise;
-            ps.reasoning_depth = ws.ai.settings.reasoning_depth;
-            ps.config
-                .insert("SYSTEM_PROMPT".to_string(), ws.ai.chat.system_prompt.clone());
-            ps.config
-                .insert("LANGUAGE".to_string(), ws.ai.settings.language.clone());
+            settings.ai_expertise = ws.ai.settings.expertise;
+            settings.ai_reasoning_depth = ws.ai.settings.reasoning_depth;
             settings.save();
             sh.settings = Arc::new(settings);
             ws.toasts

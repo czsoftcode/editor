@@ -52,21 +52,6 @@ pub struct PendingToolAsk {
     pub input_buffer: String,
 }
 
-pub type PendingPluginApproval = (
-    String,
-    String,
-    String,
-    std::sync::mpsc::Sender<crate::app::types::PluginApprovalResponse>,
-);
-
-pub type PendingAskUser = (
-    String,
-    String,
-    Vec<String>,
-    String,
-    std::sync::mpsc::Sender<String>,
-);
-
 #[derive(Clone)]
 pub struct SettingsConflict {
     pub new_settings: crate::settings::Settings,
@@ -93,10 +78,8 @@ pub struct WorkspaceState {
     pub show_about: bool,
     pub show_support: bool,
     pub show_settings: bool,
-    pub show_plugins: bool,
     pub show_ai_chat: bool,
     pub show_semantic_indexing_modal: bool,
-    pub selected_plugin_id: Option<String>,
     pub selected_settings_category: Option<String>,
     pub profiles: ProjectProfiles,
     pub build_errors: Vec<BuildError>,
@@ -122,7 +105,6 @@ pub struct WorkspaceState {
     pub lsp_last_retry: std::time::Instant,
     pub settings_draft: Option<crate::settings::Settings>,
     pub settings_original: Option<crate::settings::Settings>,
-    pub plugins_draft: Option<crate::settings::Settings>,
     pub settings_folder_pick_rx: Option<mpsc::Receiver<Option<PathBuf>>>,
     pub ai_tool_available: HashMap<String, bool>,
     pub ai_tool_check_rx: Option<mpsc::Receiver<HashMap<String, bool>>>,
@@ -134,16 +116,12 @@ pub struct WorkspaceState {
     pub dep_wizard: crate::app::ui::dialogs::DependencyWizard,
     pub terminal_close_requested: Option<usize>,
     pub ai_viewport_open: bool,
-    pub plugin_error: Option<String>,
     pub settings_conflict: Option<SettingsConflict>,
     pub ai: AiState,
     pub git_cancel: Arc<AtomicBool>,
     pub local_history: crate::app::local_history::LocalHistory,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
     pub applied_settings_version: u64,
-    pub pending_plugin_approval: Option<PendingPluginApproval>,
-    /// Pending ask_user request: (plugin_id, question, options, answer_input_buffer, sender)
-    pub pending_ask_user: Option<PendingAskUser>,
     /// Pending discard changes confirmation for a specific modal ID.
     pub confirm_discard_changes: Option<String>,
     /// Last time the user pressed a key. Used for repaint capping during active typing.

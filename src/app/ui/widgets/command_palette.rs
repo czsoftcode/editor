@@ -21,7 +21,6 @@ pub(crate) enum CommandId {
     ToggleFloat,
     About,
     Settings,
-    Plugins,
     Quit,
 }
 
@@ -191,7 +190,7 @@ pub(crate) fn render_command_palette(
 pub(crate) fn execute_command(
     action: crate::app::registry::CommandAction,
     actions: &mut MenuActions,
-    shared: &Arc<Mutex<AppShared>>,
+    _shared: &Arc<Mutex<AppShared>>,
 ) -> Option<String> {
     match action {
         crate::app::registry::CommandAction::Internal(id) => {
@@ -211,41 +210,9 @@ pub(crate) fn execute_command(
                 CommandId::ToggleFloat => actions.toggle_float = true,
                 CommandId::About => actions.about = true,
                 CommandId::Settings => actions.settings = true,
-                CommandId::Plugins => actions.plugins = true,
                 CommandId::Quit => actions.quit = true,
             }
             None
-        }
-        crate::app::registry::CommandAction::Plugin {
-            plugin_id,
-            func_name,
-        } => {
-            if plugin_id == "gemini" || plugin_id == "ollama" {
-                // Special case for our interactive AI plugins
-                // We'll signal the UI to open the unified AI chat modal
-                return Some("OPEN_AI_CHAT_MODAL".to_string());
-            }
-            let shared = shared
-                .lock()
-                .expect("Failed to lock AppShared in execute_command");
-            let config = shared
-                .settings
-                .plugins
-                .get(&plugin_id)
-                .map(|s| s.config.clone())
-                .unwrap_or_default();
-
-            match shared
-                .registry
-                .plugins
-                .call(&plugin_id, &func_name, "command-palette", &config)
-            {
-                Ok(res) => Some(res),
-                Err(e) => {
-                    eprintln!("Plugin command failed: {}", e);
-                    Some(format!("Plugin error: {}", e))
-                }
-            }
         }
     }
 }

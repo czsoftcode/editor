@@ -107,56 +107,17 @@ pub(super) fn render_left_panel(
     left_clicked
 }
 
-/// Renders the AI plugin quick-launch bar (combobox + Start + Settings).
+/// Renders the AI quick-launch bar (Start + Settings).
 fn render_plugin_bar(
     ui: &mut egui::Ui,
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
 ) {
-    // Collect AI plugins from registry
-    let ai_plugins: Vec<(String, String)> = {
-        let sh = shared.lock().expect("lock");
-        let plugins = sh.registry.plugins.plugins.lock().expect("lock");
-        plugins
-            .iter()
-            .filter(|p| {
-                p.metadata.as_ref().and_then(|m| m.plugin_type.as_deref()) == Some("ai_agent")
-            })
-            .map(|p| {
-                let display = p
-                    .metadata
-                    .as_ref()
-                    .map(|m| m.name.clone())
-                    .unwrap_or_else(|| p.id.clone());
-                (p.id.clone(), display)
-            })
-            .collect()
-    };
-
-    if ai_plugins.is_empty() {
-        return;
-    }
-
     ui.separator();
 
     ui.horizontal(|ui| {
         ui.label(i18n.get("cli-bar-label"));
-
-        let selected_label = ai_plugins
-            .iter()
-            .find(|(id, _)| id == &ws.ai.settings.selected_provider)
-            .map(|(_, name)| name.as_str())
-            .unwrap_or(ws.ai.settings.selected_provider.as_str())
-            .to_string();
-
-        egui::ComboBox::from_id_salt("left_panel_plugin_combo")
-            .selected_text(selected_label)
-            .show_ui(ui, |ui| {
-                for (id, name) in &ai_plugins {
-                    ui.selectable_value(&mut ws.ai.settings.selected_provider, id.clone(), name.as_str());
-                }
-            });
 
         if ui
             .button(i18n.get("ai-btn-start"))
@@ -177,8 +138,7 @@ fn render_plugin_bar(
             .on_hover_text(i18n.get("cli-bar-settings-hover"))
             .clicked()
         {
-            ws.show_plugins = true;
-            ws.selected_plugin_id = Some(ws.ai.settings.selected_provider.clone());
+            ws.show_settings = true;
         }
     });
 }

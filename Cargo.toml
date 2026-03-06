@@ -133,10 +133,9 @@ async-lsp = "0.2.2"
 tower = { version = "0.4", features = ["full"] }
 similar = "2.7.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
-extism = "1.5"
 anyhow = "1"
 bincode = "1.3"
-smallvec = "1"
+smallvec = { version = "1", features = ["serde"] }
 candle-core = "0.9"
 candle-nn = { version = "0.9" }
 candle-transformers = { version = "0.9" }

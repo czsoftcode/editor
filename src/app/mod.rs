@@ -67,7 +67,6 @@ pub struct EditorApp {
 
     _ipc_server: Option<IpcServer>,
     focus_rx: mpsc::Receiver<()>,
-    action_rx: mpsc::Receiver<AppAction>,
     /// Incoming requests from secondary instances to open project in a new window.
     open_request_rx: Option<mpsc::Receiver<PathBuf>>,
 
@@ -97,7 +96,6 @@ impl EditorApp {
             Some((server, rx)) => (Some(server), Some(rx)),
             None => (None, None),
         };
-        let (action_tx, action_rx) = mpsc::channel();
         let focus_rx = ipc::start_process_listener();
 
         // Load recent projects
@@ -113,23 +111,12 @@ impl EditorApp {
                 ipc::load_session_checked()
             };
 
-        let mut settings_loaded = crate::settings::Settings::load();
-        if settings_loaded.migrate_plugin_ai_settings() {
-            settings_loaded.save();
-        }
-        let settings = std::sync::Arc::new(settings_loaded);
+        let settings = std::sync::Arc::new(crate::settings::Settings::load());
         // Apply theme before first frame to avoid startup flash.
         settings.apply(&cc.egui_ctx);
         let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
 
-        let project_root_for_registry = paths_to_open
-            .first()
-            .cloned()
-            .unwrap_or_else(|| PathBuf::from("/tmp/polycredo-editor"));
-
-        let mut registry = crate::app::registry::Registry::new(project_root_for_registry);
-        *registry.plugins.action_sender.lock().expect("lock") = Some(action_tx);
-        *registry.plugins.egui_ctx.lock().expect("lock") = Some(cc.egui_ctx.clone());
+        let mut registry = crate::app::registry::Registry::new();
         registry.init_defaults();
 
         // Register agents exclusively from settings
@@ -144,78 +131,6 @@ impl EditorApp {
                 label: ca.name.clone(),
                 command: cmd,
                 context_aware: true,
-            });
-        }
-
-        // Load WASM plugins from Global fallback
-        registry.plugins.set_blacklist(settings.blacklist.clone());
-
-        // Priority: Global Fallback (~/.config/polycredo-editor/plugins)
-        let global_plugins = ipc::plugins_dir();
-        if let Err(e) = registry.plugins.load_from_dir(&global_plugins) {
-            eprintln!(
-                "Failed to load global plugins from {:?}: {}",
-                global_plugins, e
-            );
-        }
-
-        // Auto-authorize enabled plugins that require internet access (allowed_hosts)
-        let pending = registry.plugins.get_pending_authorizations();
-        for (id, _metadata) in pending {
-            let is_enabled = settings.plugins.get(&id).map(|s| s.enabled).unwrap_or(true);
-            if is_enabled {
-                let config = settings
-                    .plugins
-                    .get(&id)
-                    .map(|s| s.config.clone())
-                    .unwrap_or_default();
-                if let Err(e) = registry.plugins.authorize(&id, &config) {
-                    eprintln!("Failed to auto-authorize plugin {}: {}", id, e);
-                }
-            }
-        }
-
-        // Auto-register "hello" plugin command if loaded
-        if registry
-            .plugins
-            .get_loaded_ids()
-            .contains(&"hello".to_string())
-        {
-            registry.commands.register(crate::app::registry::Command {
-                id: "plugin.hello".to_string(),
-                i18n_key: "command-name-plugin-hello",
-                shortcut: None,
-                action: crate::app::registry::CommandAction::Plugin {
-                    plugin_id: "hello".to_string(),
-                    func_name: "hello".to_string(),
-                },
-            });
-        }
-
-        // Dynamically register AI agent commands
-        let ai_agents = registry.plugins.get_ai_agents();
-        for (id, _meta) in ai_agents {
-            let cmd_id = format!("plugin.{}", id);
-            let func_name = format!("ask_{}", id);
-
-            // We use a generic i18n key or construct one if needed.
-            // For now, we'll try to find a specific one or fallback to a default.
-            let i18n_key = if id == "gemini" {
-                "command-name-plugin-gemini"
-            } else if id == "ollama" {
-                "command-name-plugin-ollama"
-            } else {
-                "command-name-plugin-ai-chat" // We should add this to locales
-            };
-
-            registry.commands.register(crate::app::registry::Command {
-                id: cmd_id,
-                i18n_key,
-                shortcut: None,
-                action: crate::app::registry::CommandAction::Plugin {
-                    plugin_id: id.clone(),
-                    func_name,
-                },
             });
         }
 
@@ -318,7 +233,6 @@ impl EditorApp {
             show_close_project_confirm: false,
             _ipc_server: ipc_server,
             focus_rx,
-            action_rx,
             open_request_rx,
             missing_session_paths,
             applied_settings_version: 0,
@@ -404,11 +318,6 @@ impl EditorApp {
     }
 
     fn process_actions(&mut self, ctx: &egui::Context) {
-        // Forward incremental actions from plugins (monologues)
-        while let Ok(action) = self.action_rx.try_recv() {
-            self.shared.lock().expect("lock").actions.push(action);
-        }
-
         let mut actions = {
             let mut sh = self
                 .shared
@@ -437,73 +346,6 @@ impl EditorApp {
                 AppAction::QuitAll => {
                     self.show_close_project_confirm = false;
                     self.show_quit_confirm = true;
-                }
-                AppAction::PluginResponse(id, result) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai.settings.selected_provider
-                    {
-                        ws.ai.chat.loading = false;
-                        match result {
-                            Ok(text) => {
-                                ws.ai.chat.response = Some(text.clone());
-                                // Update conversation history - append AFTER monologue
-                                if let Some(last) = ws.ai.chat.conversation.last_mut() {
-                                    if !last.1.is_empty() {
-                                        last.1.push_str("\n\n");
-                                    }
-                                    last.1.push_str(&text);
-                                }
-                            }
-                            Err(err) => ws.plugin_error = Some(err),
-                        }
-                    }
-                }
-                AppAction::PluginMonologue(id, message) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai.settings.selected_provider
-                    {
-                        ws.ai.chat.monologue.push(message.clone());
-                    }
-                }
-                AppAction::PluginUsage(id, in_t, out_t) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai.settings.selected_provider
-                    {
-                        // Add the input and output tokens consumed by the last request to the session counter.
-                        ws.ai.chat.in_tokens = ws.ai.chat.in_tokens.saturating_add(in_t);
-                        ws.ai.chat.out_tokens = ws.ai.chat.out_tokens.saturating_add(out_t);
-                    }
-                }
-                AppAction::PluginPayload(id, payload) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai.settings.selected_provider
-                    {
-                        ws.ai.chat.last_payload = payload;
-                    }
-                }
-                AppAction::PluginApprovalRequest(id, action, details, sender) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai.settings.selected_provider
-                    {
-                        ws.pending_plugin_approval = Some((id, action, details, sender));
-                        ws.ai.chat.focus_requested = true;
-                    }
-                }
-                AppAction::PluginAskUser(id, question, options, sender) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai.settings.selected_provider
-                    {
-                        ws.pending_ask_user = Some((id, question, options, String::new(), sender));
-                        ws.ai.chat.focus_requested = true;
-                    }
-                }
-                AppAction::PluginCompleted(id, summary) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai.settings.selected_provider
-                    {
-                        ws.ai.chat.monologue.push(format!("✅ DONE: {}", summary));
-                        ws.ai.chat.loading = false;
-                    }
                 }
             }
 

@@ -60,7 +60,7 @@ MANDATORY RULES:
     /// `terminal_output` and `lsp_diagnostics` are passed by caller (wired in Plan 04).
     pub fn generate_context(
         ws: &WorkspaceState,
-        shared: &std::sync::Arc<std::sync::Mutex<crate::app::types::AppShared>>,
+        _shared: &std::sync::Arc<std::sync::Mutex<crate::app::types::AppShared>>,
         terminal_output: Option<String>,
         lsp_diagnostics: Vec<String>,
     ) -> AiContextPayload {
@@ -68,13 +68,7 @@ MANDATORY RULES:
         payload.terminal_output = terminal_output;
         payload.lsp_diagnostics = lsp_diagnostics;
 
-        // 0. Get memory keys
-        if let Ok(sh) = shared.try_lock()
-            && let Ok(ctx) = sh.registry.plugins.current_context.try_lock()
-            && let Ok(memory) = ctx.agent_memory.try_lock()
-        {
-            payload.memory_keys = memory.facts.keys().cloned().collect();
-        }
+        // Memory keys are no longer available from WASM plugin system.
 
         // 1. Gather Open Files
         for (i, tab) in ws.editor.tabs.iter().enumerate() {

@@ -34,10 +34,7 @@ pub(crate) struct MenuActions {
     pub about: bool,
     pub support: bool,
     pub settings: bool,
-    pub plugins: bool,
-    pub plugins_target: Option<String>,
     pub run_agent: Option<String>,
-    pub run_plugin: Option<(String, String)>,
     pub build: bool,
     pub run: bool,
     pub open_file_picker: bool,
@@ -59,7 +56,7 @@ pub(super) fn render_menu_bar(
 
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
         egui::menu::bar(ui, |ui| {
-            file::render(ui, &mut actions, shared, i18n);
+            file::render(ui, &mut actions, i18n);
             project::render(ui, &mut actions, &recent_snapshot, i18n);
             edit::render(ui, &mut actions, i18n);
             view::render(ui, &mut actions, ws, i18n);
@@ -135,45 +132,6 @@ pub(super) fn process_menu_actions(
                 }
             }
         }
-    }
-    if let Some((plugin_id, func)) = actions.run_plugin {
-        if func == "OPEN_AI_CHAT" {
-            ws.ai.settings.selected_provider = plugin_id;
-            ws.show_ai_chat = true;
-            ws.ai.chat.focus_requested = true;
-            crate::app::ui::terminal::ai_chat::handle_action(
-                crate::app::ui::terminal::ai_chat::AiChatAction::NewQuery,
-                ws,
-                shared,
-            );
-        } else {
-            let (plugin_manager, config): (Arc<crate::app::registry::plugins::PluginManager>, _) = {
-                let sh = shared.lock().expect("lock");
-                let cfg = sh
-                    .settings
-                    .plugins
-                    .get(&plugin_id)
-                    .map(|s| s.config.clone())
-                    .unwrap_or_default();
-                (Arc::clone(&sh.registry.plugins), cfg)
-            };
-            match plugin_manager.call(&plugin_id, &func, "menu", &config) {
-                Ok(res) => {
-                    ws.toasts.push(crate::app::types::Toast::info(res));
-                }
-                Err(e) => {
-                    ws.toasts.push(crate::app::types::Toast::error(format!(
-                        "Plugin failed: {}",
-                        e
-                    )));
-                }
-            }
-        }
-    }
-    if actions.plugins {
-        ws.show_plugins = true;
-        let shared_lock = shared.lock().expect("lock");
-        ws.plugins_draft = Some((*shared_lock.settings).clone());
     }
     if actions.new_project {
         ws.show_new_project = true;

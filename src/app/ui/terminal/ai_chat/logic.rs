@@ -45,6 +45,7 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
         tool_call_id: None,
         tool_result_for_id: None,
         tool_is_error: false,
+        tool_call_arguments: None,
     });
 
     // Conversation history (multi-turn)
@@ -59,6 +60,7 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
                 tool_call_id: None,
                 tool_result_for_id: None,
                 tool_is_error: false,
+                tool_call_arguments: None,
             });
         }
         if !a.is_empty() {
@@ -71,6 +73,7 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
                 tool_call_id: None,
                 tool_result_for_id: None,
                 tool_is_error: false,
+                tool_call_arguments: None,
             });
         }
     }
@@ -86,6 +89,7 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
         tool_call_id: None,
         tool_result_for_id: None,
         tool_is_error: false,
+        tool_call_arguments: None,
     });
 
     // Push empty response slot

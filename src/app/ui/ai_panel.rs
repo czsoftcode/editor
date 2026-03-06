@@ -161,7 +161,7 @@ fn render_ai_tool_controls(
         // Start agent immediately
         let cmd = agent.command.clone();
         let active = ws.claude_active_tab;
-        let context = format_context_for_terminal(&AiManager::generate_context(ws));
+        let context = format_context_for_terminal(&AiManager::generate_context(ws, shared, None, Vec::new()));
         if let Some(terminal) = ws.claude_tabs.get_mut(active) {
             terminal.send_command(&cmd);
             if agent.context_aware {
@@ -181,7 +181,7 @@ fn render_ai_tool_controls(
         && let Some(agent) = current_agent
         && agent.context_aware
     {
-        let context = format_context_for_terminal(&AiManager::generate_context(ws));
+        let context = format_context_for_terminal(&AiManager::generate_context(ws, shared, None, Vec::new()));
         if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
             terminal.send_command(&context);
         }

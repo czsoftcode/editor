@@ -135,6 +135,7 @@ impl AiProvider for OllamaProvider {
             tool_call_id: None,
             tool_result_for_id: None,
             tool_is_error: false,
+            tool_call_arguments: None,
         })
     }
 

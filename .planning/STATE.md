@@ -87,11 +87,3 @@ None.
 | 4 | Move compile bar next to build bar, remove compile_bar.rs | 2026-03-06 | 9c4b211 | [4-move-compile-bar-next-to-build-bar-remov](./quick/4-move-compile-bar-next-to-build-bar-remov/) |
 | 5 | Revert validate_ollama_url port restriction + Bearer auth | 2026-03-06 | 3cc63a0 | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
 | 6 | Rename src/app/ai to src/app/cli + update 48 path references | 2026-03-06 | eecb769 | [6-rename-ai-to-cli](./quick/6-rename-ai-to-cli/) |
-| Phase 15 P03 | 2min | 2 tasks | 3 files |
-| Phase 15 P04 | 2min | 3 tasks | 3 files |
-| Phase 17 P03 | 2min | 2 tasks | 10 files |
-
-## Session Continuity
-
-Last session: 2026-03-06T20:04:00Z
-Stopped at: Completed quick-6 (rename ai to cli)

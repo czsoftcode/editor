@@ -1,543 +1,520 @@
 # Architecture Patterns
 
-**Domain:** AI Chat Rewrite -- Native Providers, Streaming, Tool Execution for eframe/egui editor
-**Researched:** 2026-03-06
-**Overall confidence:** HIGH (direct codebase analysis of all integration points)
+**Domain:** Slash Command System + GSD Tools Integration into PolyCredo Editor
+**Researched:** 2026-03-07
+**Overall confidence:** HIGH (direct analysis of existing codebase + GSD Node.js source)
 
-## Current Architecture (Baseline)
+## Recommended Architecture
 
-### How the WASM Plugin System Works Today
-
-Current flow: `User prompt` -> `send_query_to_agent()` -> `PluginManager.call()` -> `WASM plugin (extism)` -> HTTP to API -> response -> `AppAction::PluginResponse` -> UI update.
-
-Key participants:
-- **WorkspaceState** (~30 AI fields): `ai_prompt`, `ai_conversation`, `ai_monologue`, `ai_loading`, `ai_cancellation_token`, `ai_selected_provider`, `pending_plugin_approval`, `pending_ask_user`, etc.
-- **AppAction enum**: 7 plugin-related variants (`PluginResponse`, `PluginMonologue`, `PluginUsage`, `PluginPayload`, `PluginApprovalRequest`, `PluginAskUser`, `PluginCompleted`)
-- **PluginManager (WASM)**: Loads `.wasm` files, manages extism `Plugin` instances, routes `call()` to WASM functions
-- **HostContext**: Shared context (active file, project index, semantic index, agent memory, scratch, cancellation token)
-- **AI Chat UI** (`terminal/ai_chat/`): Floating `StandardTerminalWindow` with conversation history, prompt input, approval/ask_user inline UI
-- **Right Panel** (`terminal/right/`): Docked/float/viewport terminal tabs running CLI agents (Gemini CLI, Claude CLI)
-- **AiManager**: Generates context payload (`AiContextPayload`), system mandates, logo
-
-### Data Flow Pattern (Existing)
+### High-Level Overview
 
 ```
-[UI Thread]                    [Background Thread]
+User Input (chat prompt)
+    |
+    v
+[SlashCommandDispatcher]  <-- intercepts before send_query_to_agent()
+    |
+    +-- starts with "/" ? -----> SlashCommand execution pipeline
     |                               |
-    |-- send_query_to_agent() ----->|
-    |   (sets ai_loading=true,      |-- PluginManager.call()
-    |    clears monologue,          |   (WASM execution, HTTP inside WASM)
-    |    pushes to conversation)    |
-    |                               |-- host functions callback:
-    |<-- AppAction::PluginMonologue-|     log_monologue -> action_sender
-    |<-- AppAction::PluginUsage ----|     log_usage -> action_sender
-    |<-- AppAction::PluginPayload --|     log_payload -> action_sender
-    |<-- AppAction::PluginApproval -|     request_approval -> mpsc::channel (blocks WASM thread)
-    |<-- AppAction::PluginAskUser --|     ask_user -> mpsc::channel (blocks WASM thread)
+    |                               +-- Pure commands (/clear, /help, /model)
+    |                               |       -> immediate result -> chat as system message
     |                               |
-    |<-- AppAction::PluginResponse -| (final result)
-    |   (sets ai_loading=false,     |
-    |    updates conversation)      |
+    |                               +-- GSD commands (/gsd state, /gsd phase, ...)
+    |                               |       -> GsdEngine -> result -> chat as system message
+    |                               |
+    |                               +-- AI-integrated GSD (/gsd research, /gsd plan)
+    |                                       -> GsdEngine -> spawn AI via send_query_to_agent()
+    |                                          with injected system context
+    |
+    +-- no "/" prefix ----------> send_query_to_agent() (existing flow, unchanged)
 ```
 
-The background thread sends `AppAction` variants via `action_sender` (mpsc). The UI thread picks them up in `EditorApp::update()` via `action_rx.try_recv()`.
+### Component Boundaries
 
-## Recommended Architecture for v1.2.0
+| Component | Responsibility | Communicates With | New/Modified |
+|-----------|---------------|-------------------|--------------|
+| `SlashCommandDispatcher` | Parse "/" prefix, route to handler | ChatState, GsdEngine, WorkspaceState | **NEW** |
+| `SlashCommandRegistry` | Register/lookup command handlers | SlashCommandDispatcher | **NEW** |
+| `GsdEngine` | Port of gsd-tools.cjs logic (state, phase, roadmap, etc.) | Filesystem (.planning/), SlashCommandDispatcher | **NEW** |
+| `logic.rs::send_query_to_agent()` | Existing AI query entry point | OllamaProvider, ChatState | **MODIFIED** (minor -- 15 lines added at top) |
+| `background.rs::process_background_events()` | Stream polling, tool call handling | ChatState, ToolExecutor | **MODIFIED** (5 lines -- consume gsd_injected_context) |
+| `ChatState` | Prompt, conversation history, streaming | UI render, logic.rs | **UNCHANGED** (output flows through existing conversation vec) |
+| `WorkspaceState` | Central state container | Everything | **MODIFIED** (add 2 optional fields) |
 
-### New Component: `AiProvider` Trait
+### Data Flow
 
-Replace WASM plugin indirection with a native Rust trait. The trait runs in a background thread and communicates via the **existing** `AppAction` channel.
+**Pure Slash Command (e.g. `/clear`, `/help`):**
+```
+1. User types "/clear" + Enter
+2. ai_chat/logic.rs:send_query_to_agent() detects "/" prefix
+3. SlashCommandDispatcher::dispatch("/clear", args, &mut ws)
+4. Handler executes immediately (clears conversation)
+5. Result injected as conversation entry: ("/clear", "[output markdown]")
+6. No AI call made, prompt cleared, return early
+```
+
+**GSD Slash Command (e.g. `/gsd state`):**
+```
+1. User types "/gsd state" + Enter
+2. SlashCommandDispatcher routes to GsdCommand handler
+3. GsdCommand delegates to GsdEngine::cmd_state()
+4. GsdEngine reads .planning/STATE.md, parses frontmatter
+5. Returns formatted markdown string
+6. Dispatcher pushes ("/gsd state", "[markdown table]") to conversation
+7. No AI call made
+```
+
+**AI-Integrated GSD Command (e.g. `/gsd research "How to do X"`):**
+```
+1. User types "/gsd research 'How to implement X'" + Enter
+2. SlashCommandDispatcher routes to GsdCommand handler
+3. GsdEngine prepares context (project state, phase info, templates)
+4. Returns SlashResult::DelegateToAi with enhanced system context
+5. Dispatcher stores context in ws.gsd_injected_context
+6. Dispatcher sets ws.ai.chat.prompt to the research question
+7. Falls through to normal send_query_to_agent() flow
+8. send_query_to_agent() checks ws.gsd_injected_context, prepends to system message
+9. AI streams response normally through existing pipeline
+```
+
+## Interception Point: Where Slash Commands Enter
+
+**Location:** `src/app/ui/terminal/ai_chat/logic.rs` at the top of `send_query_to_agent()`.
+
+**Rationale:** This is the single entry point for all user chat input. The function already:
+- Checks for empty prompts (line 12-14)
+- Validates Ollama connection (line 16-19)
+- Has mutable `&mut WorkspaceState` access
+- Precedes all AI provider calls
+
+Slash interception belongs as the first meaningful check after empty-prompt guard:
 
 ```rust
-// src/app/ai/provider.rs (NEW)
+pub fn send_query_to_agent(ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+    let prompt = ws.ai.chat.prompt.trim().to_string();
+    if prompt.is_empty() {
+        return;
+    }
 
-pub trait AiProvider: Send + Sync {
-    /// Human-readable name for the UI picker.
-    fn name(&self) -> &str;
+    // --- NEW: Slash command interception ---
+    if prompt.starts_with('/') {
+        let registry = ws.ensure_slash_registry();
+        let result = registry.dispatch(&prompt, ws, i18n);
+        match result {
+            SlashResult::Handled(output) => {
+                ws.ai.chat.conversation.push((prompt.clone(), output));
+                ws.ai.chat.prompt.clear();
+                ws.ai.chat.auto_scroll = true;
+                if ws.ai.chat.history.last() != Some(&prompt) {
+                    ws.ai.chat.history.push(prompt);
+                }
+                ws.ai.chat.history_index = None;
+                return; // Skip AI call entirely
+            }
+            SlashResult::DelegateToAi { system_context, user_prompt } => {
+                ws.ai.chat.prompt = user_prompt;
+                ws.gsd_injected_context = Some(system_context);
+                // Fall through to existing AI flow below
+            }
+            SlashResult::Error(msg) => {
+                ws.ai.chat.conversation.push((prompt.clone(), format!("*Error: {}*", msg)));
+                ws.ai.chat.prompt.clear();
+                return;
+            }
+            SlashResult::Unknown => {
+                ws.ai.chat.conversation.push((
+                    prompt.clone(),
+                    i18n.get("slash-unknown-command"),
+                ));
+                ws.ai.chat.prompt.clear();
+                return;
+            }
+        }
+    }
 
-    /// Unique identifier (e.g., "ollama", "claude", "gemini").
-    fn id(&self) -> &str;
-
-    /// Execute a chat request. Called on a background thread.
-    /// Must send streaming tokens via `event_tx` as they arrive.
-    /// Returns the final complete response text.
-    fn chat(
-        &self,
-        request: AiChatRequest,
-        event_tx: std::sync::mpsc::Sender<AiStreamEvent>,
-        cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    ) -> Result<String, AiProviderError>;
-
-    /// List available models (optional, for UI picker).
-    fn available_models(&self) -> Vec<String> { vec![] }
-
-    /// Current model name for display.
-    fn model_name(&self) -> &str;
+    // --- Existing flow continues unchanged from here ---
+    if ws.ai.ollama.status != OllamaConnectionStatus::Connected { ... }
+    // ...
 }
 ```
 
-### New Component: `AiStreamEvent` Enum
-
-Replaces the scattered `PluginMonologue`/`PluginUsage`/`PluginPayload` actions with a typed enum that maps cleanly to existing `AppAction` variants.
+**Where gsd_injected_context is consumed:** In `send_query_to_agent()` itself, when building the system message (around line 52-60 of current code):
 
 ```rust
-// src/app/ai/provider.rs (NEW)
+// Existing code builds system_content from expertise + reasoning mandates
+let full_system = if context_str.is_empty() {
+    system_content
+} else {
+    format!("{}\n\n{}", system_content, context_str)
+};
 
-pub enum AiStreamEvent {
-    /// Streaming text token (partial response).
-    Token(String),
-    /// Agent's internal monologue / thinking step.
-    Monologue(String),
-    /// Token usage update (input, output).
-    Usage(u32, u32),
-    /// Tool call request from the model.
-    ToolCall(AiToolCall),
-    /// Raw JSON payload for inspector.
-    RawPayload(String),
-}
-
-pub struct AiToolCall {
-    pub id: String,
-    pub name: String,
-    pub arguments: serde_json::Value,
-}
+// NEW: Inject GSD context if present
+let full_system = if let Some(gsd_ctx) = ws.gsd_injected_context.take() {
+    format!("{}\n\n{}", full_system, gsd_ctx)
+} else {
+    full_system
+};
 ```
 
-### New Component: `OllamaProvider`
+## Module Structure
 
-```rust
-// src/app/ai/providers/ollama.rs (NEW)
+**Recommended:** `src/app/cli/slash/` for dispatch + `src/app/cli/gsd/` for GSD engine.
 
-pub struct OllamaProvider {
-    base_url: String,  // default: "http://localhost:11434"
-    model: String,     // e.g., "llama3.1"
-}
-```
-
-Uses `ureq` (blocking HTTP, no async runtime needed) with streaming response parsing. Runs on the background thread spawned by `send_query_to_provider()`.
-
-Ollama API: `POST /api/chat` with `"stream": true` returns newline-delimited JSON objects, each containing a `message.content` delta.
-
-### Modified Component: `send_query_to_provider()` (Replaces `send_query_to_agent()`)
-
-```rust
-// src/app/ui/terminal/ai_chat/logic.rs (MODIFIED)
-
-pub fn send_query_to_provider(
-    ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
-) {
-    // 1. Build AiChatRequest from ws state (reuse AiManager::generate_context)
-    // 2. Clone the provider Arc from ProviderRegistry
-    // 3. Spawn background thread:
-    //    - Call provider.chat(request, event_tx, cancel_token)
-    //    - Bridge AiStreamEvent -> AppAction via action_sender
-    //    - On completion: send AppAction::AiResponse (new variant)
-}
-```
-
-### Modified Component: `AppAction` Enum
-
-Add new variants, keep old Plugin* variants during transition:
-
-```rust
-// src/app/types.rs (MODIFIED)
-
-pub(crate) enum AppAction {
-    // ... existing variants ...
-
-    /// Streaming token from native AI provider
-    AiToken(String),
-    /// Final response from native AI provider
-    AiResponse(Result<String, String>),
-    /// Tool call requiring execution and approval
-    AiToolCall(AiToolCall),
-    /// Tool execution result to feed back to provider
-    AiToolResult(String, Result<String, String>),
-}
-```
-
-### Modified Component: `WorkspaceState` AI Fields
-
-Consolidate the ~30 scattered fields into a sub-struct:
-
-```rust
-// src/app/ai/chat_state.rs (NEW)
-
-pub struct AiChatState {
-    pub prompt: String,
-    pub history: Vec<String>,
-    pub history_index: Option<usize>,
-    pub conversation: AiConversation,  // reuse existing type
-    pub monologue: Vec<String>,
-    pub streaming_buffer: String,      // NEW: accumulates streaming tokens
-    pub system_prompt: String,
-    pub language: String,
-    pub expertise: AiExpertiseRole,
-    pub reasoning_depth: AiReasoningDepth,
-    pub in_tokens: u32,
-    pub out_tokens: u32,
-    pub loading: bool,
-    pub cancellation_token: Arc<AtomicBool>,
-    pub selected_provider: String,
-    pub font_scale: u32,
-    pub show_settings: bool,
-    pub inspector_open: bool,
-    pub focus_requested: bool,
-    pub last_payload: String,
-    pub response: Option<String>,
-    pub pending_approval: Option<PendingPluginApproval>,
-    pub pending_ask_user: Option<PendingAskUser>,
-}
-```
-
-This is a **refactor**, not a functional change. `WorkspaceState` keeps a single `pub ai: AiChatState` field. All existing access paths (`ws.ai_prompt` -> `ws.ai.prompt`) are mechanical renames.
-
-### New Component: `ProviderRegistry`
-
-```rust
-// src/app/ai/provider.rs (NEW)
-
-pub struct ProviderRegistry {
-    providers: Vec<Box<dyn AiProvider>>,
-    by_id: HashMap<String, usize>,
-}
-```
-
-Lives in `AppShared` (alongside, not replacing, `PluginManager` during transition). Initialized at startup from settings.
-
-### Modified Component: AI Chat UI (Streaming Support)
-
-The existing `render_chat_content()` already uses `stick_to_bottom(true)` ScrollArea. For streaming:
-
-1. `AiToken` events append to `ws.ai.streaming_buffer`
-2. Conversation display renders `streaming_buffer` as the in-progress assistant message
-3. On `AiResponse`, `streaming_buffer` is finalized into the conversation history
-4. `ctx.request_repaint()` on every token event (existing pattern from `PluginMonologue`)
-
-### Tool Execution Flow (Approval Workflow)
-
-The existing approval pattern (`pending_plugin_approval`, `PluginApprovalResponse`) maps directly:
+**Rationale:** Both belong under `src/app/cli/` because:
+- They are part of the CLI/AI subsystem (not general editor functionality)
+- They share types with `cli/types.rs` (AiMessage, conversation tuples)
+- GSD commands that delegate to AI need the same provider infrastructure
+- Separate `src/gsd/` at project root would create cross-module coupling
 
 ```
-[Background Thread]              [UI Thread]
-    |                                |
-    |-- provider.chat() returns      |
-    |   ToolCall in stream           |
-    |                                |
-    |-- AiStreamEvent::ToolCall ---->|
-    |   (via event_tx)               |-- AppAction::AiToolCall
-    |                                |   maps to pending_approval
-    |                                |   (existing approval UI)
-    |                                |
-    |<---- mpsc response channel ----|-- User approves/denies
-    |                                |
-    |-- Execute tool locally ------->|
-    |   (read_file, write_file,      |
-    |    replace, exec, search)      |
-    |                                |
-    |-- Feed result back to provider |
-    |   (next chat() call or         |
-    |    multi-turn within same call)|
+src/app/cli/
+  mod.rs                  -- add: pub mod slash; pub mod gsd;
+  slash/
+    mod.rs                -- SlashResult enum, SlashHandler trait, CommandRegistry
+    dispatch.rs           -- dispatch() function, "/" prefix parsing
+    builtin.rs            -- /help, /clear, /new, /model, /git, /build, /settings
+  gsd/
+    mod.rs                -- GsdEngine struct, public API, GsdCommand (SlashHandler impl)
+    state.rs              -- STATE.md parser/writer (port of state.cjs ~120 LOC)
+    config.rs             -- .planning/config.json management (port of config.cjs ~80 LOC)
+    phase.rs              -- Phase operations: add, insert, remove, complete (port of phase.cjs ~200 LOC)
+    roadmap.rs            -- ROADMAP.md parse/update (port of roadmap.cjs ~150 LOC)
+    frontmatter.rs        -- Markdown frontmatter CRUD (port of frontmatter.cjs ~100 LOC)
+    verify.rs             -- Verification suite: plan structure, completeness, refs (port of verify.cjs ~250 LOC)
+    template.rs           -- Template fill: summary, plan, verification (port of template.cjs ~150 LOC)
+    milestone.rs          -- Milestone archival (port of milestone.cjs ~100 LOC)
+    core.rs               -- Shared utilities: slug, timestamp, path helpers (port of core.cjs ~80 LOC)
 ```
 
-**Key difference from current**: Tool execution happens in the background thread (native Rust), not inside WASM. The approval channel pattern is identical.
-
-### Context Payload (Reuse Existing)
-
-`AiManager::generate_context()` and `AiContextPayload` are **kept as-is**. They already produce everything needed:
-- Open files with content
-- Build errors
-- Cursor position and selection
-- Git branch and status
-- Cargo.toml summary
-- Memory keys
-
-The new `AiChatRequest` wraps this:
-
-```rust
-pub struct AiChatRequest {
-    pub messages: Vec<AiMessage>,    // conversation history
-    pub context: AiContextPayload,   // editor context
-    pub tools: Vec<AiToolDeclaration>, // available tools
-    pub system_prompt: String,
-    pub model: Option<String>,
-}
-```
-
-## Component Boundaries
-
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `AiProvider` trait | HTTP to AI API, streaming parse | Background thread -> `event_tx` |
-| `OllamaProvider` | Ollama-specific HTTP (`/api/chat`) | `ureq` HTTP client |
-| `ProviderRegistry` | Stores available providers | `AppShared` (read at send time) |
-| `AiChatState` | All AI chat UI state | `WorkspaceState.ai` field |
-| `AiManager` | Context generation, system prompts | `WorkspaceState` (read-only) |
-| `send_query_to_provider()` | Spawns background thread, bridges events | `action_sender` channel |
-| `ai_chat/render.rs` | Chat UI rendering (streaming display) | `WorkspaceState.ai` fields |
-| `ai_chat/approval.rs` | Tool approval UI (existing, reused) | `pending_approval` / mpsc |
-| `tools.rs` | Tool declarations (existing, reused) | `AiToolDeclaration` |
-| `NativeToolExecutor` | Executes tools in background thread | File system, project index |
-| `right/mod.rs` | CLI terminal panel (unchanged) | `Terminal` instances |
-
-## Data Flow Diagram (New System)
-
-```
-[User types prompt]
-       |
-       v
-[send_query_to_provider()]
-       |
-       |-- Clone provider from ProviderRegistry
-       |-- Build AiChatRequest (context + history + tools)
-       |-- Set ws.ai.loading = true
-       |-- Spawn thread:
-       |
-       |   [Background Thread]
-       |   |
-       |   |-- provider.chat(request, event_tx, cancel)
-       |   |   |
-       |   |   |-- HTTP POST /api/chat (stream=true)
-       |   |   |-- For each NDJSON chunk:
-       |   |   |   |-- Parse delta
-       |   |   |   |-- event_tx.send(AiStreamEvent::Token(delta))
-       |   |   |
-       |   |   |-- On tool_call in response:
-       |   |   |   |-- event_tx.send(AiStreamEvent::ToolCall(call))
-       |   |   |   |-- Wait for approval via mpsc
-       |   |   |   |-- Execute tool (native Rust)
-       |   |   |   |-- Feed result back to API (multi-turn)
-       |   |   |
-       |   |   |-- On completion:
-       |   |       |-- event_tx.send(AiStreamEvent::Usage(in, out))
-       |   |
-       |   |-- Bridge loop: event_tx -> action_sender.send(AppAction::Ai*)
-       |   |-- Final: action_sender.send(AppAction::AiResponse(result))
-       |
-       v
-[EditorApp::update() -- action_rx.try_recv()]
-       |
-       |-- AppAction::AiToken(t):
-       |   ws.ai.streaming_buffer += t
-       |   ctx.request_repaint()
-       |
-       |-- AppAction::AiToolCall(call):
-       |   ws.ai.pending_approval = Some(...)
-       |   (renders approval UI)
-       |
-       |-- AppAction::AiResponse(result):
-       |   ws.ai.loading = false
-       |   finalize conversation
-```
+**LOC estimates:** Based on gsd-tools.cjs (592 lines) + 11 lib modules. Rust port will be ~2,500-3,500 LOC total (Rust is more verbose than JS but the logic is straightforward file I/O + string manipulation).
 
 ## Patterns to Follow
 
-### Pattern 1: Background Thread + mpsc Channel (Existing)
+### Pattern 1: SlashResult Enum (Command Return Protocol)
 
-**What:** All async work runs on `std::thread::spawn`, results come back via `mpsc::channel` to the UI thread.
-**When:** Always. egui is single-threaded, no tokio/async runtime.
-**Why reuse:** This is the established pattern for git status, build errors, file operations, and current WASM plugin calls. Adding a new async runtime would be unnecessary complexity.
+**What:** Every slash command returns a typed result that tells the dispatcher how to handle output.
 
-### Pattern 2: AppAction Dispatch (Existing)
-
-**What:** Background threads send `AppAction` variants via `action_sender`. `EditorApp::update()` processes them synchronously in the main loop.
-**When:** For all cross-thread communication.
-**Why reuse:** Centralizes state mutation in one place (main loop), prevents race conditions with `WorkspaceState`.
-
-### Pattern 3: Blocking Approval Channel (Existing)
-
-**What:** Background thread sends approval request with a `mpsc::Sender<Response>`, then blocks on `recv()`. UI thread renders approval UI, user clicks, sends response back.
-**When:** Tool calls requiring user approval (file writes, exec commands).
-**Why reuse:** Already proven pattern with `PluginApprovalRequest` and `PluginAskUser`. The approval UI (`approval.rs`) works and is theme-aware.
-
-### Pattern 4: `ureq` for Blocking HTTP (New, Follows Existing Philosophy)
-
-**What:** Use `ureq` crate for HTTP requests. Blocking API, no async runtime.
-**When:** All provider HTTP calls (Ollama, future Claude/Gemini).
-**Why:** Consistent with the "no tokio" philosophy. `ureq` supports streaming via `Read` trait on response body. Minimal dependency footprint.
+**When:** Always. Every command handler must return SlashResult.
 
 ```rust
-// Streaming example with ureq
-let response = ureq::post(&url)
-    .set("Content-Type", "application/json")
-    .send_json(&body)?;
-
-let reader = std::io::BufReader::new(response.into_body().into_reader());
-for line in reader.lines() {
-    let line = line?;
-    if cancel.load(Ordering::Relaxed) { break; }
-    let chunk: OllamaChunk = serde_json::from_str(&line)?;
-    event_tx.send(AiStreamEvent::Token(chunk.message.content))?;
+pub enum SlashResult {
+    /// Command handled locally. String is markdown output for chat display.
+    Handled(String),
+    /// Command needs AI. Provides enhanced system context + modified user prompt.
+    DelegateToAi {
+        system_context: String,
+        user_prompt: String,
+    },
+    /// Command execution failed.
+    Error(String),
+    /// Not a recognized command.
+    Unknown,
 }
 ```
 
-### Pattern 5: NativeToolExecutor (New, Replaces WASM Host Functions)
+### Pattern 2: Trait-Based Command Registration
 
-**What:** The tool execution logic currently in `host/mod.rs` (read_project_file, write_project_file, replace_project_file, exec, search_project, etc.) is extracted into a standalone executor callable from the background thread.
+**What:** Commands implement a trait, registered in a HashMap. GSD registers as one top-level command with subcommands.
 
-**Why:** The WASM host functions contain the actual logic for file reading, writing, searching. This logic is sound and tested. Extract it into a non-WASM module so the provider background thread can call it directly.
+**When:** For extensibility without modifying dispatcher logic.
 
 ```rust
-// src/app/ai/tool_executor.rs (NEW)
-
-pub struct NativeToolExecutor {
-    pub project_root: PathBuf,
-    pub blacklist: Arc<Mutex<Blacklist>>,
-    pub project_index: Arc<ProjectIndex>,
-    pub semantic_index: Arc<Mutex<SemanticIndex>>,
-    pub action_sender: mpsc::Sender<AppAction>,
-    pub egui_ctx: egui::Context,
-    pub is_cancelled: Arc<AtomicBool>,
-    pub auto_approved_actions: HashSet<String>,
-    pub agent_memory: Arc<Mutex<AgentMemory>>,
-    pub scratch: Arc<Mutex<HashMap<String, String>>>,
+pub trait SlashHandler: Send + Sync {
+    /// Primary command name (e.g. "clear", "gsd")
+    fn name(&self) -> &str;
+    /// Subcommand names for autocomplete (e.g. "gsd" -> ["state", "phase", ...])
+    fn subcommands(&self) -> Vec<&str> { vec![] }
+    /// One-line help text
+    fn help(&self) -> &str;
+    /// Execute the command. `args` is everything after the command name.
+    fn execute(&self, args: &str, ws: &mut WorkspaceState, i18n: &I18n) -> SlashResult;
 }
 
-impl NativeToolExecutor {
-    pub fn execute(&mut self, tool_call: &AiToolCall) -> Result<String, String> {
-        match tool_call.name.as_str() {
-            "read_project_file" => { /* existing logic from host_read_file */ }
-            "write_file" => { /* request approval, then write */ }
-            "replace" => { /* request approval, then replace */ }
-            "exec" => { /* request approval, then execute */ }
-            "search_project" => { /* existing logic */ }
-            "semantic_search" => { /* existing logic */ }
-            // ... etc
-            _ => Err(format!("Unknown tool: {}", tool_call.name)),
+pub struct CommandRegistry {
+    commands: HashMap<String, Box<dyn SlashHandler>>,
+}
+
+impl CommandRegistry {
+    pub fn new() -> Self {
+        let mut reg = Self { commands: HashMap::new() };
+        reg.register(Box::new(ClearCommand));
+        reg.register(Box::new(HelpCommand));
+        reg.register(Box::new(ModelCommand));
+        reg.register(Box::new(NewCommand));
+        reg.register(Box::new(GitCommand));
+        reg.register(Box::new(BuildCommand));
+        reg.register(Box::new(SettingsCommand));
+        reg.register(Box::new(GsdCommand::new()));
+        reg
+    }
+
+    pub fn dispatch(&self, input: &str, ws: &mut WorkspaceState, i18n: &I18n) -> SlashResult {
+        let input = input.strip_prefix('/').unwrap_or(input);
+        let (cmd, args) = input.split_once(' ').unwrap_or((input, ""));
+        match self.commands.get(cmd) {
+            Some(handler) => handler.execute(args, ws, i18n),
+            None => SlashResult::Unknown,
         }
     }
 }
 ```
 
+### Pattern 3: GSD Output as Conversation Entries
+
+**What:** GSD command output appears as a conversation pair (user command, system response), rendered with existing markdown pipeline.
+
+**When:** For all slash commands that produce output.
+
+**Rationale:** The chat UI already renders `ws.ai.chat.conversation` entries as markdown via `egui_commonmark`. No new UI components needed. Users see command + result inline in the conversation flow.
+
+```rust
+// In dispatcher:
+SlashResult::Handled(output) => {
+    ws.ai.chat.conversation.push((prompt.clone(), output));
+    // ^ "user" side shows the command, "assistant" side shows formatted output
+}
+```
+
+### Pattern 4: GsdEngine as Stateless Processor
+
+**What:** GsdEngine functions read from disk per invocation, compute, and return results. No persistent in-memory GSD state cache.
+
+**When:** For all GSD operations.
+
+**Rationale:**
+- `.planning/` files are the source of truth (may be edited by git, CLI tools, other editors)
+- Node.js gsd-tools.cjs works the same way -- each invocation reads fresh state
+- Files are small (STATE.md < 1KB, config.json < 500B, ROADMAP.md < 5KB)
+- Disk I/O cost is negligible for local SSD reads
+- Eliminates cache invalidation complexity
+
+```rust
+pub struct GsdEngine;
+
+impl GsdEngine {
+    pub fn load_state(root: &Path) -> Result<GsdProjectState, String> {
+        let state_path = root.join(".planning/STATE.md");
+        let content = std::fs::read_to_string(&state_path)
+            .map_err(|e| format!("Cannot read STATE.md: {}", e))?;
+        parse_state_frontmatter(&content)
+    }
+
+    pub fn execute(subcommand: &str, args: &str, root: &Path) -> Result<String, String> {
+        match subcommand {
+            "state" => Self::cmd_state(args, root),
+            "phase" => Self::cmd_phase(args, root),
+            "roadmap" => Self::cmd_roadmap(args, root),
+            "commit" => Self::cmd_commit(args, root),
+            "verify" => Self::cmd_verify(args, root),
+            "progress" => Self::cmd_progress(args, root),
+            _ => Err(format!("Unknown GSD subcommand: {}", subcommand)),
+        }
+    }
+}
+```
+
+### Pattern 5: AI Delegation with Injected Context
+
+**What:** AI-integrated GSD commands prepare rich system context, then delegate to the normal AI flow without duplicating provider setup logic.
+
+**When:** For commands like `/gsd research`, `/gsd plan`, `/gsd commit-msg`.
+
+```rust
+// In GsdCommand handler:
+"research" => {
+    let question = args_after_subcommand.to_string();
+    let state = GsdEngine::load_state(&ws.root_path).ok();
+    let roadmap = GsdEngine::load_roadmap(&ws.root_path).ok();
+    let context = format!(
+        "## GSD Project Context\n\
+         Current phase: {}\n\
+         Status: {}\n\n\
+         ## Research Task\n\
+         Investigate and document: {}",
+        state.as_ref().map(|s| &s.current_phase).unwrap_or(&"unknown".to_string()),
+        state.as_ref().map(|s| &s.status).unwrap_or(&"unknown".to_string()),
+        question
+    );
+    SlashResult::DelegateToAi {
+        system_context: context,
+        user_prompt: question,
+    }
+}
+```
+
+## State Management Decision
+
+**GSD state does NOT get its own persistent state struct. Only 2 transient fields added to WorkspaceState.**
+
+**Rationale:**
+1. GsdEngine reads from disk per invocation (stateless pattern)
+2. Only the AI delegation flow needs a transient bridge field (`gsd_injected_context`)
+3. The slash registry is lazily initialized and lives for the workspace lifetime
+4. All command output flows through existing `ws.ai.chat.conversation`
+
+**Additions to WorkspaceState:**
+
+```rust
+pub struct WorkspaceState {
+    // ... existing fields ...
+
+    /// Slash command registry (lazily initialized on first "/" input)
+    pub slash_registry: Option<crate::app::cli::slash::CommandRegistry>,
+
+    /// Injected GSD context for AI-delegated commands (consumed once by send_query_to_agent)
+    pub gsd_injected_context: Option<String>,
+}
+```
+
+**What NOT to add:**
+- No `GsdState` struct with cached STATE.md -- read fresh each time
+- No `gsd_history` -- output is already in chat conversation
+- No `gsd_config_cache` -- config.json is <500B, read on demand
+- No new background task infrastructure -- GSD ops are sync disk I/O
+
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Async Runtime (tokio/async-std)
+### Anti-Pattern 1: Separate Input Widget for Slash Commands
 
-**What:** Adding an async runtime for HTTP requests.
-**Why bad:** egui runs on a synchronous main loop. Mixing async/sync creates complexity (`.block_on()`, channel bridges). The entire codebase uses `std::thread` + `mpsc`.
-**Instead:** Use `ureq` (blocking HTTP) on a background `std::thread`.
+**What:** Creating a command palette or separate text input for slash commands.
 
-### Anti-Pattern 2: Shared Mutable Provider State
+**Why bad:** Splits user attention, duplicates input handling, breaks the "everything through chat" paradigm established in v1.2.0.
 
-**What:** Letting background threads mutate provider state while UI reads it.
-**Why bad:** Race conditions, need for `Arc<Mutex<Provider>>` everywhere.
-**Instead:** Provider trait is stateless per-call. Configuration comes from `Settings` (read at call time). Streaming state lives in `WorkspaceState.ai` (owned by UI thread).
+**Instead:** Intercept "/" prefix in existing chat prompt. All output appears in the same conversation.
 
-### Anti-Pattern 3: Direct UI State Mutation from Background Thread
+### Anti-Pattern 2: GSD State as Persistent Cache
 
-**What:** Passing `&mut WorkspaceState` to background threads.
-**Why bad:** `WorkspaceState` is not `Send`. Violates ownership model.
-**Instead:** Background thread sends `AppAction` events. UI thread mutates state in response.
+**What:** Loading .planning/ state into memory and keeping it synchronized with disk.
 
-### Anti-Pattern 4: Over-Abstracting the Provider Trait
+**Why bad:** External tools (git, CLI, other editors) modify .planning/ files. Cache invalidation becomes a separate problem. Node.js version reads fresh on each invocation.
 
-**What:** Making the trait generic over async/sync, supporting both streaming/non-streaming, etc.
-**Why bad:** YAGNI. Ollama is the first provider. Claude and Gemini can be added later with minimal trait changes.
-**Instead:** Simple trait with one `chat()` method. Add complexity only when the second provider is implemented.
+**Instead:** Read from disk on each command. Files are small, I/O is negligible.
 
-### Anti-Pattern 5: Breaking the Right Panel (CLI Terminal)
+### Anti-Pattern 3: Async Runtime for GSD Operations
 
-**What:** Replacing the right panel terminal tabs with the new AI Chat.
-**Why bad:** The right panel runs CLI agents (Gemini CLI, Claude CLI). Users may want both.
-**Instead:** New AI Chat is a separate modal/panel (`show_ai_chat`). Right panel terminals remain for CLI agents. Eventually the right panel may be repurposed, but that's a separate decision.
+**What:** Introducing tokio or async-std for GSD file I/O.
+
+**Why bad:** Codebase uses `ureq + std::thread` (KEY DECISION from PROJECT.md). All GSD operations are local disk reads (<1ms). Async runtime contradicts established threading model.
+
+**Instead:** Synchronous file I/O for reads. For slow operations (git commit), use existing `spawn_task()` from `background.rs`.
+
+### Anti-Pattern 4: Full YAML Parser Dependency for Frontmatter
+
+**What:** Adding `serde_yaml` or similar for STATE.md frontmatter parsing.
+
+**Why bad:** GSD frontmatter is flat key-value pairs (`key: value`), never nested YAML. A full YAML parser adds dependency weight for no benefit.
+
+**Instead:** Simple line-based parser: split on `---` delimiters, parse `key: value` lines. The Node.js version uses basic string splitting.
+
+### Anti-Pattern 5: Direct ChatState Mutation from Command Handlers
+
+**What:** GSD command handlers directly pushing to `ws.ai.chat.conversation` or modifying streaming state.
+
+**Why bad:** Breaks encapsulation. If chat internals change (e.g., conversation format), all handlers break.
+
+**Instead:** Return `SlashResult` and let the dispatcher handle chat state mutations uniformly through a single code path.
 
 ## Integration Points Summary
 
 ### Files to CREATE (New)
 
-| File | Purpose |
-|------|---------|
-| `src/app/ai/provider.rs` | `AiProvider` trait, `AiStreamEvent`, `ProviderRegistry`, `AiChatRequest`, `AiProviderError` |
-| `src/app/ai/providers/mod.rs` | Provider module root |
-| `src/app/ai/providers/ollama.rs` | `OllamaProvider` implementation |
-| `src/app/ai/chat_state.rs` | `AiChatState` sub-struct (extracted from WorkspaceState) |
-| `src/app/ai/tool_executor.rs` | `NativeToolExecutor` (extracted from WASM host functions) |
+| File | Purpose | Est. LOC |
+|------|---------|----------|
+| `src/app/cli/slash/mod.rs` | SlashResult, SlashHandler trait, CommandRegistry | ~100 |
+| `src/app/cli/slash/dispatch.rs` | dispatch() function, "/" parsing | ~40 |
+| `src/app/cli/slash/builtin.rs` | /help, /clear, /new, /model, /git, /build, /settings | ~200 |
+| `src/app/cli/gsd/mod.rs` | GsdEngine, GsdCommand (SlashHandler impl) | ~150 |
+| `src/app/cli/gsd/core.rs` | Slugs, timestamps, path helpers | ~80 |
+| `src/app/cli/gsd/frontmatter.rs` | Markdown frontmatter CRUD | ~120 |
+| `src/app/cli/gsd/state.rs` | STATE.md parser/writer | ~150 |
+| `src/app/cli/gsd/config.rs` | .planning/config.json management | ~80 |
+| `src/app/cli/gsd/phase.rs` | Phase add/insert/remove/complete | ~250 |
+| `src/app/cli/gsd/roadmap.rs` | ROADMAP.md parse/update | ~200 |
+| `src/app/cli/gsd/verify.rs` | Verification suite | ~300 |
+| `src/app/cli/gsd/template.rs` | Template fill operations | ~200 |
+| `src/app/cli/gsd/milestone.rs` | Milestone archival | ~120 |
+
+**Total new code:** ~2,000 LOC
 
 ### Files to MODIFY (Existing)
 
 | File | Change | Risk |
 |------|--------|------|
-| `src/app/ai/mod.rs` | Add `pub mod provider; pub mod providers; pub mod chat_state; pub mod tool_executor;` | LOW -- additive |
-| `src/app/types.rs` | Add `AiToken`, `AiResponse`, `AiToolCall` variants to `AppAction` | LOW -- additive |
-| `src/app/mod.rs` | Handle new `AppAction` variants in `update()` match arm | LOW -- additive pattern |
-| `src/app/ui/workspace/state/mod.rs` | Replace ~30 `ai_*` fields with `pub ai: AiChatState` | MEDIUM -- mechanical but widespread rename |
-| `src/app/ui/terminal/ai_chat/logic.rs` | Replace `send_query_to_agent()` with `send_query_to_provider()` | MEDIUM -- core integration point |
-| `src/app/ui/terminal/ai_chat/render.rs` | Add streaming buffer display, adapt to `ws.ai.*` paths | MEDIUM -- UI changes |
-| `src/settings.rs` | Add `OllamaSettings` (base_url, model, enabled) to `Settings` | LOW -- additive |
-| `src/app/ui/terminal/ai_chat/mod.rs` | Update `handle_action()` for new provider flow | LOW |
-| `src/app/ui/workspace/state/init.rs` | Initialize `AiChatState` | LOW |
+| `src/app/cli/mod.rs` | Add `pub mod slash; pub mod gsd;` | LOW |
+| `src/app/ui/terminal/ai_chat/logic.rs` | Add 25-line slash interception at top of `send_query_to_agent()` + 5-line context injection | LOW -- additive, existing flow unchanged |
+| `src/app/ui/workspace/state/mod.rs` | Add 2 optional fields: `slash_registry`, `gsd_injected_context` | LOW |
+| `src/app/ui/workspace/state/init.rs` | Initialize new fields to `None` | LOW |
+| `locales/*.ftl` (5 files) | Add ~30 i18n keys for slash command messages | LOW |
 
 ### Files UNCHANGED
 
 | File | Why |
 |------|-----|
-| `src/app/ui/terminal/right/mod.rs` | CLI terminal panel stays as-is |
-| `src/app/ui/terminal/right/ai_bar.rs` | Agent picker for CLI agents stays |
-| `src/app/ai/tools.rs` | Tool declarations reused directly by NativeToolExecutor |
-| `src/app/ai/types.rs` | `AiContextPayload`, `AiMessage`, `AiConversation` reused as-is |
-| `src/app/ui/terminal/ai_chat/approval.rs` | Approval UI reused with minimal changes |
-| `src/app/ui/background.rs` | No changes (AppAction processing is in mod.rs) |
+| `src/app/cli/executor.rs` | Tool executor untouched -- GSD doesn't use AI tools |
+| `src/app/cli/provider.rs` | AiProvider trait unchanged |
+| `src/app/cli/tools.rs` | Tool declarations unchanged |
+| `src/app/cli/state.rs` | AiState unchanged |
+| `src/app/ui/background.rs` | Stream processing unchanged (gsd_injected_context consumed in logic.rs) |
+| `src/app/ui/terminal/ai_chat/render.rs` | Conversation rendering handles GSD output as normal markdown |
+| `src/app/ui/terminal/right/mod.rs` | Claude panel unchanged |
 
-### Files to DELETE Later (After WASM Removal Phase)
+## Build Order (Dependency-Aware)
 
-| File | When |
-|------|------|
-| `src/app/registry/plugins/` (entire directory) | After new chat fully replaces WASM |
-| `src/app/registry/plugins/host/` | After new chat fully replaces WASM |
-| External `.wasm` plugin files | After new chat fully replaces WASM |
+**Phase 1: Slash Infrastructure (foundation, no GSD yet)**
+1. `SlashResult` enum + `SlashHandler` trait + `CommandRegistry` -- standalone types
+2. `dispatch.rs` -- "/" prefix parsing, HashMap lookup
+3. Interception in `logic.rs::send_query_to_agent()` -- 25 lines at function top
+4. `WorkspaceState` additions -- 2 `Option<>` fields + init
 
-## Suggested Build Order
+**Phase 2: Built-in Commands (validates infrastructure)**
+5. `/clear` -- simplest handler, clears `ws.ai.chat.conversation`
+6. `/help` -- iterates registry, builds help text
+7. `/new` -- resets conversation (like existing `AiChatAction::NewQuery`)
+8. `/model` -- displays/switches model via `ws.ai.ollama`
+9. `/git`, `/build`, `/settings` -- workspace state inspection
 
-Based on dependency analysis:
+**Phase 3: GSD Core (standalone, no slash integration yet)**
+10. `gsd/core.rs` -- slug generation, timestamps, path utilities
+11. `gsd/frontmatter.rs` -- `---` delimited key-value parsing
+12. `gsd/config.rs` -- `.planning/config.json` read/write
+13. `gsd/state.rs` -- STATE.md parse/update (depends on 11)
 
-### Phase 1: Foundation (No UI changes, no breaking changes)
-1. **`AiProvider` trait + `AiStreamEvent` + `AiChatRequest`** -- defines the interface
-2. **`OllamaProvider`** -- concrete implementation with `ureq`
-3. **`ProviderRegistry`** -- container for providers, added to `AppShared`
-4. **New `AppAction` variants** -- `AiToken`, `AiResponse`, `AiToolCall`
+**Phase 4: GSD Operations (depends on Phase 3)**
+14. `gsd/phase.rs` -- add, insert, remove, complete (depends on 11, 12, 13)
+15. `gsd/roadmap.rs` -- ROADMAP.md parse/update (depends on 11)
+16. `gsd/verify.rs` -- plan structure, completeness checks (depends on 11, 13)
+17. `gsd/template.rs` -- template fill (depends on 11, 12)
+18. `gsd/milestone.rs` -- milestone archival (depends on 13, 14, 15)
 
-Testable: Unit test verifying Ollama streaming works (no UI needed).
+**Phase 5: GSD Slash Integration (wires everything together)**
+19. `gsd/mod.rs` -- `GsdCommand` implementing `SlashHandler`, routes to subcommands
+20. Register `GsdCommand` in `CommandRegistry::new()`
 
-### Phase 2: State Refactor (Mechanical, no functional change)
-5. **`AiChatState` extraction** -- move ~30 fields from `WorkspaceState` into sub-struct
-6. **Mechanical renames** across all files that touch `ws.ai_*` -> `ws.ai.*`
+**Phase 6: AI Delegation (final integration)**
+21. `SlashResult::DelegateToAi` handling in dispatcher
+22. `gsd_injected_context` consumption in `send_query_to_agent()`
+23. AI-integrated GSD commands: `/gsd research`, `/gsd plan`, `/gsd commit-msg`
 
-Testable: Compiles, existing WASM chat still works through old path.
-
-### Phase 3: Bridge + Streaming UI
-7. **`send_query_to_provider()`** -- background thread bridge, event->AppAction mapping
-8. **Handle new `AppAction` variants** in `EditorApp::update()`
-9. **Streaming buffer display** in `render_chat_content()`
-10. **Provider picker in AI Chat** settings (alongside existing WASM plugin picker)
-
-Testable: Can chat with Ollama via new UI path, see streaming tokens.
-
-### Phase 4: Tool Execution
-11. **`NativeToolExecutor`** -- extract logic from WASM host functions
-12. **Wire tool calls** through existing approval UI
-13. **Multi-turn tool loop** -- feed tool results back to provider
-
-Testable: Full agentic workflow with file edits, search, and approval.
-
-### Phase 5: Cleanup
-14. **Remove WASM plugin path** for AI chat (old `send_query_to_agent()`)
-15. **Remove `extism` dependency** (if no other WASM plugins remain)
-16. **Clean up old `AppAction::Plugin*` variants** that are no longer used
+**Phase 7: Polish**
+24. i18n keys for all slash command messages (5 locales)
+25. "/" prefix autocomplete hints in chat prompt UI (optional)
+26. MIT attribution for GSD in About dialog
 
 ## Scalability Considerations
 
-| Concern | Current (1 provider) | 3 providers | 10+ models |
-|---------|---------------------|-------------|------------|
-| Provider init | Direct struct creation | `ProviderRegistry` loop | Same -- providers are lightweight |
-| Streaming | Single `streaming_buffer` | Per-conversation (already scoped) | Same |
-| Tool execution | Direct function calls | Same -- tools are provider-agnostic | Same |
-| Config storage | `Settings` struct field | HashMap keyed by provider ID | Same |
-| Context window | Send full context each time | Same (context payload is ~2KB) | May need truncation strategy |
+| Concern | v1.2.1 (initial) | v2.0+ (future) |
+|---------|-------------------|----------------|
+| Command count | ~15 (8 builtin + 7 GSD subcommands) | Registry pattern scales without code changes |
+| GSD file parsing | Sync read per invocation | Add mtime-based cache only if profiling shows need |
+| AI delegation | Ollama only | AiProvider trait already supports multiple providers |
+| Autocomplete | Static list from registry.keys() | Could add fuzzy matching, history-based suggestions |
+| GSD operations | Single project | GSD already scopes everything to ws.root_path |
 
 ## Sources
 
-- Existing codebase analysis: `app/mod.rs`, `app/types.rs`, `app/ai/`, `app/registry/plugins/`, `app/ui/terminal/ai_chat/`, `app/ui/terminal/right/`, `app/ui/workspace/state/`, `app/ui/background.rs`, `settings.rs` (HIGH confidence -- direct code inspection)
-- Ollama API documentation: `/api/chat` endpoint with NDJSON streaming (MEDIUM confidence -- training data, verify before implementation)
-- `ureq` crate: blocking HTTP client for Rust, streaming via `into_reader()` (MEDIUM confidence -- verify API in current version)
-- eframe/egui threading model: single-threaded UI, `ctx.request_repaint()` for cross-thread updates (HIGH confidence -- verified in codebase)
+- Direct code analysis: `src/app/cli/` (mod.rs, types.rs, executor.rs, provider.rs, tools.rs, state.rs) -- HIGH confidence
+- Direct code analysis: `src/app/ui/terminal/ai_chat/logic.rs` -- send_query_to_agent() entry point -- HIGH confidence
+- Direct code analysis: `src/app/ui/background.rs` -- stream event processing, tool call cycle -- HIGH confidence
+- Direct code analysis: `src/app/ui/workspace/state/mod.rs` -- WorkspaceState structure, 143 lines -- HIGH confidence
+- GSD Node.js source: `~/.claude/get-shit-done/bin/gsd-tools.cjs` (592 lines) + 11 lib modules in `bin/lib/` -- HIGH confidence
+- `.planning/PROJECT.md` -- key decisions, constraints, tech debt -- HIGH confidence

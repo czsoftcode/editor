@@ -1,295 +1,357 @@
 # Domain Pitfalls
 
-**Domain:** Native AI Chat with streaming, tool execution, and provider abstraction in Rust/egui editor
-**Researched:** 2026-03-06
+**Domain:** Node.js-to-Rust port (GSD tools), YAML-like frontmatter parser, slash command system, file-based state management, git operations in GUI
+**Researched:** 2026-03-07
+**Overall confidence:** HIGH (based on direct source code analysis of GSD tools 5,421 LOC and PolyCredo Editor 58,187 LOC)
+
+---
 
 ## Critical Pitfalls
 
 Mistakes that cause rewrites or major issues.
 
-### Pitfall 1: Blocking the egui UI thread with HTTP/streaming calls
+### Pitfall 1: Mirroring JavaScript's Dynamic Object Model in Rust
 
-**What goes wrong:** Synchronous HTTP requests (reqwest blocking) or waiting for streaming tokens inside `update()` freezes the entire editor. The UI becomes unresponsive -- no scrolling, no tab switching, no cancel button works.
+**What goes wrong:** The GSD frontmatter parser (`extractFrontmatter` in frontmatter.cjs) builds nested objects on the fly -- keys are added dynamically, arrays are converted from objects mid-parse (lines 65-79), and values are untyped (string, array, or nested object). Direct translation to Rust leads to either `HashMap<String, serde_json::Value>` everywhere (losing type safety) or rigid structs that cannot handle the parser's fluid typing.
 
-**Why it happens:** egui is an immediate-mode GUI -- `update()` runs every frame. Any blocking call inside it stops the entire render loop. The current codebase already handles this correctly for WASM plugin calls (spawns `std::thread::spawn` in `logic.rs:95`), but the new native HTTP client introduces a different pattern: streaming requires *continuous* data flow, not a single fire-and-forget thread.
+**Why it happens:** In JavaScript, `current.obj[key] = value` works regardless of whether `value` is a string, array, or object. The parser even has a "promotion" pattern where an empty `{}` is discovered to be an array when a `- item` line appears, and the parent's reference is retroactively swapped (lines 65-79). This pattern has no natural Rust equivalent.
 
-**Consequences:** Complete UI freeze during AI responses. Users can't cancel, can't switch tabs, can't even close the window. On Linux/Wayland the window manager may flag the app as "not responding."
+**Consequences:**
+- `unwrap()` panics on unexpected value types
+- Verbose match/if-let chains that are harder to maintain than the original JavaScript
+- The "object-to-array promotion" pattern requires mutating a parent through a child reference, which violates Rust's borrowing rules
 
 **Prevention:**
-1. Use `std::thread::spawn` + `mpsc::channel` for the HTTP streaming thread (project already uses this pattern)
-2. The streaming thread reads NDJSON lines from reqwest and sends individual tokens/chunks via `mpsc::Sender<StreamEvent>`
-3. In `update()`, use `try_recv()` in a loop (drain all available tokens per frame) -- never `recv()` (blocking)
-4. Call `ctx.request_repaint()` from the streaming thread after sending each chunk (egui Context is `Send + Sync`)
-5. Do NOT introduce tokio -- the project uses std threads and mpsc channels consistently. Adding an async runtime would create a parallel execution model that conflicts with existing patterns.
+- Define a `FrontmatterValue` enum: `String(String)`, `Array(Vec<FrontmatterValue>)`, `Map(IndexMap<String, FrontmatterValue>)`, `Number(i64)`, `Bool(bool)`, `Null`
+- Implement `From<FrontmatterValue>` for `serde_json::Value` and vice versa for JSON output compatibility
+- Handle the "object-to-array promotion" by using indices into a flat arena instead of nested references. When promotion happens, replace the value at the known index rather than chasing parent references
+- Write the parser as a two-pass process: first pass identifies structure (which keys are objects vs arrays), second pass fills values. This eliminates the retroactive type-changing pattern entirely
 
-**Detection:** If `update()` takes >16ms, the frame budget is blown. Monitor with `egui::Frame` profiling. Any `recv()` call (not `try_recv()`) in UI code is a red flag.
+**Detection:** More than 3 `.unwrap()` or `.expect()` calls in a single function operating on parsed frontmatter data means the type model is wrong.
 
-**Phase:** Must be correct from the very first streaming implementation (Phase 1).
+**Phase relevance:** Must be solved in the first implementation phase (frontmatter parser). Everything depends on this data model.
 
 ---
 
-### Pitfall 2: Approval state machine race conditions
+### Pitfall 2: Regex-Heavy Markdown Parsing (20+ Patterns in state.cjs)
 
-**What goes wrong:** The approval UI shows stale data, processes responses for the wrong action, or gets stuck in a "waiting for approval" state that never resolves. The agent thread blocks on `mpsc::Receiver::recv()` waiting for user response, but the UI either never renders the approval dialog or renders it then drops the sender.
+**What goes wrong:** The GSD state module uses 20+ regex patterns to extract, replace, and match fields in STATE.md. Patterns are constructed dynamically from user input (e.g., `new RegExp(\`\\*\\*${escaped}:\\*\\*\\s*(.+)\`, 'i')`). In Rust, `regex::Regex::new()` is fallible and expensive to compile. The `stateExtractField` function alone is called 15+ times in `buildStateFrontmatter` and `cmdStateSnapshot`.
 
-**Why it happens:** The current approval mechanism (`PluginApprovalRequest` in `types.rs:149`) uses a one-shot `mpsc::Sender` passed through `AppAction`. The approval dialog takes ownership of the sender (`ws.pending_plugin_approval.take()`). If the dialog is re-rendered before the user clicks (which happens every frame in egui), the sender gets moved back into the `Option` on the "not handled" path (`approval.rs:81`). This is a fragile pattern:
-- If the AI Chat window is closed while approval is pending, the sender is dropped, and the agent thread gets a `RecvError` -- which may or may not be handled gracefully
-- If the workspace switches or the window is minimized, the dialog doesn't render, the sender stays in `pending_plugin_approval` but no UI drives it
-- Multiple rapid tool calls can queue approvals in `AppAction`, but `pending_plugin_approval` is a single `Option` -- second approval overwrites the first
+**Why it happens:** JavaScript's `.match()` returns null (not error) for failed patterns, regex compilation is implicit and cached by the engine. Developers port these patterns 1:1 into Rust without considering:
+1. `Regex::new()` returns `Result` and can fail on malformed patterns
+2. Recompiling regex per call is expensive -- 15 compilations per snapshot operation
+3. The `stateExtractField` function is defined TWICE in state.cjs (line 12 and line 184), with slight differences -- which version to port?
 
-**Consequences:** Agent thread hangs forever (deadlock). Or approval is sent for wrong action. Or approval dialog appears for 1 frame then vanishes. Users lose trust in the tool execution system.
+**Consequences:**
+- Performance regression: 20+ regex compilations per state operation
+- Panics on malformed field names that produce invalid regex
+- Duplicated function confusion during porting
 
 **Prevention:**
-1. Model approval as an explicit state machine enum: `Idle | WaitingForApproval { id, details, sender } | Approved | Denied`
-2. Queue approvals -- use `VecDeque<PendingApproval>` instead of `Option<PendingApproval>`
-3. Handle sender drop gracefully in the agent thread: treat `RecvError` as "Deny" and clean up
-4. Ensure the approval UI renders regardless of panel visibility -- if there's a pending approval, force the AI Chat visible or show a modal overlay
-5. Add a timeout on the agent side: if no response in 5 minutes, treat as Deny
-6. Test the "close window while approval pending" scenario explicitly
+- Replace regex-based field extraction with a line-by-line parser: STATE.md has a known structure (`**Field:** value` or `Field: value`). Use `str::starts_with("**")` + `str::find(":**")` instead of regex
+- For patterns that genuinely need regex (section extraction like `## Decisions`), use `OnceLock<Regex>` or `lazy_static!`
+- For dynamic patterns (field name interpolation), use `regex::escape()` -- not the manual `escapeRegex` function from core.cjs
+- Consolidate the two `stateExtractField` implementations into one canonical Rust function
 
-**Detection:** Agent thread stack trace shows it blocked on `recv()`. Or `pending_plugin_approval` is `Some(...)` but no approval dialog is rendering (invisible window, wrong tab, etc.).
+**Detection:** `grep -c "Regex::new" src/gsd/` returning more than 5 is a red flag. Most field extraction should be string operations.
 
-**Phase:** Must be redesigned when building the new native tool execution (Phase 2-3).
+**Phase relevance:** Core infrastructure phase. Must be resolved before state operations are built.
 
 ---
 
-### Pitfall 3: Context payload size explosion
+### Pitfall 3: Slash Command Parser Conflicts with Chat Input
 
-**What goes wrong:** The `AiContextPayload` (defined in `ai/types.rs`) includes full file contents of the active file, all open file paths, git status, Cargo.toml summary, build errors, and memory keys. As users work with large files or many tabs, this payload grows to hundreds of KB or even MB. Ollama local models have limited context windows (4K-128K tokens depending on model), and the context payload alone can consume the entire window.
+**What goes wrong:** User input starting with `/` could be a slash command (`/gsd state`), a file path (`/home/user/file.txt`), or natural language ("use /dev/null for testing"). The existing `ChatState` has a single `prompt: String` field with a direct path to `send_chat()` via the `AiProvider` trait. There is no routing layer between user input and the AI provider.
 
-**Why it happens:** `AiManager::generate_context()` includes `tab.content.clone()` for the active file (`ai/mod.rs:78`). No truncation, no size check, no relevance filtering. A 5000-line Rust file is ~150KB of text, which is ~40K tokens. Combined with conversation history (`ai_conversation: Vec<(String, String)>`) that grows unbounded, the payload quickly exceeds model limits.
+**Why it happens:** The existing chat flow is: user types prompt -> prompt sent to AI provider -> response streamed back. Adding slash commands requires intercepting input before it reaches the AI, but the interception must be precise enough to avoid eating legitimate messages.
 
-**Consequences:** Ollama returns truncated or garbage responses. API calls fail with context length errors. Token costs explode for paid providers. Response quality degrades as irrelevant context drowns the actual question.
+**Consequences:**
+- Users type `/home/user/path` and get "unknown command" errors
+- `/gsd` prefix conflicts if user discusses GSD in conversation
+- State inconsistency: command partially executes, error leaves chat with `loading = true` stuck
 
 **Prevention:**
-1. Implement a token budget system: allocate fixed portions (e.g., 30% for context, 50% for conversation, 20% for response)
-2. Truncate file content to a window around the cursor position (e.g., +/- 100 lines)
-3. Only include content for the active file, not all open files
-4. Implement conversation pruning: keep system prompt + last N messages, summarize older ones
-5. Add a context size indicator in the UI (like the current token counter `ai_in_tokens`)
-6. Make context components opt-in: let users toggle what gets included
+- Strict command syntax: `/command` must be at START of input AND followed by a space or end-of-string. `/gsd state` is a command; `/home/user` is not (no registered `home` command)
+- Implement `InputRouter` enum: `Command { name: String, args: Vec<String> }` | `ChatMessage { text: String }` with deterministic parsing
+- Register commands in a `HashMap<String, Box<dyn SlashCommand>>` -- unknown `/word` falls through to AI
+- **Critical:** Command execution must be atomic with respect to chat UI state. Before executing: set `loading = true`, after completion (success or error): set `loading = false` and append output. Never leave UI in intermediate state
+- Unknown `/word` should produce a non-blocking toast with "did you mean?" suggestions, then send to AI
 
-**Detection:** Log the serialized payload size before each API call. Alert if > 50KB. Monitor Ollama responses for truncation indicators.
+**Detection:** If the slash command parser and the AI send path share the same code path without an explicit routing decision, this pitfall is active.
 
-**Phase:** Phase 1 for basic truncation, Phase 2 for smart windowing.
+**Phase relevance:** Must be designed in architecture phase, implemented before any specific commands.
 
 ---
 
-### Pitfall 4: WASM-to-native migration breaking existing functionality
+### Pitfall 4: File-Based State Concurrency in GUI Context
 
-**What goes wrong:** During the transition from WASM plugins (extism) to native Rust code, the old and new systems interfere with each other. The WASM plugin system (`PluginManager`, `extism::Plugin`) has deep integration points: `HostContext`, `action_sender`, `egui_ctx`, 20+ host functions. Removing or modifying any of these while the new system isn't fully functional leaves users with no working AI.
+**What goes wrong:** GSD tools read and write `.planning/STATE.md`, `.planning/config.json`, and phase directory files. The PolyCredo editor uses `notify` for file watching. When a GSD command writes STATE.md, the file watcher fires, the UI tries to reload, and if another command is mid-write, the file is truncated or half-written. The JavaScript `writeStateMd` function (state.cjs:679) calls `syncStateFrontmatter` which re-parses and rewrites the ENTIRE file on every single field update.
 
-**Why it happens:** The WASM plugin system is load-bearing:
-- `logic.rs` sends queries through `plugin_manager.call()`
-- `render.rs` renders responses from `PluginResponse` AppActions
-- `approval.rs` handles approvals via `PluginApprovalRequest` AppActions
-- Host functions (`host/*.rs`) implement file read/write/search/exec
-- Settings store plugin configs in `settings.plugins` HashMap keyed by plugin ID
+**Why it happens:** The original GSD tools are CLI processes that run sequentially: read, modify, write, exit. No concurrent access. In a GUI app, multiple systems are alive simultaneously:
+1. GSD command executing in a background thread
+2. File watcher monitoring `.planning/`
+3. UI thread reading state for display
+4. User potentially running another command before the first finishes
 
-Replacing this incrementally is hard because the interface between UI and provider is tightly coupled through the AppAction/AppShared channel.
-
-**Consequences:** Users lose AI functionality during migration. Old and new systems fight over shared state. "It worked yesterday" regression bugs. Half-migrated state where some features use old path, others new.
+**Consequences:**
+- Torn reads: UI reads STATE.md while a command is writing (partial content, parse failure)
+- Watcher storms: writing STATE.md triggers watcher, which triggers reload, which triggers re-render
+- Lost updates: two concurrent commands both read STATE.md, modify different fields, second write overwrites first
 
 **Prevention:**
-1. Build the new provider trait and Ollama implementation as a completely separate module (`src/app/ai/providers/`)
-2. Keep the existing WASM path functional throughout -- new code runs in parallel, behind a feature flag or UI toggle
-3. Map the new provider's output to the SAME `AppAction` variants initially -- reuse `PluginResponse`, `PluginMonologue`, `PluginUsage`
-4. Only after the new provider works end-to-end, create a single "switch" commit that removes the WASM dependency
-5. Extract host functions into provider-agnostic tool implementations first, then wire them to both WASM and native callers
-6. Keep `extism` in Cargo.toml until the final removal phase -- don't fight dependency conflicts mid-migration
+- **Single writer:** All GSD state writes go through a `GsdStateManager` that serializes access via `mpsc::channel`. Commands send `StateAction` messages; the manager applies them sequentially
+- **Debounce watcher events** for `.planning/` directory with 200ms+ delay
+- **Never read state files in the UI render loop.** Cache state in memory (`GsdStateCache`), update only when the state manager signals a change
+- **Atomic writes:** Write to a tempfile in the same directory, then `std::fs::rename()` to the target path. Rename is atomic on same filesystem (POSIX guarantee)
+- **Exclude `.planning/` from the editor's file watcher** or add a dedicated handler that understands GSD state files
 
-**Detection:** Run both old and new AI providers in the same build. If the old one breaks, the migration is leaking.
+**Detection:** If `std::fs::read_to_string(".planning/STATE.md")` appears in any function called from the egui `update()` loop, this pitfall is active.
 
-**Phase:** Spans the entire milestone. Phase 1 builds new alongside old. Final phase removes old.
+**Phase relevance:** Must be solved in the state management phase, before any commands that write state.
+
+---
+
+### Pitfall 5: Blocking Git Operations Freeze the GUI
+
+**What goes wrong:** The GSD `cmdCommit` function (commands.cjs:216) calls `execGit` which uses `execSync` -- fully blocking. It stages files, runs commit (which may trigger pre-commit hooks), and reads the commit hash. This can take 1-30+ seconds. Direct Rust port using `std::process::Command::output()` blocks the calling thread.
+
+**Why it happens:** The existing codebase already has async git patterns (`fetch_git_branch`, `fetch_git_status` in `background.rs` using `spawn_task` + `mpsc::channel`). But developers porting GSD commands may not discover these patterns and instead write synchronous `Command::new("git")...output()` in the command handler, especially since the GSD JavaScript is synchronous.
+
+**Consequences:**
+- Editor freezes for 1-30 seconds during git commit
+- Pre-commit hooks that hang make the editor permanently unresponsive
+- User cannot cancel the operation
+- Contradicts project value: "Editor nesmi zahrivat notebook v klidovem stavu"
+
+**Prevention:**
+- **All git operations MUST use the existing `spawn_task` pattern** from `background.rs`
+- Return a `mpsc::Receiver<GitResult>` and poll it in the next frame with `try_recv()`
+- Add a cancellation token (`Arc<AtomicBool>`) consistent with the existing `cancellation_token` in `AiState`
+- Show a spinner/loading indicator in the chat during git operations
+- Implement a timeout (30 seconds default) with user-visible "operation timed out" message
+- **Never call `Command::new("git")...output()` on the main thread or in a synchronous command handler**
+- Create a reusable `GitExecutor` that wraps the async pattern, so each GSD command doesn't reinvent it
+
+**Detection:** `grep "Command::new.*git.*output()" src/gsd/` should return zero matches.
+
+**Phase relevance:** Must be enforced from the first command that touches git. Create the async git wrapper before implementing `cmdCommit`.
+
+---
 
 ## Moderate Pitfalls
 
-### Pitfall 5: egui repaint storm from streaming tokens
+### Pitfall 6: YAML Frontmatter Encoding Edge Cases
 
-**What goes wrong:** Each streaming token triggers `ctx.request_repaint()`, causing the editor to repaint at maximum speed (potentially 1000+ fps) during AI responses. This wastes CPU, increases power consumption, and contradicts the project's core value: "Editor nesmi zahrivat notebook v klidovem stavu."
-
-**Why it happens:** The obvious implementation calls `request_repaint()` after every token. egui's default behavior is to only repaint on input events. Streaming breaks this by producing continuous "events."
+**What goes wrong:** The GSD frontmatter parser assumes clean UTF-8 and uses simple string splitting. Real-world edge cases that silently break:
+- BOM (Byte Order Mark) at file start: `\xEF\xBB\xBF---\n` does not match `^---\n`
+- CRLF line endings (Windows): `\r\n` vs `\n` -- `split('\n')` leaves trailing `\r` in values
+- Values containing colons: `title: My: Complex: Title` -- must split on FIRST `: ` only
+- Values containing `---`: `description: Use --- as separator` triggers false frontmatter end
+- Quoted values: inconsistent quoting in GSD (`"value"` and `value` both valid)
+- Empty files, files with only frontmatter (no body after `---`), files without frontmatter
 
 **Prevention:**
-1. Batch token updates: accumulate tokens for 50-100ms, then send a single update + repaint request
-2. Use `request_repaint_after(Duration::from_millis(50))` instead of immediate `request_repaint()`
-3. In `update()`, drain all pending tokens from the channel in one pass, then render once
-4. After streaming ends, stop requesting repaints -- return to event-driven mode
-5. Consider a `streaming_active: bool` flag that switches between event-driven and periodic repaint modes
+- Strip BOM: `content.strip_prefix('\u{FEFF}').unwrap_or(content)`
+- Normalize line endings: `content.replace("\r\n", "\n")` before parsing
+- Use `splitn(2, ": ")` for key-value splitting (the JavaScript already handles this correctly)
+- The frontmatter end `---` regex is non-greedy (`[\s\S]+?`) which handles embedded `---` -- verify this in Rust's regex crate
+- Write a test suite with these 6+ edge cases BEFORE implementing the parser
 
-**Detection:** Monitor CPU usage during AI streaming. If it's >20% on a modern CPU just for text rendering, there's a repaint storm.
-
-**Phase:** Phase 1, alongside streaming implementation.
+**Phase relevance:** Frontmatter parser implementation phase. Tests first, then parser.
 
 ---
 
-### Pitfall 6: Provider trait over-engineering
+### Pitfall 7: Error Handling Philosophy Mismatch (process.exit vs Result)
 
-**What goes wrong:** The provider abstraction tries to be generic enough for Ollama, Claude API, Gemini, OpenAI, and hypothetical future providers. This leads to a trait with 15+ methods, complex associated types, and abstraction layers that make simple things hard. The trait becomes the bottleneck for every feature addition.
+**What goes wrong:** GSD JavaScript uses `process.exit(1)` for errors and `process.exit(0)` for success. Every `error()` call in core.cjs terminates the process. In a GUI app, there is no process to exit -- errors must be propagated to the UI as messages, toasts, or chat output. The JavaScript also has many silent `catch {}` blocks (e.g., state.cjs:29, phase.cjs:414) that swallow errors entirely.
 
-**Why it happens:** "We might need Claude support later" drives premature abstraction. Each provider has different authentication, streaming formats (NDJSON vs SSE vs WebSocket), tool calling schemas, and context window semantics.
+**Consequences:**
+- If ported literally, `process.exit` equivalent would be `std::process::exit` -- killing the entire editor
+- Silent `catch {}` blocks hide bugs that would surface as panics in Rust (e.g., file permission errors, disk full)
 
 **Prevention:**
-1. Start with a minimal trait: `fn send_message(&self, messages: Vec<Message>, tools: Vec<Tool>) -> Receiver<StreamEvent>` -- that's it
-2. Provider-specific configuration goes in the provider struct, not the trait
-3. `StreamEvent` enum: `Token(String) | ToolCall { name, args } | Done { usage } | Error(String)` -- covers all providers
-4. Don't abstract authentication -- each provider handles it internally
-5. Add methods to the trait only when the second provider actually needs them
-6. The current `AiMessage` and `AiConversation` types are already provider-agnostic -- reuse them
+- Define a `GsdError` enum: `FileNotFound(PathBuf)`, `ParseError(String)`, `GitError(String)`, `ValidationError(String)`, `ConfigError(String)`, `StateNotInitialized`
+- All GSD functions return `Result<GsdOutput, GsdError>`
+- Map `GsdError` to user-visible messages via the existing Toast system (`AppAction::ShowToast`) or chat output
+- **Never use `unwrap()` in GSD code.** Use `?` operator exclusively
+- Create a `GsdOutput` enum: `Json(serde_json::Value)`, `Text(String)`, `Markdown(String)`, `Table { headers: Vec<String>, rows: Vec<Vec<String>> }` for typed output
+- For JavaScript's silent `catch {}` blocks: explicitly decide per case whether to log warning, return default, or propagate error
 
-**Detection:** If adding Ollama support requires implementing more than 3-4 trait methods, the trait is over-engineered.
-
-**Phase:** Phase 1 design decision. Get it right before implementing.
+**Phase relevance:** First phase -- define error and output types before implementing any commands.
 
 ---
 
-### Pitfall 7: Ollama NDJSON streaming parser fragility
+### Pitfall 8: `Object.assign` / JSON.parse Patterns Without Direct Rust Equivalents
 
-**What goes wrong:** The Ollama API streams responses as newline-delimited JSON (NDJSON, `application/x-ndjson`). Each line is a complete JSON object. But network buffering can split JSON objects across TCP packets, or combine multiple objects in one read. A naive line-by-line parser breaks on partial reads.
+**What goes wrong:** GSD pervasively uses:
+- `Object.assign(fm, mergeData)` for shallow merge (frontmatter.cjs:270)
+- `try { JSON.parse(value) } catch { value }` for "parse if JSON, otherwise use as string" (frontmatter.cjs:255)
+- Dynamic property access: `fm[field]` where `field` is a runtime string
+- `Set` for deduplication (commands.cjs:101): `digest.tech_stack = new Set()`
 
-**Why it happens:** `reqwest`'s streaming body returns chunks at TCP packet boundaries, not JSON object boundaries. A single `chunk()` call might return half a JSON line, or two complete lines, or one and a half lines. Additionally, Ollama's streaming tool call support has known inconsistencies (GitHub issue #12557) -- tool_calls may arrive as a single non-streamed response even when `stream: true`.
+These patterns appear 30+ times across the codebase.
 
 **Prevention:**
-1. Use `reqwest::blocking::Response::bytes()` in chunks and buffer incoming data
-2. Split on newlines, but keep incomplete lines in a buffer for the next chunk
-3. Parse each complete line as a separate JSON object
-4. Handle the case where `tool_calls` arrive in a single message (not streamed) -- don't assume every response will be chunked
-5. Set `stream: true` in the request but handle both chunked and non-chunked responses
-6. Add a test with simulated partial JSON chunks
+- For `Object.assign`: Implement `merge(&mut self, other: &FrontmatterValue)` on the Map variant that overwrites matching keys
+- For "parse if JSON": Create `fn parse_loose(s: &str) -> FrontmatterValue` that tries `serde_json::from_str` first, falls back to string
+- For dynamic property access: Use `HashMap<String, FrontmatterValue>` with `.get()` and `.insert()`. This is the natural Rust equivalent
+- For `Set`: Use `HashSet<String>` or `IndexSet<String>` (preserves insertion order like JavaScript `Set`)
+- **Key insight:** Don't try to make Rust code "look like" the JavaScript. Identify the INTENT (merge, parse loosely, deduplicate) and use idiomatic Rust patterns for each
 
-**Detection:** Garbled output in the AI chat. JSON parse errors in logs. Missing tokens or duplicated text.
-
-**Phase:** Phase 1, core streaming implementation.
+**Phase relevance:** Throughout implementation. Establish these helper functions in the core module first.
 
 ---
 
-### Pitfall 8: Conversation history serialization mismatch
+### Pitfall 9: Command Registration and Dispatch Complexity
 
-**What goes wrong:** The current conversation history is stored as `Vec<(String, String)>` (prompt, response pairs) in `WorkspaceState`. The new system needs structured `AiMessage` objects (already defined in `ai/types.rs`) with roles, tool calls, tool results, and metadata. Migrating between these formats during the transition period causes data loss or rendering errors.
-
-**Why it happens:** The old format (`ai_conversation: Vec<(String, String)>`) is a simple tuple. The new format (`AiConversation` with `Vec<AiMessage>`) has tool_call_id, tool_result_for_id, and structured content. Converting between them is lossy -- tool interactions can't be reconstructed from simple strings.
+**What goes wrong:** GSD JavaScript has a flat dispatch in `gsd-tools.cjs` (592 lines of if/else on command names with 40+ subcommands). Porting this as a single `match` statement in Rust creates a massive function. Adding a new command requires modifying the central dispatch.
 
 **Prevention:**
-1. Switch `WorkspaceState` to use `AiConversation` from day one of the rewrite
-2. Don't try to migrate old conversations -- just start fresh with new format
-3. Keep the old rendering code (`AiChatWidget::ui_conversation`) working with the new data structure by implementing a compatibility adapter
-4. Design the new `AiMessage` to render both old-style text and new-style structured content
+- Use a trait-based command registry:
+  ```
+  trait SlashCommand: Send + Sync {
+      fn name(&self) -> &str;
+      fn aliases(&self) -> &[&str];
+      fn description(&self, i18n: &I18n) -> String;
+      fn execute(&self, args: &[&str], ctx: &mut GsdContext) -> Result<GsdOutput, GsdError>;
+  }
+  ```
+- Register commands at startup in a `Vec<Box<dyn SlashCommand>>`
+- Group GSD commands under `/gsd` prefix with sub-dispatch (matching the JavaScript's two-level routing: `gsd-tools.cjs` -> module function)
+- Each module (state, phase, frontmatter, etc.) provides a `register_commands(registry: &mut CommandRegistry)` function
+- This scales cleanly: adding a command = adding a struct + calling `registry.register(Box::new(MyCommand))`
 
-**Detection:** Tool call/result messages render as raw JSON in the chat. Or conversation history is empty after switching providers.
-
-**Phase:** Phase 1, data model change.
+**Phase relevance:** Architecture phase. Must be decided before any commands are implemented.
 
 ---
 
-### Pitfall 9: Tool execution security regression
+### Pitfall 10: Chat Conversation Model Not Designed for System Output
 
-**What goes wrong:** The WASM plugin system has security boundaries built-in: `Blacklist` for file access, `HostState` sandboxing, and explicit host function registration. When moving to native Rust tool execution, these boundaries are bypassed because native code has full system access. A "read file" tool with a path traversal bug can read `/etc/passwd`.
+**What goes wrong:** GSD commands produce structured output (JSON, tables, progress bars). The existing chat conversation is `Vec<(String, String)>` (user_input, ai_response pairs) in `ChatState`. GSD command output is neither user input nor AI response -- it is system/tool output. Trying to force it into the existing model creates rendering artifacts and breaks AI context.
 
-**Why it happens:** WASM plugins run in a sandboxed VM (extism/wasmtime). Native Rust code runs with the same permissions as the editor process. The security model must be reimplemented at the application level.
+**Why it happens:** The conversation model was designed for two-party dialogue. GSD commands introduce a third party (the system) that speaks in structured formats (tables, JSON, progress bars) rather than natural language.
+
+**Consequences:**
+- GSD output either appears as "AI response" (confusing) or is lost entirely
+- When conversation is sent to AI provider, GSD output pollutes the context with tables and JSON
+- No visual distinction between AI responses and command output
 
 **Prevention:**
-1. Port the `Blacklist` pattern matching from `security.rs` to the new tool executor
-2. All file operations must go through a path validation function that checks:
-   - Path is within project root
-   - Path doesn't match blacklist patterns
-   - Path doesn't contain `..` that escapes project root (canonicalize first)
-3. Command execution (`exec` tool) must use the same approval flow as the WASM version
-4. Keep the `auto_approved_actions: HashSet` pattern for "approve always" functionality
-5. Add integration tests that verify path traversal attacks are blocked
+- Extend conversation to `Vec<ChatEntry>`:
+  ```
+  enum ChatEntry {
+      UserMessage(String),
+      AiResponse { content: String, model: String },
+      CommandOutput { command: String, output: GsdOutput, timestamp: SystemTime },
+      SystemError { message: String },
+  }
+  ```
+- Render `CommandOutput` with different styling (monospace, different background, collapsible)
+- When building AI context: filter out `CommandOutput` entries or include only a one-line summary
+- This is a **breaking change** to the chat data model -- must be done before implementing visible commands
 
-**Detection:** Tool successfully reads/writes files outside project root. `exec` runs without approval dialog.
-
-**Phase:** Phase 2, when implementing native tool execution.
+**Phase relevance:** Must be addressed in the first phase, as a prerequisite for any command that produces output.
 
 ---
 
-### Pitfall 10: Markdown rendering performance with long conversations
+### Pitfall 11: `writeStateMd` Round-Trip Complexity
 
-**What goes wrong:** The AI chat renders conversation history using `egui_commonmark::CommonMarkViewer`. As conversations grow (50+ messages with code blocks), markdown parsing and layout computation happen every frame, causing visible lag and high CPU usage.
+**What goes wrong:** Every STATE.md write in JavaScript goes through `writeStateMd()` -> `syncStateFrontmatter()` which:
+1. Strips existing frontmatter
+2. Re-parses ALL fields from the markdown body (15+ regex calls)
+3. Rebuilds YAML frontmatter
+4. Writes the complete file
 
-**Why it happens:** Immediate-mode GUI re-renders everything every frame. Markdown parsing is expensive (regex, AST construction). The current code creates a new `CommonMarkViewer` for each render call (`approval.rs:208`, `render.rs`), and the `markdown_cache` helps but doesn't eliminate parsing overhead for long documents.
+This happens on every single field update (including `cmdStateAdvancePlan`, `cmdStatePatch`, `cmdStateRecordSession`). In Rust, this is expensive string processing repeated unnecessarily.
 
 **Prevention:**
-1. Pre-render markdown to egui layout once, cache the result, only re-render when content changes
-2. Virtualize the conversation list: only render messages visible in the scroll viewport
-3. For streaming messages, only re-parse the last message (the one being streamed), keep others cached
-4. Limit conversation display to last N messages, with "Load more" button
-5. Profile `CommonMarkViewer` performance with 100+ messages before optimizing
+- Cache the parsed state in a `GsdState` struct. Modify the struct in memory, serialize only when flushing to disk
+- Batch multiple field updates into a single write (`cmdStatePatch` already supports multi-field updates -- extend this pattern)
+- Consider whether frontmatter sync is needed at all in the embedded version. If the GUI has state in memory, the YAML frontmatter in STATE.md is redundant. Write only the markdown body; compute frontmatter on demand for external tool compatibility
+- If frontmatter sync is kept, do it on a timer (every 5 seconds) not on every mutation
 
-**Detection:** CPU usage stays elevated after streaming ends. Scrolling through long conversations is laggy. Frame time > 16ms during scroll.
+**Phase relevance:** State management implementation phase. Decide caching strategy early.
 
-**Phase:** Phase 3, after basic chat works. Optimize based on actual measurements.
+---
 
 ## Minor Pitfalls
 
-### Pitfall 11: Missing `request_repaint()` after background state changes
+### Pitfall 12: i18n Key Explosion for GSD Commands
 
-**What goes wrong:** Background threads update shared state (via `AppAction`), but the UI doesn't update until the user moves the mouse or types. AI responses appear "stuck" until interaction.
-
-**Prevention:** Every `AppAction` push from a background thread must be followed by `ctx.request_repaint()`. The `egui_ctx` is already stored in `PluginManager` -- ensure the new native provider also has access to it.
-
-**Phase:** Phase 1.
-
----
-
-### Pitfall 12: Hardcoded Czech strings in approval UI
-
-**What goes wrong:** The approval dialog (`approval.rs`) has hardcoded Czech strings: "Agent '{}' vyzaduje schvaleni akce", "Provest", "Schvalovat vzdy", "Zamitnout", "Odeslat", "Zrusit". The rest of the app uses fluent i18n. This will be inconsistent when the new AI chat is built.
-
-**Prevention:** Move all strings to fluent `.ftl` files in `locales/` from day one. Add i18n keys for all approval/tool-related UI text. The test `all_lang_keys_match_english` will enforce parity across all 5 languages.
-
-**Phase:** Phase 2, alongside approval UI rewrite.
-
----
-
-### Pitfall 13: Ollama connection failure handling
-
-**What goes wrong:** Ollama runs as a local server. If it's not running, not installed, or on a non-default port, the first API call fails silently or with a cryptic error. Users don't know what went wrong.
+**What goes wrong:** GSD commands add 50+ new i18n keys (command names, descriptions, help text, error messages) across 5 languages. The existing `all_lang_keys_match_english` test will fail repeatedly during development as keys are added incrementally.
 
 **Prevention:**
-1. Add a connection test on provider initialization (GET `/api/tags`)
-2. Show a clear error toast: "Ollama is not running. Start it with `ollama serve`"
-3. Make the Ollama URL configurable in settings (default: `http://localhost:11434`)
-4. The existing `ai_tool_available` HashMap and `spawn_ai_tool_check()` already check for CLI tools -- extend this to check Ollama connectivity
+- Add all i18n keys in English first, then batch-translate
+- Use prefix convention: `gsd-cmd-*` for commands, `gsd-err-*` for errors, `gsd-help-*` for help
+- Consider whether GSD structured output (tables, progress bars) should be localized -- the underlying data is in English markdown files, localizing it may cause confusion
+- Run the i18n parity test only in CI, not on every local build, to avoid blocking development
 
-**Phase:** Phase 1.
+**Phase relevance:** Each phase that adds commands needs its i18n pass.
 
 ---
 
-### Pitfall 14: Multi-viewport state desynchronization
+### Pitfall 13: Path Handling Differences (Node.js path vs Rust PathBuf)
 
-**What goes wrong:** The editor supports multiple viewports (windows) via `SecondaryWorkspace`. AI state (`ai_conversation`, `ai_loading`, `pending_plugin_approval`) lives in `WorkspaceState`, which is per-viewport. But `AppShared` (cross-viewport state) is accessed via `Arc<Mutex>`. If two viewports share a provider, one viewport's streaming can interfere with another's.
+**What goes wrong:** JavaScript `path.join` normalizes separators. Rust `PathBuf::join` does not resolve `..` (appends literally). GSD code uses `path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath)` which in Rust needs explicit handling.
 
 **Prevention:**
-1. Each workspace gets its own streaming channel and conversation state (already the case)
-2. Provider instances should be per-workspace, not shared globally
-3. The `PluginManager` is currently shared via `AppShared.registry.plugins` -- the new provider should NOT be shared the same way
-4. If settings change in one viewport (via `settings_version` AtomicU64), all viewports must update their provider configuration
+- Use `std::fs::canonicalize()` after joining (only for existing paths)
+- For new files: `parent.canonicalize()?.join(filename)`
+- Implement `toPosixPath` using `Path::components()` and rebuilding with `/`
+- `PathBuf::join` with an absolute path replaces the entire path (unlike JavaScript) -- use conditional logic explicitly
+- Create a `GsdPaths` helper with `resolve(cwd: &Path, file: &str) -> PathBuf` that encapsulates the pattern
 
-**Phase:** Phase 1 architecture decision.
+**Phase relevance:** Core utilities phase. Create early.
+
+---
+
+### Pitfall 14: `process.stdout.write` to Chat Output Mapping
+
+**What goes wrong:** GSD JavaScript uses `process.stdout.write(JSON.stringify(result))` as its output mechanism (core.cjs:35-51). In Rust, there is no stdout to write to -- output must be pushed into the chat conversation. If the mapping is not clean, some commands silently produce no visible output.
+
+**Prevention:**
+- Each command returns `Result<GsdOutput, GsdError>` -- the slash command dispatch is responsible for rendering output into the chat
+- The `raw` vs JSON output mode distinction from JavaScript disappears -- in the GUI, always use structured output
+- The "large payload to tmpfile" pattern (core.cjs:43-48) is irrelevant in the embedded version -- output goes to memory, not stdout
+
+**Phase relevance:** Implicit in the GsdOutput design (Pitfall 7).
+
+---
+
+### Pitfall 15: Directory Scanning Performance for Phase Operations
+
+**What goes wrong:** GSD phase operations (`cmdPhasesList`, `cmdProgressRender`, `cmdStateUpdateProgress`) scan the `.planning/phases/` directory, read all files, and extract frontmatter from each. The JavaScript version does this synchronously. In a GUI context, doing this on every `/gsd progress` command could cause noticeable delay on projects with many phases.
+
+**Prevention:**
+- Cache directory scan results in `GsdStateCache` with a TTL (5 seconds)
+- Invalidate cache when any file in `.planning/phases/` changes (via the file watcher)
+- For the initial implementation, synchronous scanning is acceptable -- profile and optimize only if measured latency exceeds 100ms
+
+**Phase relevance:** Phase/roadmap operations implementation. Not blocking, but keep in mind.
+
+---
 
 ## Phase-Specific Warnings
 
 | Phase Topic | Likely Pitfall | Mitigation |
 |-------------|---------------|------------|
-| Provider trait design | Over-engineering (Pitfall 6) | Start with 1-2 methods, grow as needed |
-| Ollama streaming | UI freeze (Pitfall 1), repaint storm (Pitfall 5), NDJSON parse (Pitfall 7) | Thread + channel + batched repaints |
-| Native tool execution | Security regression (Pitfall 9), approval state bugs (Pitfall 2) | Port blacklist, queue approvals, explicit state machine |
-| Conversation data model | History format mismatch (Pitfall 8) | Switch to AiMessage from day one |
-| Context integration | Payload bloat (Pitfall 3) | Token budget, cursor-windowed file content |
-| WASM removal | Breaking existing functionality (Pitfall 4) | Parallel operation, same AppAction variants |
-| Long conversations | Markdown rendering perf (Pitfall 10) | Virtualize list, cache rendered output |
-| i18n | Hardcoded strings (Pitfall 12) | All new strings go through fluent from start |
+| Core infrastructure (GsdError, GsdOutput, GsdPaths) | Pitfall 7, 13, 14 | Define error types, output types, and path helpers first. Everything depends on these. |
+| Frontmatter parser | Pitfall 1, 6, 8 | Build as state machine, not JavaScript port. Test edge cases first. Two-pass approach eliminates object-to-array promotion. |
+| Chat model extension | Pitfall 10 | Extend ChatEntry enum BEFORE implementing any visible commands. Breaking change to conversation model. |
+| Slash command dispatch | Pitfall 3, 9 | Trait-based registry with prefix routing. Solve input routing before adding commands. |
+| State operations (state.cjs port) | Pitfall 2, 4, 8, 11 | Single-writer pattern, in-memory cache, atomic writes. Replace regex with line-by-line parsing. Heaviest integration work. |
+| Git operations (commit, branch) | Pitfall 5 | Async wrapper using existing `spawn_task` pattern. Non-negotiable. Create GitExecutor before any git commands. |
+| Phase/Roadmap operations | Pitfall 15, 8 | Directory scanning with caching. Profile before optimizing. |
+| i18n pass | Pitfall 12 | Batch after each command group. Use `gsd-*` prefix convention. |
+
+---
 
 ## Sources
 
-- [egui + tokio discussion](https://github.com/emilk/egui/discussions/521) - Threading patterns for async in egui (HIGH confidence)
-- [egui async discussions](https://github.com/emilk/egui/discussions/2010) - Community patterns for async data (HIGH confidence)
-- [egui_inbox crate](https://docs.rs/egui_inbox) - Channel for async-to-egui communication (MEDIUM confidence)
-- [Ollama streaming docs](https://docs.ollama.com/api/streaming) - NDJSON streaming format (HIGH confidence)
-- [Ollama streaming tool calls blog](https://ollama.com/blog/streaming-tool) - Tool calling with streaming (HIGH confidence)
-- [Ollama tool calling streaming issue #12557](https://github.com/ollama/ollama/issues/12557) - Known inconsistencies (HIGH confidence)
-- [NDJSON parse errors in Ollama clients](https://github.com/code-yeongyu/oh-my-opencode/issues/1122) - Real-world parsing bugs (MEDIUM confidence)
-- [LLM tool calling in production](https://medium.com/@komalbaparmar007/llm-tool-calling-in-production-rate-limits-retries-and-the-infinite-loop-failure-mode-you-must-2a1e2a1e84c8) - Infinite loop failure mode (MEDIUM confidence)
-- [Multi-agent LLM race conditions](https://medium.com/@bhagyarana80/llm-agents-and-race-conditions-debugging-multi-tool-ai-with-langgraph-b0dcbf14fa67) - State synchronization issues (MEDIUM confidence)
-- Project source code analysis: `src/app/ai/`, `src/app/registry/plugins/`, `src/app/ui/terminal/ai_chat/` (HIGH confidence)
+- GSD tools source: `~/.claude/get-shit-done/bin/lib/*.cjs` (5,421 LOC, 11 modules) -- direct analysis, HIGH confidence
+- GSD entry point: `~/.claude/get-shit-done/bin/gsd-tools.cjs` (592 LOC) -- direct analysis, HIGH confidence
+- PolyCredo Editor: `src/app/cli/executor.rs` (tool execution patterns), `src/app/cli/state.rs` (AiState/ChatState), `src/app/ui/background.rs` (async git patterns) -- direct analysis, HIGH confidence
+- Rust `regex` crate compilation cost: well-documented in crate docs, recommend `OnceLock` for static patterns -- HIGH confidence
+- POSIX `rename()` atomicity: established guarantee on same-filesystem operations (Linux, macOS) -- HIGH confidence
+- egui immediate-mode rendering model: verified from existing codebase patterns and egui documentation -- HIGH confidence
+- Previous milestone pitfalls (v1.2.0): `.planning/research/PITFALLS.md` from 2026-03-06 -- patterns from Pitfall 1 (UI blocking) and Pitfall 5 (repaint storms) remain relevant for GSD git and state operations

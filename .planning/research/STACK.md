@@ -1,295 +1,211 @@
-# Technology Stack: AI Chat Rewrite
+# Technology Stack
 
-**Project:** PolyCredo Editor v1.2.0
-**Researched:** 2026-03-06
-**Focus:** Stack additions for native AI Chat with Ollama provider, streaming, approval UI, editor context
-
-## Current Stack (DO NOT change)
-
-Already validated and shipping: `eframe/egui 0.31`, `syntect 5`, `egui_term 0.1`, `fluent-bundle 0.15`, `notify 7`, `rfd 0.15`, `pulldown-cmark 0.12`, `egui_commonmark 0.20`, `tokio 1` (rt-multi-thread), `serde/serde_json 1`, `anyhow 1`.
-
----
+**Project:** PolyCredo Editor v1.2.1 -- GSD Integration + Slash Commands
+**Researched:** 2026-03-07
+**Scope:** NEW dependencies only. Existing stack (eframe/egui, syntect, egui_term, ureq, serde_json, fluent, globset, regex, walkdir) is validated and NOT re-evaluated.
 
 ## Recommended Stack Additions
 
-### HTTP Client: reqwest
+### Zero New Dependencies Required
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `reqwest` | `0.12` | HTTP client for Ollama API | Async-native, tokio-compatible (tokio uz v projektu), streaming pres `bytes_stream()`, de-facto standard v Rust ekosystemu. Projekt uz ma tokio runtime -- ureq (sync-only) by vyzadoval spawn_blocking a nema streaming support. |
+The critical finding of this research: **no new crate dependencies are needed** for the GSD port. Every GSD capability maps cleanly to existing dependencies or the Rust standard library.
 
-**Features to enable:** `json`, `stream`, `rustls-tls`
+| Capability | Node.js Original | Rust Solution | New Dep? |
+|------------|-----------------|---------------|----------|
+| YAML-like frontmatter | Hand-rolled parser | Hand-rolled parser (same approach) | NO |
+| JSON config CRUD | `fs` + `JSON.parse` | `serde_json` (already in Cargo.toml) | NO |
+| Markdown section extraction | Regex-based | `regex` (already in Cargo.toml) | NO |
+| Git operations (add, commit, check-ignore) | `child_process.execSync` | `std::process::Command` (already used in background.rs) | NO |
+| File system operations | `fs` module | `std::fs` + `walkdir` (already in Cargo.toml) | NO |
+| Path manipulation | `path` module | `std::path` | NO |
+| Glob pattern matching | N/A | `globset` (already in Cargo.toml) | NO |
+| Date/time formatting | `new Date().toISOString()` | `std::time::SystemTime` + manual ISO format | NO |
+| Slug generation | Hand-rolled regex | `regex` (already in Cargo.toml) | NO |
+| Template interpolation | String replace | `str::replace` chains | NO |
+| Slash command dispatch | N/A (new feature) | Trait + enum dispatch | NO |
+| AI model integration | N/A (new feature) | Existing `AiProvider` trait + `ureq` | NO |
 
-**Confidence:** HIGH -- reqwest 0.12 je stabilni, aktivne udrzovany, tokio-kompatibilni. Projekt uz pouziva tokio s `rt-multi-thread`.
+### Rationale: Why NOT Add Dependencies
 
-**Why NOT ureq:** Projekt uz ma tokio runtime. ureq je synchronni, nepodporuje streaming, vyzadoval by `spawn_blocking` wrapper. reqwest je prirozena volba kdyz tokio uz existuje.
+#### YAML Parser (serde_yml, yaml-rust2) -- NOT NEEDED
 
-**Why NOT hyper primo:** Prilis low-level. reqwest je wrapper nad hyper s ergonomickym API pro JSON, streaming, headers.
+The GSD frontmatter is NOT arbitrary YAML. It's a constrained subset:
+- Simple `key: value` pairs
+- Inline arrays `[a, b, c]`
+- Block arrays with `- item`
+- Max 3 levels of nesting
+- No anchors, aliases, tags, or multi-document streams
 
-### Streaming: No extra crate needed
+The Node.js code hand-parses this with 84 lines of code (`extractFrontmatter()` in frontmatter.cjs). A Rust port will be ~100-120 lines using string splitting and `regex`. Adding `serde_yml` (successor to deprecated `serde_yaml`) or `yaml-rust2` would:
+1. Add unnecessary compile time (~5-8s incremental)
+2. Pull in transitive dependencies
+3. Be overkill -- we need parse/reconstruct for a fixed format, not arbitrary YAML
+4. Violate the project constraint: "Bez externich zavislosti: Nechceme pridavat nove heavy dependencies"
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| (reqwest built-in) | -- | NDJSON stream parsing | Ollama API vraci newline-delimited JSON (NDJSON). `response.bytes_stream()` + manualni line splitting staci. Neni treba `reqwest-streams` -- ten pridava overhead pro CSV/Protobuf ktere nepotrebujeme. |
+**Confidence:** HIGH -- verified by reading all 299 lines of frontmatter.cjs.
 
-**Streaming pattern pro Ollama:**
+#### git2 Crate -- NOT NEEDED
+
+The GSD git operations are trivial (from `core.cjs::execGit()` and `commands.cjs::cmdCommit()`):
+- `git add .planning/` (stage files)
+- `git commit -m "message"` (commit)
+- `git check-ignore --no-index -- path` (check gitignore)
+- `git rev-parse --short HEAD` (get hash)
+
+The project already uses `std::process::Command::new("git")` in `background.rs` lines 701, 762 for git status. The `git2` crate (v0.20.x, wraps libgit2) would add:
+1. Native C library dependency (libgit2 1.9+)
+2. ~15-20s compile time
+3. Complex cross-compilation for packaging targets
+4. Overkill for 4 simple shell commands
+
+**Confidence:** HIGH -- verified by reading commands.cjs `cmdCommit()` and core.cjs `execGit()`.
+
+#### chrono Crate -- NOT NEEDED
+
+GSD uses dates in exactly two formats:
+- ISO date: `YYYY-MM-DD` (for `today` fields in STATE.md, frontmatter)
+- ISO datetime: `YYYY-MM-DDTHH:MM:SS.sssZ` (for timestamps)
+
+A helper function using `std::time::SystemTime` + `UNIX_EPOCH` arithmetic produces both formats in ~20 lines. The project already uses `std::time` throughout (Instant, Duration). No `chrono` anywhere in existing codebase.
+
+**Confidence:** HIGH.
+
+## Integration Points with Existing Stack
+
+### 1. Slash Command System -- Pure Rust, No Dependencies
+
+```
+SlashCommand trait
+  -> name() -> &str
+  -> aliases() -> Vec<&str>
+  -> execute(args: &str, ctx: &mut CommandContext) -> CommandResult
+  -> help() -> &str
+  -> completions(partial: &str) -> Vec<String>
+
+SlashRegistry (HashMap<String, Box<dyn SlashCommand>>)
+  -> register(handler)
+  -> dispatch(input: &str) -> Option<CommandResult>
+```
+
+Integration: Called from the existing CLI chat input handler in `src/app/cli/mod.rs`. When user types `/gsd state`, the registry dispatches before sending to AI provider. Output renders as markdown in the existing chat UI via `egui_commonmark`.
+
+**CommandResult** enum:
+- `Output(String)` -- markdown text to display in chat
+- `Silent` -- command executed, no visible output
+- `Error(String)` -- error message to display
+- `AiRequest { system_prompt, user_prompt }` -- delegate to AI provider
+
+### 2. GSD Tools Port -- serde_json + regex + std::fs
+
+All 11 Node.js modules (5,421 LOC total) map to a single `src/app/gsd/` module tree:
+
+| Node.js Module | LOC | Rust Module | Key Dependencies Used |
+|----------------|-----|-------------|----------------------|
+| core.cjs | 492 | `gsd/core.rs` | `regex`, `std::fs`, `std::process::Command`, `serde_json` |
+| config.cjs | 169 | `gsd/config.rs` | `serde_json`, `serde` (derive), `std::fs` |
+| frontmatter.cjs | 299 | `gsd/frontmatter.rs` | `regex`, `serde_json::Value` |
+| state.cjs | 721 | `gsd/state.rs` | `regex`, `std::fs`, `serde_json` |
+| phase.cjs | 901 | `gsd/phase.rs` | `regex`, `std::fs`, `walkdir` |
+| roadmap.cjs | 298 | `gsd/roadmap.rs` | `regex`, `std::fs` |
+| commands.cjs | 548 | `gsd/commands.rs` | `std::process::Command`, `serde_json`, `walkdir` |
+| verify.cjs | 820 | `gsd/verify.rs` | `regex`, `std::fs`, `walkdir` |
+| init.cjs | 710 | `gsd/init.rs` | `std::fs`, `serde_json` |
+| milestone.cjs | 241 | `gsd/milestone.rs` | `std::fs`, `regex` |
+| template.cjs | 222 | `gsd/template.rs` | `regex`, `std::fs` |
+| gsd-tools.cjs | 592 | `gsd/mod.rs` (dispatch) | Enum-based command dispatch |
+
+**Expected Rust LOC:** ~4,000-5,000 (Rust is more verbose in error handling but more concise in pattern matching).
+
+### 3. AI Model Integration for GSD -- Existing AiProvider Trait
+
+GSD workflow commands that need AI (e.g., research, roadmap generation) use the existing infrastructure:
+
+- `AiProvider` trait (src/app/cli/provider.rs) -- already supports streaming + tools
+- `OllamaProvider` (src/app/cli/ollama.rs) -- already implements NDJSON streaming
+- `ureq` HTTP client -- already used for Ollama API calls
+- `std::thread` + `std::sync::mpsc` -- existing threading model
+
+The integration pattern:
+1. GSD slash command returns `CommandResult::AiRequest { system_prompt, user_prompt }`
+2. CLI chat handler builds messages with the system prompt
+3. Calls existing `provider.chat_stream()` via `ProviderConfig`
+4. Collects streamed response through existing `StreamEvent` channel
+5. AI response displayed in chat, optionally parsed and written to `.planning/` files
+
+**Key decision:** No async runtime changes needed. The `ureq` + `std::thread` model (established in v1.2.0, replacing the proposed reqwest approach) works perfectly for GSD. The AI calls are fire-and-forget from the main thread -- the background thread handles blocking HTTP.
+
+**Confidence:** HIGH -- this is exactly the pattern already working in the shipped v1.2.0 AI chat.
+
+### 4. Date/Time Utility -- std::time Only
 
 ```rust
-// reqwest bytes_stream() + rucni NDJSON parsing
-let response = client.post(url).json(&request).send().await?;
-let mut stream = response.bytes_stream();
-let mut buffer = String::new();
+use std::time::{SystemTime, UNIX_EPOCH};
 
-while let Some(chunk) = stream.next().await {
-    let chunk = chunk?;
-    buffer.push_str(&String::from_utf8_lossy(&chunk));
+pub fn iso_date_today() -> String {
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let days = secs / 86400;
+    // Calculate year/month/day from days since epoch
+    // ~15 lines of civil calendar arithmetic
+    format!("{:04}-{:02}-{:02}", year, month, day)
+}
 
-    // NDJSON: kazdy radek je kompletni JSON objekt
-    while let Some(newline_pos) = buffer.find('\n') {
-        let line = buffer[..newline_pos].trim().to_string();
-        buffer = buffer[newline_pos + 1..].to_string();
-        if line.is_empty() { continue; }
-
-        let chunk: OllamaStreamChunk = serde_json::from_str(&line)?;
-        // Poslat pres channel do UI threadu
-        let _ = tx.send(StreamEvent::Token(chunk.message.content));
-    }
+pub fn iso_datetime_now() -> String {
+    // Same + hours/minutes/seconds
+    format!("{}T{:02}:{:02}:{:02}Z", iso_date_today(), h, m, s)
 }
 ```
 
-**Confidence:** HIGH -- Ollama dokumentace potvrzuje NDJSON format. reqwest `bytes_stream()` je stabilni feature.
-
-### Async-to-UI Bridge: tokio channels
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `tokio::sync::mpsc` | (uz v projektu) | Stream tokenu z async tasku do egui UI | Unbounded channel. Async task posila tokeny, UI thread je drainuje kazdy frame. Lepsi nez `std::sync::mpsc` protoze funguje v async i sync kontextu. |
-| `egui::Context::request_repaint()` | (uz v projektu) | Probuzeni UI pri novem tokenu | Volat po kazdem `tx.send()` aby egui okamzite prekreslil. Bez toho by streaming vypadal trhane (egui defaultne prekresli jen pri interakci). |
-
-**Pattern:**
-
-```rust
-// V async tasku:
-let _ = tx.send(StreamEvent::Token(text));
-ctx.request_repaint(); // Probudit egui
-
-// V UI kodu (kazdy frame):
-while let Ok(event) = rx.try_recv() {
-    match event {
-        StreamEvent::Token(t) => accumulated_text.push_str(&t),
-        StreamEvent::Done => is_loading = false,
-        StreamEvent::Error(e) => show_error(e),
-    }
-}
-```
-
-**Confidence:** HIGH -- Toto je standardni egui pattern pro async operace. Potvrzeno v egui diskuzich a prikladech (parasyte/egui-tokio-example).
-
-### Chat UI Rendering: egui_commonmark (uz v projektu)
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `egui_commonmark` | `0.20` (uz v Cargo.toml) | Markdown rendering v chat odpovedi | Uz v projektu s `better_syntax_highlighting` feature. Pouzit pro formatovani AI odpovedi -- code blocky, nadpisy, seznamy. |
-| `egui::ScrollArea` | (soucasti egui) | Scrollovatelna historie chatu | `stick_to_bottom(true)` pro auto-scroll pri streamingu. Variable-height polozky (zpravy maji ruznou delku). |
-
-**Neni treba:** Zadna nova UI knihovna. egui ma vse potrebne -- `ScrollArea`, `TextEdit`, `RichText`, `CollapsingHeader` pro approval UI.
-
-**Confidence:** HIGH -- egui_commonmark uz v projektu funguje.
-
----
-
-## Provider Abstraction: Pure Rust trait
-
-Zadna nova knihovna. Ciste Rust trait + async_trait.
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `async-trait` | `0.1` | Async metody v trait definicich | Rust edition 2024 ma RPITIT ale neni plne kompatibilni s `dyn` dispatch (Box<dyn AiProvider>). `async-trait` je de-facto standard pro dynamicky dispatch s async metodami. |
-
-**Navrh trait hierarchie:**
-
-```rust
-#[async_trait::async_trait]
-pub trait AiProvider: Send + Sync {
-    fn id(&self) -> &str;
-    fn display_name(&self) -> &str;
-    fn default_model(&self) -> &str;
-
-    async fn send_streaming(
-        &self,
-        request: ChatRequest,
-        tx: tokio::sync::mpsc::UnboundedSender<StreamEvent>,
-        cancel: Arc<AtomicBool>,
-    ) -> Result<(), ProviderError>;
-
-    fn available_models(&self) -> Vec<String> { vec![] }
-    fn supports_tools(&self) -> bool { false }
-    fn supports_reasoning(&self) -> bool { false }
-}
-```
-
-**Why trait-based:** Soucasny kod pouziva WASM plugin s `extism` -- kazdy provider je separatni WASM modul. To pridava rezii (WASM runtime, serializace, omezeni na sync HTTP). Nativni trait umozni:
-- Primo streaming (WASM neumi streamy)
-- Primo pristup k host functions (zadna serializace)
-- Snadne testovani (mock implementace)
-- Rozsirovatelnost pro Claude/Gemini bez WASM buildu
-
-**Confidence:** HIGH -- Standardni Rust pattern.
-
----
-
-## Ollama API Integration Details
-
-**Endpoint:** `POST /api/chat`
-**Format:** NDJSON streaming (default), single JSON s `"stream": false`
-**Port:** 11434 (default, konfigurovatelny pres `OLLAMA_HOST`)
-
-**Klicove parametry:**
-- `model`: nazev modelu (povinny)
-- `messages`: pole `{role, content, tool_calls?, tool_call_id?}`
-- `tools`: pole tool definic (type: "function")
-- `stream`: bool (default true)
-- `options`: `{temperature, num_ctx, ...}`
-
-**Streaming response chunk:**
-```json
-{"model":"llama3.1","created_at":"...","message":{"role":"assistant","content":"token"},"done":false}
-```
-
-**Final chunk (done=true) obsahuje:** `prompt_eval_count`, `eval_count` (token usage)
-
-**Tool calling:** Podporovan, vcetne streaming tool calls (od Ollama 0.5+). Response s tool_calls ma `message.tool_calls` pole.
-
-**Confidence:** HIGH -- Potvrzeno z oficialni Ollama dokumentace.
-
----
-
-## What NOT to Add
-
-| Library | Why NOT |
-|---------|---------|
-| `ureq` | Sync-only, projekt uz ma tokio. Zadne streaming. |
-| `reqwest-streams` | Overkill -- NDJSON parsing je trivialni (~10 radku kodu). |
-| `eventsource-client` / `sse` crate | Ollama nepouziva SSE (Server-Sent Events). Pouziva NDJSON. |
-| `ollama-rs` | Vysokourovnovy wrapper -- pridava abstrakci nad jednoduche API. Vlastni trait abstrakce je flexibilnejsi a umozni snadne pridani Claude/Gemini. |
-| `egui-async` | Zbytecna abstrakce. tokio channels + request_repaint() staci. |
-| `tui` / `ratatui` | Editor uz ma vlastni terminal rendering. CLI-style chat je egui widget, ne skutecny TUI. |
-| Nova markdown knihovna | `egui_commonmark 0.20` uz v projektu, pokryva code blocky, seznamy, nadpisy. |
-
----
-
-## What to REMOVE (eventually)
-
-| Library | Why Remove | When |
-|---------|-----------|------|
-| `extism 1.5` | WASM plugin runtime -- nahrazeno nativnimi providery | Po migraci vsech provideru |
-| `candle-core/nn/transformers 0.9` | ML inference -- pouzivano pro semantic embeddingy | Overit zda se embeddingy presmeruji na Ollama API (POST /api/embed) |
-| `hf-hub 0.4` | HuggingFace model download -- spojeno s candle | Overit ve fazi planovani |
-| `tokenizers 0.21` | Tokenizace pro candle | Overit ve fazi planovani |
-
----
-
-## Installation
-
-```toml
-# Novy v Cargo.toml [dependencies]
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
-async-trait = "0.1"
-
-# POZNAMKA: futures-util je potreba pro StreamExt (bytes_stream iteration)
-futures-util = "0.3"
-
-# Uz existuje, bez zmeny:
-# tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util"] }
-# serde = { version = "1", features = ["derive"] }
-# serde_json = "1"
-# anyhow = "1"
-```
-
-**TLS poznamka:** Pouzit `rustls-tls` misto `default-tls` (nativni openssl). Duvody:
-1. Projekt uz bezi na Linuxu kde openssl muze byt problem pri cross-compilation
-2. rustls je pure Rust, zadna C dependency
-3. Pro lokalni Ollama (localhost) TLS neni potreba, ale pro budouci Claude/Gemini API ano
-
-**Tokio features:** Projekt uz ma `rt-multi-thread`, `macros`, `process`, `io-util`. Moze byt potreba pridat `sync` feature pro `mpsc` channels -- overit pri implementaci.
-
----
-
-## Integration Points
-
-### 1. Async Runtime
-Projekt uz ma `tokio` s `rt-multi-thread`. reqwest ho pouzije automaticky. Zadny novy runtime.
-
-### 2. Stavajici AI Chat kod
-Soucasny flow: `logic.rs` spousti `std::thread::spawn` -> vola WASM plugin pres `extism` -> vraci vysledek pres `AppAction::PluginResponse`.
-
-**Novy flow:**
-1. `logic.rs` spawne tokio task (misto `std::thread::spawn`)
-2. Tokio task vola `provider.send_streaming()` s `mpsc::UnboundedSender`
-3. UI thread kazdy frame drainuje `mpsc::UnboundedReceiver`
-4. Streaming tokeny se akumuluji v `WorkspaceState.ai_streaming_buffer`
-
-### 3. Approval UI
-Tool calls (read_file, write_file, exec) prichazi jako `StreamEvent::ToolCall`. UI zobrazi approval dialog. Uzivatel schvali/odmitne. Vysledek se posle zpet do async tasku pres `oneshot` channel.
-
-```rust
-enum StreamEvent {
-    Token(String),
-    Reasoning(String),
-    ToolCall {
-        id: String,
-        name: String,
-        args: serde_json::Value,
-        response_tx: oneshot::Sender<ToolResult>,
-    },
-    Usage { prompt_tokens: u64, completion_tokens: u64 },
-    Done,
-    Error(String),
-}
-```
-
-### 4. egui Rendering
-- `ScrollArea::vertical().stick_to_bottom(true)` pro chat historii
-- `egui_commonmark` pro formatovane odpovedi (code blocky, markdown)
-- `RichText` s monospace font pro CLI-style prompt
-- `CollapsingHeader` pro reasoning/monologue sekce
-
-### 5. Soucasny WASM plugin kod (co se zachova)
-Datove struktury v `src/plugins/ollama/src/lib.rs` (OllamaRequest, Message, Tool, ToolCall, AiContextPayload) jsou dobre navrzene a mohou se primo prevzit do nativniho provideru. Tool handling logika (read_project_file, write_file, exec, atd.) se presune z WASM host functions na primo Rust volani.
-
----
+This matches the existing codebase pattern (no chrono anywhere).
 
 ## Alternatives Considered
 
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
-| HTTP Client | reqwest 0.12 | ureq 3.x | Sync-only, no streaming, tokio uz v projektu |
-| HTTP Client | reqwest 0.12 | hyper primo | Prilis low-level, reqwest je ergonomicky wrapper |
-| Ollama SDK | Vlastni trait | ollama-rs | Prilis specificke, neumozni snadne pridani jinych provideru |
-| Async trait | async-trait 0.1 | RPITIT (nativni) | Neni plne kompatibilni s dyn dispatch; async-trait je bezpecnejsi volba |
-| Streaming bridge | tokio mpsc | crossbeam | Neni async-aware, tokio mpsc je prirozena volba s tokio runtime |
-| Chat markdown | egui_commonmark 0.20 | Vlastni parser | Uz v projektu, funguje, zbytecna duplikace |
+| Frontmatter parsing | Hand-rolled | `serde_yml` 0.0.12 | Overkill, heavy dep, GSD format is fixed subset |
+| Frontmatter parsing | Hand-rolled | `yaml-rust2` 0.9 | Better than serde_yml but still unnecessary |
+| Git operations | `std::process::Command` | `git2` 0.20 | Requires libgit2 native lib, overkill for 4 commands |
+| Date formatting | `std::time` manual | `chrono` 0.4 | Heavy for two format strings |
+| CLI arg parsing (slash) | `str::split` + match | `clap` 4.x | Slash commands are simple prefix match, not CLI |
+| Markdown generation | `format!()` strings | Template engine (tera, handlebars) | Template filling is simple `{var}` replacement |
+| Config management | `serde_json` | `toml` (already present) | GSD config is JSON, not TOML -- matching upstream format |
+| Slash dispatch | Trait + HashMap | Macro-based registration | Over-engineering for ~15 commands |
 
----
+## What NOT to Add
+
+| Crate | Reason to Avoid |
+|-------|----------------|
+| `serde_yaml` / `serde_yml` | Deprecated / overkill for constrained frontmatter format |
+| `git2` | Native C dependency, complex cross-compile, overkill |
+| `chrono` | Only need 2 date formats, std::time suffices |
+| `clap` | Slash commands are simple prefix dispatch, not CLI parsing |
+| `reqwest` | Project uses `ureq` (sync) + std::thread -- don't change working model |
+| `async-trait` | GSD operations are synchronous; AI uses existing sync threading |
+| `handlebars` / `tera` | Template interpolation is simple `str::replace()` |
+| `colored` / `termcolor` | Output goes to egui chat UI, not terminal |
+| `ollama-rs` | Too specific, hides API behind abstraction the code already handles |
 
 ## Confidence Assessment
 
-| Area | Confidence | Notes |
-|------|------------|-------|
-| reqwest jako HTTP client | HIGH | De-facto standard, tokio-kompatibilni, overeno v ekosystemu |
-| NDJSON streaming pattern | HIGH | Ollama dokumentace potvrzuje format, reqwest bytes_stream() je stabilni |
-| async-trait pro provider abstrakci | HIGH | Standard Rust pattern, siroko pouzivany |
-| tokio channels pro UI bridge | HIGH | Potvrzeno v egui community (parasyte/egui-tokio-example, emilk/egui#2462) |
-| egui_commonmark pro chat rendering | HIGH | Uz v projektu, funguje |
-| Odstraneni extism/candle | MEDIUM | Overit zda candle ma jine pouziti krome AI chatu |
+| Area | Confidence | Reason |
+|------|------------|--------|
+| No YAML dep needed | HIGH | Read all 299 lines of frontmatter.cjs, format is constrained |
+| No git2 needed | HIGH | Read cmdCommit/execGit, only 4 simple git commands |
+| No chrono needed | HIGH | Only 2 date formats, verified no chrono in existing codebase |
+| Slash dispatch pattern | HIGH | Standard Rust trait dispatch, no external dep |
+| AI integration via existing AiProvider | HIGH | Provider trait + OllamaProvider already shipping in v1.2.0 |
+| serde_json for config | HIGH | GSD config.json maps directly to serde_json Value |
+| Estimated port LOC | MEDIUM | Based on module-by-module analysis, Rust verbosity varies |
 
 ## Sources
 
-- [Ollama API Documentation](https://github.com/ollama/ollama/blob/main/docs/api.md)
-- [Ollama Streaming Tool Calls](https://ollama.com/blog/streaming-tool)
-- [reqwest crate](https://crates.io/crates/reqwest)
-- [egui-tokio-example](https://github.com/parasyte/egui-tokio-example)
-- [egui Discussion #2462: Reqwest + Egui](https://github.com/emilk/egui/discussions/2462)
-- [reqwest Docs.rs - Response streaming](https://docs.rs/reqwest/latest/reqwest/struct.Response.html)
-- [LogRocket: How to choose the right Rust HTTP client](https://blog.logrocket.com/best-rust-http-client/)
-- [Ollama Streaming docs](https://docs.ollama.com/api/streaming)
+- [serde_yaml deprecation discussion](https://users.rust-lang.org/t/serde-yaml-deprecation-alternatives/108868) -- confirms serde_yaml is deprecated
+- [yaml-rust2 GitHub](https://github.com/Ethiraric/yaml-rust2) -- pure Rust YAML, stable API
+- [serde_yml on crates.io](https://crates.io/crates/serde_yml) -- maintained fork of serde_yaml
+- [git2 on crates.io](https://crates.io/crates/git2) -- v0.20.x, requires libgit2 1.9+
+- GSD source: `~/.claude/get-shit-done/bin/lib/*.cjs` (11 modules, 5,421 LOC) -- primary source for port analysis
+- Project `Cargo.toml` -- verified all existing dependencies
+- Project source `src/app/cli/` -- verified existing AI provider, tool executor, security infrastructure
+- Project source `src/app/ui/background.rs` -- verified existing `std::process::Command` git usage

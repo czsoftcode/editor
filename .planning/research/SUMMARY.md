@@ -1,179 +1,185 @@
 # Project Research Summary
 
-**Project:** PolyCredo Editor v1.2.0 — AI Chat Rewrite
-**Domain:** Native AI Chat integration for Rust/egui desktop code editor
-**Researched:** 2026-03-06
+**Project:** PolyCredo Editor v1.2.1 -- GSD Integration + Slash Commands
+**Domain:** Node.js-to-Rust port of project management CLI tools into a GUI code editor
+**Researched:** 2026-03-07
 **Confidence:** HIGH
 
 ## Executive Summary
 
-PolyCredo Editor v1.2.0 replaces the current WASM-based AI chat system (extism plugins) with a native Rust implementation featuring streaming responses, a provider trait abstraction, and direct tool execution. The project is well-positioned for this rewrite: approximately 60% of the required functionality already exists (context engine, approval UI, conversation history, tool declarations, cancel mechanism, inspector panel). The core new work is an `AiProvider` trait, an `OllamaProvider` implementation with NDJSON streaming, and a `NativeToolExecutor` that extracts logic from the current WASM host functions. The estimated net effect is a smaller, simpler codebase (~1000 LOC new, ~1300 LOC reused, ~2000+ LOC removed).
+PolyCredo Editor v1.2.1 adds a slash command system and ports the GSD (Get Shit Done) project management toolkit from Node.js (5,421 LOC across 11 modules) into the existing Rust/egui editor. The critical finding is that **zero new dependencies are required** -- every GSD capability maps to crates already in Cargo.toml (serde_json, regex, walkdir, globset) or the Rust standard library (std::process::Command for git, std::fs for file I/O, std::time for dates). This is a pure code addition, not a dependency expansion.
 
-The recommended approach is blocking HTTP via `ureq` on a background `std::thread`, communicating with the UI thread through the existing `mpsc` + `AppAction` channel pattern. This aligns with the codebase's established philosophy of no async runtime for application logic. **Important conflict note:** STACK.md recommends `reqwest` with tokio async, while ARCHITECTURE.md recommends `ureq` with std::thread. The architecture recommendation is correct -- the project uses `std::thread::spawn` + `mpsc` everywhere, and introducing async HTTP would create a conflicting execution model. tokio exists in the project but is used narrowly (terminal, process I/O), not as the application's threading backbone. Use `ureq` for provider HTTP calls.
+The recommended approach is a layered build: first establish slash command dispatch infrastructure (intercept "/" prefix in the existing chat input flow), then build the GSD engine as a stateless processor that reads `.planning/` files on demand. The architecture avoids in-memory state caching -- files are small (<5KB each), disk I/O is negligible, and external tools may modify these files at any time. AI-integrated GSD commands delegate to the existing Ollama provider by injecting enhanced system context into the normal chat flow, requiring only ~30 lines of modification to the existing `send_query_to_agent()` function.
 
-The primary risks are: (1) blocking the egui UI thread during streaming, (2) approval state machine race conditions when multiple tool calls queue up, (3) context payload size explosion consuming model context windows, and (4) breaking existing functionality during the WASM-to-native migration. All are preventable with the patterns documented in ARCHITECTURE.md and PITFALLS.md.
+The primary risks are: (1) the frontmatter parser must handle JavaScript's dynamic object model without introducing `unwrap()` panics -- a custom `FrontmatterValue` enum with two-pass parsing eliminates this; (2) git operations must never block the GUI thread -- the existing `spawn_task` async pattern in background.rs must be used; (3) file-based state concurrency (file watcher storms, torn reads) requires atomic writes and watcher debouncing for `.planning/` paths. All risks have known mitigations grounded in patterns already present in the codebase.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack change is minimal -- only 1-2 new dependencies needed. The project already has everything else.
+No new crate dependencies. The entire GSD port uses the existing stack.
 
-**New dependencies:**
-- `ureq`: Blocking HTTP client for Ollama API calls with streaming via `BufReader` -- consistent with std::thread model, no async needed
+**Core technologies (all existing):**
+- `serde_json` + `serde`: GSD config.json management, frontmatter-to-JSON conversion
+- `regex`: Section extraction from markdown, field patterns in STATE.md (use `OnceLock` for static patterns)
+- `walkdir`: Phase directory scanning, file discovery in `.planning/`
+- `std::process::Command`: Git operations (add, commit, check-ignore, rev-parse) -- 4 commands total
+- `std::time::SystemTime`: ISO date/datetime formatting (2 formats needed, no chrono)
+- `ureq` + existing `AiProvider` trait: AI-integrated GSD commands via Ollama
 
-**Existing dependencies (no changes):**
-- `tokio 1` (rt-multi-thread): Already in project for terminal/process I/O -- NOT for AI HTTP
-- `egui_commonmark 0.20`: Markdown rendering for chat responses -- already working
-- `serde/serde_json 1`: Ollama NDJSON parsing
-- `fluent-bundle 0.15`: i18n for new UI strings
-
-**What to remove later:** `extism 1.5` (WASM runtime), potentially `candle-*` / `hf-hub` / `tokenizers` if semantic embeddings move to Ollama `/api/embed`.
-
-**Stack conflict resolution:** STACK.md recommends `reqwest 0.12` with tokio channels. ARCHITECTURE.md recommends `ureq` with std::thread. **Go with ureq + std::thread.** Rationale: the entire codebase uses blocking threads and std::mpsc channels. Adding reqwest async would require bridging async/sync boundaries unnecessarily. ureq streams via `Read` trait on the response body, which works naturally on a background thread.
+**Explicitly rejected:** serde_yaml/serde_yml (overkill for constrained frontmatter), git2 (native C dep for 4 commands), chrono (2 date formats only), reqwest/tokio (contradicts sync threading model).
 
 ### Expected Features
 
 **Must have (table stakes):**
-- Streaming responses (real-time token display)
-- Editor context (open file, git status, build errors) -- already implemented
-- File read/write/replace tools with approval UI -- port from WASM
-- Command execution tool with approval -- port from WASM
-- Conversational history (multi-turn) -- partially exists, needs refactor to `AiConversation`
-- Cancel/stop button -- already implemented
-- Markdown rendering in responses -- already implemented
-- Dark/light mode support -- currently hardcoded dark colors, needs fix
+- Slash command dispatch infrastructure (intercept "/" in chat, route to handlers)
+- Basic commands: `/help`, `/clear`, `/new`, `/model`
+- YAML frontmatter parser (custom, ~150 LOC, handles GSD's constrained format)
+- `/gsd state`, `/gsd progress` -- most frequently used GSD commands
+- `/gsd phase` subcommands (add, complete, list) -- core GSD workflow
+- `/gsd roadmap` subcommands (get-phase, analyze) -- project navigation
+- `/gsd commit` -- standardized planning doc commits
+- Graceful error handling when `.planning/` is missing
 
 **Should have (differentiators):**
-- Expertise role system (Junior/Senior/Master) -- already implemented, port
-- Reasoning depth control -- already implemented, port
-- Semantic search tool -- already implemented, port
-- Multi-provider trait abstraction -- new, key architectural piece
-- Ollama auto-detection and model picker -- new, simple HTTP calls
-- Inspector panel (debug view) -- already implemented, preserve
+- `/gsd init` compound workflow commands (context aggregation for AI)
+- `/gsd verify` suite (plan structure, completeness, reference checks)
+- `/gsd template fill` and `/gsd scaffold` (reduce boilerplate)
+- `/gsd milestone complete` (lifecycle management)
+- Tab completion for slash commands
+- `/git`, `/build`, `/settings` convenience wrappers
 
 **Defer (v2+):**
-- Claude/Gemini/OpenAI providers (v1.3+)
-- WASM system full removal (after native chat validated)
-- Multimodal input
-- Inline code suggestions (ghost text)
+- AI-integrated init commands (AI generation on top of context aggregation)
+- `/gsd frontmatter` direct CRUD (power-user feature)
+- Tab completion with fuzzy matching
+- Command history filtering for slash commands
 
 ### Architecture Approach
 
-The architecture is a clean replacement of WASM indirection with native Rust. The `AiProvider` trait replaces `PluginManager.call()`. A `NativeToolExecutor` replaces WASM host functions. The communication pattern (background thread -> `AppAction` via mpsc -> UI thread processes in `update()`) remains identical. A new `AiChatState` sub-struct consolidates ~30 scattered `ai_*` fields in `WorkspaceState`.
+The architecture follows a clean layered design: slash commands intercept at the top of `send_query_to_agent()` in logic.rs before the AI provider is invoked. Pure commands return immediately with markdown output rendered in the existing chat UI. GSD commands delegate to a stateless `GsdEngine` that reads `.planning/` files per invocation. AI-integrated commands prepare enhanced system context and fall through to the normal Ollama flow. Only 2 fields are added to WorkspaceState (slash_registry, gsd_injected_context), and 5 existing files need minor modification.
 
 **Major components:**
-1. `AiProvider` trait + `ProviderRegistry` -- provider abstraction with streaming support
-2. `OllamaProvider` -- Ollama `/api/chat` implementation with NDJSON streaming via ureq
-3. `NativeToolExecutor` -- extracted tool execution logic (file ops, search, exec, memory)
-4. `AiChatState` -- consolidated AI state sub-struct in WorkspaceState
-5. `send_query_to_provider()` -- replaces `send_query_to_agent()`, spawns background thread
+1. `SlashCommandDispatcher` + `CommandRegistry` -- parse "/" prefix, trait-based handler lookup, ~140 LOC
+2. `GsdEngine` -- stateless processor porting 11 Node.js modules, ~2,000-3,500 LOC total
+3. `SlashResult` enum -- typed return protocol (Handled, DelegateToAi, Error, Unknown) ensuring uniform output handling
+
+**Module location:** `src/app/cli/slash/` (dispatch) + `src/app/cli/gsd/` (engine), both under the existing CLI subsystem.
 
 ### Critical Pitfalls
 
-1. **UI thread blocking** -- Never call blocking HTTP inside `update()`. Use `std::thread::spawn` + `mpsc::channel` + `try_recv()` drain loop. Call `request_repaint_after(50ms)` not immediate repaint to avoid CPU storms.
-2. **Approval state machine races** -- Queue approvals with `VecDeque` instead of `Option`. Handle sender drop as "Deny". Force AI chat visible when approval is pending. Add 5-minute timeout.
-3. **Context payload explosion** -- Truncate active file to +/- 100 lines around cursor. Implement conversation pruning (keep last N messages). Add token budget system.
-4. **WASM migration breakage** -- Build new system alongside old. Map new provider output to existing `AppAction` variants initially. Keep extism until final removal phase.
-5. **NDJSON parser fragility** -- Buffer incomplete lines across TCP chunks. Handle non-streamed tool call responses. Test with simulated partial JSON.
+1. **Dynamic JS object model in frontmatter parser** -- JavaScript's object-to-array "promotion" pattern violates Rust borrowing rules. Use a `FrontmatterValue` enum with index-based arena, not nested references. Two-pass parsing eliminates retroactive type changes.
+
+2. **Blocking git operations freeze GUI** -- `std::process::Command::output()` on main thread causes 1-30s freezes. All git ops MUST use existing `spawn_task` + `mpsc::channel` pattern from background.rs. Create a reusable `GitExecutor` wrapper.
+
+3. **Slash command input conflicts** -- `/home/user/path` looks like a command. Use strict routing: "/" + registered command name + (space or end-of-string). Unknown `/word` falls through to AI, not error.
+
+4. **File-based state concurrency** -- GSD writes trigger file watcher storms and torn reads. Use atomic writes (tempfile + rename), debounce watcher for `.planning/` with 200ms+ delay, never read state files in the UI render loop.
+
+5. **Regex compilation cost** -- 20+ patterns in state.cjs, recompiled per call in naive port. Replace most regex with `str::starts_with` + `str::find` line-by-line parsing. Use `OnceLock<Regex>` for genuine regex needs.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Provider Foundation
-**Rationale:** Everything depends on the provider trait and Ollama implementation. This is the foundational layer with zero UI changes, so it cannot break anything.
-**Delivers:** Working `AiProvider` trait, `OllamaProvider` with NDJSON streaming, `ProviderRegistry`, new `AppAction` variants, Ollama connection health check.
-**Features:** Provider trait abstraction, Ollama streaming, Ollama auto-detection.
-**Avoids:** Over-engineering the trait (Pitfall 6) -- start with 2-3 methods max. NDJSON parser fragility (Pitfall 7) -- buffer partial reads.
-**Stack:** `ureq` (new), `serde_json` (existing).
+### Phase 1: Core Infrastructure + Types
+**Rationale:** Everything depends on these foundational types. Errors, output format, path helpers, and the FrontmatterValue enum must exist before any command implementation.
+**Delivers:** `GsdError` enum, `GsdOutput` enum, `SlashResult` enum, `SlashHandler` trait, `CommandRegistry`, `GsdPaths` helper, date/time utilities
+**Addresses:** Slash command dispatch, error handling
+**Avoids:** Pitfall 7 (error handling mismatch), Pitfall 13 (path handling), Pitfall 14 (output mapping)
 
-### Phase 2: State Refactor + Data Model
-**Rationale:** Mechanical refactoring that must happen before wiring the new provider to UI. No functional changes -- existing WASM chat continues to work.
-**Delivers:** `AiChatState` sub-struct, `ws.ai_*` -> `ws.ai.*` rename across codebase, conversation history migrated to `AiConversation` format.
-**Features:** Conversational history restructuring.
-**Avoids:** History format mismatch (Pitfall 8) -- switch to `AiMessage` format from the start.
+### Phase 2: Slash Command Dispatch + Built-in Commands
+**Rationale:** Validates the dispatch infrastructure with simple commands before adding GSD complexity. Delivers immediate user value.
+**Delivers:** "/" interception in logic.rs, `/help`, `/clear`, `/new`, `/model`, `/git`, `/build`, `/settings`
+**Addresses:** Basic commands (table stakes), chat input routing
+**Avoids:** Pitfall 3 (input conflicts), Pitfall 9 (dispatch complexity)
 
-### Phase 3: Streaming UI + Provider Bridge
-**Rationale:** Connects the provider to the UI. This is where streaming becomes visible to users. Depends on Phase 1 (provider) and Phase 2 (state structure).
-**Delivers:** `send_query_to_provider()`, streaming buffer display in chat, provider picker in settings, dark/light mode fix for chat colors.
-**Features:** Streaming responses, dark/light mode, provider selector, model picker.
-**Avoids:** UI thread blocking (Pitfall 1) -- background thread + try_recv. Repaint storm (Pitfall 5) -- use `request_repaint_after(50ms)`.
+### Phase 3: Frontmatter Parser + GSD Core
+**Rationale:** The frontmatter parser is the foundation of all GSD modules. Must be built with a test-first approach to handle edge cases. GSD core (config, slugs, timestamps) provides shared utilities.
+**Delivers:** `FrontmatterValue` type, frontmatter extract/reconstruct/splice, config.json management, slug generation, phase number comparator
+**Addresses:** YAML frontmatter parsing (table stakes), GSD config
+**Avoids:** Pitfall 1 (dynamic object model), Pitfall 6 (encoding edge cases), Pitfall 8 (JS patterns)
 
-### Phase 4: Native Tool Execution
-**Rationale:** Tool execution is the complex agentic layer. Depends on working streaming (Phase 3) and requires careful security handling.
-**Delivers:** `NativeToolExecutor` with all tools (read/write/replace/exec/search/semantic_search/memory), approval queue, multi-turn tool loop.
-**Features:** File read/write tools, command execution, semantic search, agent memory, ask-user, auto-approve.
-**Avoids:** Approval race conditions (Pitfall 2) -- VecDeque queue + state machine. Security regression (Pitfall 9) -- port Blacklist, path validation.
+### Phase 4: GSD State + Progress
+**Rationale:** Most frequently used GSD commands. Validates the full pipeline from slash dispatch through frontmatter parsing to markdown output in chat.
+**Delivers:** `/gsd state` (snapshot, patch, advance), `/gsd progress` (visual progress report)
+**Addresses:** State commands (table stakes), progress display
+**Avoids:** Pitfall 2 (regex-heavy parsing), Pitfall 4 (state concurrency), Pitfall 11 (write round-trip)
 
-### Phase 5: Polish + i18n
-**Rationale:** Cleanup and localization after core functionality works.
-**Delivers:** i18n keys for all new strings (5 languages), context payload truncation/budgeting, conversation virtualization for long chats, expertise role + reasoning depth ported.
-**Features:** i18n, context optimization, markdown performance, expertise roles.
-**Avoids:** Hardcoded strings (Pitfall 12). Context explosion (Pitfall 3). Markdown perf (Pitfall 10).
+### Phase 5: GSD Phase + Roadmap + Commit
+**Rationale:** The operational core of GSD workflow management. Phase operations depend on state and frontmatter modules. Git commit must use async wrapper.
+**Delivers:** `/gsd phase` (add, insert, remove, complete, list), `/gsd roadmap` (get-phase, analyze, update-progress), `/gsd commit`
+**Addresses:** Phase management (table stakes), roadmap operations, git integration
+**Avoids:** Pitfall 5 (blocking git), Pitfall 15 (directory scanning performance)
 
-### Phase 6: WASM Removal
-**Rationale:** Only after native chat is fully validated. Separate phase to isolate risk.
-**Delivers:** Removal of `extism` dependency, deletion of WASM plugin code (~2000 LOC), cleanup of old `AppAction::Plugin*` variants.
-**Features:** Codebase simplification.
-**Avoids:** Migration breakage (Pitfall 4) -- only remove after full validation.
+### Phase 6: GSD Verify + Template + Milestone
+**Rationale:** Quality assurance and file generation layer. Depends on all prior GSD modules being stable.
+**Delivers:** `/gsd verify` (6 verification subcommands), `/gsd validate`, `/gsd template fill`, `/gsd scaffold`, `/gsd milestone complete`
+**Addresses:** Verification suite (differentiator), template filling, milestone lifecycle
+
+### Phase 7: AI-Integrated GSD + Init Commands
+**Rationale:** The most complex feature, aggregating all modules. Requires stable GSD engine + working AI delegation. This is the capstone phase.
+**Delivers:** `/gsd init` compound commands (new-project, plan-phase, execute-phase, research), AI context injection via `gsd_injected_context`
+**Addresses:** AI-integrated commands (differentiator), workflow aggregation
+
+### Phase 8: i18n + Polish
+**Rationale:** Batch all i18n keys after commands are stable. Add tab completion and UX polish.
+**Delivers:** 50+ i18n keys across 5 locales, tab completion hints, command history filtering
+**Addresses:** i18n (table stakes for this project), discoverability
 
 ### Phase Ordering Rationale
 
-- Phases 1-3 follow a strict dependency chain: trait -> state -> UI bridge
-- Phase 4 (tools) is the most complex and benefits from a working streaming foundation
-- Phase 5 (polish) is intentionally separate from functional phases to avoid scope creep
-- Phase 6 (WASM removal) is last because both systems must coexist during the transition
-- The entire milestone keeps the old WASM path functional until Phase 6
+- **Dependency chain:** Types (P1) -> Dispatch (P2) -> Parser (P3) -> State (P4) -> Operations (P5) -> Quality (P6) -> AI (P7) -> Polish (P8). Each phase depends on the previous.
+- **Risk front-loading:** The hardest problems (frontmatter parser, state concurrency, git async) are in phases 3-5. Solving them early prevents late-stage rewrites.
+- **Incremental value:** After phase 2, users already have working slash commands. After phase 4, the most-used GSD commands work. Each phase is independently shippable.
+- **The chat model question (Pitfall 10):** The research suggests extending `Vec<(String, String)>` to `Vec<ChatEntry>` enum. This is a breaking change. Recommendation: defer this to a v2 concern. For v1.2.1, render command output as the "assistant" side of the conversation pair with a `> /command` prefix for visual distinction. This avoids a risky refactor of the chat data model while GSD features are still being validated.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 1:** Verify `ureq` streaming API in current version (docs.rs). Resolve the reqwest vs ureq decision definitively by testing both with Ollama locally.
-- **Phase 4:** Tool execution security model needs detailed review of existing WASM host function logic (`src/app/registry/plugins/host/`). The approval state machine redesign needs careful planning.
+- **Phase 3 (Frontmatter Parser):** The two-pass parsing approach and FrontmatterValue arena design need detailed specification. The object-to-array promotion edge case requires careful test case design from the JS source.
+- **Phase 4 (State Operations):** The `writeStateMd` round-trip complexity (Pitfall 11) needs a concrete caching strategy decision. Read the full state.cjs (721 LOC) during phase planning.
+- **Phase 7 (AI-Integrated GSD):** The init command context aggregation is complex (710 LOC in init.cjs). Needs research on which commands are relevant for Ollama vs Claude-specific.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 2:** Mechanical refactoring -- no research needed, just careful renaming.
-- **Phase 3:** Standard egui patterns (thread + channel + repaint). Well-documented in egui community.
-- **Phase 5:** Standard i18n and optimization work.
-- **Phase 6:** Deletion of code -- straightforward once Phase 4 is validated.
+- **Phase 1 (Types):** Standard Rust enum + trait patterns. No ambiguity.
+- **Phase 2 (Built-in Commands):** Simple dispatch + existing codebase patterns. Well-documented in ARCHITECTURE.md.
+- **Phase 5 (Phase/Roadmap):** Direct port of JS logic with established patterns from phases 3-4.
+- **Phase 8 (i18n):** Existing i18n infrastructure, just adding keys.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Minimal additions (1-2 crates). All alternatives evaluated. Only conflict is reqwest vs ureq -- resolved in favor of ureq. |
-| Features | HIGH | Based on direct codebase analysis. ~60% already implemented, clear reuse paths documented. |
-| Architecture | HIGH | Direct code inspection of all integration points. Data flow patterns verified against existing codebase. |
-| Pitfalls | HIGH | Grounded in specific code locations. Real Ollama issues referenced (GitHub #12557). |
+| Stack | HIGH | Direct analysis of all 11 GSD modules + existing Cargo.toml. Zero ambiguity on dependency needs. |
+| Features | HIGH | Complete mapping of 40+ JS commands to Rust equivalents. Clear table stakes vs differentiator separation. |
+| Architecture | HIGH | Interception point verified in existing logic.rs. Module structure follows established codebase patterns. ~30 lines of modification to existing files. |
+| Pitfalls | HIGH | Based on 58,187 LOC existing codebase analysis + 5,421 LOC GSD source. All critical pitfalls have concrete prevention strategies grounded in existing code patterns. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **ureq vs reqwest:** STACK.md and ARCHITECTURE.md disagree. Recommendation is ureq, but verify ureq streaming works with Ollama NDJSON in a quick spike before Phase 1 planning.
-- **candle/tokenizers removal:** Unclear if semantic embeddings can move to Ollama `/api/embed`. Investigate during Phase 5 or defer to v1.3.
-- **Multi-viewport provider isolation:** PITFALLS.md flags potential state conflicts between viewports. Needs architectural decision in Phase 1 -- recommend per-workspace provider instances.
-- **Ollama tool calling streaming inconsistencies:** GitHub issue #12557 documents that tool_calls may not stream even with `stream: true`. The NDJSON parser must handle both chunked and single-response tool calls.
+- **Chat model extension (Pitfall 10):** The research recommends extending the conversation model to `Vec<ChatEntry>`, but this is a breaking change. The pragmatic recommendation is to defer this. However, if command output rendering proves inadequate with the (command, output) tuple approach, this will need to be revisited mid-implementation.
+- **Estimated LOC variance:** STACK.md estimates ~4,700 LOC, ARCHITECTURE.md estimates ~2,000 LOC. The discrepancy is due to different scoping (ARCHITECTURE.md counts core logic only, STACK.md includes tests and boilerplate). Actual LOC will be determined during implementation. Plan for ~3,000-4,000 LOC.
+- **init.cjs command relevance:** Several init subcommands (research-phase, plan-phase, execute-phase) are designed for Claude Code's agent spawning model. Need to determine which are meaningful in an Ollama-backed editor during Phase 7 planning.
+- **GSD template compatibility:** GSD templates reference Claude model tiers and agent roles. Templates may need adaptation for the Ollama context. Evaluate during Phase 6.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Project source code: `src/app/ai/`, `src/app/registry/plugins/`, `src/app/ui/terminal/ai_chat/`, `src/app/types.rs`, `src/app/mod.rs`
-- [Ollama API Documentation](https://github.com/ollama/ollama/blob/main/docs/api.md)
-- [Ollama Streaming Tool Calls](https://ollama.com/blog/streaming-tool)
-- [egui threading discussions](https://github.com/emilk/egui/discussions/521)
+- GSD tools source: `~/.claude/get-shit-done/bin/lib/*.cjs` (11 modules, 5,421 LOC) -- direct line-by-line analysis
+- GSD entry point: `~/.claude/get-shit-done/bin/gsd-tools.cjs` (592 LOC) -- dispatch logic analysis
+- PolyCredo Editor source: `src/app/cli/` (9 modules), `src/app/ui/` (terminal, background, workspace) -- direct code analysis
+- Project Cargo.toml -- verified all existing dependencies
 
 ### Secondary (MEDIUM confidence)
-- [reqwest crate docs](https://docs.rs/reqwest/latest/reqwest/)
-- [ureq crate docs](https://docs.rs/ureq/latest/ureq/)
-- [Ollama tool calling issue #12557](https://github.com/ollama/ollama/issues/12557)
-- [genai crate](https://github.com/jeremychone/rust-genai) -- multi-provider abstraction reference
-- [Cursor vs Windsurf approval patterns](https://www.builder.io/blog/windsurf-vs-cursor)
+- Rust `regex` crate compilation cost -- documented in crate docs, `OnceLock` pattern recommended
+- POSIX `rename()` atomicity -- established guarantee for same-filesystem operations
 
 ### Tertiary (LOW confidence)
-- [LLM tool calling in production](https://medium.com/@komalbaparmar007/llm-tool-calling-in-production-rate-limits-retries-and-the-infinite-loop-failure-mode-you-must-2a1e2a1e84c8) -- infinite loop failure mode, needs validation
+- Estimated Rust LOC for port -- based on module analysis, actual will vary with error handling verbosity and test coverage
 
 ---
-*Research completed: 2026-03-06*
+*Research completed: 2026-03-07*
 *Ready for roadmap: yes*

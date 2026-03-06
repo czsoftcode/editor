@@ -56,6 +56,39 @@ pub fn render_build_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate
             }
         });
 
+        ui.separator();
+
+        #[cfg(target_os = "linux")]
+        {
+            if ui
+                .button(i18n.get("btn-create-deb"))
+                .on_hover_text(i18n.get("hover-create-deb"))
+                .clicked()
+            {
+                let cmd = "export DEB_BUILD_TYPE=deb-dev && ./packaging/deb/build-deb.sh";
+                ws.next_terminal_id += 1;
+                let terminal = crate::app::ui::terminal::instance::Terminal::new(
+                    ws.next_terminal_id,
+                    ui.ctx(),
+                    &ws.root_path,
+                    Some(cmd),
+                );
+                ws.build_terminal = Some(terminal);
+                ws.show_build_terminal = true;
+                ws.focused_panel = FocusedPanel::Build;
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            ui.weak("MSI Installer (WIP)");
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            ui.weak("DMG Bundle (WIP)");
+        }
+
         // RESERVE SPACE for the float button
         ui.add_space(28.0);
 

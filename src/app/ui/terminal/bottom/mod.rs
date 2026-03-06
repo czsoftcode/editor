@@ -1,5 +1,4 @@
 pub mod build_bar;
-pub mod compile_bar;
 pub mod git_bar;
 
 use crate::app::types::FocusedPanel;
@@ -40,7 +39,6 @@ pub fn render_bottom_panel(
             |ui, ws_arg| {
                 // HEAD: Control Bars
                 build_bar::render_build_bar(ui, ws_arg, i18n);
-                compile_bar::render_compile_bar(ui, ws_arg, i18n);
                 git_bar::render_git_bar(ui, ws_arg, i18n);
             },
             |ui, ws_arg, _body_h| {
@@ -124,7 +122,6 @@ pub fn render_bottom_content(
     ui.vertical(|ui| {
         // 1. Control Bars (Stacked vertically to save width in narrow side panels)
         build_bar::render_build_bar(ui, ws, i18n);
-        compile_bar::render_compile_bar(ui, ws, i18n);
         git_bar::render_git_bar(ui, ws, i18n);
 
         ui.separator();

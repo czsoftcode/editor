@@ -20,7 +20,7 @@ where
 use super::super::types::{AppShared, Toast};
 use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
-use super::workspace::state::OllamaConnectionStatus;
+use crate::app::ai::state::OllamaConnectionStatus;
 use crate::app::ai::{OllamaStatus, spawn_ollama_check};
 use crate::watcher::{FileEvent, FsChange};
 use std::sync::Mutex;
@@ -196,7 +196,7 @@ pub(super) fn process_background_events(
     }
     if ws.ollama_last_check.elapsed().as_secs() >= crate::config::OLLAMA_CHECK_INTERVAL_SECS
         && ws.ollama_check_rx.is_none()
-        && !ws.ai_loading
+        && !ws.ai.chat.loading
     {
         ws.ollama_check_rx = Some(spawn_ollama_check(ws.ollama_base_url.clone(), ws.ollama_api_key.clone()));
     }

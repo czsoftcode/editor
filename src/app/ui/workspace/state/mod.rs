@@ -7,7 +7,8 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
-use crate::app::ai::{AiExpertiseRole, AiReasoningDepth, OllamaStatus};
+use crate::app::ai::{AiState, OllamaStatus};
+pub use crate::app::ai::state::OllamaConnectionStatus;
 use crate::app::build_runner::BuildError;
 use crate::app::lsp::LspClient;
 use crate::app::types::{FocusedPanel, ProjectProfiles, Toast};
@@ -24,14 +25,6 @@ pub use self::init::init_workspace;
 pub use self::types::{
     FilePicker, FolderPickResult, FsChangeResult, ProjectSearch, SearchResult, SecondaryWorkspace,
 };
-
-#[derive(Clone, Debug, Default, PartialEq)]
-pub enum OllamaConnectionStatus {
-    #[default]
-    Checking,
-    Connected,
-    Disconnected,
-}
 
 pub type PendingPluginApproval = (
     String,
@@ -77,15 +70,12 @@ pub struct WorkspaceState {
     pub show_plugins: bool,
     pub show_ai_chat: bool,
     pub show_semantic_indexing_modal: bool,
-    pub ai_show_settings: bool,
     pub selected_plugin_id: Option<String>,
     pub selected_settings_category: Option<String>,
-    pub ai_font_scale: u32,
     pub profiles: ProjectProfiles,
     pub build_errors: Vec<BuildError>,
     pub build_error_rx: Option<mpsc::Receiver<Vec<BuildError>>>,
     pub selected_agent_id: String,
-    pub ai_selected_provider: String,
     pub claude_float: bool,
     pub show_new_project: bool,
     pub wizard: WizardState,
@@ -120,23 +110,7 @@ pub struct WorkspaceState {
     pub ai_viewport_open: bool,
     pub plugin_error: Option<String>,
     pub settings_conflict: Option<SettingsConflict>,
-    pub ai_prompt: String,
-    pub ai_history: Vec<String>,
-    pub ai_history_index: Option<usize>,
-    pub ai_monologue: Vec<String>,
-    pub ai_conversation: Vec<(String, String)>,
-    pub ai_system_prompt: String,
-    pub ai_language: String,
-    pub ai_expertise: AiExpertiseRole,
-    pub ai_reasoning_depth: AiReasoningDepth,
-    pub ai_in_tokens: u32,
-    pub ai_out_tokens: u32,
-    pub ai_inspector_open: bool,
-    pub ai_focus_requested: bool,
-    pub ai_last_payload: String,
-    pub ai_response: Option<String>,
-    pub ai_loading: bool,
-    pub markdown_cache: egui_commonmark::CommonMarkCache,
+    pub ai: AiState,
     pub git_cancel: Arc<AtomicBool>,
     pub local_history: crate::app::local_history::LocalHistory,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
@@ -144,7 +118,6 @@ pub struct WorkspaceState {
     pub pending_plugin_approval: Option<PendingPluginApproval>,
     /// Pending ask_user request: (plugin_id, question, options, answer_input_buffer, sender)
     pub pending_ask_user: Option<PendingAskUser>,
-    pub ai_cancellation_token: Arc<AtomicBool>,
     /// Pending discard changes confirmation for a specific modal ID.
     pub confirm_discard_changes: Option<String>,
     /// Last time the user pressed a key. Used for repaint capping during active typing.

@@ -19,7 +19,7 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, shared: &Arc<Mute
             .plugins
             .get_pending_authorizations()
             .into_iter()
-            .find(|(id, _)| id == &ws.ai_selected_provider)
+            .find(|(id, _)| id == &ws.ai.settings.selected_provider)
     };
 
     if let Some((id, _meta)) = pending_auth {
@@ -57,7 +57,7 @@ pub fn render_body(
     loading: bool,
     body_h: f32,
 ) -> Option<AiChatAction> {
-    if ws.ai_inspector_open {
+    if ws.ai.inspector_open {
         let mut action = None;
         ui.horizontal_top(|ui| {
             let left_w = (ui.available_width() * 0.55).max(400.0);
@@ -121,7 +121,7 @@ fn render_chat_content(
 
     let info_bar_h = 30.0;
     let sep_h = 14.0;
-    let settings_h = if ws.ai_show_settings { 280.0 } else { 0.0 };
+    let settings_h = if ws.ai.settings.show_settings { 280.0 } else { 0.0 };
     let reserved_h = prompt_h_prev + info_bar_h + sep_h + settings_h;
 
     // Maximum height before a scrollbar is needed
@@ -141,20 +141,20 @@ fn render_chat_content(
             ui.set_min_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = 8.0;
 
-            if !ws.ai_conversation.is_empty() {
+            if !ws.ai.chat.conversation.is_empty() {
                 AiChatWidget::ui_conversation(
                     ui,
-                    &ws.ai_conversation,
+                    &ws.ai.chat.conversation,
                     font_size,
-                    &mut ws.markdown_cache,
+                    &mut ws.ai.markdown_cache,
                 );
-                if !ws.ai_monologue.is_empty() {
+                if !ws.ai.chat.monologue.is_empty() {
                     ui.add_space(8.0);
                     AiChatWidget::ui_monologue(
                         ui,
-                        &ws.ai_monologue,
+                        &ws.ai.chat.monologue,
                         font_size,
-                        &mut ws.markdown_cache,
+                        &mut ws.ai.markdown_cache,
                     );
                 }
             } else if loading {
@@ -164,7 +164,7 @@ fn render_chat_content(
                     ui.label(egui::RichText::new(i18n.get("ai-chat-loading")).strong());
                 });
                 ui.add_space(4.0);
-                AiChatWidget::ui_monologue(ui, &ws.ai_monologue, font_size, &mut ws.markdown_cache);
+                AiChatWidget::ui_monologue(ui, &ws.ai.chat.monologue, font_size, &mut ws.ai.markdown_cache);
             }
         });
 
@@ -215,7 +215,7 @@ fn render_chat_content(
                 visuals.widgets.active.expansion = 0.0;
 
                 if loading && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-                    ws.ai_cancellation_token
+                    ws.ai.cancellation_token
                         .store(true, std::sync::atomic::Ordering::Relaxed);
                 }
 
@@ -231,8 +231,8 @@ fn render_chat_content(
                             prompt,
                             font_size,
                             &i18n.get("ai-chat-placeholder-prompt"),
-                            &ws.ai_history,
-                            &mut ws.ai_history_index,
+                            &ws.ai.chat.history,
+                            &mut ws.ai.chat.history_index,
                         )
                     })
                     .inner
@@ -244,9 +244,9 @@ fn render_chat_content(
         });
 
         let (send_via_kb, resp) = prompt_resp.inner;
-        if ws.ai_focus_requested {
+        if ws.ai.chat.focus_requested {
             resp.request_focus();
-            ws.ai_focus_requested = false;
+            ws.ai.chat.focus_requested = false;
         }
         if send_via_kb {
             action = Some(AiChatAction::Send);
@@ -254,7 +254,7 @@ fn render_chat_content(
     }
 
     // ── SETTINGS PANEL ────────────────────────────────────────────────────────
-    if ws.ai_show_settings {
+    if ws.ai.settings.show_settings {
         ui.add_space(8.0);
         egui::Frame::new()
             .fill(egui::Color32::from_rgb(30, 35, 45))
@@ -265,10 +265,10 @@ fn render_chat_content(
                 ui.set_width(ui.available_width());
                 AiChatWidget::ui_settings(
                     ui,
-                    &mut ws.ai_expertise,
-                    &mut ws.ai_reasoning_depth,
-                    &mut ws.ai_language,
-                    &mut ws.ai_system_prompt,
+                    &mut ws.ai.settings.expertise,
+                    &mut ws.ai.settings.reasoning_depth,
+                    &mut ws.ai.settings.language,
+                    &mut ws.ai.chat.system_prompt,
                     i18n,
                 );
                 ui.add_space(8.0);
@@ -277,7 +277,7 @@ fn render_chat_content(
                         action = Some(AiChatAction::SaveSettings);
                     }
                     if ui.button(i18n.get("btn-close")).clicked() {
-                        ws.ai_show_settings = false;
+                        ws.ai.settings.show_settings = false;
                     }
                 });
             });
@@ -303,19 +303,19 @@ pub fn render_footer(
     let mut action = None;
 
     if ui
-        .selectable_label(ws.ai_show_settings, i18n.get("ai-chat-settings-title"))
+        .selectable_label(ws.ai.settings.show_settings, i18n.get("ai-chat-settings-title"))
         .clicked()
     {
-        ws.ai_show_settings = !ws.ai_show_settings;
+        ws.ai.settings.show_settings = !ws.ai.settings.show_settings;
     }
 
-    let inspector_label = if ws.ai_inspector_open {
+    let inspector_label = if ws.ai.inspector_open {
         "\u{1F50D} Hide Inspector"
     } else {
         "\u{1F50D} Show Inspector"
     };
     if ui
-        .selectable_label(ws.ai_inspector_open, inspector_label)
+        .selectable_label(ws.ai.inspector_open, inspector_label)
         .clicked()
     {
         action = Some(AiChatAction::ToggleInspector);
@@ -326,7 +326,7 @@ pub fn render_footer(
             action = Some(AiChatAction::Close);
             return;
         }
-        if (!ws.ai_conversation.is_empty() || ws.ai_response.is_some())
+        if (!ws.ai.chat.conversation.is_empty() || ws.ai.chat.response.is_some())
             && ui.button(i18n.get("ai-chat-btn-new")).clicked()
         {
             action = Some(AiChatAction::NewQuery);
@@ -350,7 +350,7 @@ fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool) {
             ui.label(
                 egui::RichText::new(format!(
                     "In: {} | Out: {}",
-                    ws.ai_in_tokens, ws.ai_out_tokens
+                    ws.ai.chat.in_tokens, ws.ai.chat.out_tokens
                 ))
                 .weak(),
             );

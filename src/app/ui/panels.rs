@@ -145,16 +145,16 @@ fn render_plugin_bar(
 
         let selected_label = ai_plugins
             .iter()
-            .find(|(id, _)| id == &ws.ai_selected_provider)
+            .find(|(id, _)| id == &ws.ai.settings.selected_provider)
             .map(|(_, name)| name.as_str())
-            .unwrap_or(ws.ai_selected_provider.as_str())
+            .unwrap_or(ws.ai.settings.selected_provider.as_str())
             .to_string();
 
         egui::ComboBox::from_id_salt("left_panel_plugin_combo")
             .selected_text(selected_label)
             .show_ui(ui, |ui| {
                 for (id, name) in &ai_plugins {
-                    ui.selectable_value(&mut ws.ai_selected_provider, id.clone(), name.as_str());
+                    ui.selectable_value(&mut ws.ai.settings.selected_provider, id.clone(), name.as_str());
                 }
             });
 
@@ -164,7 +164,7 @@ fn render_plugin_bar(
             .clicked()
         {
             ws.show_ai_chat = true;
-            ws.ai_focus_requested = true;
+            ws.ai.chat.focus_requested = true;
             crate::app::ui::terminal::ai_chat::handle_action(
                 crate::app::ui::terminal::ai_chat::AiChatAction::NewQuery,
                 ws,
@@ -178,7 +178,7 @@ fn render_plugin_bar(
             .clicked()
         {
             ws.show_plugins = true;
-            ws.selected_plugin_id = Some(ws.ai_selected_provider.clone());
+            ws.selected_plugin_id = Some(ws.ai.settings.selected_provider.clone());
         }
     });
 }

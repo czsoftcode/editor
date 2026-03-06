@@ -72,7 +72,7 @@ pub fn render_approval_ui(
                         })
                     {
                         let _ = sender.send(crate::app::types::PluginApprovalResponse::Deny);
-                        ws.ai_cancellation_token
+                        ws.ai.cancellation_token
                             .store(true, std::sync::atomic::Ordering::Relaxed);
                         handled = true;
                     }
@@ -175,7 +175,7 @@ pub fn render_ask_user_ui(
                         || ui.input(|i| i.key_pressed(egui::Key::Escape))
                     {
                         let _ = sender.send(String::new());
-                        ws.ai_cancellation_token
+                        ws.ai.cancellation_token
                             .store(true, std::sync::atomic::Ordering::Relaxed);
                         handled = true;
                     }
@@ -193,7 +193,7 @@ pub fn render_ask_user_ui(
 }
 
 fn append_to_last_conversation(ws: &mut WorkspaceState, details: &str) {
-    if let Some(last) = ws.ai_conversation.last_mut()
+    if let Some(last) = ws.ai.chat.conversation.last_mut()
         && !last.1.contains(details)
     {
         if !last.1.is_empty() {
@@ -205,17 +205,17 @@ fn append_to_last_conversation(ws: &mut WorkspaceState, details: &str) {
 
 fn render_diff_or_markdown(ui: &mut egui::Ui, ws: &mut WorkspaceState, details: &str) {
     if !details.contains("```diff") {
-        egui_commonmark::CommonMarkViewer::new().show(ui, &mut ws.markdown_cache, details);
+        egui_commonmark::CommonMarkViewer::new().show(ui, &mut ws.ai.markdown_cache, details);
         return;
     }
 
     let parts: Vec<&str> = details.split("```diff").collect();
     if parts.len() < 2 {
-        egui_commonmark::CommonMarkViewer::new().show(ui, &mut ws.markdown_cache, details);
+        egui_commonmark::CommonMarkViewer::new().show(ui, &mut ws.ai.markdown_cache, details);
         return;
     }
 
-    egui_commonmark::CommonMarkViewer::new().show(ui, &mut ws.markdown_cache, parts[0]);
+    egui_commonmark::CommonMarkViewer::new().show(ui, &mut ws.ai.markdown_cache, parts[0]);
 
     let diff_content = parts[1].split("```").next().unwrap_or("");
     egui::Frame::new()
@@ -249,6 +249,6 @@ fn render_diff_or_markdown(ui: &mut egui::Ui, ws: &mut WorkspaceState, details: 
         });
 
     if let Some(footer) = parts[1].split("```").nth(1) {
-        egui_commonmark::CommonMarkViewer::new().show(ui, &mut ws.markdown_cache, footer);
+        egui_commonmark::CommonMarkViewer::new().show(ui, &mut ws.ai.markdown_cache, footer);
     }
 }

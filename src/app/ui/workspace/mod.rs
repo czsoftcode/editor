@@ -100,7 +100,7 @@ pub(crate) fn render_workspace(
         }
 
         // Focused: Podmíněný repaint — pouze pokud běží aktivní operace na pozadí.
-        let has_active_work = ws.ai_loading
+        let has_active_work = ws.ai.chat.loading
             || ws.build_error_rx.is_some()
             || ws.git_status_rx.is_some()
             || ws.git_branch_rx.is_some()
@@ -132,7 +132,7 @@ pub(crate) fn render_workspace(
     }
     if ctx.input(|i| i.modifiers.ctrl && i.modifiers.alt && i.key_pressed(egui::Key::G)) {
         ws.show_ai_chat = true;
-        ws.ai_focus_requested = true;
+        ws.ai.chat.focus_requested = true;
         ws.focused_panel = FocusedPanel::AiChat;
     }
 
@@ -188,8 +188,8 @@ pub(crate) fn render_workspace(
         if let Some(plugin_res) = execute_command(cmd_id, &mut actions, shared) {
             if plugin_res == "OPEN_AI_CHAT_MODAL" {
                 ws.show_ai_chat = true;
-                ws.ai_focus_requested = true;
-                ws.ai_response = None;
+                ws.ai.chat.focus_requested = true;
+                ws.ai.chat.response = None;
             } else {
                 ws.toasts.push(crate::app::types::Toast::info(plugin_res));
             }
@@ -215,7 +215,7 @@ pub(crate) fn render_workspace(
                     let config = crate::app::ui::terminal::right::PanelDisplayConfig {
                         dialog_open: false,
                         focused: ws.focused_panel,
-                        font_size: config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0,
+                        font_size: config::EDITOR_FONT_SIZE * ws.ai.settings.font_scale as f32 / 100.0,
                         is_float: false,
                         is_viewport: true,
                     };

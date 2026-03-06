@@ -5,7 +5,8 @@ use std::sync::atomic::Ordering;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
-use super::{OllamaConnectionStatus, ProjectSearch, WorkspaceState};
+use super::{ProjectSearch, WorkspaceState};
+use crate::app::ai::state::{AiState, AiSettings, ChatState, OllamaState, OllamaConnectionStatus};
 use crate::app::project_config::load_profiles;
 use crate::app::types::{FocusedPanel, PersistentState};
 use crate::app::ui::background::{fetch_git_branch, fetch_git_status};
@@ -65,7 +66,82 @@ pub fn init_workspace(
         .ai_selected_provider
         .clone()
         .unwrap_or_else(|| "gemini".to_string());
-    let ai_settings = settings.plugins.get(&selected_provider);
+    let ai_plugin_settings = settings.plugins.get(&selected_provider);
+
+    let expertise = panel_state
+        .ai_expertise
+        .unwrap_or_else(|| ai_plugin_settings.map(|s| s.expertise).unwrap_or_default());
+    let reasoning_depth = panel_state
+        .ai_reasoning_depth
+        .unwrap_or_else(|| ai_plugin_settings.map(|s| s.reasoning_depth).unwrap_or_default());
+
+    let chat = ChatState {
+        conversation: vec![(
+            String::new(),
+            crate::app::ai::AiManager::get_logo(
+                crate::config::CLI_VERSION,
+                &ai_plugin_settings
+                    .and_then(|s| s.config.get("MODEL").cloned())
+                    .unwrap_or_else(|| {
+                        if selected_provider == "ollama" {
+                            "llama3.1".to_string()
+                        } else {
+                            "gemini-1.5-flash".to_string()
+                        }
+                    }),
+                expertise,
+                reasoning_depth,
+            ),
+        )],
+        system_prompt: panel_state.ai_system_prompt.clone().unwrap_or_else(|| {
+            ai_plugin_settings
+                .and_then(|s| s.config.get("SYSTEM_PROMPT").cloned())
+                .unwrap_or_else(|| i18n.get("ai-chat-default-prompt"))
+        }),
+        focus_requested: true,
+        ..ChatState::default()
+    };
+
+    let ai_settings = AiSettings {
+        expertise,
+        reasoning_depth,
+        font_scale: panel_state.ai_font_scale,
+        language: panel_state.ai_language.clone().unwrap_or_else(|| {
+            ai_plugin_settings
+                .and_then(|s| s.config.get("LANGUAGE").cloned())
+                .unwrap_or_else(|| i18n.lang().to_string())
+        }),
+        selected_provider: selected_provider.clone(),
+        show_settings: false,
+    };
+
+    let ollama = OllamaState {
+        status: OllamaConnectionStatus::Checking,
+        selected_model: panel_state
+            .ollama_selected_model
+            .clone()
+            .unwrap_or_default(),
+        last_check: std::time::Instant::now()
+            - std::time::Duration::from_secs(crate::config::OLLAMA_CHECK_INTERVAL_SECS),
+        base_url: settings
+            .plugins
+            .get("ollama")
+            .and_then(|p| p.config.get("API_URL"))
+            .and_then(|url| crate::app::ai::ollama::validate_ollama_url(url))
+            .unwrap_or_else(|| crate::config::OLLAMA_DEFAULT_URL.to_string()),
+        api_key: settings
+            .plugins
+            .get("ollama")
+            .and_then(|p| p.config.get("API_KEY").cloned()),
+        ..OllamaState::default()
+    };
+
+    let ai = AiState {
+        chat,
+        ollama,
+        settings: ai_settings,
+        ..AiState::default()
+    };
 
     WorkspaceState {
         file_tree,
@@ -91,10 +167,8 @@ pub fn init_workspace(
         show_plugins: false,
         show_ai_chat: false,
         show_semantic_indexing_modal: true,
-        ai_show_settings: false,
         selected_plugin_id: None,
         selected_settings_category: None,
-        ai_font_scale: panel_state.ai_font_scale,
         profiles,
         build_errors: Vec::new(),
         build_error_rx: None,
@@ -103,7 +177,6 @@ pub fn init_workspace(
             .first()
             .map(|a| a.name.to_lowercase().replace(' ', "_"))
             .unwrap_or_default(),
-        ai_selected_provider: selected_provider.clone(),
         claude_float: panel_state.claude_float,
         show_new_project: false,
         wizard: crate::app::ui::dialogs::WizardState::default(),
@@ -138,65 +211,9 @@ pub fn init_workspace(
         ai_viewport_open: false,
         plugin_error: None,
         settings_conflict: None,
-        ai_prompt: String::new(),
-        ai_history: Vec::new(),
-        ai_history_index: None,
-        ai_monologue: Vec::new(),
-        ai_conversation: vec![(
-            String::new(),
-            crate::app::ai::AiManager::get_logo(
-                crate::config::CLI_VERSION,
-                &ai_settings
-                    .and_then(|s| s.config.get("MODEL").cloned())
-                    .unwrap_or_else(|| {
-                        if selected_provider == "ollama" {
-                            "llama3.1".to_string()
-                        } else {
-                            "gemini-1.5-flash".to_string()
-                        }
-                    }),
-                panel_state
-                    .ai_expertise
-                    .unwrap_or_else(|| ai_settings.map(|s| s.expertise).unwrap_or_default()),
-                panel_state
-                    .ai_reasoning_depth
-                    .unwrap_or_else(|| ai_settings.map(|s| s.reasoning_depth).unwrap_or_default()),
-            ),
-        )],
-        ai_system_prompt: panel_state.ai_system_prompt.clone().unwrap_or_else(|| {
-            ai_settings
-                .and_then(|s| s.config.get("SYSTEM_PROMPT").cloned())
-                .unwrap_or_else(|| i18n.get("ai-chat-default-prompt"))
-        }),
-        ai_language: panel_state.ai_language.clone().unwrap_or_else(|| {
-            ai_settings
-                .and_then(|s| s.config.get("LANGUAGE").cloned())
-                .unwrap_or_else(|| i18n.lang().to_string())
-        }),
-        ai_expertise: panel_state
-            .ai_expertise
-            .unwrap_or_else(|| ai_settings.map(|s| s.expertise).unwrap_or_default()),
-        ai_reasoning_depth: panel_state
-            .ai_reasoning_depth
-            .unwrap_or_else(|| ai_settings.map(|s| s.reasoning_depth).unwrap_or_default()),
-        ai_in_tokens: 0,
-        ai_out_tokens: 0,
-        ai_inspector_open: false,
-        ai_focus_requested: true,
-        ai_last_payload: String::new(),
-        ai_response: None,
-        ai_loading: false,
-        markdown_cache: egui_commonmark::CommonMarkCache::default(),
+        ai,
         git_cancel,
-        local_history: crate::app::local_history::LocalHistory::new(&root_path),
-        background_io_rx: None,
-        applied_settings_version: 0,
-        pending_plugin_approval: None,
-        pending_ask_user: None,
-        ai_cancellation_token: Arc::new(AtomicBool::new(false)),
-        confirm_discard_changes: None,
-        last_keystroke_time: None,
-        // --- Ollama native provider ---
+        // --- Ollama native provider (will move to ai.ollama in Task 2) ---
         ollama_status: OllamaConnectionStatus::Checking,
         ollama_models: Vec::new(),
         ollama_selected_model: panel_state
@@ -216,6 +233,13 @@ pub fn init_workspace(
             .plugins
             .get("ollama")
             .and_then(|p| p.config.get("API_KEY").cloned()),
+        local_history: crate::app::local_history::LocalHistory::new(&root_path),
+        background_io_rx: None,
+        applied_settings_version: 0,
+        pending_plugin_approval: None,
+        pending_ask_user: None,
+        confirm_discard_changes: None,
+        last_keystroke_time: None,
     }
 }
 

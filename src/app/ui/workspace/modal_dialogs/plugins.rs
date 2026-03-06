@@ -32,7 +32,7 @@ pub fn show(
         .selected_plugin_id
         .clone()
         .unwrap_or_else(|| "system:welcome".to_string());
-    let mut ai_font_scale = ws.ai_font_scale;
+    let mut ai_font_scale = ws.ai.settings.font_scale;
     let mut show_flag = ws.show_plugins;
 
     let mut action = None;
@@ -205,7 +205,7 @@ pub fn show(
     });
 
     ws.selected_plugin_id = Some(selected_id);
-    ws.ai_font_scale = ai_font_scale;
+    ws.ai.settings.font_scale = ai_font_scale;
     ws.show_plugins = show_flag;
 
     if let Some(act) = action {

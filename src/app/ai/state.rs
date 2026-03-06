@@ -1,0 +1,119 @@
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, mpsc};
+
+use super::{AiExpertiseRole, AiReasoningDepth, OllamaStatus};
+
+/// Connection status of the Ollama provider.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum OllamaConnectionStatus {
+    #[default]
+    Checking,
+    Connected,
+    Disconnected,
+}
+
+/// Chat-specific state: prompt, history, conversation, tokens.
+pub struct ChatState {
+    pub prompt: String,
+    pub history: Vec<String>,
+    pub history_index: Option<usize>,
+    pub monologue: Vec<String>,
+    pub conversation: Vec<(String, String)>,
+    pub system_prompt: String,
+    pub response: Option<String>,
+    pub loading: bool,
+    pub focus_requested: bool,
+    pub last_payload: String,
+    pub in_tokens: u32,
+    pub out_tokens: u32,
+}
+
+impl Default for ChatState {
+    fn default() -> Self {
+        Self {
+            prompt: String::new(),
+            history: Vec::new(),
+            history_index: None,
+            monologue: Vec::new(),
+            conversation: Vec::new(),
+            system_prompt: String::new(),
+            response: None,
+            loading: false,
+            focus_requested: true,
+            last_payload: String::new(),
+            in_tokens: 0,
+            out_tokens: 0,
+        }
+    }
+}
+
+/// Ollama provider connection state.
+pub struct OllamaState {
+    pub status: OllamaConnectionStatus,
+    pub models: Vec<String>,
+    pub selected_model: String,
+    pub check_rx: Option<mpsc::Receiver<OllamaStatus>>,
+    pub last_check: std::time::Instant,
+    pub base_url: String,
+    pub api_key: Option<String>,
+}
+
+impl Default for OllamaState {
+    fn default() -> Self {
+        Self {
+            status: OllamaConnectionStatus::default(),
+            models: Vec::new(),
+            selected_model: String::new(),
+            check_rx: None,
+            last_check: std::time::Instant::now(),
+            base_url: String::new(),
+            api_key: None,
+        }
+    }
+}
+
+/// AI settings: expertise, reasoning depth, language, provider selection.
+pub struct AiSettings {
+    pub expertise: AiExpertiseRole,
+    pub reasoning_depth: AiReasoningDepth,
+    pub font_scale: u32,
+    pub language: String,
+    pub selected_provider: String,
+    pub show_settings: bool,
+}
+
+impl Default for AiSettings {
+    fn default() -> Self {
+        Self {
+            expertise: AiExpertiseRole::default(),
+            reasoning_depth: AiReasoningDepth::default(),
+            font_scale: 100,
+            language: String::new(),
+            selected_provider: "gemini".to_string(),
+            show_settings: false,
+        }
+    }
+}
+
+/// Top-level AI state aggregating all AI sub-states.
+pub struct AiState {
+    pub chat: ChatState,
+    pub ollama: OllamaState,
+    pub settings: AiSettings,
+    pub inspector_open: bool,
+    pub cancellation_token: Arc<AtomicBool>,
+    pub markdown_cache: egui_commonmark::CommonMarkCache,
+}
+
+impl Default for AiState {
+    fn default() -> Self {
+        Self {
+            chat: ChatState::default(),
+            ollama: OllamaState::default(),
+            settings: AiSettings::default(),
+            inspector_open: false,
+            cancellation_token: Arc::new(AtomicBool::new(false)),
+            markdown_cache: egui_commonmark::CommonMarkCache::default(),
+        }
+    }
+}

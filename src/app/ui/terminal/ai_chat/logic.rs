@@ -4,34 +4,34 @@ use crate::app::ui::workspace::state::WorkspaceState;
 use std::sync::{Arc, Mutex};
 
 pub fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
-    if ws.ai_prompt.trim().is_empty() {
+    if ws.ai.chat.prompt.trim().is_empty() {
         return;
     }
 
-    let prompt = ws.ai_prompt.clone();
+    let prompt = ws.ai.chat.prompt.clone();
     let context = AiManager::generate_context(ws, shared);
     let tools = crate::app::ai::get_standard_tools();
 
     let input = serde_json::json!({
         "prompt": prompt,
-        "history": ws.ai_conversation,
+        "history": ws.ai.chat.conversation,
         "context": context,
         "tools": tools
     });
 
-    ws.ai_conversation.push((prompt.clone(), String::new()));
-    ws.ai_prompt.clear();
-    ws.ai_loading = true;
-    ws.ai_monologue.clear();
-    ws.ai_cancellation_token = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    ws.ai.chat.conversation.push((prompt.clone(), String::new()));
+    ws.ai.chat.prompt.clear();
+    ws.ai.chat.loading = true;
+    ws.ai.chat.monologue.clear();
+    ws.ai.cancellation_token = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-    if ws.ai_history.last() != Some(&prompt) {
-        ws.ai_history.push(prompt);
+    if ws.ai.chat.history.last() != Some(&prompt) {
+        ws.ai.chat.history.push(prompt);
     }
-    ws.ai_history_index = None;
+    ws.ai.chat.history_index = None;
 
     let sh_arc = Arc::clone(shared);
-    let provider = ws.ai_selected_provider.clone();
+    let provider = ws.ai.settings.selected_provider.clone();
     let (plugin_manager, config, expertise, depth, sys_prompt, lang): (
         Arc<crate::app::registry::plugins::PluginManager>,
         _,
@@ -50,10 +50,10 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared
         (
             Arc::clone(&sh.registry.plugins),
             config,
-            ws.ai_expertise,
-            ws.ai_reasoning_depth,
-            ws.ai_system_prompt.clone(),
-            ws.ai_language.clone(),
+            ws.ai.settings.expertise,
+            ws.ai.settings.reasoning_depth,
+            ws.ai.chat.system_prompt.clone(),
+            ws.ai.settings.language.clone(),
         )
     };
 
@@ -86,10 +86,10 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared
         semantic_index: Some(Arc::clone(&ws.semantic_index)),
         root_path: Some(ws.root_path.clone()),
         auto_approved_actions: std::collections::HashSet::new(),
-        is_cancelled: Arc::clone(&ws.ai_cancellation_token),
+        is_cancelled: Arc::clone(&ws.ai.cancellation_token),
         agent_memory,
         scratch,
-        expertise_role: ws.ai_expertise,
+        expertise_role: ws.ai.settings.expertise,
     });
 
     std::thread::spawn(move || {

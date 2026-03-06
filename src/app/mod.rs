@@ -436,14 +436,14 @@ impl EditorApp {
                 }
                 AppAction::PluginResponse(id, result) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
+                        && id == ws.ai.settings.selected_provider
                     {
-                        ws.ai_loading = false;
+                        ws.ai.chat.loading = false;
                         match result {
                             Ok(text) => {
-                                ws.ai_response = Some(text.clone());
+                                ws.ai.chat.response = Some(text.clone());
                                 // Update conversation history - append AFTER monologue
-                                if let Some(last) = ws.ai_conversation.last_mut() {
+                                if let Some(last) = ws.ai.chat.conversation.last_mut() {
                                     if !last.1.is_empty() {
                                         last.1.push_str("\n\n");
                                     }
@@ -456,49 +456,49 @@ impl EditorApp {
                 }
                 AppAction::PluginMonologue(id, message) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
+                        && id == ws.ai.settings.selected_provider
                     {
-                        ws.ai_monologue.push(message.clone());
+                        ws.ai.chat.monologue.push(message.clone());
                     }
                 }
                 AppAction::PluginUsage(id, in_t, out_t) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
+                        && id == ws.ai.settings.selected_provider
                     {
                         // Add the input and output tokens consumed by the last request to the session counter.
-                        ws.ai_in_tokens = ws.ai_in_tokens.saturating_add(in_t);
-                        ws.ai_out_tokens = ws.ai_out_tokens.saturating_add(out_t);
+                        ws.ai.chat.in_tokens = ws.ai.chat.in_tokens.saturating_add(in_t);
+                        ws.ai.chat.out_tokens = ws.ai.chat.out_tokens.saturating_add(out_t);
                     }
                 }
                 AppAction::PluginPayload(id, payload) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
+                        && id == ws.ai.settings.selected_provider
                     {
-                        ws.ai_last_payload = payload;
+                        ws.ai.chat.last_payload = payload;
                     }
                 }
                 AppAction::PluginApprovalRequest(id, action, details, sender) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
+                        && id == ws.ai.settings.selected_provider
                     {
                         ws.pending_plugin_approval = Some((id, action, details, sender));
-                        ws.ai_focus_requested = true;
+                        ws.ai.chat.focus_requested = true;
                     }
                 }
                 AppAction::PluginAskUser(id, question, options, sender) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
+                        && id == ws.ai.settings.selected_provider
                     {
                         ws.pending_ask_user = Some((id, question, options, String::new(), sender));
-                        ws.ai_focus_requested = true;
+                        ws.ai.chat.focus_requested = true;
                     }
                 }
                 AppAction::PluginCompleted(id, summary) => {
                     if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
+                        && id == ws.ai.settings.selected_provider
                     {
-                        ws.ai_monologue.push(format!("✅ DONE: {}", summary));
-                        ws.ai_loading = false;
+                        ws.ai.chat.monologue.push(format!("✅ DONE: {}", summary));
+                        ws.ai.chat.loading = false;
                     }
                 }
             }

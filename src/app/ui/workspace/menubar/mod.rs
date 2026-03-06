@@ -138,9 +138,9 @@ pub(super) fn process_menu_actions(
     }
     if let Some((plugin_id, func)) = actions.run_plugin {
         if func == "OPEN_AI_CHAT" {
-            ws.ai_selected_provider = plugin_id;
+            ws.ai.settings.selected_provider = plugin_id;
             ws.show_ai_chat = true;
-            ws.ai_focus_requested = true;
+            ws.ai.chat.focus_requested = true;
             crate::app::ui::terminal::ai_chat::handle_action(
                 crate::app::ui::terminal::ai_chat::AiChatAction::NewQuery,
                 ws,

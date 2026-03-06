@@ -235,7 +235,7 @@ pub(super) fn render_ai_panel(
     }
     let mut any_clicked = false;
     let focused = ws.focused_panel;
-    let font_size = config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0;
+    let font_size = config::EDITOR_FONT_SIZE * ws.ai.settings.font_scale as f32 / 100.0;
 
     if ws.claude_float {
         let mut is_open = true;

@@ -7,10 +7,10 @@ pub fn render_inspector(ui: &mut egui::Ui, ws: &mut WorkspaceState, font_size: f
             ui.label(egui::RichText::new("\u{1F50D} AI Inspector").strong());
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Clear").clicked() {
-                    ws.ai_last_payload.clear();
+                    ws.ai.chat.last_payload.clear();
                 }
                 if ui.button("Copy").clicked() {
-                    ui.ctx().copy_text(ws.ai_last_payload.clone());
+                    ui.ctx().copy_text(ws.ai.chat.last_payload.clone());
                 }
             });
         });
@@ -19,7 +19,7 @@ pub fn render_inspector(ui: &mut egui::Ui, ws: &mut WorkspaceState, font_size: f
             .id_salt("ai_chat_terminal_inspector_scroll")
             .show(ui, |ui| {
                 ui.add(
-                    egui::TextEdit::multiline(&mut ws.ai_last_payload)
+                    egui::TextEdit::multiline(&mut ws.ai.chat.last_payload)
                         .font(egui::FontId::monospace(font_size * 0.9))
                         .desired_width(f32::INFINITY)
                         .code_editor(),

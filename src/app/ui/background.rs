@@ -171,6 +171,27 @@ pub(super) fn process_background_events(
             Some(crate::app::ui::workspace::state::actions::spawn_win_tool_check());
     }
 
+    // --- 4b-sync. Sync Ollama config from Settings ---
+    {
+        let sh = shared.lock().expect("lock");
+        if ws.ai.ollama.base_url != sh.settings.ollama_base_url {
+            ws.ai.ollama.base_url = sh.settings.ollama_base_url.clone();
+            ws.ai.ollama.api_key = if sh.settings.ollama_api_key.is_empty() {
+                None
+            } else {
+                Some(sh.settings.ollama_api_key.clone())
+            };
+            ws.ai.ollama.last_check =
+                std::time::Instant::now() - std::time::Duration::from_secs(999);
+            ws.ai.ollama.status = OllamaConnectionStatus::Checking;
+        }
+        if !sh.settings.ai_default_model.is_empty() && ws.ai.ollama.selected_model.is_empty() {
+            ws.ai.ollama.selected_model = sh.settings.ai_default_model.clone();
+        }
+        ws.ai.settings.expertise = sh.settings.ai_expertise;
+        ws.ai.settings.reasoning_depth = sh.settings.ai_reasoning_depth;
+    }
+
     // --- 4b. Ollama polling ---
     if let Some(rx) = &ws.ai.ollama.check_rx
         && let Ok(status) = rx.try_recv()

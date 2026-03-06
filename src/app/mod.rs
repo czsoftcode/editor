@@ -113,7 +113,11 @@ impl EditorApp {
                 ipc::load_session_checked()
             };
 
-        let settings = std::sync::Arc::new(crate::settings::Settings::load());
+        let mut settings_loaded = crate::settings::Settings::load();
+        if settings_loaded.migrate_plugin_ai_settings() {
+            settings_loaded.save();
+        }
+        let settings = std::sync::Arc::new(settings_loaded);
         // Apply theme before first frame to avoid startup flash.
         settings.apply(&cc.egui_ctx);
         let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));

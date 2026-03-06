@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Phase 16 context gathered
 last_updated: "2026-03-06T14:33:07.494Z"
-last_activity: 2026-03-06 — Native OllamaProvider streaming + background polling (15-01)
+last_activity: 2026-03-06 — Security infrastructure + audit logging (16-01)
 progress:
   total_phases: 5
   completed_phases: 3
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
-**Current focus:** v1.2.0 AI Chat Rewrite — Phase 15: Streaming Chat UI
+**Current focus:** v1.2.0 AI Tool Execution — Phase 16: Tool Execution
 
 ## Current Position
 
-Phase: 15 (Streaming Chat UI) — 3 of 5 in v1.2.0
-Plan: 15-01 complete
+Phase: 16 (Tool Execution) — 4 of 5 in v1.2.0
+Plan: 16-01 complete (1 of 4)
 Status: Executing
-Last activity: 2026-03-06 — Native OllamaProvider streaming + background polling (15-01)
+Last activity: 2026-03-06 — Security infrastructure + audit logging (16-01)
 
-Progress: [███░░░░░░░] 30%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Recent for v1.2.0:
 - [Phase 15-01]: Direct OllamaProvider.stream_chat() call, collect-then-process pattern in background polling
 - [Phase 15]: Ollama config placed before custom_agents in AI settings; sync block runs every frame with URL change detection
 - [Phase 15]: faint_bg_color for AI messages, explicit green status, one-frame memory flag for scroll-to-bottom, dynamic reasoning depth injection
+- [Phase 16-01]: LazyLock for static regex, manual ISO 8601 timestamps (no chrono), audit eprintln errors
 
 ### Known Tech Debt
 
@@ -85,6 +86,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T14:33:07.490Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-tool-execution/16-CONTEXT.md
+Last session: 2026-03-06T15:05:29Z
+Stopped at: Completed 16-01-PLAN.md
+Resume file: .planning/phases/16-tool-execution/16-01-SUMMARY.md

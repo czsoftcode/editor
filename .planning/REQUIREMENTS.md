@@ -18,11 +18,11 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 
 - [ ] **CHAT-01**: Hybrid CLI layout — prompt dole jako CLI, odpovedi nahore s vizualnim oddelenim
 - [x] **CHAT-02**: Streaming rendering — prubezne zobrazovani odpovedi token po tokenu
-- [ ] **CHAT-03**: Dark/light mode — theme-aware barvy z ui.visuals() misto hardcoded
-- [ ] **CHAT-04**: Markdown v odpovedich — code blocks, inline code, bold/italic
+- [x] **CHAT-03**: Dark/light mode — theme-aware barvy z ui.visuals() misto hardcoded
+- [x] **CHAT-04**: Markdown v odpovedich — code blocks, inline code, bold/italic
 - [x] **CHAT-05**: Konverzacni historie — multi-turn chat s persistenci v session
 - [ ] **CHAT-06**: Input s historii promptu (sipky nahoru/dolu)
-- [ ] **CHAT-07**: Cancel/Stop tlacitko pro preruseni generovani
+- [x] **CHAT-07**: Cancel/Stop tlacitko pro preruseni generovani
 
 ### Context & Tools
 
@@ -74,11 +74,11 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 | PROV-04 | Phase 15 | Complete |
 | CHAT-01 | Phase 15 | Pending |
 | CHAT-02 | Phase 15 | Complete |
-| CHAT-03 | Phase 15 | Pending |
-| CHAT-04 | Phase 15 | Pending |
+| CHAT-03 | Phase 15 | Complete |
+| CHAT-04 | Phase 15 | Complete |
 | CHAT-05 | Phase 15 | Complete |
 | CHAT-06 | Phase 15 | Pending |
-| CHAT-07 | Phase 15 | Pending |
+| CHAT-07 | Phase 15 | Complete |
 | TOOL-01 | Phase 16 | Pending |
 | TOOL-02 | Phase 16 | Pending |
 | TOOL-03 | Phase 16 | Pending |

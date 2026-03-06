@@ -51,7 +51,7 @@ Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
 
 - [x] **Phase 13: Provider Foundation** - AiProvider trait, OllamaProvider s NDJSON streaming, auto-detect (completed 2026-03-06)
 - [x] **Phase 14: State Refactor** - AiChatState sub-struct, konsolidace ~30 ai_* poli z WorkspaceState (completed 2026-03-06)
-- [ ] **Phase 15: Streaming Chat UI** - Hybrid CLI layout, streaming rendering, dark/light mode, markdown, historie, model picker
+- [x] **Phase 15: Streaming Chat UI** - Hybrid CLI layout, streaming rendering, dark/light mode, markdown, historie, model picker (completed 2026-03-06)
 - [ ] **Phase 16: Tool Execution** - Editor kontext, file read/write tools, command execution, approval UI
 - [ ] **Phase 17: i18n & WASM Cleanup** - Nove i18n klice, odstraneni starych WASM klicu, odstraneni WASM plugin systemu
 
@@ -96,7 +96,7 @@ Plans:
   4. Uzivatel muze vybrat model z ComboBoxu s dostupnymi Ollama modely
   5. Konverzacni historie funguje (multi-turn), input ma historii promptu (sipky nahoru/dolu), a uzivatel muze prerusit generovani Stop tlacitkem
   6. Ollama settings (API URL, API Key) jsou v Settings dialogu pod "PolyCredo CLI > Ollama" (ne v plugin settings), zmeny se aplikuji bez restartu editoru
-**Plans:** 3/4 plans executed
+**Plans:** 5/5 plans complete
 Plans:
 - [ ] 15-00-PLAN.md — Wave 0: Testove scaffoldy pro streaming buffer a settings migraci
 - [x] 15-01-PLAN.md — Streaming backend: prepojeni na OllamaProvider + background polling (completed 2026-03-06)
@@ -144,6 +144,6 @@ Plans:
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
 | 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
-| 15. Streaming Chat UI | 3/4 | In Progress|  | - |
+| 15. Streaming Chat UI | 5/5 | Complete   | 2026-03-06 | - |
 | 16. Tool Execution | v1.2.0 | 0/? | Not started | - |
 | 17. i18n & WASM Cleanup | v1.2.0 | 0/? | Not started | - |

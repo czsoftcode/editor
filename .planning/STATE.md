@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 15-03-PLAN.md
-last_updated: "2026-03-06T12:13:25.284Z"
+stopped_at: Completed 15-04-PLAN.md
+last_updated: "2026-03-06T13:33:29.869Z"
 last_activity: 2026-03-06 — Native OllamaProvider streaming + background polling (15-01)
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 9
-  completed_plans: 8
+  completed_phases: 3
+  total_plans: 10
+  completed_plans: 10
   percent: 30
 ---
 
@@ -56,6 +56,7 @@ Recent for v1.2.0:
 - [Phase 15-00]: Wave 0 pre-provisioning — added streaming fields + AI settings fields with defaults before implementation plans
 - [Phase 15-01]: Direct OllamaProvider.stream_chat() call, collect-then-process pattern in background polling
 - [Phase 15]: Ollama config placed before custom_agents in AI settings; sync block runs every frame with URL change detection
+- [Phase 15]: faint_bg_color for AI messages, explicit green status, one-frame memory flag for scroll-to-bottom, dynamic reasoning depth injection
 
 ### Known Tech Debt
 
@@ -80,9 +81,10 @@ None.
 | 4 | Move compile bar next to build bar, remove compile_bar.rs | 2026-03-06 | 9c4b211 | [4-move-compile-bar-next-to-build-bar-remov](./quick/4-move-compile-bar-next-to-build-bar-remov/) |
 | 5 | Revert validate_ollama_url port restriction + Bearer auth | 2026-03-06 | 3cc63a0 | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
 | Phase 15 P03 | 2min | 2 tasks | 3 files |
+| Phase 15 P04 | 2min | 3 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-03-06T12:13:25.274Z
-Stopped at: Completed 15-03-PLAN.md
+Last session: 2026-03-06T13:33:29.859Z
+Stopped at: Completed 15-04-PLAN.md
 Resume file: None

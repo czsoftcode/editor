@@ -96,11 +96,12 @@ Plans:
   4. Uzivatel muze vybrat model z ComboBoxu s dostupnymi Ollama modely
   5. Konverzacni historie funguje (multi-turn), input ma historii promptu (sipky nahoru/dolu), a uzivatel muze prerusit generovani Stop tlacitkem
   6. Ollama settings (API URL, API Key) jsou v Settings dialogu pod "PolyCredo CLI > Ollama" (ne v plugin settings), zmeny se aplikuji bez restartu editoru
-**Plans:** 3 plans
+**Plans:** 4 plans
 Plans:
-- [ ] 15-01-PLAN.md — Streaming backend: ChatState rozsireni + prepojeni na OllamaProvider + background polling
+- [ ] 15-00-PLAN.md — Wave 0: Testove scaffoldy pro streaming buffer a settings migraci
+- [ ] 15-01-PLAN.md — Streaming backend: prepojeni na OllamaProvider + background polling
 - [ ] 15-02-PLAN.md — Chat UI: theme-aware barvy, barevne bloky, Stop/Send, auto-scroll, model picker
-- [ ] 15-03-PLAN.md — AI Settings: Ollama konfigurace v Settings modal + migrace z plugin settings
+- [ ] 15-03-PLAN.md — AI Settings: Ollama konfigurace v Settings modal + synchronizace
 
 ### Phase 16: Tool Execution
 **Goal**: AI muze cist/editovat soubory a spoustet prikazy s uzivatelem schvalenym approval workflow
@@ -143,6 +144,6 @@ Plans:
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
 | 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
-| 15. Streaming Chat UI | v1.2.0 | 0/3 | Planned | - |
+| 15. Streaming Chat UI | v1.2.0 | 0/4 | Planned | - |
 | 16. Tool Execution | v1.2.0 | 0/? | Not started | - |
 | 17. i18n & WASM Cleanup | v1.2.0 | 0/? | Not started | - |

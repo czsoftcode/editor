@@ -243,6 +243,48 @@ pub fn parse_ndjson_line(line: &str) -> Option<StreamEvent> {
     }
 }
 
+/// Validate an Ollama API URL.
+///
+/// Returns `Some(cleaned_url)` if the URL is a valid Ollama endpoint,
+/// `None` otherwise. Rejects URLs without an explicit port (e.g.
+/// `https://ollama.com`) since real Ollama API servers always run on
+/// an explicit port. Strips trailing slash.
+pub fn validate_ollama_url(url: &str) -> Option<String> {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let parsed = url::Url::parse(trimmed).ok()?;
+
+    // Must be http or https
+    match parsed.scheme() {
+        "http" | "https" => {}
+        _ => return None,
+    }
+
+    // Must have a host
+    if parsed.host_str().is_none() {
+        return None;
+    }
+
+    // Must have an explicit port — URLs like https://ollama.com have no port
+    if parsed.port().is_none() {
+        return None;
+    }
+
+    // Build cleaned URL without trailing slash
+    let mut clean = format!("{}://{}:{}", parsed.scheme(), parsed.host_str().unwrap(), parsed.port().unwrap());
+
+    // Preserve path if present (but strip trailing slash)
+    let path = parsed.path().trim_end_matches('/');
+    if !path.is_empty() && path != "/" {
+        clean.push_str(path);
+    }
+
+    Some(clean)
+}
+
 /// Spawn a background thread to check Ollama availability and return status.
 pub fn spawn_ollama_check(base_url: String) -> mpsc::Receiver<OllamaStatus> {
     let (tx, rx) = mpsc::channel();

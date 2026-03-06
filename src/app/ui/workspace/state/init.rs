@@ -209,7 +209,8 @@ pub fn init_workspace(
         ollama_base_url: settings
             .plugins
             .get("ollama")
-            .and_then(|p| p.config.get("API_URL").cloned())
+            .and_then(|p| p.config.get("API_URL"))
+            .and_then(|url| crate::app::ai::ollama::validate_ollama_url(url))
             .unwrap_or_else(|| crate::config::OLLAMA_DEFAULT_URL.to_string()),
     }
 }

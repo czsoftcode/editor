@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 17-02-PLAN.md
-last_updated: "2026-03-06T19:27:35.482Z"
-last_activity: 2026-03-06 — WASM plugin system removal + plugin i18n cleanup (17-02)
+stopped_at: Completed 17-03-PLAN.md
+last_updated: "2026-03-06T19:49:53.764Z"
+last_activity: "2026-03-06 — UAT gap closure: i18n localization + compiler warnings (17-03)"
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 16
-  completed_plans: 15
+  completed_phases: 5
+  total_plans: 17
+  completed_plans: 17
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 17 (i18n + WASM Cleanup) — 5 of 5 in v1.2.0
-Plan: 17-02 complete (2 of 2)
+Plan: 17-03 complete (3 of 3)
 Status: Phase 17 complete
-Last activity: 2026-03-06 — WASM plugin system removal + plugin i18n cleanup (17-02)
+Last activity: 2026-03-06 — UAT gap closure: i18n localization + compiler warnings (17-03)
 
 Progress: [████████████] 100%
 
@@ -62,6 +62,7 @@ Recent for v1.2.0:
 - [Phase 16-03]: ToolExecutor combined Tasks 1+2, exec timeout via thread+mpsc, facts in .polycredo/ai-facts.json
 - [Phase 17-01]: Renamed ai-chat-*/ai-plugin-bar-* to cli-chat-*/cli-bar-*, build_options() DRY helper for Ollama params, seed=0 means random
 - [Phase 17-02]: Complete WASM plugin removal (~6500 LOC), AI init reads top-level Settings, old WASM approval UI removed
+- [Phase 17-03]: ComboBox selected_text uses match-based i18n dispatch, render_head extended with i18n parameter
 
 ### Known Tech Debt
 
@@ -87,8 +88,9 @@ None.
 | 5 | Revert validate_ollama_url port restriction + Bearer auth | 2026-03-06 | 3cc63a0 | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
 | Phase 15 P03 | 2min | 2 tasks | 3 files |
 | Phase 15 P04 | 2min | 3 tasks | 3 files |
+| Phase 17 P03 | 2min | 2 tasks | 10 files |
 
 ## Session Continuity
 
-Last session: 2026-03-06T19:22:24Z
-Stopped at: Completed 17-02-PLAN.md
+Last session: 2026-03-06T19:49:52.919Z
+Stopped at: Completed 17-03-PLAN.md

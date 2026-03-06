@@ -6,7 +6,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use super::{ProjectSearch, WorkspaceState};
-use crate::app::ai::state::{AiState, AiSettings, ChatState, OllamaConnectionStatus, OllamaState};
+use crate::app::cli::state::{AiState, AiSettings, ChatState, OllamaConnectionStatus, OllamaState};
 use crate::app::project_config::load_profiles;
 use crate::app::types::{FocusedPanel, PersistentState};
 use crate::app::ui::background::{fetch_git_branch, fetch_git_status};
@@ -83,7 +83,7 @@ pub fn init_workspace(
     let chat = ChatState {
         conversation: vec![(
             String::new(),
-            crate::app::ai::AiManager::get_logo(
+            crate::app::cli::AiManager::get_logo(
                 crate::config::CLI_VERSION,
                 &model_name,
                 expertise,

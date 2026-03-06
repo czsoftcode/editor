@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 
 /// Renders the chat header: Ollama status indicator, model picker, token counts.
 pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mutex<AppShared>>, i18n: &I18n) {
-    use crate::app::ai::state::OllamaConnectionStatus;
+    use crate::app::cli::state::OllamaConnectionStatus;
 
     ui.horizontal(|ui| {
         // Ollama connection status indicator

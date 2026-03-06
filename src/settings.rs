@@ -1,4 +1,4 @@
-use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
+use crate::app::cli::{AiExpertiseRole, AiReasoningDepth};
 use std::path::PathBuf;
 
 const SETTINGS_FILE: &str = "settings.toml";

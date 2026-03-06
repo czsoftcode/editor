@@ -3,7 +3,7 @@ pub mod input;
 pub mod render;
 pub mod settings;
 
-use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
+use crate::app::cli::{AiExpertiseRole, AiReasoningDepth};
 use eframe::egui;
 
 /// A unified UI widget for AI chat interfaces.

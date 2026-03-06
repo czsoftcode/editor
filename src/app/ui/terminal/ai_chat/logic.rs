@@ -1,8 +1,8 @@
-use crate::app::ai::ollama::OllamaProvider;
-use crate::app::ai::provider::{AiProvider, ProviderConfig};
-use crate::app::ai::state::OllamaConnectionStatus;
-use crate::app::ai::tools::get_standard_tools;
-use crate::app::ai::types::AiMessage;
+use crate::app::cli::ollama::OllamaProvider;
+use crate::app::cli::provider::{AiProvider, ProviderConfig};
+use crate::app::cli::state::OllamaConnectionStatus;
+use crate::app::cli::tools::get_standard_tools;
+use crate::app::cli::types::AiMessage;
 use crate::app::types::Toast;
 use crate::app::ui::workspace::state::WorkspaceState;
 use std::sync::atomic::AtomicBool;
@@ -29,7 +29,7 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
         } else {
             Some(settings.ai_file_blacklist_patterns)
         };
-        ws.tool_executor = Some(crate::app::ai::executor::ToolExecutor::new(root, blacklist, None));
+        ws.tool_executor = Some(crate::app::cli::executor::ToolExecutor::new(root, blacklist, None));
     }
 
     // Build messages from conversation history
@@ -157,7 +157,7 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
 
 /// Builds an editor context string from workspace state for injection into system message.
 fn build_editor_context(ws: &WorkspaceState) -> String {
-    use crate::app::ai::types::{AiContextPayload, AiFileContext, AiBuildErrorContext, AiGitFileStatus};
+    use crate::app::cli::types::{AiContextPayload, AiFileContext, AiBuildErrorContext, AiGitFileStatus};
 
     let mut payload = AiContextPayload::default();
 

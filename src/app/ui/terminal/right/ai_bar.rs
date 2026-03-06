@@ -1,5 +1,5 @@
 use crate::app::types::AppShared;
-use crate::app::ai::state::OllamaConnectionStatus;
+use crate::app::cli::state::OllamaConnectionStatus;
 use crate::app::ui::workspace::state::WorkspaceState;
 use eframe::egui;
 use std::sync::{Arc, Mutex};

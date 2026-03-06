@@ -7,7 +7,7 @@ use super::super::types::{AppShared, FocusedPanel};
 use super::terminal::Terminal;
 use super::widgets::tab_bar::{TabBarAction, TabItem, render_compact_tab_bar};
 use super::workspace::{WorkspaceState, spawn_ai_tool_check};
-use crate::app::ai::{AiContextPayload, AiManager};
+use crate::app::cli::{AiContextPayload, AiManager};
 use crate::app::registry::Agent;
 use crate::config;
 

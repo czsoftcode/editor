@@ -1,4 +1,4 @@
-use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
+use crate::app::cli::{AiExpertiseRole, AiReasoningDepth};
 use eframe::egui;
 
 pub fn ui_settings(

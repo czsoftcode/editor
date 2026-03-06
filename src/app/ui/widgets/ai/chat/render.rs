@@ -146,12 +146,18 @@ fn flush_block(
                 })
                 .show(ui, |ui| {
                     ui.set_max_width(ui.available_width() - 4.0);
-                    egui_commonmark::CommonMarkViewer::new().show(ui, cache, &text);
+                    egui_commonmark::CommonMarkViewer::new()
+                        .syntax_theme_dark("base16-ocean.dark")
+                        .syntax_theme_light("base16-ocean.light")
+                        .show(ui, cache, &text);
                 });
         });
     } else {
         ui.set_max_width(ui.available_width());
-        egui_commonmark::CommonMarkViewer::new().show(ui, cache, &text);
+        egui_commonmark::CommonMarkViewer::new()
+                        .syntax_theme_dark("base16-ocean.dark")
+                        .syntax_theme_light("base16-ocean.light")
+                        .show(ui, cache, &text);
     }
     block.clear();
 }

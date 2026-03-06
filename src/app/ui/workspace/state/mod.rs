@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
-use crate::app::ai::AiState;
+use crate::app::cli::AiState;
 use crate::app::build_runner::BuildError;
 use crate::app::lsp::LspClient;
 use crate::app::types::{FocusedPanel, ProjectProfiles, Toast};
@@ -129,7 +129,7 @@ pub struct WorkspaceState {
 
     // --- Native tool execution state (Phase 16) ---
     /// Native tool executor for AI tool calls (lazily initialized on first AI chat).
-    pub tool_executor: Option<crate::app::ai::executor::ToolExecutor>,
+    pub tool_executor: Option<crate::app::cli::executor::ToolExecutor>,
     /// Pending native tool approval request.
     pub pending_tool_approval: Option<PendingToolApproval>,
     /// Pending native ask_user request from tool executor.

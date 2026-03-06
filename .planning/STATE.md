@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1.0
-milestone_name: Sandbox Removal
-status: completed
-stopped_at: Milestone v1.1.0 completed
-last_updated: "2026-03-06T01:00:00.000Z"
-last_activity: 2026-03-06 - Completed quick task 4: Move compile bar next to build bar, remove compile_bar.rs
+milestone: v1.0
+milestone_name: milestone
+status: executing
+stopped_at: Plan 13-01 complete, executing 13-02
+last_updated: "2026-03-06T01:25:29.800Z"
+last_activity: 2026-03-06 — Roadmap created for v1.2.0
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -20,15 +20,17 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-03-06)
 
-**Core value:** Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí být minimální.
-**Current focus:** Planning next milestone
+**Core value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
+**Current focus:** v1.2.0 AI Chat Rewrite — Phase 13: Provider Foundation
 
 ## Current Position
 
-Milestone: v1.1.0 Sandbox Removal — COMPLETED
-All phases shipped. Milestone archived to .planning/milestones/
+Phase: 13 (Provider Foundation) — 1 of 5 in v1.2.0
+Plan: 13-01 complete, 13-02 in progress
+Status: Executing
+Last activity: 2026-03-06 — Completed AiProvider trait + OllamaProvider
 
-Progress: [==========] 100% ✅
+Progress: [██░░░░░░░░] 10%
 
 ## Performance Metrics
 
@@ -44,12 +46,18 @@ Progress: [==========] 100% ✅
 
 Key decisions logged in PROJECT.md Key Decisions table.
 
+Recent for v1.2.0:
+- ureq + std::thread (not reqwest/tokio) for HTTP — matches codebase threading model
+- Ollama first, trait abstraction extensible for Claude/Gemini later
+- State refactor early to avoid widespread renames after UI wiring
+- WASM removal last — both systems coexist until native path validated
+
 ### Known Tech Debt
 
-- Nyquist VALIDATION.md: 6 fází ve stavu draft (testy nebyly generovány)
-- Warning text kontrast v light mode (Settings modal — nahlášeno při UAT fáze 5)
-- UI-02: záložkový indikátor nemá dedikovaný kontrast test
-- 2 stale sandbox komentáře (plugins/mod.rs:98, modal_dialogs.rs:77)
+- Nyquist VALIDATION.md: 6 fazi ve stavu draft
+- Warning text kontrast v light mode (Settings modal)
+- UI-02: zalozkov indikator nema dedicated kontrast test
+- 2 stale sandbox komentare (plugins/mod.rs:98, modal_dialogs.rs:77)
 
 ### Pending Todos
 
@@ -68,5 +76,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06
-Stopped at: Completed quick task 4 (move compile bar into build bar)
+Last session: 2026-03-06T01:25:29.796Z
+Stopped at: Phase 13 context gathered
+Resume file: .planning/phases/13-provider-foundation/13-CONTEXT.md

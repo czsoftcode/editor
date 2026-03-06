@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 05-okam-it-aplikov-n-zm-ny-re-imu-sandboxu-po-p-epnut-checkboxu
 source:
   - 05-01-SUMMARY.md
@@ -69,16 +69,23 @@ skipped: 0
   reason: "User reported: adresar se zmeni, ale okno se vymaze"
   severity: minor
   test: 4
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "apply_sandbox_mode_change() pouziva destroy-and-recreate vzor: std::mem::take() + retire_terminal() + Terminal::new(). Novy PTY = prazdny scrollback. Neexistuje mechanismus pro prenos obsahu z puvodniho terminalu."
+  artifacts:
+    - path: "src/app/ui/workspace/state/mod.rs"
+      issue: "apply_sandbox_mode_change() radky 243-256 — kompletni nahrazeni terminalu"
+    - path: "src/app/ui/terminal/instance/mod.rs"
+      issue: "Terminal::new() vytvari novy backend s prazdnym PTY"
+  missing:
+    - "Bud poslat cd <target_root> do existujiciho shellu misto recreate, nebo vizualne zmircit prazdny terminal"
+  debug_session: ".planning/debug/terminal-wipe-on-sandbox-switch.md"
 - truth: "Prepnuti sandbox na OFF je blokovano pri staged souborech s dialogem"
-  status: failed
+  status: false_positive
   reason: "User reported: .polycredo/ je v .gitignore, takze git add na soubory v sandboxu nefunguje — blokace sandbox OFF pri staged souborech se nemuze nikdy aktivovat"
-  severity: major
+  severity: resolved
   test: 6
-  root_cause: ""
-  artifacts: []
+  root_cause: "FALSE POSITIVE — 'staged' v tomto kontextu neznamena git staging, ale souborove porovnani (WalkDir + xxh3 hash). Sandbox::get_staged_files() porovnava soubory sandbox vs project root. Gitignore je irelevantni. Feature funguje spravne."
+  artifacts:
+    - path: "src/app/sandbox.rs"
+      issue: "get_staged_files() radky 257-304 — souborova detekce, ne git"
   missing: []
-  debug_session: ""
+  debug_session: ".planning/debug/sandbox-staged-gitignore.md"

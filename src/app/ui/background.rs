@@ -20,6 +20,8 @@ where
 use super::super::types::{AppShared, Toast};
 use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
+use super::workspace::state::OllamaConnectionStatus;
+use crate::app::ai::{OllamaStatus, spawn_ollama_check};
 use crate::watcher::{FileEvent, FsChange};
 use std::sync::Mutex;
 
@@ -166,6 +168,37 @@ pub(super) fn process_background_events(
     {
         ws.win_tool_check_rx =
             Some(crate::app::ui::workspace::state::actions::spawn_win_tool_check());
+    }
+
+    // --- 4b. Ollama polling ---
+    if let Some(rx) = &ws.ollama_check_rx
+        && let Ok(status) = rx.try_recv()
+    {
+        match status {
+            OllamaStatus::Available(models) => {
+                ws.ollama_status = OllamaConnectionStatus::Connected;
+                if ws.ollama_selected_model.is_empty()
+                    || !models.contains(&ws.ollama_selected_model)
+                {
+                    if let Some(first) = models.first() {
+                        ws.ollama_selected_model = first.clone();
+                    }
+                }
+                ws.ollama_models = models;
+            }
+            OllamaStatus::Unavailable => {
+                ws.ollama_status = OllamaConnectionStatus::Disconnected;
+                ws.ollama_models.clear();
+            }
+        }
+        ws.ollama_check_rx = None;
+        ws.ollama_last_check = std::time::Instant::now();
+    }
+    if ws.ollama_last_check.elapsed().as_secs() >= crate::config::OLLAMA_CHECK_INTERVAL_SECS
+        && ws.ollama_check_rx.is_none()
+        && !ws.ai_loading
+    {
+        ws.ollama_check_rx = Some(spawn_ollama_check(ws.ollama_base_url.clone()));
     }
 
     // --- 5. Async results ---

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
-use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
+use crate::app::ai::{AiExpertiseRole, AiReasoningDepth, OllamaStatus};
 use crate::app::build_runner::BuildError;
 use crate::app::lsp::LspClient;
 use crate::app::types::{FocusedPanel, ProjectProfiles, Toast};
@@ -24,6 +24,14 @@ pub use self::init::init_workspace;
 pub use self::types::{
     FilePicker, FolderPickResult, FsChangeResult, ProjectSearch, SearchResult, SecondaryWorkspace,
 };
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum OllamaConnectionStatus {
+    #[default]
+    Checking,
+    Connected,
+    Disconnected,
+}
 
 pub type PendingPluginApproval = (
     String,
@@ -141,6 +149,13 @@ pub struct WorkspaceState {
     pub confirm_discard_changes: Option<String>,
     /// Last time the user pressed a key. Used for repaint capping during active typing.
     pub last_keystroke_time: Option<std::time::Instant>,
+    // --- Ollama native provider state ---
+    pub ollama_status: OllamaConnectionStatus,
+    pub ollama_models: Vec<String>,
+    pub ollama_selected_model: String,
+    pub ollama_check_rx: Option<mpsc::Receiver<OllamaStatus>>,
+    pub ollama_last_check: std::time::Instant,
+    pub ollama_base_url: String,
 }
 
 impl Drop for WorkspaceState {

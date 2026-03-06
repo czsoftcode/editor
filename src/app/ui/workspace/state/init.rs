@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
-use super::{ProjectSearch, WorkspaceState};
+use super::{OllamaConnectionStatus, ProjectSearch, WorkspaceState};
 use crate::app::project_config::load_profiles;
 use crate::app::types::{FocusedPanel, PersistentState};
 use crate::app::ui::background::{fetch_git_branch, fetch_git_status};
@@ -196,6 +196,21 @@ pub fn init_workspace(
         ai_cancellation_token: Arc::new(AtomicBool::new(false)),
         confirm_discard_changes: None,
         last_keystroke_time: None,
+        // --- Ollama native provider ---
+        ollama_status: OllamaConnectionStatus::Checking,
+        ollama_models: Vec::new(),
+        ollama_selected_model: panel_state
+            .ollama_selected_model
+            .clone()
+            .unwrap_or_default(),
+        ollama_check_rx: None,
+        ollama_last_check: std::time::Instant::now()
+            - std::time::Duration::from_secs(crate::config::OLLAMA_CHECK_INTERVAL_SECS),
+        ollama_base_url: settings
+            .plugins
+            .get("ollama")
+            .and_then(|p| p.config.get("API_URL").cloned())
+            .unwrap_or_else(|| crate::config::OLLAMA_DEFAULT_URL.to_string()),
     }
 }
 

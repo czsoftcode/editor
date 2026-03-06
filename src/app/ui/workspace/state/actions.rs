@@ -71,5 +71,10 @@ pub fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
         ai_language: Some(ws.ai_language.clone()),
         ai_expertise: Some(ws.ai_expertise),
         ai_reasoning_depth: Some(ws.ai_reasoning_depth),
+        ollama_selected_model: if ws.ollama_selected_model.is_empty() {
+            None
+        } else {
+            Some(ws.ollama_selected_model.clone())
+        },
     }
 }

@@ -105,6 +105,8 @@ pub(crate) struct PersistentState {
     pub ai_language: Option<String>,
     pub ai_expertise: Option<AiExpertiseRole>,
     pub ai_reasoning_depth: Option<AiReasoningDepth>,
+    #[serde(default)]
+    pub ollama_selected_model: Option<String>,
 }
 
 impl Default for PersistentState {
@@ -120,6 +122,7 @@ impl Default for PersistentState {
             ai_language: None,
             ai_expertise: None,
             ai_reasoning_depth: None,
+            ollama_selected_model: None,
         }
     }
 }

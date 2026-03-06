@@ -1,125 +1,99 @@
-# Requirements: PolyCredo Editor v1.1.0 — Sandbox Removal
+# Requirements: PolyCredo Editor v1.2.0
 
-**Defined:** 2026-03-05
-**Core Value:** Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí být minimální.
+**Defined:** 2026-03-06
+**Core Value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
 
-## v1.1.0 Requirements
+## v1.2.0 Requirements
 
-Requirements for sandbox removal milestone. Each maps to roadmap phases.
+Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 
-### Core Code Removal
+### Provider
 
-- [x] **CORE-01**: Soubor `src/app/sandbox.rs` je kompletně odstraněn
-- [x] **CORE-02**: Struct `Sandbox`, `SyncPlan` a všechny sandbox metody jsou odstraněny
+- [ ] **PROV-01**: AiProvider trait s metodami send_chat(), stream_chat(), name(), available_models()
+- [ ] **PROV-02**: OllamaProvider implementuje AiProvider s NDJSON streaming pres ureq + std::thread
+- [ ] **PROV-03**: Auto-detect Ollama serveru na localhost:11434 (GET /api/tags)
+- [ ] **PROV-04**: Model picker — ComboBox s dostupnymi modely z Ollama API
 
-### State Cleanup
+### Chat UI
 
-- [x] **STATE-01**: Všech ~15 sandbox-related fieldů odstraněno z `WorkspaceState`
-- [x] **STATE-02**: `SandboxApplyRequest`, `SandboxPersistFailure`, `PendingSettingsSave.sandbox_off_confirmed` odstraněny
-- [x] **STATE-03**: `ToastActionKind` varianty pro sandbox (6 variant) odstraněny z `types.rs`
-- [x] **STATE-04**: `AppShared.sandbox_off_toast_shown` odstraněno
+- [ ] **CHAT-01**: Hybrid CLI layout — prompt dole jako CLI, odpovedi nahore s vizualnim oddelenim
+- [ ] **CHAT-02**: Streaming rendering — prubezne zobrazovani odpovedi token po tokenu
+- [ ] **CHAT-03**: Dark/light mode — theme-aware barvy z ui.visuals() misto hardcoded
+- [ ] **CHAT-04**: Markdown v odpovedich — code blocks, inline code, bold/italic
+- [ ] **CHAT-05**: Konverzacni historie — multi-turn chat s persistenci v session
+- [ ] **CHAT-06**: Input s historii promptu (sipky nahoru/dolu)
+- [ ] **CHAT-07**: Cancel/Stop tlacitko pro preruseni generovani
 
-### UI Removal
+### Context & Tools
 
-- [x] **UI-01**: Settings toggle pro sandbox mode odstraněn ze Settings dialogu
-- [x] **UI-02**: Sandbox sync confirmation modal (`modal_dialogs/sandbox.rs`) odstraněn
-- [x] **UI-03**: Sandbox OFF confirmation dialog odstraněn ze settings
-- [x] **UI-04**: File tree "Sandbox" toggle button a "Soubory (Sandbox)" label odstraněny
-- [x] **UI-05**: Build bar "Sandbox ON/OFF" indikátor odstraněn
-- [x] **UI-06**: Toast akce (Apply now/Defer, Remap/Skip, Revert/Keep) odstraněny
+- [ ] **TOOL-01**: Automaticky editor kontext — otevrene soubory, git stav, build errory
+- [ ] **TOOL-02**: File read tool — AI cte soubory s approval
+- [ ] **TOOL-03**: File write/replace tool — AI upravuje soubory s approval a diff preview
+- [ ] **TOOL-04**: Command execution tool — AI spousti prikazy s approval
+- [ ] **TOOL-05**: Approval UI — Approve/Deny/Always workflow pro tool volani
+- [ ] **TOOL-06**: Ask-user tool — AI se muze zeptat uzivatele na upresneni
 
-### Settings Cleanup
+### Cleanup
 
-- [x] **SET-01**: `Settings.sandbox_mode` field odstraněn
-- [x] **SET-02**: Legacy migrace `project_read_only` odstraněna
-
-### I18n Cleanup
-
-- [x] **I18N-01**: Všech ~40+ sandbox i18n klíčů odstraněno ze všech 5 jazyků (cs, en, de, ru, sk)
-- [x] **I18N-02**: Test `all_lang_keys_match_english` stále prochází po odstranění
-
-### File Operations
-
-- [x] **FILE-01**: Tab remapping logika pro sandbox odstraněna z `editor/files.rs`
-- [x] **FILE-02**: File tree sandbox/project root switching logika odstraněna
-- [x] **FILE-03**: Terminal working directory sandbox switching odstraněno
-
-### Watcher & Background
-
-- [x] **WATCH-01**: Sandbox-specific logika ve `watcher.rs` odstraněna (staged detection, auto-sync)
-- [x] **WATCH-02**: Background tasks pro sandbox sync a staging detection odstraněny
-
-### Git & Build Restrictions
-
-- [x] **GIT-01**: Git disabled-in-sandbox guards odstraněny
-- [x] **GIT-02**: Build/deb disabled-in-sandbox guards odstraněny
-
-### Integrity
-
-- [x] **INT-01**: Projekt se kompiluje bez warningů (unused imports, dead code)
-- [x] **INT-02**: Existující testy procházejí
-- [x] **INT-03**: Editor je plně funkční bez sandbox režimu
+- [ ] **CLEN-01**: AiChatState sub-struct — konsolidace ~30 ai_* poli z WorkspaceState
+- [ ] **CLEN-02**: Odstraneni WASM plugin systemu — extism, PluginManager, ~2000 LOC
+- [ ] **CLEN-03**: i18n aktualizace — nove klice pro novy chat, odstraneni starych WASM klicu
 
 ## Future Requirements
 
-### Performance Optimization
+### Dalsi providery
 
-- **PERF-01**: Identifikovat hlavní příčiny vysokého CPU v idle (profilování / měření)
-- **PERF-02**: Omezit zbytečné překreslování egui renderovací smyčky (conditional repaint)
-- **PERF-03**: Snížit frekvenci nebo optimalizovat git polling (aktuálně každých 5s)
-- **PERF-04**: Optimalizovat autosave timer (aktuálně 500ms interval)
-- **PERF-05**: Prověřit FileWatcher/ProjectWatcher overhead
+- **PROV-05**: ClaudeProvider — Anthropic API s streaming
+- **PROV-06**: GeminiProvider — Google AI API s streaming
+- **PROV-07**: OpenAI-compatible provider — pro custom endpointy
 
-### Tech Debt
+### Pokrocile funkce
 
-- **DEBT-01**: Opravit kontrast warning textu v light mode (Settings modal)
-- **DEBT-02**: Nyquist VALIDATION.md: 6 fází ve stavu draft
+- **CHAT-08**: Multimodal vstup (obrazky)
+- **TOOL-07**: Inline code suggestions (ghost text)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Odstranění .polycredo/ adresáře | Uživatel chce ponechat pro budoucí použití |
-| Přidání nových features | Čistý refactoring milestone |
-| Performance optimalizace | Plánováno na budoucí milestone |
-| Sandbox větev v gitu | Ponechána jako archiv (`sandbox` branch) |
+| OpenAI-compatible endpoint pro Ollama | Nativni Ollama API je spolehlive pro streaming tool calling (issue #12557) |
+| WASM runtime pro AI | Odstranujeme prave kvuli slozitosti a overhead |
+| Auto-execute bez approval | Bezpecnostni riziko — AI nesmi volne mazat/zapisovat |
+| RAG / vector DB integrace | Over-engineering, existujici semantic search staci |
+| Voice input/output | Mimo scope editoru |
+| Plugin marketplace | Over-engineering pro v1.2 |
+| Automaticke code apply | Windsurf-style "apply pred schvalenim" je rizikove |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CORE-01 | Phase 9 | Complete |
-| CORE-02 | Phase 9 | Complete |
-| STATE-01 | Phase 10 | Complete |
-| STATE-02 | Phase 10 | Complete |
-| STATE-03 | Phase 10 | Complete |
-| STATE-04 | Phase 10 | Complete |
-| UI-01 | Phase 10 | Complete |
-| UI-02 | Phase 10 | Complete |
-| UI-03 | Phase 10 | Complete |
-| UI-04 | Phase 10 | Complete |
-| UI-05 | Phase 10 | Complete |
-| UI-06 | Phase 10 | Complete |
-| SET-01 | Phase 9 | Complete |
-| SET-02 | Phase 9 | Complete |
-| I18N-01 | Phase 12 | Complete |
-| I18N-02 | Phase 12 | Complete |
-| FILE-01 | Phase 11 | Complete |
-| FILE-02 | Phase 11 | Complete |
-| FILE-03 | Phase 11 | Complete |
-| WATCH-01 | Phase 11 | Complete |
-| WATCH-02 | Phase 11 | Complete |
-| GIT-01 | Phase 11 | Complete |
-| GIT-02 | Phase 11 | Complete |
-| INT-01 | Phase 12 | Complete |
-| INT-02 | Phase 12 | Complete |
-| INT-03 | Phase 12 | Complete |
+| PROV-01 | Phase 13 | Pending |
+| PROV-02 | Phase 13 | Pending |
+| PROV-03 | Phase 13 | Pending |
+| PROV-04 | Phase 15 | Pending |
+| CHAT-01 | Phase 15 | Pending |
+| CHAT-02 | Phase 15 | Pending |
+| CHAT-03 | Phase 15 | Pending |
+| CHAT-04 | Phase 15 | Pending |
+| CHAT-05 | Phase 15 | Pending |
+| CHAT-06 | Phase 15 | Pending |
+| CHAT-07 | Phase 15 | Pending |
+| TOOL-01 | Phase 16 | Pending |
+| TOOL-02 | Phase 16 | Pending |
+| TOOL-03 | Phase 16 | Pending |
+| TOOL-04 | Phase 16 | Pending |
+| TOOL-05 | Phase 16 | Pending |
+| TOOL-06 | Phase 16 | Pending |
+| CLEN-01 | Phase 14 | Pending |
+| CLEN-02 | Phase 17 | Pending |
+| CLEN-03 | Phase 17 | Pending |
 
 **Coverage:**
-- v1.1.0 requirements: 26 total
-- Mapped to phases: 26
+- v1.2.0 requirements: 20 total
+- Mapped to phases: 20
 - Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-05*
-*Last updated: 2026-03-05 after roadmap creation*
+*Requirements defined: 2026-03-06*
+*Last updated: 2026-03-06 after roadmap creation*

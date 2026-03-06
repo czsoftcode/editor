@@ -129,7 +129,10 @@ Plans:
   2. Stare WASM-specificke i18n klice jsou odstraneny
   3. extism dependency a PluginManager jsou kompletne odstraneny (~2000 LOC)
   4. Editor kompiluje a funguje bez WASM runtime — vsechny AI funkce bezi nativne
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 17-01-PLAN.md — i18n: cli.ftl, rename keys, replace hardcoded strings, Ollama params
+- [ ] 17-02-PLAN.md — WASM removal: delete plugin system, clean references, remove extism
 
 ## Progress
 
@@ -150,5 +153,9 @@ Plans:
 | 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
 | 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
 | 15. Streaming Chat UI | 5/5 | Complete    | 2026-03-06 | - |
-| 16. Tool Execution | 3/4 | In Progress|  | - |
-| 17. i18n & WASM Cleanup | v1.2.0 | 0/? | Not started | - |
+| 16. Tool Execution | 4/4 | In Progress|  | - |
+| 17. i18n & WASM Cleanup | v1.2.0 | 0/2 | Not started | - |
+
+## Known Issues / TODO
+
+- **Syntax highlighting v AI chatu**: `egui_commonmark` s `better_syntax_highlighting` feature a `syntax_theme_dark("base16-ocean.dark")` nefunguje — code blocky (```rust) se zobrazuji cernobile bez barev. Nutno vyresit — mozna vlastni rendering code bloku pres syntect (uz pouzivame v editoru).

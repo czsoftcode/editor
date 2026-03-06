@@ -10,6 +10,7 @@ pub fn ui_conversation(
     out_tokens: u32,
     is_streaming: bool,
     thinking_history: &[Option<String>],
+    i18n: &crate::i18n::I18n,
 ) {
     let poly_color = egui::Color32::from_rgb(100, 160, 220);
     let credo_color = egui::Color32::from_rgb(100, 220, 160);
@@ -82,7 +83,7 @@ pub fn ui_conversation(
             // Copy button after the message block
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button("Copy").clicked() {
+                    if ui.small_button(i18n.get("cli-chat-copy")).clicked() {
                         ui.ctx().copy_text(q.clone());
                     }
                 });
@@ -156,7 +157,7 @@ pub fn ui_conversation(
             // Copy button after the AI message block
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button("Copy").clicked() {
+                    if ui.small_button(i18n.get("cli-chat-copy")).clicked() {
                         let full_text = if q.is_empty() {
                             a.clone()
                         } else {

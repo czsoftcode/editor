@@ -38,7 +38,7 @@ pub fn show(
     let font_size = shared.lock().expect("lock").settings.editor_font_size;
 
     let win = StandardTerminalWindow::new(
-        i18n.get("ai-chat-title"),
+        i18n.get("cli-chat-title"),
         "ai_chat_terminal_win",
         FocusedPanel::AiChat,
     );

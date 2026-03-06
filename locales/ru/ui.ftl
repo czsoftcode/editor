@@ -198,10 +198,6 @@ ai-hover-missing = Команда `{ $cmd }` не найдена в PATH. Уст
 ai-btn-start = ▶ Запустить
 ai-diff-heading = Проверка изменений, предложенных ИИ
 ai-diff-new-file = Предложен новый файл
-ai-plugin-bar-label = ИИ:
-ai-plugin-bar-settings = ⚙
-ai-plugin-bar-start-hover = Запустить чат с выбранным плагином
-ai-plugin-bar-settings-hover = Открыть настройки выбранного плагина
 ai-float-dock = Прикрепить к панели
 ai-float-undock = Открепить в плавающее окно
 ai-viewport-open = Открыть в отдельном окне
@@ -334,21 +330,9 @@ settings-conflict-message = Настройки были обновлены в д
 settings-conflict-reload = Перезагрузить
 settings-conflict-keep = Продолжить редактирование
 
-## AI Chat
-ai-chat-title = AI Chat Assistant
-ai-chat-label-response = Response:
-ai-chat-loading = AI is thinking…
-ai-chat-label-prompt = Your prompt:
-ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
-ai-chat-btn-send = Send
-ai-chat-btn-new = New Thread
-ai-chat-settings-title = AI Settings
-ai-chat-label-language = Language:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = System Prompt:
-ai-chat-default-prompt = Expert Rust Developer.
-command-name-plugin-ai-chat = Plugin: Ask AI Agent
-command-name-plugin-ollama = Plugin: Ask Ollama
+## Command Palette – ИИ-плагины
+command-name-plugin-ai-chat = Плагин: Спросить ИИ-агента
+command-name-plugin-ollama = Плагин: Спросить Ollama
 
 ## Support Modal
 support-modal-title = Поддержать разработку PolyCredo

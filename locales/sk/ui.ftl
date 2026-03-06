@@ -182,10 +182,6 @@ ai-hover-checking = Zisťujem dostupnosť AI CLI nástrojov…
 ai-hover-start = Spustí { $tool } (`{ $cmd }`) v termináli
 ai-hover-missing = Príkaz `{ $cmd }` nebol nájdený v PATH. Nainštalujte nástroj a kliknite ↻.
 ai-btn-start = ▶ Spustiť
-ai-plugin-bar-label = AI:
-ai-plugin-bar-settings = ⚙
-ai-plugin-bar-start-hover = Spustiť AI chat s vybraným pluginom
-ai-plugin-bar-settings-hover = Otvoriť nastavenia vybraného AI pluginu
 ai-float-dock = Umiestniť do panela
 ai-float-undock = Odpojiť do plávajúceho okna
 ai-viewport-open = Otvoriť v samostatnom okne
@@ -205,19 +201,6 @@ ai-promotion-success = Zmeny boli úspešne aplikované do projektu.
 ai-promotion-all-success = Úspešne prenesených { $count } súborov do projektu.
 ai-promotion-failed = Nepodarilo sa aplikovať zmeny: { $error }
 
-## AI Chat asistent
-ai-chat-title = AI Chat asistent
-ai-chat-label-response = Odpoveď:
-ai-chat-loading = AI premýšľa…
-ai-chat-label-prompt = Tvoj dotaz:
-ai-chat-placeholder-prompt = Napíš zadanie pre AI (napr. „Vysvetli tento kód“)...
-ai-chat-btn-send = Odoslať
-ai-chat-btn-new = Nové vlákno
-ai-chat-settings-title = Nastavenia AI
-ai-chat-label-language = Jazyk:
-ai-chat-btn-reset = Resetovať
-ai-chat-label-system-prompt = Systémový prompt:
-ai-chat-default-prompt = Expert na Rust.
 
 ## Synchronizácia pred spustením AI
 

@@ -183,10 +183,6 @@ ai-hover-missing = Příkaz `{ $cmd }` nebyl nalezen v PATH. Nainstaluj nástroj
 ai-btn-start = ▶ Spustit
 ai-diff-heading = Kontrola změn navržených AI
 ai-diff-new-file = Nový soubor navržen
-ai-plugin-bar-label = AI:
-ai-plugin-bar-settings = ⚙
-ai-plugin-bar-start-hover = Spustit AI chat s vybraným pluginem
-ai-plugin-bar-settings-hover = Otevřít nastavení vybraného AI pluginu
 ai-float-dock = Přikovat do panelu
 ai-float-undock = Odpojit do plovoucího okna
 ai-viewport-open = Otevřít v samostatném okně
@@ -268,19 +264,7 @@ plugins-placeholder-api-key = API klíč (např. Gemini, Anthropic)
 plugins-placeholder-model = ID modelu (např. gemini-1.5-flash)
 command-name-show-plugins = Pluginy
 
-## AI Chat
-ai-chat-title = AI Chat asistent
-ai-chat-label-response = Odpověď:
-ai-chat-loading = AI přemýšlí…
-ai-chat-label-prompt = Tvůj dotaz:
-ai-chat-placeholder-prompt = Napiš zadání pro AI (např. „Vysvětli tento kód“ nebo „Navrhni refaktoring“)...
-ai-chat-btn-send = Odeslat
-ai-chat-btn-new = Nové vlákno
-ai-chat-settings-title = Nastavení AI
-ai-chat-label-language = Jazyk:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = Systémový prompt:
-ai-chat-default-prompt = Expert Rust Developer.
+## Command Palette – AI pluginy
 command-name-plugin-gemini = Plugin: Zeptat se Gemini
 command-name-plugin-ollama = Plugin: Zeptat se Ollama
 command-name-plugin-ai-chat = Plugin: Zeptat se AI agenta

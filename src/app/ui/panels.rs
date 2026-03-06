@@ -141,7 +141,7 @@ fn render_plugin_bar(
     ui.separator();
 
     ui.horizontal(|ui| {
-        ui.label(i18n.get("ai-plugin-bar-label"));
+        ui.label(i18n.get("cli-bar-label"));
 
         let selected_label = ai_plugins
             .iter()
@@ -160,7 +160,7 @@ fn render_plugin_bar(
 
         if ui
             .button(i18n.get("ai-btn-start"))
-            .on_hover_text(i18n.get("ai-plugin-bar-start-hover"))
+            .on_hover_text(i18n.get("cli-bar-start-hover"))
             .clicked()
         {
             ws.show_ai_chat = true;
@@ -173,8 +173,8 @@ fn render_plugin_bar(
         }
 
         if ui
-            .button(i18n.get("ai-plugin-bar-settings"))
-            .on_hover_text(i18n.get("ai-plugin-bar-settings-hover"))
+            .button(i18n.get("cli-bar-settings"))
+            .on_hover_text(i18n.get("cli-bar-settings-hover"))
             .clicked()
         {
             ws.show_plugins = true;

@@ -32,8 +32,9 @@ impl AiChatWidget {
         out_tokens: u32,
         is_streaming: bool,
         thinking_history: &[Option<String>],
+        i18n: &crate::i18n::I18n,
     ) {
-        conversation::ui_conversation(ui, conversation, font_size, cache, model_name, out_tokens, is_streaming, thinking_history)
+        conversation::ui_conversation(ui, conversation, font_size, cache, model_name, out_tokens, is_streaming, thinking_history, i18n)
     }
 
     /// Renders the real-time "thinking" monologue.

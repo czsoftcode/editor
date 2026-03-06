@@ -180,10 +180,6 @@ ai-hover-missing = Befehl `{ $cmd }` nicht in PATH gefunden. Werkzeug installier
 ai-btn-start = ▶ Starten
 ai-diff-heading = Vorgeschlagene KI-Änderungen überprüfen
 ai-diff-new-file = Neue Datei vorgeschlagen
-ai-plugin-bar-label = KI:
-ai-plugin-bar-settings = ⚙
-ai-plugin-bar-start-hover = KI-Chat mit ausgewähltem Plugin starten
-ai-plugin-bar-settings-hover = Einstellungen für das ausgewählte KI-Plugin öffnen
 ai-float-dock = Im Panel andocken
 ai-float-undock = Als schwebendes Fenster lösen
 ai-viewport-open = In separatem Fenster öffnen
@@ -264,21 +260,9 @@ plugins-placeholder-api-key = API-Schlüssel (z. B. Gemini, Anthropic)
 plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
 command-name-show-plugins = Plugins
 
-## AI Chat
-ai-chat-title = AI Chat Assistant
-ai-chat-label-response = Response:
-ai-chat-loading = AI is thinking…
-ai-chat-label-prompt = Your prompt:
-ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
-ai-chat-btn-send = Send
-ai-chat-btn-new = New Thread
-ai-chat-settings-title = AI Settings
-ai-chat-label-language = Language:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = System Prompt:
-ai-chat-default-prompt = Expert Rust Developer.
-command-name-plugin-ai-chat = Plugin: Ask AI Agent
-command-name-plugin-ollama = Plugin: Ask Ollama
+## Command Palette – KI-Plugins
+command-name-plugin-ai-chat = Plugin: KI-Agent fragen
+command-name-plugin-ollama = Plugin: Ollama fragen
 
 ## Semantische Indexierung (RAG)
 semantic-indexing-title = Semantische Projektindexierung

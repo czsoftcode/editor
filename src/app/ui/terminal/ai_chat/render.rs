@@ -40,6 +40,26 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
             ui.memory_mut(|m| m.toggle_popup(popup_id));
             ws.ai.ollama.model_filter.clear();
         }
+        // Build tooltip text for model info (shown after popup)
+        let model_tooltip = ws.ai.ollama.model_info.as_ref().and_then(|info| {
+            let mut tip = String::new();
+            if !info.family.is_empty() {
+                tip.push_str(&format!("Family: {}\n", info.family));
+            }
+            if !info.parameter_size.is_empty() {
+                tip.push_str(&format!("Parameters: {}\n", info.parameter_size));
+            }
+            if !info.quantization_level.is_empty() {
+                tip.push_str(&format!("Quantization: {}\n", info.quantization_level));
+            }
+            if let Some(ctx) = info.context_length {
+                tip.push_str(&format!("Context: {ctx}\n"));
+            }
+            if !info.parameters.is_empty() {
+                tip.push_str(&format!("\n--- Parameters ---\n{}", info.parameters));
+            }
+            if tip.is_empty() { None } else { Some(tip.trim_end().to_string()) }
+        });
         egui::popup_below_widget(ui, popup_id, &btn_resp, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
             ui.set_min_width(220.0);
             ui.set_max_height(350.0);
@@ -80,8 +100,11 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
                 }
             });
         });
+        if let Some(tip) = model_tooltip {
+            btn_resp.on_hover_text(tip);
+        }
 
-        // Token counter on the right
+        // Model info + token counter on the right
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let weak_color = ui.visuals().weak_text_color();
             ui.label(
@@ -92,6 +115,30 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
                 .color(weak_color)
                 .small(),
             );
+            if let Some(info) = &ws.ai.ollama.model_info {
+                let mut parts = Vec::new();
+                if !info.parameter_size.is_empty() {
+                    parts.push(info.parameter_size.clone());
+                }
+                if !info.quantization_level.is_empty() {
+                    parts.push(info.quantization_level.clone());
+                }
+                if let Some(ctx) = info.context_length {
+                    parts.push(format!("ctx:{ctx}"));
+                }
+                if !parts.is_empty() {
+                    ui.label(
+                        egui::RichText::new(parts.join(" | "))
+                            .color(weak_color)
+                            .small(),
+                    );
+                    ui.label(
+                        egui::RichText::new("|")
+                            .color(weak_color)
+                            .small(),
+                    );
+                }
+            }
         });
     });
 }
@@ -125,7 +172,7 @@ pub fn render_body(
                 egui::vec2(ui.available_width(), body_h),
                 egui::Layout::top_down(egui::Align::LEFT),
                 |ui| {
-                    render_inspector(ui, ws, font_size);
+                    render_inspector(ui, ws, font_size, i18n);
                 },
             );
         });
@@ -205,6 +252,7 @@ fn render_chat_content(
                     ws.ai.chat.out_tokens,
                     ws.ai.chat.loading,
                     &ws.ai.chat.thinking_history,
+                    i18n,
                 );
                 if !ws.ai.chat.monologue.is_empty() {
                     ui.add_space(8.0);
@@ -219,7 +267,7 @@ fn render_chat_content(
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.spinner();
-                    ui.label(egui::RichText::new(i18n.get("ai-chat-loading")).strong());
+                    ui.label(egui::RichText::new(i18n.get("cli-chat-loading")).strong());
                 });
                 ui.add_space(4.0);
                 AiChatWidget::ui_monologue(ui, &ws.ai.chat.monologue, font_size, &mut ws.ai.markdown_cache);
@@ -254,14 +302,14 @@ fn render_chat_content(
 
     // ── APPROVAL UI  /  ASK USER  /  PROMPT ──────────────────────────────────
     if let Some((id, action_name, details, sender)) = ws.pending_plugin_approval.take() {
-        render_approval_ui(ui, id, action_name, details, sender, ws);
+        render_approval_ui(ui, id, action_name, details, sender, ws, i18n);
     } else if let Some((id, question, options, mut input_buf, sender)) = ws.pending_ask_user.take()
     {
-        render_ask_user_ui(ui, id, question, options, &mut input_buf, sender, ws);
+        render_ask_user_ui(ui, id, question, options, &mut input_buf, sender, ws, i18n);
     } else if ws.pending_tool_approval.is_some() {
-        render_tool_approval_ui(ui, ws);
+        render_tool_approval_ui(ui, ws, i18n);
     } else if ws.pending_tool_ask.is_some() {
-        render_tool_ask_ui(ui, ws);
+        render_tool_ask_ui(ui, ws, i18n);
     } else {
         ui.add_space(4.0);
         ui.scope(|ui| {
@@ -320,7 +368,7 @@ fn render_chat_content(
                                 ui,
                                 prompt,
                                 font_size,
-                                &i18n.get("ai-chat-placeholder-prompt"),
+                                &i18n.get("cli-chat-placeholder-prompt"),
                                 &ws.ai.chat.history,
                                 &mut ws.ai.chat.history_index,
                             )
@@ -330,7 +378,7 @@ fn render_chat_content(
                     // Stop/Send toggle button
                     if loading {
                         let stop_color = ui.visuals().error_fg_color;
-                        if ui.button(egui::RichText::new("Stop").color(stop_color)).clicked() {
+                        if ui.button(egui::RichText::new(i18n.get("cli-chat-stop")).color(stop_color)).clicked() {
                             stop_streaming(ws);
                         }
                     }
@@ -407,19 +455,20 @@ pub fn render_footer(
     let mut action = None;
 
     if ui
-        .selectable_label(ws.ai.settings.show_settings, i18n.get("ai-chat-settings-title"))
+        .selectable_label(ws.ai.settings.show_settings, i18n.get("cli-chat-settings-title"))
         .clicked()
     {
         ws.ai.settings.show_settings = !ws.ai.settings.show_settings;
     }
 
+    let inspector_text = i18n.get("cli-chat-inspector-title");
     let inspector_label = if ws.ai.inspector_open {
-        "\u{1F50D} Hide Inspector"
+        format!("\u{1F50D} {} \u{25B2}", inspector_text)
     } else {
-        "\u{1F50D} Show Inspector"
+        format!("\u{1F50D} {} \u{25BC}", inspector_text)
     };
     if ui
-        .selectable_label(ws.ai.inspector_open, inspector_label)
+        .selectable_label(ws.ai.inspector_open, &inspector_label)
         .clicked()
     {
         action = Some(AiChatAction::ToggleInspector);
@@ -431,7 +480,7 @@ pub fn render_footer(
             return;
         }
         if (!ws.ai.chat.conversation.is_empty() || ws.ai.chat.response.is_some())
-            && ui.button(i18n.get("ai-chat-btn-new")).clicked()
+            && ui.button(i18n.get("cli-chat-btn-new")).clicked()
         {
             action = Some(AiChatAction::NewQuery);
         }

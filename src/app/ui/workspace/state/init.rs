@@ -96,7 +96,7 @@ pub fn init_workspace(
         system_prompt: panel_state.ai_system_prompt.clone().unwrap_or_else(|| {
             ai_plugin_settings
                 .and_then(|s| s.config.get("SYSTEM_PROMPT").cloned())
-                .unwrap_or_else(|| i18n.get("ai-chat-default-prompt"))
+                .unwrap_or_else(|| i18n.get("cli-chat-default-prompt"))
         }),
         focus_requested: true,
         ..ChatState::default()

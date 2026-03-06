@@ -1,4 +1,6 @@
 use crate::app::ui::workspace::state::WorkspaceState;
+use crate::i18n::I18n;
+use crate::tr;
 use eframe::egui;
 
 pub fn render_approval_ui(
@@ -8,6 +10,7 @@ pub fn render_approval_ui(
     details: String,
     sender: std::sync::mpsc::Sender<crate::app::types::PluginApprovalResponse>,
     ws: &mut WorkspaceState,
+    i18n: &I18n,
 ) {
     egui::Frame::new()
         .stroke(egui::Stroke::new(1.5, egui::Color32::YELLOW))
@@ -19,7 +22,7 @@ pub fn render_approval_ui(
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new("\u{26A0}\u{FE0F}").size(24.0));
                     ui.label(
-                        egui::RichText::new(format!("Agent '{}' vyžaduje schválení akce", id))
+                        egui::RichText::new(tr!(i18n, "cli-tool-approval-heading", agent = id.as_str()))
                             .strong()
                             .size(20.0)
                             .color(egui::Color32::YELLOW),
@@ -43,7 +46,7 @@ pub fn render_approval_ui(
                     if ui
                         .add_sized(
                             btn_size,
-                            egui::Button::new(egui::RichText::new("1 - Provést").strong()),
+                            egui::Button::new(egui::RichText::new(i18n.get("cli-tool-approve")).strong()),
                         )
                         .clicked()
                         || ui.input(|i| i.key_pressed(egui::Key::Num1))
@@ -54,7 +57,7 @@ pub fn render_approval_ui(
                     }
                     ui.add_space(12.0);
                     if ui
-                        .add_sized(btn_size, egui::Button::new("2 - Schvalovat vždy"))
+                        .add_sized(btn_size, egui::Button::new(i18n.get("cli-tool-approve-always")))
                         .clicked()
                         || ui.input(|i| i.key_pressed(egui::Key::Num2))
                     {
@@ -65,7 +68,7 @@ pub fn render_approval_ui(
                     }
                     ui.add_space(12.0);
                     if ui
-                        .add_sized(btn_size, egui::Button::new("3/Esc - Zamítnout"))
+                        .add_sized(btn_size, egui::Button::new(i18n.get("cli-tool-deny")))
                         .clicked()
                         || ui.input(|i| {
                             i.key_pressed(egui::Key::Num3) || i.key_pressed(egui::Key::Escape)
@@ -96,6 +99,7 @@ pub fn render_ask_user_ui(
     input_buffer: &mut String,
     sender: std::sync::mpsc::Sender<String>,
     ws: &mut WorkspaceState,
+    i18n: &I18n,
 ) {
     egui::Frame::new()
         .stroke(egui::Stroke::new(
@@ -108,9 +112,9 @@ pub fn render_ask_user_ui(
             ui.set_width(ui.available_width());
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("❓").size(24.0));
+                    ui.label(egui::RichText::new("\u{2753}").size(24.0));
                     ui.label(
-                        egui::RichText::new(format!("Agent '{}' se ptá:", id))
+                        egui::RichText::new(tr!(i18n, "cli-tool-ask-heading", agent = id.as_str()))
                             .strong()
                             .size(18.0)
                             .color(egui::Color32::from_rgb(100, 160, 255)),
@@ -122,7 +126,7 @@ pub fn render_ask_user_ui(
 
                 // Option buttons
                 if !options.is_empty() {
-                    ui.label(egui::RichText::new("Rychlé možnosti:").weak());
+                    ui.label(egui::RichText::new(i18n.get("cli-tool-quick-options")).weak());
                     ui.add_space(4.0);
                     let mut chosen: Option<String> = None;
                     ui.horizontal_wrapped(|ui| {
@@ -134,20 +138,20 @@ pub fn render_ask_user_ui(
                     });
                     if let Some(answer) = chosen {
                         let _ = sender.send(answer.clone());
-                        append_to_last_conversation(ws, &format!("**Odpověď:** {}", answer));
+                        append_to_last_conversation(ws, &format!("**{}:** {}", i18n.get("cli-tool-send"), answer));
                         ws.pending_ask_user = None;
                         ui.ctx().request_repaint();
                         return;
                     }
                     ui.add_space(8.0);
-                    ui.label(egui::RichText::new("Nebo napište vlastní:").weak());
+                    ui.label(egui::RichText::new(i18n.get("cli-tool-custom-input")).weak());
                 }
 
                 // Free-text input
                 let response = ui.add(
                     egui::TextEdit::singleline(input_buffer)
                         .desired_width(ui.available_width())
-                        .hint_text("Vaše odpověď…"),
+                        .hint_text(i18n.get("cli-tool-input-placeholder")),
                 );
                 let submitted =
                     response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
@@ -158,19 +162,19 @@ pub fn render_ask_user_ui(
                     if ui
                         .add_sized(
                             egui::vec2(120.0, 28.0),
-                            egui::Button::new(egui::RichText::new("Odeslat").strong()),
+                            egui::Button::new(egui::RichText::new(i18n.get("cli-tool-send")).strong()),
                         )
                         .clicked()
                         || submitted
                     {
                         let answer = std::mem::take(input_buffer);
                         let _ = sender.send(answer.clone());
-                        append_to_last_conversation(ws, &format!("**Odpověď:** {}", answer));
+                        append_to_last_conversation(ws, &format!("**{}:** {}", i18n.get("cli-tool-send"), answer));
                         handled = true;
                     }
                     ui.add_space(8.0);
                     if ui
-                        .add_sized(egui::vec2(100.0, 28.0), egui::Button::new("Zrušit"))
+                        .add_sized(egui::vec2(100.0, 28.0), egui::Button::new(i18n.get("cli-tool-cancel")))
                         .clicked()
                         || ui.input(|i| i.key_pressed(egui::Key::Escape))
                     {
@@ -193,7 +197,7 @@ pub fn render_ask_user_ui(
 }
 
 /// Renders the native tool approval UI for PendingToolApproval (Phase 16).
-pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
+pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &I18n) {
     let pending = match ws.pending_tool_approval.take() {
         Some(p) => p,
         None => return,
@@ -217,7 +221,7 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new(icon).size(22.0));
                     ui.label(
-                        egui::RichText::new(format!("AI nastroj '{}' vyzaduje schvaleni", pending.tool_name))
+                        egui::RichText::new(tr!(i18n, "cli-tool-tool-approval-heading", tool = pending.tool_name.as_str()))
                             .strong()
                             .size(18.0)
                             .color(egui::Color32::YELLOW),
@@ -230,7 +234,7 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                 if pending.is_network {
                     ui.add_space(4.0);
                     ui.label(
-                        egui::RichText::new("Sitovy prikaz -- data mohou opustit pocitac")
+                        egui::RichText::new(i18n.get("cli-tool-network-warning"))
                             .color(egui::Color32::from_rgb(255, 80, 80))
                             .strong(),
                     );
@@ -238,7 +242,7 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                 if pending.is_new_file {
                     ui.add_space(4.0);
                     ui.label(
-                        egui::RichText::new("Novy soubor (nizsi riziko)")
+                        egui::RichText::new(i18n.get("cli-tool-new-file-hint"))
                             .color(egui::Color32::from_rgb(80, 200, 80)),
                     );
                 }
@@ -262,7 +266,7 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                 ui.horizontal(|ui| {
                     if ui
                         .add_sized(btn_size, egui::Button::new(
-                            egui::RichText::new("1 - Schvalit").strong(),
+                            egui::RichText::new(i18n.get("cli-tool-approve")).strong(),
                         ))
                         .clicked()
                         || ui.input(|i| i.key_pressed(egui::Key::Num1))
@@ -272,7 +276,7 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                     }
                     ui.add_space(8.0);
                     if ui
-                        .add_sized(btn_size, egui::Button::new("2 - Vzdy schvalit"))
+                        .add_sized(btn_size, egui::Button::new(i18n.get("cli-tool-approve-always")))
                         .clicked()
                         || ui.input(|i| i.key_pressed(egui::Key::Num2))
                     {
@@ -282,7 +286,7 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                     }
                     ui.add_space(8.0);
                     if ui
-                        .add_sized(btn_size, egui::Button::new("3/Esc - Zamitnout"))
+                        .add_sized(btn_size, egui::Button::new(i18n.get("cli-tool-deny")))
                         .clicked()
                         || ui.input(|i| {
                             i.key_pressed(egui::Key::Num3) || i.key_pressed(egui::Key::Escape)
@@ -304,7 +308,7 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
 }
 
 /// Renders the native ask_user UI for PendingToolAsk (Phase 16).
-pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
+pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &I18n) {
     let mut pending = match ws.pending_tool_ask.take() {
         Some(p) => p,
         None => return,
@@ -320,7 +324,7 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new("\u{2753}").size(22.0));
                     ui.label(
-                        egui::RichText::new("AI se pta:")
+                        egui::RichText::new(i18n.get("cli-tool-ask-heading"))
                             .strong()
                             .size(18.0)
                             .color(egui::Color32::from_rgb(100, 160, 255)),
@@ -332,7 +336,7 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
 
                 // Option buttons
                 if !pending.options.is_empty() {
-                    ui.label(egui::RichText::new("Rychle moznosti:").weak());
+                    ui.label(egui::RichText::new(i18n.get("cli-tool-quick-options")).weak());
                     ui.add_space(4.0);
                     let mut chosen: Option<String> = None;
                     ui.horizontal_wrapped(|ui| {
@@ -348,14 +352,14 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                         return;
                     }
                     ui.add_space(8.0);
-                    ui.label(egui::RichText::new("Nebo napiste vlastni:").weak());
+                    ui.label(egui::RichText::new(i18n.get("cli-tool-custom-input")).weak());
                 }
 
                 // Free-text input
                 let response = ui.add(
                     egui::TextEdit::singleline(&mut pending.input_buffer)
                         .desired_width(ui.available_width())
-                        .hint_text("Vase odpoved..."),
+                        .hint_text(i18n.get("cli-tool-input-placeholder")),
                 );
                 let submitted = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
 
@@ -364,7 +368,7 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                 ui.horizontal(|ui| {
                     if ui
                         .add_sized(egui::vec2(120.0, 28.0), egui::Button::new(
-                            egui::RichText::new("Odeslat").strong(),
+                            egui::RichText::new(i18n.get("cli-tool-send")).strong(),
                         ))
                         .clicked()
                         || submitted
@@ -375,7 +379,7 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState) {
                     }
                     ui.add_space(8.0);
                     if ui
-                        .add_sized(egui::vec2(100.0, 28.0), egui::Button::new("Zrusit"))
+                        .add_sized(egui::vec2(100.0, 28.0), egui::Button::new(i18n.get("cli-tool-cancel")))
                         .clicked()
                         || ui.input(|i| i.key_pressed(egui::Key::Escape))
                     {

@@ -180,10 +180,6 @@ ai-hover-missing = Command `{ $cmd }` not found in PATH. Install the tool and cl
 ai-btn-start = ▶ Start
 ai-diff-heading = Review AI Proposed Changes
 ai-diff-new-file = New file proposed
-ai-plugin-bar-label = AI:
-ai-plugin-bar-settings = ⚙
-ai-plugin-bar-start-hover = Launch AI chat with selected plugin
-ai-plugin-bar-settings-hover = Open settings for the selected AI plugin
 ai-float-dock = Dock to panel
 ai-float-undock = Undock to floating window
 ai-viewport-open = Open in separate window
@@ -260,19 +256,7 @@ plugins-placeholder-api-key = API Key (e.g. Gemini, Anthropic)
 plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
 command-name-show-plugins = Plugins
 
-## AI Chat
-ai-chat-title = AI Chat Assistant
-ai-chat-label-response = Response:
-ai-chat-loading = AI is thinking…
-ai-chat-label-prompt = Your prompt:
-ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
-ai-chat-btn-send = Send
-ai-chat-btn-new = New Thread
-ai-chat-settings-title = AI Settings
-ai-chat-label-language = Language:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = System Prompt:
-ai-chat-default-prompt = Expert Rust Developer.
+## Command Palette – AI plugins
 command-name-plugin-gemini = Plugin: Ask Gemini
 command-name-plugin-ollama = Plugin: Ask Ollama
 command-name-plugin-ai-chat = Plugin: Ask AI Agent

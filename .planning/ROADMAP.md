@@ -50,7 +50,7 @@ Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
 **Milestone Goal:** Kompletni prestava AI Chat asistenta — nativni Rust providery misto WASM, terminalovy hybrid UI, plna integrace s editorem (kontext + tools)
 
 - [x] **Phase 13: Provider Foundation** - AiProvider trait, OllamaProvider s NDJSON streaming, auto-detect (completed 2026-03-06)
-- [ ] **Phase 14: State Refactor** - AiChatState sub-struct, konsolidace ~30 ai_* poli z WorkspaceState
+- [x] **Phase 14: State Refactor** - AiChatState sub-struct, konsolidace ~30 ai_* poli z WorkspaceState (completed 2026-03-06)
 - [ ] **Phase 15: Streaming Chat UI** - Hybrid CLI layout, streaming rendering, dark/light mode, markdown, historie, model picker
 - [ ] **Phase 16: Tool Execution** - Editor kontext, file read/write tools, command execution, approval UI
 - [ ] **Phase 17: i18n & WASM Cleanup** - Nove i18n klice, odstraneni starych WASM klicu, odstraneni WASM plugin systemu
@@ -83,7 +83,7 @@ Plans:
 **Plans:** 2 plans
 Plans:
 - [x] 14-01-PLAN.md — Vytvorit AiState struct + extrahovat ChatState a OllamaState (completed 2026-03-06)
-- [ ] 14-02-PLAN.md — Extrahovat AiSettings + top-level pole + finalni overeni
+- [x] 14-02-PLAN.md — Extrahovat AiSettings + top-level pole + finalni overeni (completed 2026-03-06)
 
 ### Phase 15: Streaming Chat UI
 **Goal**: Uzivatel muze vest konverzaci s AI pres novy nativni chat s plnym streamingem a vizualnim formatovanim
@@ -138,7 +138,7 @@ Plans:
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
-| 14. State Refactor | v1.2.0 | 1/2 | In Progress | - |
+| 14. State Refactor | v1.2.0 | 2/2 | Complete | 2026-03-06 |
 | 15. Streaming Chat UI | v1.2.0 | 0/? | Not started | - |
 | 16. Tool Execution | v1.2.0 | 0/? | Not started | - |
 | 17. i18n & WASM Cleanup | v1.2.0 | 0/? | Not started | - |

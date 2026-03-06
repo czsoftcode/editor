@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-03-06T10:25:06Z"
-last_activity: 2026-03-06 — Extracted ChatState + OllamaState into AiState
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-03-06T10:30:16Z"
+last_activity: 2026-03-06 — Validated AiSettings extraction + full AI state consolidation (CLEN-01)
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 4
-  percent: 15
+  completed_plans: 5
+  percent: 20
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 14 (State Refactor) — 2 of 5 in v1.2.0
-Plan: 14-01 complete
+Plan: 14-02 complete
 Status: Executing
-Last activity: 2026-03-06 — Extracted ChatState + OllamaState into AiState
+Last activity: 2026-03-06 — Validated AiSettings extraction + full AI state consolidation (CLEN-01)
 
-Progress: [██░░░░░░░░] 15%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
@@ -79,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T10:25:06Z
-Stopped at: Completed 14-01-PLAN.md
-Resume file: .planning/phases/14-state-refactor/14-01-SUMMARY.md
+Last session: 2026-03-06T10:30:16Z
+Stopped at: Completed 14-02-PLAN.md
+Resume file: .planning/phases/14-state-refactor/14-02-SUMMARY.md

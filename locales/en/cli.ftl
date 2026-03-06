@@ -33,7 +33,6 @@ cli-bar-start-hover = Launch AI chat with selected plugin
 cli-bar-settings-hover = Open settings for the selected AI plugin
 
 ## Tool approval strings
-cli-tool-approval-heading = Agent '{ $agent }' requires action approval
 cli-tool-approve = 1 - Execute
 cli-tool-approve-always = 2 - Always approve
 cli-tool-deny = 3/Esc - Deny
@@ -62,3 +61,13 @@ cli-settings-seed = Seed
 cli-settings-seed-hint = 0 = random
 cli-settings-blacklist = CLI Blacklist (blocked files)
 cli-settings-blacklist-hint = Glob patterns for files AI must not access (one pattern per line)
+
+## Chat status & model info
+cli-chat-generating = Generating...
+cli-chat-model-family = Family: { $value }
+cli-chat-model-params = Parameters: { $value }
+cli-chat-model-quant = Quantization: { $value }
+cli-chat-model-context = Context: { $value }
+cli-chat-token-counter = In: { $input } | Out: { $output }
+cli-chat-unexpected-result = Unexpected result
+cli-chat-ollama-disconnected = Ollama is not connected.

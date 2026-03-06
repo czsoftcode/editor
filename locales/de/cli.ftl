@@ -33,7 +33,6 @@ cli-bar-start-hover = KI-Chat mit ausgewähltem Plugin starten
 cli-bar-settings-hover = Einstellungen für das ausgewählte KI-Plugin öffnen
 
 ## Werkzeug-Genehmigung
-cli-tool-approval-heading = Agent '{ $agent }' erfordert Aktionsgenehmigung
 cli-tool-approve = 1 - Ausführen
 cli-tool-approve-always = 2 - Immer genehmigen
 cli-tool-deny = 3/Esc - Ablehnen
@@ -62,3 +61,13 @@ cli-settings-seed = Seed
 cli-settings-seed-hint = 0 = zufällig
 cli-settings-blacklist = CLI-Blacklist (gesperrte Dateien)
 cli-settings-blacklist-hint = Glob-Muster für Dateien, auf die KI nicht zugreifen darf (ein Muster pro Zeile)
+
+## Chat-Status und Modellinformationen
+cli-chat-generating = Generiere...
+cli-chat-model-family = Familie: { $value }
+cli-chat-model-params = Parameter: { $value }
+cli-chat-model-quant = Quantisierung: { $value }
+cli-chat-model-context = Kontext: { $value }
+cli-chat-token-counter = Ein: { $input } | Aus: { $output }
+cli-chat-unexpected-result = Unerwartetes Ergebnis
+cli-chat-ollama-disconnected = Ollama ist nicht verbunden.

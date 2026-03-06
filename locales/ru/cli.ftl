@@ -33,7 +33,6 @@ cli-bar-start-hover = Запустить чат с выбранным плаги
 cli-bar-settings-hover = Открыть настройки выбранного плагина
 
 ## Одобрение инструментов
-cli-tool-approval-heading = Агент '{ $agent }' запрашивает одобрение действия
 cli-tool-approve = 1 - Выполнить
 cli-tool-approve-always = 2 - Одобрять всегда
 cli-tool-deny = 3/Esc - Отклонить
@@ -62,3 +61,13 @@ cli-settings-seed = Seed
 cli-settings-seed-hint = 0 = случайный
 cli-settings-blacklist = CLI-чёрный список (запрещённые файлы)
 cli-settings-blacklist-hint = Шаблоны файлов, к которым ИИ не имеет доступа (один шаблон в строке)
+
+## Статус чата и информация о модели
+cli-chat-generating = Генерация...
+cli-chat-model-family = Семейство: { $value }
+cli-chat-model-params = Параметры: { $value }
+cli-chat-model-quant = Квантование: { $value }
+cli-chat-model-context = Контекст: { $value }
+cli-chat-token-counter = Вх: { $input } | Вых: { $output }
+cli-chat-unexpected-result = Неожиданный результат
+cli-chat-ollama-disconnected = Ollama не подключена.

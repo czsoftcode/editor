@@ -33,7 +33,6 @@ cli-bar-start-hover = Spustiť AI chat s vybraným pluginom
 cli-bar-settings-hover = Otvoriť nastavenia vybraného AI pluginu
 
 ## Schvaľovanie nástrojov
-cli-tool-approval-heading = Agent '{ $agent }' vyžaduje schválenie akcie
 cli-tool-approve = 1 - Vykonať
 cli-tool-approve-always = 2 - Schvaľovať vždy
 cli-tool-deny = 3/Esc - Zamietnuť
@@ -62,3 +61,13 @@ cli-settings-seed = Seed
 cli-settings-seed-hint = 0 = náhodný
 cli-settings-blacklist = CLI Blacklist (zakázané súbory)
 cli-settings-blacklist-hint = Vzory súborov, ku ktorým AI nesmie pristupovať (jeden vzor na riadok)
+
+## Stav chatu a info o modeli
+cli-chat-generating = Generujem...
+cli-chat-model-family = Rodina: { $value }
+cli-chat-model-params = Parametre: { $value }
+cli-chat-model-quant = Kvantizácia: { $value }
+cli-chat-model-context = Kontext: { $value }
+cli-chat-token-counter = Vstup: { $input } | Výstup: { $output }
+cli-chat-unexpected-result = Neočakávaný výsledok
+cli-chat-ollama-disconnected = Ollama nie je pripojená.

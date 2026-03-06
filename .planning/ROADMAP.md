@@ -5,7 +5,7 @@
 - ✅ **v1.0.2 Dark/Light Mode** — Phases 1-5 (shipped 2026-03-05)
 - ✅ **v1.0.6 Focus Management** — Phase 6 (shipped 2026-03-05)
 - ✅ **v1.1.0 Sandbox Removal** — Phases 9-12 (shipped 2026-03-06)
-- 🚧 **v1.2.0 AI Chat Rewrite** — Phases 13-17 (in progress)
+- 🚧 **v1.2.0 AI Chat Rewrite** — Phases 13-18 (in progress)
 
 ## Phases
 
@@ -54,6 +54,7 @@ Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
 - [x] **Phase 15: Streaming Chat UI** - Hybrid CLI layout, streaming rendering, dark/light mode, markdown, historie, model picker (completed 2026-03-06)
 - [ ] **Phase 16: Tool Execution** - Editor kontext, file read/write tools, command execution, approval UI
 - [x] **Phase 17: i18n & WASM Cleanup** - Nove i18n klice, odstraneni starych WASM klicu, odstraneni WASM plugin systemu (completed 2026-03-06)
+- [ ] **Phase 18: Phase 16 Verification & i18n Fixes** - Gap closure: verifikace TOOL-01..06, i18n bug fix, hardcoded stringy, orphaned key, stale checkboxy
 
 ## Phase Details
 
@@ -156,6 +157,25 @@ Plans:
 | 15. Streaming Chat UI | 5/5 | Complete    | 2026-03-06 | - |
 | 16. Tool Execution | 4/4 | In Progress|  | - |
 | 17. i18n & WASM Cleanup | 3/3 | Complete    | 2026-03-06 | - |
+| 18. Phase 16 Verification & i18n Fixes | v1.2.0 | 0/2 | Not started | - |
+
+### Phase 18: Phase 16 Verification & i18n Fixes
+**Goal**: Uzavrit vsechny mezery z milestone auditu — formalni verifikace Phase 16, oprava i18n bugu, lokalizace hardcoded stringu, cleanup
+**Depends on**: Phase 16, Phase 17
+**Requirements**: TOOL-01, TOOL-02, TOOL-03, TOOL-04, TOOL-05, TOOL-06, CLEN-03
+**Gap Closure**: Closes gaps from v1.2.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. 16-04-SUMMARY.md existuje (dokumentuje 8 commitu)
+  2. 16-VERIFICATION.md existuje a vsech 6 TOOL-* requirements je SATISFIED
+  3. cli-tool-ask-heading volani v approval.rs obsahuje $agent parametr
+  4. Vsechny hardcoded stringy v background.rs, logic.rs, render.rs jsou nahrazeny i18n klici
+  5. Orphaned cli-tool-approval-heading key je odstranen z 5 locales
+  6. ROADMAP plan checkboxy pro 13-01..13-03, 15-00, 15-02, 15-03, 16-01..16-04 jsou oznaceny [x]
+  7. REQUIREMENTS.md checkboxy pro PROV-01, PROV-02, CHAT-01, CHAT-06 jsou oznaceny [x]
+**Plans:** 2 plans
+Plans:
+- [ ] 18-01-PLAN.md — Documentation artifacts (16-04-SUMMARY, 16-VERIFICATION) + checkbox updates
+- [ ] 18-02-PLAN.md — i18n fixes: ask-heading bug, hardcoded strings, orphaned key
 
 ## Known Issues / TODO
 

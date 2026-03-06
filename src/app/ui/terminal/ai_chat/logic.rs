@@ -21,19 +21,31 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
     // Build messages from conversation history
     let mut messages: Vec<AiMessage> = Vec::new();
 
-    // System prompt
+    // System prompt + reasoning depth mandate
+    let reasoning_mandate = ws.ai.settings.reasoning_depth.get_reasoning_mandate();
+    let expertise_mandate = ws.ai.settings.expertise.get_persona_mandate();
+
+    // Build composite system message: base prompt + expertise + reasoning depth
+    let mut system_parts: Vec<&str> = Vec::new();
     if !ws.ai.chat.system_prompt.is_empty() {
-        messages.push(AiMessage {
-            role: "system".to_string(),
-            content: ws.ai.chat.system_prompt.clone(),
-            monologue: Vec::new(),
-            timestamp: 0,
-            tool_call_name: None,
-            tool_call_id: None,
-            tool_result_for_id: None,
-            tool_is_error: false,
-        });
+        system_parts.push(&ws.ai.chat.system_prompt);
     }
+    if !expertise_mandate.is_empty() {
+        system_parts.push(expertise_mandate);
+    }
+    system_parts.push(reasoning_mandate);
+
+    let system_content = system_parts.join("\n\n");
+    messages.push(AiMessage {
+        role: "system".to_string(),
+        content: system_content,
+        monologue: Vec::new(),
+        timestamp: 0,
+        tool_call_name: None,
+        tool_call_id: None,
+        tool_result_for_id: None,
+        tool_is_error: false,
+    });
 
     // Conversation history (multi-turn)
     for (q, a) in &ws.ai.chat.conversation {

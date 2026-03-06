@@ -5,7 +5,7 @@ milestone_name: Sandbox Removal
 status: completed
 stopped_at: Milestone v1.1.0 completed
 last_updated: "2026-03-06T01:00:00.000Z"
-last_activity: 2026-03-06 — Milestone v1.1.0 Sandbox Removal completed and archived
+last_activity: 2026-03-06 - Completed quick task 4: Move compile bar next to build bar, remove compile_bar.rs
 progress:
   total_phases: 4
   completed_phases: 4
@@ -59,7 +59,14 @@ Key decisions logged in PROJECT.md Key Decisions table.
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 3 | Remove systemd-run wrapper — launch program directly | 2026-03-06 | 6f50509 | [3-remove-systemd-run-wrapper-launch-progra](./quick/3-remove-systemd-run-wrapper-launch-progra/) |
+| 4 | Move compile bar next to build bar, remove compile_bar.rs | 2026-03-06 | 9c4b211 | [4-move-compile-bar-next-to-build-bar-remov](./quick/4-move-compile-bar-next-to-build-bar-remov/) |
+
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed quick task 3 (remove systemd-run wrapper)
+Stopped at: Completed quick task 4 (move compile bar into build bar)

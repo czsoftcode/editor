@@ -9,19 +9,19 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 
 ### Provider
 
-- [ ] **PROV-01**: AiProvider trait s metodami send_chat(), stream_chat(), name(), available_models()
-- [ ] **PROV-02**: OllamaProvider implementuje AiProvider s NDJSON streaming pres ureq + std::thread
+- [x] **PROV-01**: AiProvider trait s metodami send_chat(), stream_chat(), name(), available_models()
+- [x] **PROV-02**: OllamaProvider implementuje AiProvider s NDJSON streaming pres ureq + std::thread
 - [x] **PROV-03**: Auto-detect Ollama serveru na localhost:11434 (GET /api/tags)
 - [x] **PROV-04**: Model picker — ComboBox s dostupnymi modely z Ollama API
 
 ### Chat UI
 
-- [ ] **CHAT-01**: Hybrid CLI layout — prompt dole jako CLI, odpovedi nahore s vizualnim oddelenim
+- [x] **CHAT-01**: Hybrid CLI layout — prompt dole jako CLI, odpovedi nahore s vizualnim oddelenim
 - [x] **CHAT-02**: Streaming rendering — prubezne zobrazovani odpovedi token po tokenu
 - [x] **CHAT-03**: Dark/light mode — theme-aware barvy z ui.visuals() misto hardcoded
 - [x] **CHAT-04**: Markdown v odpovedich — code blocks, inline code, bold/italic
 - [x] **CHAT-05**: Konverzacni historie — multi-turn chat s persistenci v session
-- [ ] **CHAT-06**: Input s historii promptu (sipky nahoru/dolu)
+- [x] **CHAT-06**: Input s historii promptu (sipky nahoru/dolu)
 - [x] **CHAT-07**: Cancel/Stop tlacitko pro preruseni generovani
 
 ### Context & Tools
@@ -30,7 +30,7 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 - [x] **TOOL-02**: File read tool — AI cte soubory s approval
 - [x] **TOOL-03**: File write/replace tool — AI upravuje soubory s approval a diff preview
 - [x] **TOOL-04**: Command execution tool — AI spousti prikazy s approval
-- [ ] **TOOL-05**: Approval UI — Approve/Deny/Always workflow pro tool volani
+- [x] **TOOL-05**: Approval UI — Approve/Deny/Always workflow pro tool volani
 - [x] **TOOL-06**: Ask-user tool — AI se muze zeptat uzivatele na upresneni
 
 ### Cleanup
@@ -68,22 +68,22 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROV-01 | Phase 13 | Pending |
-| PROV-02 | Phase 13 | Pending |
+| PROV-01 | Phase 13 | Complete |
+| PROV-02 | Phase 13 | Complete |
 | PROV-03 | Phase 13 | Complete |
 | PROV-04 | Phase 15 | Complete |
-| CHAT-01 | Phase 15 | Pending |
+| CHAT-01 | Phase 15 | Complete |
 | CHAT-02 | Phase 15 | Complete |
 | CHAT-03 | Phase 15 | Complete |
 | CHAT-04 | Phase 15 | Complete |
 | CHAT-05 | Phase 15 | Complete |
-| CHAT-06 | Phase 15 | Pending |
+| CHAT-06 | Phase 15 | Complete |
 | CHAT-07 | Phase 15 | Complete |
 | TOOL-01 | Phase 16 | Complete |
 | TOOL-02 | Phase 16 | Complete |
 | TOOL-03 | Phase 16 | Complete |
 | TOOL-04 | Phase 16 | Complete |
-| TOOL-05 | Phase 16 | Pending |
+| TOOL-05 | Phase 16 | Complete |
 | TOOL-06 | Phase 16 | Complete |
 | CLEN-01 | Phase 14 | Complete |
 | CLEN-02 | Phase 17 | Complete |

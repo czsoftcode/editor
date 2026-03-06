@@ -52,7 +52,7 @@ Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
 - [x] **Phase 13: Provider Foundation** - AiProvider trait, OllamaProvider s NDJSON streaming, auto-detect (completed 2026-03-06)
 - [x] **Phase 14: State Refactor** - AiChatState sub-struct, konsolidace ~30 ai_* poli z WorkspaceState (completed 2026-03-06)
 - [x] **Phase 15: Streaming Chat UI** - Hybrid CLI layout, streaming rendering, dark/light mode, markdown, historie, model picker (completed 2026-03-06)
-- [ ] **Phase 16: Tool Execution** - Editor kontext, file read/write tools, command execution, approval UI
+- [x] **Phase 16: Tool Execution** - Editor kontext, file read/write tools, command execution, approval UI (completed 2026-03-06)
 - [x] **Phase 17: i18n & WASM Cleanup** - Nove i18n klice, odstraneni starych WASM klicu, odstraneni WASM plugin systemu (completed 2026-03-06)
 - [ ] **Phase 18: Phase 16 Verification & i18n Fixes** - Gap closure: verifikace TOOL-01..06, i18n bug fix, hardcoded stringy, orphaned key, stale checkboxy
 
@@ -69,9 +69,9 @@ Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
   4. Streaming nepblokuje UI thread — editor zustava responzivni behem generovani odpovedi
 **Plans:** 3/3 plans complete
 Plans:
-- [ ] 13-01-PLAN.md — AiProvider trait + OllamaProvider s NDJSON streaming
-- [ ] 13-02-PLAN.md — Ollama auto-detect polling + status ikona + model ComboBox v AI baru
-- [ ] 13-03-PLAN.md — Gap closure: validace ollama_base_url (odmitne nevalidni URL z plugin settings)
+- [x] 13-01-PLAN.md — AiProvider trait + OllamaProvider s NDJSON streaming (completed 2026-03-06)
+- [x] 13-02-PLAN.md — Ollama auto-detect polling + status ikona + model ComboBox v AI baru (completed 2026-03-06)
+- [x] 13-03-PLAN.md — Gap closure: validace ollama_base_url (odmitne nevalidni URL z plugin settings) (completed 2026-03-06)
 
 ### Phase 14: State Refactor
 **Goal**: AI stav je konsolidovany v dedicke strukture, codebase pripraveny pro napojeni provideru na UI
@@ -99,10 +99,10 @@ Plans:
   6. Ollama settings (API URL, API Key) jsou v Settings dialogu pod "PolyCredo CLI > Ollama" (ne v plugin settings), zmeny se aplikuji bez restartu editoru
 **Plans:** 5/5 plans complete
 Plans:
-- [ ] 15-00-PLAN.md — Wave 0: Testove scaffoldy pro streaming buffer a settings migraci
+- [x] 15-00-PLAN.md — Wave 0: Testove scaffoldy pro streaming buffer a settings migraci (completed 2026-03-06)
 - [x] 15-01-PLAN.md — Streaming backend: prepojeni na OllamaProvider + background polling (completed 2026-03-06)
-- [ ] 15-02-PLAN.md — Chat UI: theme-aware barvy, barevne bloky, Stop/Send, auto-scroll, model picker
-- [ ] 15-03-PLAN.md — AI Settings: Ollama konfigurace v Settings modal + synchronizace
+- [x] 15-02-PLAN.md — Chat UI: theme-aware barvy, barevne bloky, Stop/Send, auto-scroll, model picker (completed 2026-03-06)
+- [x] 15-03-PLAN.md — AI Settings: Ollama konfigurace v Settings modal + synchronizace (completed 2026-03-06)
 
 ### Phase 16: Tool Execution
 **Goal**: AI muze cist/editovat soubory a spoustet prikazy s uzivatelem schvalenym approval workflow
@@ -114,12 +114,12 @@ Plans:
   3. AI muze upravovat soubory (s approval) a uzivatel vidi diff preview pred schvalenim
   4. AI muze spoustet prikazy (s approval) a uzivatel vidi vystup prikazu
   5. Approval UI nabizi Approve/Deny/Always workflow a AI se muze zeptat uzivatele na upresneni (ask-user tool)
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
-- [ ] 16-01-PLAN.md — Security infrastructure: PathSandbox, SecretsFilter, CommandBlacklist, FileBlacklist, RateLimiter, AuditLogger
-- [ ] 16-02-PLAN.md — Ollama tools API: tool declarations v requestu, tool_calls parsing, context enhancement
-- [ ] 16-03-PLAN.md — ToolExecutor: nativni tool handlery (read, write, replace, exec, search, scratch, facts)
-- [ ] 16-04-PLAN.md — Tool call loop wiring: background processing, approval UI, chat rendering, Settings integrace
+- [x] 16-01-PLAN.md — Security infrastructure: PathSandbox, SecretsFilter, CommandBlacklist, FileBlacklist, RateLimiter, AuditLogger (completed 2026-03-06)
+- [x] 16-02-PLAN.md — Ollama tools API: tool declarations v requestu, tool_calls parsing, context enhancement (completed 2026-03-06)
+- [x] 16-03-PLAN.md — ToolExecutor: nativni tool handlery (read, write, replace, exec, search, scratch, facts) (completed 2026-03-06)
+- [x] 16-04-PLAN.md — Tool call loop wiring: background processing, approval UI, chat rendering, Settings integrace (completed 2026-03-06)
 
 ### Phase 17: i18n & WASM Cleanup
 **Goal**: Novy chat je plne lokalizovany a stary WASM plugin system je kompletne odstranen
@@ -134,7 +134,7 @@ Plans:
 Plans:
 - [x] 17-01-PLAN.md — i18n: cli.ftl, rename keys, replace hardcoded strings, Ollama params (completed 2026-03-06)
 - [x] 17-02-PLAN.md — WASM removal: delete plugin system, clean references, remove extism (completed 2026-03-06)
-- [ ] 17-03-PLAN.md — Gap closure: localize remaining hardcoded strings, CLI bar label, fix ai/ warnings
+- [x] 17-03-PLAN.md — Gap closure: localize remaining hardcoded strings, CLI bar label, fix ai/ warnings (completed 2026-03-06)
 
 ## Progress
 
@@ -152,11 +152,11 @@ Plans:
 | 10. UI & State Cleanup | v1.1.0 | 1/1 | Complete | 2026-03-05 |
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 2/2 | Complete | 2026-03-05 |
-| 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
-| 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
-| 15. Streaming Chat UI | 5/5 | Complete    | 2026-03-06 | - |
-| 16. Tool Execution | 4/4 | In Progress|  | - |
-| 17. i18n & WASM Cleanup | 3/3 | Complete    | 2026-03-06 | - |
+| 13. Provider Foundation | v1.2.0 | 3/3 | Complete | 2026-03-06 |
+| 14. State Refactor | v1.2.0 | 2/2 | Complete | 2026-03-06 |
+| 15. Streaming Chat UI | v1.2.0 | 5/5 | Complete | 2026-03-06 |
+| 16. Tool Execution | v1.2.0 | 4/4 | Complete | 2026-03-06 |
+| 17. i18n & WASM Cleanup | v1.2.0 | 3/3 | Complete | 2026-03-06 |
 | 18. Phase 16 Verification & i18n Fixes | v1.2.0 | 0/2 | Not started | - |
 
 ### Phase 18: Phase 16 Verification & i18n Fixes

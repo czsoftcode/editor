@@ -1,3 +1,4 @@
+use crate::app::ai::types::{AiExpertiseRole, AiReasoningDepth};
 use crate::app::types::AppShared;
 use crate::app::ui::background::spawn_task;
 use crate::app::ui::widgets::modal::StandardModal;
@@ -331,6 +332,75 @@ pub fn show(
 
                             ui.label(i18n.get("settings-ai-hint"));
                             ui.add_space(12.0);
+
+                            // ---- Ollama Configuration ----
+                            ui.strong("Ollama");
+                            ui.add_space(8.0);
+
+                            // Base URL
+                            ui.horizontal(|ui| {
+                                ui.label("URL:");
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut draft.ollama_base_url)
+                                        .hint_text("http://localhost:11434")
+                                        .desired_width(300.0),
+                                );
+                            });
+                            ui.add_space(4.0);
+
+                            // API Key (password field)
+                            ui.horizontal(|ui| {
+                                ui.label("API Key:");
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut draft.ollama_api_key)
+                                        .password(true)
+                                        .hint_text("(optional)")
+                                        .desired_width(300.0),
+                                );
+                            });
+                            ui.add_space(8.0);
+
+                            // Default Model
+                            ui.horizontal(|ui| {
+                                ui.label("Default Model:");
+                                ui.add(
+                                    egui::TextEdit::singleline(&mut draft.ai_default_model)
+                                        .hint_text("llama3.2")
+                                        .desired_width(200.0),
+                                );
+                            });
+                            ui.add_space(12.0);
+
+                            // Expertise Role
+                            ui.horizontal(|ui| {
+                                ui.label("Expertise:");
+                                egui::ComboBox::from_id_salt("settings_ai_expertise")
+                                    .selected_text(draft.ai_expertise.as_str())
+                                    .width(140.0)
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(&mut draft.ai_expertise, AiExpertiseRole::Junior, "Junior");
+                                        ui.selectable_value(&mut draft.ai_expertise, AiExpertiseRole::Senior, "Senior");
+                                        ui.selectable_value(&mut draft.ai_expertise, AiExpertiseRole::Master, "Master");
+                                    });
+                            });
+                            ui.add_space(4.0);
+
+                            // Reasoning Depth
+                            ui.horizontal(|ui| {
+                                ui.label("Reasoning:");
+                                egui::ComboBox::from_id_salt("settings_ai_depth")
+                                    .selected_text(draft.ai_reasoning_depth.as_str())
+                                    .width(140.0)
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(&mut draft.ai_reasoning_depth, AiReasoningDepth::Fast, "Fast");
+                                        ui.selectable_value(&mut draft.ai_reasoning_depth, AiReasoningDepth::Balanced, "Balanced");
+                                        ui.selectable_value(&mut draft.ai_reasoning_depth, AiReasoningDepth::Deep, "Deep");
+                                    });
+                            });
+                            ui.add_space(16.0);
+
+                            ui.separator();
+                            ui.add_space(8.0);
 
                             let mut to_remove = None;
                             for (idx, agent) in draft.custom_agents.iter_mut().enumerate() {

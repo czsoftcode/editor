@@ -24,20 +24,54 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
         let (rect, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
         ui.painter().circle_filled(rect.center(), 5.0, status_color);
 
-        // Model picker ComboBox
-        egui::ComboBox::from_id_salt("ai_chat_model_picker")
-            .selected_text(&ws.ai.ollama.selected_model)
-            .width(180.0)
-            .height(400.0)
-            .show_ui(ui, |ui| {
+        // Model picker with type-to-filter
+        let popup_id = ui.make_persistent_id("ai_chat_model_picker_popup");
+        let _filter_id = egui::Id::new("ai_chat_model_filter_input");
+        let btn_resp = ui.add(
+            egui::Button::new(
+                egui::RichText::new(if ws.ai.ollama.selected_model.is_empty() {
+                    "Model..."
+                } else {
+                    &ws.ai.ollama.selected_model
+                })
+            ).min_size(egui::vec2(180.0, 0.0)),
+        );
+        if btn_resp.clicked() {
+            ui.memory_mut(|m| m.toggle_popup(popup_id));
+            ws.ai.ollama.model_filter.clear();
+        }
+        egui::popup_below_widget(ui, popup_id, &btn_resp, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
+            ui.set_min_width(220.0);
+            ui.set_max_height(350.0);
+            let filter_resp = ui.add(
+                egui::TextEdit::singleline(&mut ws.ai.ollama.model_filter)
+                    .hint_text("Filter...")
+                    .desired_width(200.0),
+            );
+            if btn_resp.clicked() {
+                filter_resp.request_focus();
+            }
+            let filter_lower = ws.ai.ollama.model_filter.to_lowercase();
+            ui.separator();
+            egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                let mut any = false;
                 for model in &ws.ai.ollama.models {
-                    ui.selectable_value(
-                        &mut ws.ai.ollama.selected_model,
-                        model.clone(),
-                        model,
-                    );
+                    if !filter_lower.is_empty() && !model.to_lowercase().contains(&filter_lower) {
+                        continue;
+                    }
+                    any = true;
+                    let selected = *model == ws.ai.ollama.selected_model;
+                    if ui.selectable_label(selected, model).clicked() {
+                        ws.ai.ollama.selected_model = model.clone();
+                        ws.ai.ollama.model_filter.clear();
+                        ui.memory_mut(|m| m.close_popup());
+                    }
+                }
+                if !any {
+                    ui.weak("Žádný model neodpovídá filtru");
                 }
             });
+        });
 
         // Token counter on the right
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

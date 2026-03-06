@@ -65,6 +65,8 @@ pub struct OllamaState {
     pub last_check: std::time::Instant,
     pub base_url: String,
     pub api_key: Option<String>,
+    /// Filter text for model picker combobox.
+    pub model_filter: String,
 }
 
 impl Default for OllamaState {
@@ -77,6 +79,7 @@ impl Default for OllamaState {
             last_check: std::time::Instant::now(),
             base_url: String::new(),
             api_key: None,
+            model_filter: String::new(),
         }
     }
 }

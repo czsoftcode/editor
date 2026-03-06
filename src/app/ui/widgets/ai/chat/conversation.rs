@@ -51,11 +51,6 @@ pub fn ui_conversation(
                         .color(weak_color)
                         .small(),
                 );
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button("Copy").clicked() {
-                        ui.ctx().copy_text(q.clone());
-                    }
-                });
             });
 
             egui::Frame::new()
@@ -83,6 +78,14 @@ pub fn ui_conversation(
                         );
                     });
                 });
+            // Copy button after the message block
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("Copy").clicked() {
+                        ui.ctx().copy_text(q.clone());
+                    }
+                });
+            });
             ui.add_space(4.0);
         }
 
@@ -116,16 +119,6 @@ pub fn ui_conversation(
                 if is_last && is_streaming {
                     ui.spinner();
                 }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button("Copy").clicked() {
-                        let full_text = if q.is_empty() {
-                            a.clone()
-                        } else {
-                            format!(">>> {}\n\n{}", q, a)
-                        };
-                        ui.ctx().copy_text(full_text);
-                    }
-                });
             });
 
             if a.contains("____        __") && a.contains("CLI") {
@@ -145,6 +138,19 @@ pub fn ui_conversation(
                         );
                     });
             }
+            // Copy button after the AI message block
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("Copy").clicked() {
+                        let full_text = if q.is_empty() {
+                            a.clone()
+                        } else {
+                            format!(">>> {}\n\n{}", q, a)
+                        };
+                        ui.ctx().copy_text(full_text);
+                    }
+                });
+            });
         }
 
         ui.add_space(4.0);

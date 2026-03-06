@@ -236,7 +236,19 @@ pub(super) fn process_background_events(
                     Ok(evt) => events.push(evt),
                     Err(std::sync::mpsc::TryRecvError::Empty) => break,
                     Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                        events.push(StreamEvent::Error("Stream disconnected".into()));
+                        // Sender dropped — stream thread finished. If we already
+                        // have tokens/Done events this is normal completion.
+                        // Only report error if no content was received at all.
+                        if events.is_empty() && ws.ai.chat.streaming_buffer.is_empty() {
+                            events.push(StreamEvent::Error("Stream disconnected".into()));
+                        } else if !events.iter().any(|e| matches!(e, StreamEvent::Done { .. })) {
+                            // No explicit Done — synthesize one so the stream finalizes cleanly
+                            events.push(StreamEvent::Done {
+                                model: String::new(),
+                                prompt_tokens: 0,
+                                completion_tokens: 0,
+                            });
+                        }
                         break;
                     }
                 }

@@ -282,7 +282,126 @@ pub(super) fn process_background_events(
                     }
                     done = true;
                 }
-                StreamEvent::ToolCall { .. } => { /* Phase 16 */ }
+                StreamEvent::ToolCall { id, name, arguments } => {
+                    // Process tool call through executor
+                    if let Some(ref mut executor) = ws.tool_executor {
+                        let result = executor.execute(&name, &arguments);
+                        match result {
+                            crate::app::ai::executor::ToolResult::Success(output) => {
+                                // Auto-approved tool executed — build messages and resume AI
+                                let (asst_msg, tool_msg) =
+                                    crate::app::ai::executor::ToolExecutor::build_approval_messages(
+                                        &id, &name, &arguments, &output, false,
+                                    );
+                                // Append to conversation display
+                                if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                                    last.1.push_str(&format!(
+                                        "\n\n`{}` => {}",
+                                        name,
+                                        if output.len() > 200 {
+                                            format!("{}...", &output[..200])
+                                        } else {
+                                            output.clone()
+                                        }
+                                    ));
+                                }
+                                // Resume AI with tool result
+                                resume_after_tool_call(ws, asst_msg, tool_msg);
+                            }
+                            crate::app::ai::executor::ToolResult::NeedsApproval {
+                                tool_name: tn,
+                                description,
+                                details,
+                                is_network,
+                                is_new_file,
+                            } => {
+                                // Check if always-approved at runtime
+                                if executor.check_always_approved(&tn) {
+                                    let approved_result = executor.process_approval_response(
+                                        &tn,
+                                        &arguments,
+                                        crate::app::ai::executor::ApprovalDecision::Always,
+                                    );
+                                    let (output, is_err) = match &approved_result {
+                                        crate::app::ai::executor::ToolResult::Success(o) => {
+                                            (o.clone(), false)
+                                        }
+                                        crate::app::ai::executor::ToolResult::Error(e) => {
+                                            (e.clone(), true)
+                                        }
+                                        _ => ("Unexpected result".to_string(), true),
+                                    };
+                                    let (asst_msg, tool_msg) =
+                                        crate::app::ai::executor::ToolExecutor::build_approval_messages(
+                                            &id, &tn, &arguments, &output, is_err,
+                                        );
+                                    if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                                        last.1.push_str(&format!("\n\n`{}` (auto) => {}", tn,
+                                            if output.len() > 200 { format!("{}...", &output[..200]) } else { output }
+                                        ));
+                                    }
+                                    resume_after_tool_call(ws, asst_msg, tool_msg);
+                                } else {
+                                    // Show approval UI — create channel
+                                    let (tx, rx) = std::sync::mpsc::channel();
+                                    ws.pending_tool_approval = Some(
+                                        crate::app::ui::workspace::state::PendingToolApproval {
+                                            tool_call_id: id.clone(),
+                                            tool_name: tn,
+                                            description,
+                                            details,
+                                            is_network,
+                                            is_new_file,
+                                            args: arguments.clone(),
+                                            response_tx: tx,
+                                        },
+                                    );
+                                    ws.tool_approval_rx = Some(rx);
+                                    // Don't drop stream_rx — approval is pending
+                                }
+                            }
+                            crate::app::ai::executor::ToolResult::AskUser { question, options } => {
+                                let (tx, rx) = std::sync::mpsc::channel();
+                                ws.pending_tool_ask = Some(
+                                    crate::app::ui::workspace::state::PendingToolAsk {
+                                        question,
+                                        options,
+                                        response_tx: tx,
+                                        input_buffer: String::new(),
+                                    },
+                                );
+                                ws.tool_ask_rx = Some(rx);
+                            }
+                            crate::app::ai::executor::ToolResult::Completion {
+                                summary,
+                                files_modified: _,
+                                follow_up,
+                            } => {
+                                if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                                    let follow = follow_up
+                                        .map(|f| format!("\n\n_{}_", f))
+                                        .unwrap_or_default();
+                                    last.1.push_str(&format!(
+                                        "\n\n**Dokonceno:** {}{}",
+                                        summary, follow
+                                    ));
+                                }
+                                done = true;
+                                ws.toasts.push(Toast::info(summary));
+                            }
+                            crate::app::ai::executor::ToolResult::Error(msg) => {
+                                let (asst_msg, tool_msg) =
+                                    crate::app::ai::executor::ToolExecutor::build_approval_messages(
+                                        &id, &name, &arguments, &msg, true,
+                                    );
+                                if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                                    last.1.push_str(&format!("\n\n`{}` chyba: {}", name, msg));
+                                }
+                                resume_after_tool_call(ws, asst_msg, tool_msg);
+                            }
+                        }
+                    }
+                }
             }
         }
         // Update conversation display
@@ -295,6 +414,84 @@ pub(super) fn process_background_events(
             ws.ai.chat.streaming_buffer.clear();
             ws.ai.chat.loading = false;
             ws.ai.chat.stream_rx = None;
+        }
+    }
+
+    // --- 4d. Tool approval/ask response processing ---
+    if let Some(rx) = &ws.tool_approval_rx {
+        if let Ok(approved) = rx.try_recv() {
+            let approval = ws.pending_tool_approval.take();
+            ws.tool_approval_rx = None;
+            if let Some(pending) = approval {
+                if let Some(ref mut executor) = ws.tool_executor {
+                    let decision = if approved {
+                        crate::app::ai::executor::ApprovalDecision::Approve
+                    } else {
+                        crate::app::ai::executor::ApprovalDecision::Deny
+                    };
+                    let result = executor.process_approval_response(
+                        &pending.tool_name,
+                        &pending.args,
+                        decision,
+                    );
+                    let (output, is_err) = match &result {
+                        crate::app::ai::executor::ToolResult::Success(o) => (o.clone(), false),
+                        crate::app::ai::executor::ToolResult::Error(e) => (e.clone(), true),
+                        _ => ("Unexpected result".to_string(), true),
+                    };
+                    let (asst_msg, tool_msg) =
+                        crate::app::ai::executor::ToolExecutor::build_approval_messages(
+                            &pending.tool_call_id,
+                            &pending.tool_name,
+                            &pending.args,
+                            &output,
+                            is_err,
+                        );
+                    if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                        let label = if approved { "schvaleno" } else { "zamitnuto" };
+                        last.1.push_str(&format!("\n\n`{}` ({}) => {}", pending.tool_name, label,
+                            if output.len() > 200 { format!("{}...", &output[..200]) } else { output }
+                        ));
+                    }
+                    resume_after_tool_call(ws, asst_msg, tool_msg);
+                }
+            }
+        }
+    }
+
+    if let Some(rx) = &ws.tool_ask_rx {
+        if let Ok(response) = rx.try_recv() {
+            let ask = ws.pending_tool_ask.take();
+            ws.tool_ask_rx = None;
+            if let Some(_pending) = ask {
+                // Build tool result with user's answer and resume AI
+                let tool_msg = crate::app::ai::types::AiMessage {
+                    role: "tool".to_string(),
+                    content: response.clone(),
+                    monologue: Vec::new(),
+                    timestamp: 0,
+                    tool_call_name: None,
+                    tool_call_id: None,
+                    tool_result_for_id: None,
+                    tool_is_error: false,
+                    tool_call_arguments: None,
+                };
+                let asst_msg = crate::app::ai::types::AiMessage {
+                    role: "assistant".to_string(),
+                    content: String::new(),
+                    monologue: Vec::new(),
+                    timestamp: 0,
+                    tool_call_name: Some("ask_user".to_string()),
+                    tool_call_id: None,
+                    tool_result_for_id: None,
+                    tool_is_error: false,
+                    tool_call_arguments: None,
+                };
+                if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                    last.1.push_str(&format!("\n\n**Odpoved:** {}", response));
+                }
+                resume_after_tool_call(ws, asst_msg, tool_msg);
+            }
         }
     }
 
@@ -332,6 +529,84 @@ pub(super) fn process_background_events(
         }
         ws.lsp_install_rx = None;
     }
+}
+
+/// Resumes AI streaming after a tool call by sending the tool result back to Ollama.
+/// Replaces the current stream_rx with a new stream from stream_chat.
+fn resume_after_tool_call(
+    ws: &mut WorkspaceState,
+    assistant_msg: crate::app::ai::types::AiMessage,
+    tool_result_msg: crate::app::ai::types::AiMessage,
+) {
+    use crate::app::ai::ollama::OllamaProvider;
+    use crate::app::ai::provider::{AiProvider, ProviderConfig};
+    use crate::app::ai::tools::get_standard_tools;
+    use crate::app::ai::types::AiMessage;
+
+    // Build the full message history including tool call/result
+    let mut messages: Vec<AiMessage> = Vec::new();
+
+    // System message (same as in send_query_to_agent)
+    let reasoning_mandate = ws.ai.settings.reasoning_depth.get_reasoning_mandate();
+    let expertise_mandate = ws.ai.settings.expertise.get_persona_mandate();
+    let mut system_parts: Vec<&str> = Vec::new();
+    if !ws.ai.chat.system_prompt.is_empty() {
+        system_parts.push(&ws.ai.chat.system_prompt);
+    }
+    if !expertise_mandate.is_empty() {
+        system_parts.push(expertise_mandate);
+    }
+    system_parts.push(reasoning_mandate);
+    messages.push(AiMessage {
+        role: "system".to_string(),
+        content: system_parts.join("\n\n"),
+        monologue: Vec::new(),
+        timestamp: 0,
+        tool_call_name: None,
+        tool_call_id: None,
+        tool_result_for_id: None,
+        tool_is_error: false,
+        tool_call_arguments: None,
+    });
+
+    // Conversation history
+    for (q, _a) in &ws.ai.chat.conversation {
+        if !q.is_empty() {
+            messages.push(AiMessage {
+                role: "user".to_string(),
+                content: q.clone(),
+                monologue: Vec::new(),
+                timestamp: 0,
+                tool_call_name: None,
+                tool_call_id: None,
+                tool_result_for_id: None,
+                tool_is_error: false,
+                tool_call_arguments: None,
+            });
+        }
+        // Don't push the last assistant response as text — it will be in the tool call message
+    }
+
+    // Tool call + result messages
+    messages.push(assistant_msg);
+    messages.push(tool_result_msg);
+
+    // Start new stream
+    let provider = OllamaProvider::new(
+        ws.ai.ollama.base_url.clone(),
+        ws.ai.ollama.selected_model.clone(),
+        ws.ai.ollama.api_key.clone(),
+    );
+    let config = ProviderConfig {
+        base_url: ws.ai.ollama.base_url.clone(),
+        model: ws.ai.ollama.selected_model.clone(),
+        temperature: 0.7,
+        num_ctx: 4096,
+        api_key: ws.ai.ollama.api_key.clone(),
+    };
+    let tools = get_standard_tools();
+    ws.ai.chat.stream_rx = Some(provider.stream_chat(messages, config, tools));
+    ws.ai.chat.loading = true;
 }
 
 fn wait_for_child_stdout(

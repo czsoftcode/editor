@@ -383,4 +383,51 @@ mod tests {
         assert!(caps.supports_streaming);
         assert!(!caps.supports_tools);
     }
+
+    #[test]
+    fn validate_ollama_url_localhost() {
+        assert_eq!(
+            validate_ollama_url("http://localhost:11434"),
+            Some("http://localhost:11434".to_string())
+        );
+    }
+
+    #[test]
+    fn validate_ollama_url_ip_with_port() {
+        assert_eq!(
+            validate_ollama_url("http://192.168.1.100:11434"),
+            Some("http://192.168.1.100:11434".to_string())
+        );
+    }
+
+    #[test]
+    fn validate_ollama_url_rejects_web_url() {
+        assert_eq!(validate_ollama_url("https://ollama.com"), None);
+    }
+
+    #[test]
+    fn validate_ollama_url_rejects_empty() {
+        assert_eq!(validate_ollama_url(""), None);
+    }
+
+    #[test]
+    fn validate_ollama_url_rejects_garbage() {
+        assert_eq!(validate_ollama_url("not-a-url"), None);
+    }
+
+    #[test]
+    fn validate_ollama_url_strips_trailing_slash() {
+        assert_eq!(
+            validate_ollama_url("http://localhost:11434/"),
+            Some("http://localhost:11434".to_string())
+        );
+    }
+
+    #[test]
+    fn validate_ollama_url_custom_host_with_port() {
+        assert_eq!(
+            validate_ollama_url("http://my-server:11434"),
+            Some("http://my-server:11434".to_string())
+        );
+    }
 }

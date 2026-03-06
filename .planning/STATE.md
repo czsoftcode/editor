@@ -51,7 +51,7 @@ Recent for v1.2.0:
 - Ollama first, trait abstraction extensible for Claude/Gemini later
 - State refactor early to avoid widespread renames after UI wiring
 - WASM removal last — both systems coexist until native path validated
-- [Phase 13]: Port-based URL validation: reject URLs without explicit port to distinguish Ollama API from web pages
+- [Phase 13]: Port-based URL validation: ~~reject URLs without explicit port~~ reverted (quick-5) — accept cloud endpoints without explicit port
 
 ### Known Tech Debt
 
@@ -74,10 +74,11 @@ None.
 |---|-------------|------|--------|-----------|
 | 3 | Remove systemd-run wrapper — launch program directly | 2026-03-06 | 6f50509 | [3-remove-systemd-run-wrapper-launch-progra](./quick/3-remove-systemd-run-wrapper-launch-progra/) |
 | 4 | Move compile bar next to build bar, remove compile_bar.rs | 2026-03-06 | 9c4b211 | [4-move-compile-bar-next-to-build-bar-remov](./quick/4-move-compile-bar-next-to-build-bar-remov/) |
+| 5 | Revert validate_ollama_url port restriction + Bearer auth | 2026-03-06 | 3cc63a0 | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
 | Phase 13 P03 | 1min | 2 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-03-06T09:13:21.027Z
-Stopped at: Completed 13-03-PLAN.md
+Last session: 2026-03-06T09:31:34Z
+Stopped at: Completed quick-5 plan
 Resume file: None

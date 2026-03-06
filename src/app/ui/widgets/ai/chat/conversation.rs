@@ -91,7 +91,6 @@ pub fn ui_conversation(
 
         // Agent Answer
         if !a.is_empty() {
-            let ai_bg = ui.visuals().faint_bg_color;
             let weak_color = ui.visuals().weak_text_color();
 
             // Metadata bar
@@ -125,9 +124,7 @@ pub fn ui_conversation(
                 render_logo(ui, a, font_size, poly_color, credo_color);
             } else {
                 egui::Frame::new()
-                    .fill(ai_bg)
                     .inner_margin(egui::Margin::symmetric(8, 4))
-                    .corner_radius(4.0)
                     .show(ui, |ui| {
                         render_markdown(
                             ui,

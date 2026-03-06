@@ -57,16 +57,26 @@ impl StandardTerminalWindow {
                     });
                     ui.separator();
 
-                    // BODY
+                    // BODY — fixed-size child UI with clipping to prevent
+                    // content from pushing the window larger
                     let footer_reserved = 40.0;
+                    let body_w = ui.available_width();
                     let body_h = (ui.available_height() - footer_reserved).max(100.0);
-
-                    ui.allocate_ui(egui::vec2(ui.available_width(), body_h), |ui| {
-                        if let Some(res) = render_body(ui, ws, body_h) {
-                            result = Some(res);
-                            interacted = true;
-                        }
-                    });
+                    let body_rect = egui::Rect::from_min_size(
+                        ui.cursor().left_top(),
+                        egui::vec2(body_w, body_h),
+                    );
+                    let mut body_ui = ui.new_child(
+                        egui::UiBuilder::new()
+                            .max_rect(body_rect)
+                            .layout(egui::Layout::top_down(egui::Align::LEFT)),
+                    );
+                    body_ui.set_clip_rect(body_rect.intersect(ui.clip_rect()));
+                    if let Some(res) = render_body(&mut body_ui, ws, body_h) {
+                        result = Some(res);
+                        interacted = true;
+                    }
+                    ui.advance_cursor_after_rect(body_rect);
 
                     // FOOTER
                     ui.separator();

@@ -198,7 +198,7 @@ pub(super) fn process_background_events(
         && ws.ollama_check_rx.is_none()
         && !ws.ai_loading
     {
-        ws.ollama_check_rx = Some(spawn_ollama_check(ws.ollama_base_url.clone()));
+        ws.ollama_check_rx = Some(spawn_ollama_check(ws.ollama_base_url.clone(), ws.ollama_api_key.clone()));
     }
 
     // --- 5. Async results ---

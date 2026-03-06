@@ -156,6 +156,7 @@ pub struct WorkspaceState {
     pub ollama_check_rx: Option<mpsc::Receiver<OllamaStatus>>,
     pub ollama_last_check: std::time::Instant,
     pub ollama_base_url: String,
+    pub ollama_api_key: Option<String>,
 }
 
 impl Drop for WorkspaceState {

@@ -155,7 +155,7 @@ Plans:
 | 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
 | 15. Streaming Chat UI | 5/5 | Complete    | 2026-03-06 | - |
 | 16. Tool Execution | 4/4 | In Progress|  | - |
-| 17. i18n & WASM Cleanup | 3/3 | Complete   | 2026-03-06 | - |
+| 17. i18n & WASM Cleanup | 3/3 | Complete    | 2026-03-06 | - |
 
 ## Known Issues / TODO
 

@@ -22,6 +22,7 @@ use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
 use crate::app::ai::provider::StreamEvent;
 use crate::app::ai::state::OllamaConnectionStatus;
+use crate::app::ai::ollama::spawn_model_info_fetch;
 use crate::app::ai::{OllamaStatus, spawn_ollama_check};
 use crate::watcher::{FileEvent, FsChange};
 use std::sync::Mutex;
@@ -193,6 +194,10 @@ pub(super) fn process_background_events(
         }
         ws.ai.settings.expertise = sh.settings.ai_expertise;
         ws.ai.settings.reasoning_depth = sh.settings.ai_reasoning_depth;
+        ws.ai.settings.top_p = sh.settings.ollama_top_p;
+        ws.ai.settings.top_k = sh.settings.ollama_top_k;
+        ws.ai.settings.repeat_penalty = sh.settings.ollama_repeat_penalty;
+        ws.ai.settings.seed = sh.settings.ollama_seed;
     }
 
     // --- 4b. Ollama polling ---
@@ -226,6 +231,28 @@ pub(super) fn process_background_events(
         ws.ai.ollama.check_rx = Some(spawn_ollama_check(ws.ai.ollama.base_url.clone(), ws.ai.ollama.api_key.clone()));
     }
 
+    // --- 4b2. Model info fetch ---
+    // Fetch model info when selected model changes
+    if !ws.ai.ollama.selected_model.is_empty()
+        && ws.ai.ollama.selected_model != ws.ai.ollama.model_info_for
+        && ws.ai.ollama.model_info_rx.is_none()
+    {
+        ws.ai.ollama.model_info_for = ws.ai.ollama.selected_model.clone();
+        ws.ai.ollama.model_info = None;
+        ws.ai.ollama.model_info_rx = Some(spawn_model_info_fetch(
+            ws.ai.ollama.base_url.clone(),
+            ws.ai.ollama.selected_model.clone(),
+            ws.ai.ollama.api_key.clone(),
+        ));
+    }
+    // Poll model info result
+    if let Some(rx) = &ws.ai.ollama.model_info_rx {
+        if let Ok(result) = rx.try_recv() {
+            ws.ai.ollama.model_info = result.ok();
+            ws.ai.ollama.model_info_rx = None;
+        }
+    }
+
     // --- 4c. Chat streaming ---
     let has_stream = ws.ai.chat.stream_rx.is_some();
     if has_stream {
@@ -257,6 +284,7 @@ pub(super) fn process_background_events(
         // Process collected events
         let mut done = false;
         let mut tokens_this_frame = 0u32;
+        let mut tool_call_handled = false;
         for evt in events {
             match evt {
                 StreamEvent::Token(text) => {
@@ -273,13 +301,15 @@ pub(super) fn process_background_events(
                     done = true;
                 }
                 StreamEvent::Error(msg) => {
+                    let model = &ws.ai.ollama.selected_model;
                     if !ws.ai.chat.streaming_buffer.is_empty() {
                         ws.ai.chat
                             .streaming_buffer
-                            .push_str(&format!("\n\n*[error: {}]*", msg));
+                            .push_str(&format!("\n\n*[error ({model}): {msg}]*"));
                     } else {
-                        ws.toasts.push(Toast::error(format!("AI: {}", msg)));
+                        ws.toasts.push(Toast::error(format!("AI ({model}): {msg}")));
                     }
+                    log_to_stderr_file(&format!("[AI error] model={model}: {msg}"));
                     done = true;
                 }
                 StreamEvent::Thinking(text) => {
@@ -296,6 +326,7 @@ pub(super) fn process_background_events(
                     tokens_this_frame += 1;
                 }
                 StreamEvent::ToolCall { id, name, arguments } => {
+                    tool_call_handled = true;
                     // Process tool call through executor
                     if let Some(ref mut executor) = ws.tool_executor {
                         let result = executor.execute(&name, &arguments);
@@ -306,16 +337,12 @@ pub(super) fn process_background_events(
                                     crate::app::ai::executor::ToolExecutor::build_approval_messages(
                                         &id, &name, &arguments, &output, false,
                                     );
-                                // Append to conversation display
+                                // Append compact tool indicator to conversation display
                                 if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                                    let size = output.len();
                                     last.1.push_str(&format!(
-                                        "\n\n`{}` => {}",
-                                        name,
-                                        if output.len() > 200 {
-                                            format!("{}...", &output[..200])
-                                        } else {
-                                            output.clone()
-                                        }
+                                        "\n\n> **{}** ({} B)",
+                                        name, size
                                     ));
                                 }
                                 // Resume AI with tool result
@@ -349,8 +376,10 @@ pub(super) fn process_background_events(
                                             &id, &tn, &arguments, &output, is_err,
                                         );
                                     if let Some(last) = ws.ai.chat.conversation.last_mut() {
-                                        last.1.push_str(&format!("\n\n`{}` (auto) => {}", tn,
-                                            if output.len() > 200 { format!("{}...", &output[..200]) } else { output }
+                                        let size = output.len();
+                                        last.1.push_str(&format!(
+                                            "\n\n> **{}** ({} B)",
+                                            tn, size
                                         ));
                                     }
                                     resume_after_tool_call(ws, asst_msg, tool_msg);
@@ -418,12 +447,23 @@ pub(super) fn process_background_events(
             }
         }
         // Update conversation display
-        if tokens_this_frame > 0 || done {
+        // When a tool call was handled, flush any buffered tokens to conversation
+        // before the tool result (model may emit explanation text before tool_calls).
+        // But don't overwrite conversation after tool handler already appended results.
+        if tool_call_handled {
+            // Flush pre-tool text into conversation if any tokens were buffered
+            if tokens_this_frame > 0 {
+                if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                    last.1 = ws.ai.chat.streaming_buffer.clone();
+                }
+            }
+            // Don't clear loading/stream — resume_after_tool_call started a new stream
+        } else if tokens_this_frame > 0 || done {
             if let Some(last) = ws.ai.chat.conversation.last_mut() {
                 last.1 = ws.ai.chat.streaming_buffer.clone();
             }
         }
-        if done {
+        if done && !tool_call_handled {
             ws.ai.chat.streaming_buffer.clear();
             ws.ai.chat.loading = false;
             ws.ai.chat.stream_rx = None;
@@ -613,9 +653,13 @@ fn resume_after_tool_call(
     let config = ProviderConfig {
         base_url: ws.ai.ollama.base_url.clone(),
         model: ws.ai.ollama.selected_model.clone(),
-        temperature: 0.7,
-        num_ctx: 4096,
+        temperature: ws.ai.settings.temperature,
+        num_ctx: ws.ai.settings.num_ctx,
         api_key: ws.ai.ollama.api_key.clone(),
+        top_p: ws.ai.settings.top_p,
+        top_k: ws.ai.settings.top_k,
+        repeat_penalty: ws.ai.settings.repeat_penalty,
+        seed: ws.ai.settings.seed,
     };
     let tools = get_standard_tools();
     ws.ai.chat.stream_rx = Some(provider.stream_chat(messages, config, tools));
@@ -691,6 +735,22 @@ fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, GitV
         i += 1;
     }
     statuses
+}
+
+/// Append a timestamped message to `/tmp/polycredo-stderr.log`.
+fn log_to_stderr_file(msg: &str) {
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/polycredo-stderr.log")
+    {
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let _ = writeln!(f, "[{secs}] {msg}");
+    }
 }
 
 pub(crate) fn fetch_git_status(

@@ -40,3 +40,13 @@ cli-chat-stop = Stop
 cli-chat-clear = Vymazať
 cli-chat-copy = Kopírovať
 cli-chat-inspector-title = AI Inšpektor
+
+## Nastavenia
+cli-settings-section = PolyCredo CLI
+cli-settings-top-p = Top-P
+cli-settings-top-k = Top-K
+cli-settings-repeat-penalty = Penalizácia opakovania
+cli-settings-seed = Seed
+cli-settings-seed-hint = 0 = náhodný
+cli-settings-blacklist = CLI Blacklist (zakázané súbory)
+cli-settings-blacklist-hint = Vzory súborov, ku ktorým AI nesmie pristupovať (jeden vzor na riadok)

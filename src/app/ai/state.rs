@@ -1,6 +1,7 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, mpsc};
 
+use super::ollama::ModelInfo;
 use super::{AiExpertiseRole, AiReasoningDepth, OllamaStatus};
 
 /// Connection status of the Ollama provider.
@@ -70,6 +71,12 @@ pub struct OllamaState {
     pub api_key: Option<String>,
     /// Filter text for model picker combobox.
     pub model_filter: String,
+    /// Cached info for the currently selected model.
+    pub model_info: Option<ModelInfo>,
+    /// Receiver for async model info fetch.
+    pub model_info_rx: Option<mpsc::Receiver<Result<ModelInfo, String>>>,
+    /// Model name for which model_info was fetched (to detect changes).
+    pub model_info_for: String,
 }
 
 impl Default for OllamaState {
@@ -83,6 +90,9 @@ impl Default for OllamaState {
             base_url: String::new(),
             api_key: None,
             model_filter: String::new(),
+            model_info: None,
+            model_info_rx: None,
+            model_info_for: String::new(),
         }
     }
 }
@@ -95,6 +105,12 @@ pub struct AiSettings {
     pub language: String,
     pub selected_provider: String,
     pub show_settings: bool,
+    pub temperature: f64,
+    pub num_ctx: u64,
+    pub top_p: f64,
+    pub top_k: u64,
+    pub repeat_penalty: f64,
+    pub seed: i64,
 }
 
 impl Default for AiSettings {
@@ -106,6 +122,12 @@ impl Default for AiSettings {
             language: String::new(),
             selected_provider: "gemini".to_string(),
             show_settings: false,
+            temperature: 0.7,
+            num_ctx: 4096,
+            top_p: 0.9,
+            top_k: 40,
+            repeat_penalty: 1.1,
+            seed: 0,
         }
     }
 }

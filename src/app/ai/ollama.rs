@@ -11,6 +11,31 @@ use super::types::{AiMessage, AiToolDeclaration};
 /// Global counter for generating unique tool call IDs.
 static TOOL_CALL_COUNTER: AtomicU32 = AtomicU32::new(0);
 
+/// Builds the Ollama "options" JSON object from a ProviderConfig.
+fn build_options(config: &ProviderConfig) -> Value {
+    let mut opts = serde_json::json!({
+        "temperature": config.temperature,
+        "num_ctx": config.num_ctx,
+        "top_p": config.top_p,
+        "top_k": config.top_k,
+        "repeat_penalty": config.repeat_penalty,
+    });
+    if config.seed != 0 {
+        opts["seed"] = serde_json::json!(config.seed);
+    }
+    opts
+}
+
+/// Model details returned by `/api/show`.
+#[derive(Clone, Debug, Default)]
+pub struct ModelInfo {
+    pub family: String,
+    pub parameter_size: String,
+    pub quantization_level: String,
+    pub parameters: String,
+    pub context_length: Option<u64>,
+}
+
 /// Status returned by the Ollama availability check.
 #[derive(Clone, Debug)]
 pub enum OllamaStatus {
@@ -37,6 +62,10 @@ impl OllamaProvider {
                 temperature: 0.7,
                 num_ctx: 4096,
                 api_key,
+                top_p: 0.9,
+                top_k: 40,
+                repeat_penalty: 1.1,
+                seed: 0,
             },
             agent,
         }
@@ -98,10 +127,7 @@ impl AiProvider for OllamaProvider {
             "model": config.model,
             "messages": msgs,
             "stream": false,
-            "options": {
-                "temperature": config.temperature,
-                "num_ctx": config.num_ctx,
-            }
+            "options": build_options(&config)
         });
 
         let req = self.apply_auth(self.agent.post(&url));
@@ -192,7 +218,15 @@ impl AiProvider for OllamaProvider {
                 Err(e) if has_tools => {
                     // Model may not support tools API — fallback to streaming
                     // and inject tool descriptions into a system message
-                    eprintln!("[Ollama] Tools request failed ({}), falling back to streaming with text-based tools", e);
+                    let err_detail = match e {
+                        ureq::Error::Status(code, resp) => {
+                            let body = resp.into_string().unwrap_or_default();
+                            format!("status={code} body={body}")
+                        }
+                        other => format!("{other}"),
+                    };
+                    eprintln!("[Ollama] Tools request failed for model '{}': {}", config.model, err_detail);
+                    eprintln!("[Ollama] Falling back to streaming with text-based tools");
 
                     // Build text description of tools for the system message
                     let tools_text = tools_to_system_prompt_text(&tools);
@@ -216,7 +250,7 @@ impl AiProvider for OllamaProvider {
                     let fallback_req = make_req(&agent, &url, &config.api_key);
                     match fallback_req.send_json(&fallback_body) {
                         Ok(r) => {
-                            eprintln!("[Ollama] Fallback streaming request succeeded");
+                            eprintln!("[Ollama] Fallback streaming request succeeded for model '{}'", config.model);
                             (r, false)
                         }
                         Err(e2) => {
@@ -284,6 +318,13 @@ impl AiProvider for OllamaProvider {
                 if let Some(thought) = thinking {
                     let _ = tx.send(StreamEvent::Thinking(thought));
                 }
+
+                // Emit content text even when tool_calls are present
+                // (model may explain what it's doing before calling a tool)
+                if !clean.is_empty() && (has_structured_calls || has_raw_calls) {
+                    let _ = tx.send(StreamEvent::Token(clean.clone()));
+                }
+
                 for rc in &raw_calls {
                     let id = format!(
                         "tc_{}_{}",
@@ -300,7 +341,7 @@ impl AiProvider for OllamaProvider {
                 // If model returned content but NO tool calls at all, the model
                 // silently ignores the tools API. Retry with text-based tools.
                 if !has_structured_calls && !has_raw_calls && !content.is_empty() {
-                    eprintln!("[Ollama] Model ignored tools API — retrying with text-based tools in system prompt");
+                    eprintln!("[Ollama] Model '{}' ignored tools API — retrying with text-based tools in system prompt", config.model);
 
                     let tools_text = tools_to_system_prompt_text(&tools);
                     let mut retry_msgs = msgs.clone();
@@ -461,7 +502,7 @@ impl AiProvider for OllamaProvider {
 }
 
 /// Parse Ollama `/api/tags` JSON response into a list of model names.
-/// Strips `:latest` suffix for cleaner display.
+/// Preserves full tag (e.g. `:latest`, `:cloud`) so users can pick variants.
 pub fn parse_tags_response(json: &str) -> Result<Vec<String>, String> {
     let parsed: Value = serde_json::from_str(json).map_err(|e| format!("Invalid JSON: {e}"))?;
     let models = parsed["models"]
@@ -470,14 +511,78 @@ pub fn parse_tags_response(json: &str) -> Result<Vec<String>, String> {
 
     Ok(models
         .iter()
-        .filter_map(|m| {
-            m["name"].as_str().map(|name| {
-                name.strip_suffix(":latest")
-                    .unwrap_or(name)
-                    .to_string()
-            })
-        })
+        .filter_map(|m| m["name"].as_str().map(|name| name.to_string()))
         .collect())
+}
+
+/// Fetch model info from Ollama `/api/show` endpoint.
+pub fn fetch_model_info(
+    base_url: &str,
+    model: &str,
+    api_key: &Option<String>,
+) -> Result<ModelInfo, String> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout_read(Duration::from_secs(10))
+        .timeout_write(Duration::from_secs(5))
+        .build();
+    let url = format!("{base_url}/api/show");
+    let body = serde_json::json!({
+        "model": model,
+        "verbose": true,
+    });
+    let mut req = agent.post(&url);
+    if let Some(key) = api_key {
+        req = req.set("Authorization", &format!("Bearer {key}"));
+    }
+    let resp = req
+        .send_json(&body)
+        .map_err(|e| format!("Failed to fetch model info: {e}"))?;
+    let text = resp
+        .into_string()
+        .map_err(|e| format!("Failed to read response: {e}"))?;
+    parse_show_response(&text)
+}
+
+/// Parse `/api/show` JSON response into `ModelInfo`.
+pub fn parse_show_response(json: &str) -> Result<ModelInfo, String> {
+    let parsed: Value = serde_json::from_str(json).map_err(|e| format!("Invalid JSON: {e}"))?;
+
+    let details = &parsed["details"];
+    let family = details["family"].as_str().unwrap_or("").to_string();
+    let parameter_size = details["parameter_size"].as_str().unwrap_or("").to_string();
+    let quantization_level = details["quantization_level"].as_str().unwrap_or("").to_string();
+    let parameters = parsed["parameters"].as_str().unwrap_or("").to_string();
+
+    // Try to find context_length from model_info keys (e.g. "llama.context_length")
+    let context_length = parsed["model_info"]
+        .as_object()
+        .and_then(|obj| {
+            obj.iter()
+                .find(|(k, _)| k.ends_with(".context_length"))
+                .and_then(|(_, v)| v.as_u64())
+        });
+
+    Ok(ModelInfo {
+        family,
+        parameter_size,
+        quantization_level,
+        parameters,
+        context_length,
+    })
+}
+
+/// Spawn a background thread to fetch model info via `/api/show`.
+pub fn spawn_model_info_fetch(
+    base_url: String,
+    model: String,
+    api_key: Option<String>,
+) -> mpsc::Receiver<Result<ModelInfo, String>> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let result = fetch_model_info(&base_url, &model, &api_key);
+        let _ = tx.send(result);
+    });
+    rx
 }
 
 /// Parse a single NDJSON line from Ollama streaming response.
@@ -1242,7 +1347,7 @@ mod tests {
     fn parse_tags_valid() {
         let json = r#"{"models":[{"name":"llama3:latest","size":123},{"name":"codellama:7b","size":456}]}"#;
         let result = parse_tags_response(json).unwrap();
-        assert_eq!(result, vec!["llama3", "codellama:7b"]);
+        assert_eq!(result, vec!["llama3:latest", "codellama:7b"]);
     }
 
     #[test]
@@ -1256,6 +1361,36 @@ mod tests {
     fn parse_tags_invalid_json() {
         let result = parse_tags_response("not json");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_show_response_full() {
+        let json = r#"{
+            "details": {
+                "family": "qwen3",
+                "parameter_size": "32B",
+                "quantization_level": "Q4_K_M"
+            },
+            "parameters": "stop \"<|im_end|>\"\nnum_ctx 40960",
+            "model_info": {
+                "qwen3.context_length": 40960
+            }
+        }"#;
+        let info = parse_show_response(json).unwrap();
+        assert_eq!(info.family, "qwen3");
+        assert_eq!(info.parameter_size, "32B");
+        assert_eq!(info.quantization_level, "Q4_K_M");
+        assert_eq!(info.context_length, Some(40960));
+        assert!(info.parameters.contains("num_ctx 40960"));
+    }
+
+    #[test]
+    fn parse_show_response_minimal() {
+        let json = r#"{"details": {}, "model_info": {}}"#;
+        let info = parse_show_response(json).unwrap();
+        assert_eq!(info.family, "");
+        assert_eq!(info.parameter_size, "");
+        assert_eq!(info.context_length, None);
     }
 
     #[test]

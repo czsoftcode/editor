@@ -182,7 +182,27 @@ pub struct Settings {
     /// Prevents AI from reading/writing files matching these patterns.
     #[serde(default = "default_ai_file_blacklist")]
     pub ai_file_blacklist_patterns: Vec<String>,
+
+    /// Ollama Top-P sampling parameter (0.0-1.0, default 0.9).
+    #[serde(default = "default_top_p")]
+    pub ollama_top_p: f64,
+
+    /// Ollama Top-K sampling parameter (1-100, default 40).
+    #[serde(default = "default_top_k")]
+    pub ollama_top_k: u64,
+
+    /// Ollama repeat penalty (0.0-2.0, default 1.1).
+    #[serde(default = "default_repeat_penalty")]
+    pub ollama_repeat_penalty: f64,
+
+    /// Ollama seed (0 = random, any other value = deterministic).
+    #[serde(default)]
+    pub ollama_seed: i64,
 }
+
+fn default_top_p() -> f64 { 0.9 }
+fn default_top_k() -> u64 { 40 }
+fn default_repeat_penalty() -> f64 { 1.1 }
 
 impl Default for Settings {
     fn default() -> Self {
@@ -226,6 +246,10 @@ impl Default for Settings {
             ai_default_model: String::new(),
             ai_settings_migrated: false,
             ai_file_blacklist_patterns: default_ai_file_blacklist(),
+            ollama_top_p: default_top_p(),
+            ollama_top_k: default_top_k(),
+            ollama_repeat_penalty: default_repeat_penalty(),
+            ollama_seed: 0,
         }
     }
 }

@@ -213,7 +213,7 @@ pub fn show(
                             if ui
                                 .selectable_label(
                                     selected_cat == "ai",
-                                    format!("🤖 {}", i18n.get("settings-category-ai")),
+                                    format!("🤖 {}", i18n.get("cli-settings-section")),
                                 )
                                 .clicked()
                             {
@@ -326,7 +326,7 @@ pub fn show(
                             );
                         } else if selected_cat == "ai" {
                             ui.strong(
-                                egui::RichText::new(i18n.get("settings-category-ai")).size(18.0),
+                                egui::RichText::new(i18n.get("cli-settings-section")).size(18.0),
                             );
                             ui.add_space(12.0);
 
@@ -397,19 +397,72 @@ pub fn show(
                                         ui.selectable_value(&mut draft.ai_reasoning_depth, AiReasoningDepth::Deep, "Deep");
                                     });
                             });
-                            ui.add_space(16.0);
+                            ui.add_space(12.0);
+
+                            // Generation Parameters
+                            ui.separator();
+                            ui.add_space(8.0);
+                            ui.strong("Generation Parameters");
+                            ui.add_space(8.0);
+
+                            // Top-P slider
+                            ui.horizontal(|ui| {
+                                ui.label(i18n.get("cli-settings-top-p"));
+                                ui.add(
+                                    egui::Slider::new(&mut draft.ollama_top_p, 0.0..=1.0)
+                                        .step_by(0.05),
+                                );
+                            });
+                            ui.add_space(4.0);
+
+                            // Top-K slider
+                            ui.horizontal(|ui| {
+                                ui.label(i18n.get("cli-settings-top-k"));
+                                ui.add(
+                                    egui::Slider::new(&mut draft.ollama_top_k, 1..=100),
+                                );
+                            });
+                            ui.add_space(4.0);
+
+                            // Repeat Penalty slider
+                            ui.horizontal(|ui| {
+                                ui.label(i18n.get("cli-settings-repeat-penalty"));
+                                ui.add(
+                                    egui::Slider::new(&mut draft.ollama_repeat_penalty, 0.0..=2.0)
+                                        .step_by(0.05),
+                                );
+                            });
+                            ui.add_space(4.0);
+
+                            // Seed input
+                            ui.horizontal(|ui| {
+                                ui.label(i18n.get("cli-settings-seed"));
+                                let mut seed_str = draft.ollama_seed.to_string();
+                                if ui.add(
+                                    egui::TextEdit::singleline(&mut seed_str)
+                                        .desired_width(100.0)
+                                        .hint_text(i18n.get("cli-settings-seed-hint")),
+                                ).changed() {
+                                    if let Ok(v) = seed_str.parse::<i64>() {
+                                        draft.ollama_seed = v;
+                                    }
+                                }
+                                ui.label(
+                                    egui::RichText::new(i18n.get("cli-settings-seed-hint"))
+                                        .weak()
+                                        .small(),
+                                );
+                            });
 
                             ui.add_space(16.0);
                             ui.separator();
                             ui.add_space(8.0);
 
                             // AI File Blacklist Patterns
-                            ui.strong("File Blacklist Patterns");
+                            ui.strong(i18n.get("cli-settings-blacklist"));
                             ui.add_space(4.0);
                             ui.label(
-                                egui::RichText::new(
-                                    "Glob patterns pro soubory, ke kterym AI nesmi pristupovat (jeden vzor na radek)"
-                                )
+                                egui::RichText::new(i18n.get("cli-settings-blacklist-hint"))
                                 .weak()
                                 .small(),
                             );

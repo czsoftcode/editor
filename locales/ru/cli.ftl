@@ -40,3 +40,13 @@ cli-chat-stop = Стоп
 cli-chat-clear = Очистить
 cli-chat-copy = Копировать
 cli-chat-inspector-title = ИИ Инспектор
+
+## Настройки
+cli-settings-section = PolyCredo CLI
+cli-settings-top-p = Top-P
+cli-settings-top-k = Top-K
+cli-settings-repeat-penalty = Штраф за повторение
+cli-settings-seed = Seed
+cli-settings-seed-hint = 0 = случайный
+cli-settings-blacklist = CLI-чёрный список (запрещённые файлы)
+cli-settings-blacklist-hint = Шаблоны файлов, к которым ИИ не имеет доступа (один шаблон в строке)

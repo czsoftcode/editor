@@ -113,6 +113,12 @@ pub fn init_workspace(
         }),
         selected_provider: selected_provider.clone(),
         show_settings: false,
+        temperature: 0.7,
+        num_ctx: 4096,
+        top_p: settings.ollama_top_p,
+        top_k: settings.ollama_top_k,
+        repeat_penalty: settings.ollama_repeat_penalty,
+        seed: settings.ollama_seed,
     };
 
     let ollama = OllamaState {

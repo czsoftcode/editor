@@ -141,9 +141,13 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
     let config = ProviderConfig {
         base_url: ws.ai.ollama.base_url.clone(),
         model: ws.ai.ollama.selected_model.clone(),
-        temperature: 0.7,
-        num_ctx: 4096,
+        temperature: ws.ai.settings.temperature,
+        num_ctx: ws.ai.settings.num_ctx,
         api_key: ws.ai.ollama.api_key.clone(),
+        top_p: ws.ai.settings.top_p,
+        top_k: ws.ai.settings.top_k,
+        repeat_penalty: ws.ai.settings.repeat_penalty,
+        seed: ws.ai.settings.seed,
     };
 
     // stream_chat() spawns its own thread and returns Receiver immediately

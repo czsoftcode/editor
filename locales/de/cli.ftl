@@ -40,3 +40,13 @@ cli-chat-stop = Stopp
 cli-chat-clear = Löschen
 cli-chat-copy = Kopieren
 cli-chat-inspector-title = KI-Inspektor
+
+## Einstellungen
+cli-settings-section = PolyCredo CLI
+cli-settings-top-p = Top-P
+cli-settings-top-k = Top-K
+cli-settings-repeat-penalty = Wiederholungsstrafe
+cli-settings-seed = Seed
+cli-settings-seed-hint = 0 = zufällig
+cli-settings-blacklist = CLI-Blacklist (gesperrte Dateien)
+cli-settings-blacklist-hint = Glob-Muster für Dateien, auf die KI nicht zugreifen darf (ein Muster pro Zeile)

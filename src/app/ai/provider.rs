@@ -19,7 +19,19 @@ pub struct ProviderConfig {
     pub num_ctx: u64,
     #[serde(default)]
     pub api_key: Option<String>,
+    #[serde(default = "default_top_p")]
+    pub top_p: f64,
+    #[serde(default = "default_top_k")]
+    pub top_k: u64,
+    #[serde(default = "default_repeat_penalty")]
+    pub repeat_penalty: f64,
+    #[serde(default)]
+    pub seed: i64,
 }
+
+fn default_top_p() -> f64 { 0.9 }
+fn default_top_k() -> u64 { 40 }
+fn default_repeat_penalty() -> f64 { 1.1 }
 
 /// Events emitted during a streaming chat response.
 #[derive(Clone, Debug)]

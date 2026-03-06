@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 15-01-PLAN.md
-last_updated: "2026-03-06T12:07:21Z"
+stopped_at: Completed 15-03-PLAN.md
+last_updated: "2026-03-06T12:13:25.284Z"
 last_activity: 2026-03-06 — Native OllamaProvider streaming + background polling (15-01)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 8
   percent: 30
 ---
 
@@ -55,6 +55,7 @@ Recent for v1.2.0:
 - [Phase 14]: AI state consolidated into AiState sub-struct with ChatState, OllamaState, AiSettings nested structs
 - [Phase 15-00]: Wave 0 pre-provisioning — added streaming fields + AI settings fields with defaults before implementation plans
 - [Phase 15-01]: Direct OllamaProvider.stream_chat() call, collect-then-process pattern in background polling
+- [Phase 15]: Ollama config placed before custom_agents in AI settings; sync block runs every frame with URL change detection
 
 ### Known Tech Debt
 
@@ -78,9 +79,10 @@ None.
 | 3 | Remove systemd-run wrapper — launch program directly | 2026-03-06 | 6f50509 | [3-remove-systemd-run-wrapper-launch-progra](./quick/3-remove-systemd-run-wrapper-launch-progra/) |
 | 4 | Move compile bar next to build bar, remove compile_bar.rs | 2026-03-06 | 9c4b211 | [4-move-compile-bar-next-to-build-bar-remov](./quick/4-move-compile-bar-next-to-build-bar-remov/) |
 | 5 | Revert validate_ollama_url port restriction + Bearer auth | 2026-03-06 | 3cc63a0 | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
+| Phase 15 P03 | 2min | 2 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-03-06T12:07:21Z
-Stopped at: Completed 15-01-PLAN.md
-Resume file: .planning/phases/15-streaming-chat-ui/15-01-SUMMARY.md
+Last session: 2026-03-06T12:13:25.274Z
+Stopped at: Completed 15-03-PLAN.md
+Resume file: None

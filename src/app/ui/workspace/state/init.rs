@@ -220,6 +220,12 @@ pub fn init_workspace(
         pending_ask_user: None,
         confirm_discard_changes: None,
         last_keystroke_time: None,
+        tool_executor: None,
+        pending_tool_approval: None,
+        pending_tool_ask: None,
+        tool_always_approved: std::collections::HashSet::new(),
+        tool_approval_rx: None,
+        tool_ask_rx: None,
     }
 }
 

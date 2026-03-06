@@ -25,6 +25,33 @@ pub use self::types::{
     FilePicker, FolderPickResult, FsChangeResult, ProjectSearch, SearchResult, SecondaryWorkspace,
 };
 
+use std::collections::HashSet;
+
+/// Pending native tool approval request (shown in chat UI).
+pub struct PendingToolApproval {
+    pub tool_call_id: String,
+    pub tool_name: String,
+    pub description: String,
+    /// Diff preview or command text.
+    pub details: String,
+    pub is_network: bool,
+    pub is_new_file: bool,
+    /// Original args for execute_approved.
+    pub args: serde_json::Value,
+    /// Send approval decision: true = approve, false = deny.
+    pub response_tx: mpsc::Sender<bool>,
+}
+
+/// Pending ask_user request from the AI tool executor.
+pub struct PendingToolAsk {
+    pub question: String,
+    pub options: Vec<String>,
+    /// Send user's text response.
+    pub response_tx: mpsc::Sender<String>,
+    /// Input buffer for free-text field.
+    pub input_buffer: String,
+}
+
 pub type PendingPluginApproval = (
     String,
     String,
@@ -121,6 +148,20 @@ pub struct WorkspaceState {
     pub confirm_discard_changes: Option<String>,
     /// Last time the user pressed a key. Used for repaint capping during active typing.
     pub last_keystroke_time: Option<std::time::Instant>,
+
+    // --- Native tool execution state (Phase 16) ---
+    /// Native tool executor for AI tool calls (lazily initialized on first AI chat).
+    pub tool_executor: Option<crate::app::ai::executor::ToolExecutor>,
+    /// Pending native tool approval request.
+    pub pending_tool_approval: Option<PendingToolApproval>,
+    /// Pending native ask_user request from tool executor.
+    pub pending_tool_ask: Option<PendingToolAsk>,
+    /// Tool names that user chose "Always approve" for (runtime only).
+    pub tool_always_approved: HashSet<String>,
+    /// Receiver for native tool approval responses from the UI.
+    pub tool_approval_rx: Option<mpsc::Receiver<bool>>,
+    /// Receiver for native ask_user responses from the UI.
+    pub tool_ask_rx: Option<mpsc::Receiver<String>>,
 }
 
 impl Drop for WorkspaceState {

@@ -19,6 +19,12 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
         return;
     }
 
+    // Initialize tool executor lazily on first AI chat
+    if ws.tool_executor.is_none() {
+        let root = ws.root_path.clone();
+        ws.tool_executor = Some(crate::app::ai::executor::ToolExecutor::new(root, None, None));
+    }
+
     // Build messages from conversation history
     let mut messages: Vec<AiMessage> = Vec::new();
 
@@ -37,9 +43,18 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
     system_parts.push(reasoning_mandate);
 
     let system_content = system_parts.join("\n\n");
+
+    // Append editor context (open files, build errors, git, etc.)
+    let context_str = build_editor_context(ws);
+    let full_system = if context_str.is_empty() {
+        system_content
+    } else {
+        format!("{}\n\n{}", system_content, context_str)
+    };
+
     messages.push(AiMessage {
         role: "system".to_string(),
-        content: system_content,
+        content: full_system,
         monologue: Vec::new(),
         timestamp: 0,
         tool_call_name: None,
@@ -127,4 +142,72 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
     // stream_chat() spawns its own thread and returns Receiver immediately
     let tools = get_standard_tools();
     ws.ai.chat.stream_rx = Some(provider.stream_chat(messages, config, tools));
+}
+
+/// Builds an editor context string from workspace state for injection into system message.
+fn build_editor_context(ws: &WorkspaceState) -> String {
+    use crate::app::ai::types::{AiContextPayload, AiFileContext, AiBuildErrorContext, AiGitFileStatus};
+
+    let mut payload = AiContextPayload::default();
+
+    // Project name and root
+    payload.project_name = ws.root_path.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    payload.project_root = ".".to_string();
+
+    // Open files
+    for (i, tab) in ws.editor.tabs.iter().enumerate() {
+        let rel_path = tab.path.strip_prefix(&ws.root_path)
+            .unwrap_or(&tab.path)
+            .to_string_lossy().into_owned();
+        let is_active = Some(i) == ws.editor.active_tab;
+        let file_ctx = AiFileContext {
+            path: rel_path,
+            content: if is_active { Some(tab.content.clone()) } else { None },
+            is_active,
+        };
+        payload.open_files.push(file_ctx.clone());
+        if is_active {
+            payload.active_file = Some(file_ctx);
+        }
+    }
+
+    // Build errors
+    for err in &ws.build_errors {
+        let rel_path = err.file.strip_prefix(&ws.root_path)
+            .unwrap_or(&err.file)
+            .to_string_lossy().into_owned();
+        payload.build_errors.push(AiBuildErrorContext {
+            file: rel_path,
+            line: err.line,
+            message: err.message.clone(),
+            is_warning: err.is_warning,
+        });
+    }
+
+    // Cursor position
+    if let Some(tab) = ws.editor.active()
+        && let Some(cr) = tab.last_cursor_range
+    {
+        payload.cursor_line = Some(cr.primary.rcursor.row + 1);
+        payload.cursor_col = Some(cr.primary.rcursor.column + 1);
+    }
+
+    // Git context
+    payload.git_branch = ws.git_branch.clone();
+    for (abs_path, status) in &ws.file_tree.git_statuses {
+        let rel = abs_path.strip_prefix(&ws.root_path)
+            .unwrap_or(abs_path)
+            .to_string_lossy().into_owned();
+        let code = match status {
+            crate::app::ui::git_status::GitVisualStatus::Modified => "M",
+            crate::app::ui::git_status::GitVisualStatus::Added => "A",
+            crate::app::ui::git_status::GitVisualStatus::Deleted => "D",
+            crate::app::ui::git_status::GitVisualStatus::Untracked => "??",
+        };
+        payload.git_status.push(AiGitFileStatus { path: rel, status: code.to_string() });
+    }
+
+    payload.to_system_message()
 }

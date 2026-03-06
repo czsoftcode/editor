@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 16 context gathered
-last_updated: "2026-03-06T14:33:07.494Z"
-last_activity: 2026-03-06 — Ollama tools API + editor context injection (16-02)
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-03-06T18:36:07.184Z"
+last_activity: 2026-03-06 — CLI i18n keys + Ollama generation params (17-01)
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
-  percent: 30
+  total_plans: 14
+  completed_plans: 14
+  percent: 80
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
-**Current focus:** v1.2.0 AI Tool Execution — Phase 16: Tool Execution
+**Current focus:** v1.2.0 — Phase 17: i18n + WASM Cleanup
 
 ## Current Position
 
-Phase: 16 (Tool Execution) — 4 of 5 in v1.2.0
-Plan: 16-03 complete (3 of 4)
+Phase: 17 (i18n + WASM Cleanup) — 5 of 5 in v1.2.0
+Plan: 17-01 complete (1 of 2)
 Status: Executing
-Last activity: 2026-03-06 — Native ToolExecutor with 14 tool handlers (16-03)
+Last activity: 2026-03-06 — CLI i18n keys + Ollama generation params (17-01)
 
-Progress: [██████░░░░] 60%
+Progress: [██████████░░] 80%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Recent for v1.2.0:
 - [Phase 16-01]: LazyLock for static regex, manual ISO 8601 timestamps (no chrono), audit eprintln errors
 - [Phase 16-02]: stream:false when tools present, AtomicU32 tool call ID counter, context params deferred to Plan 04
 - [Phase 16-03]: ToolExecutor combined Tasks 1+2, exec timeout via thread+mpsc, facts in .polycredo/ai-facts.json
+- [Phase 17-01]: Renamed ai-chat-*/ai-plugin-bar-* to cli-chat-*/cli-bar-*, build_options() DRY helper for Ollama params, seed=0 means random
 
 ### Known Tech Debt
 
@@ -88,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T15:12:51Z
-Stopped at: Completed 16-03-PLAN.md
-Resume file: .planning/phases/16-tool-execution/16-03-SUMMARY.md
+Last session: 2026-03-06T19:04:11Z
+Stopped at: Completed 17-01-PLAN.md
+Resume file: .planning/phases/17-i18n-wasm-cleanup/17-02-PLAN.md

@@ -37,7 +37,7 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 
 - [x] **CLEN-01**: AiChatState sub-struct — konsolidace ~30 ai_* poli z WorkspaceState
 - [ ] **CLEN-02**: Odstraneni WASM plugin systemu — extism, PluginManager, ~2000 LOC
-- [ ] **CLEN-03**: i18n aktualizace — nove klice pro novy chat, odstraneni starych WASM klicu
+- [x] **CLEN-03**: i18n aktualizace — nove klice pro novy chat, odstraneni starych WASM klicu
 
 ## Future Requirements
 
@@ -87,7 +87,7 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 | TOOL-06 | Phase 16 | Complete |
 | CLEN-01 | Phase 14 | Complete |
 | CLEN-02 | Phase 17 | Pending |
-| CLEN-03 | Phase 17 | Pending |
+| CLEN-03 | Phase 17 | Complete |
 
 **Coverage:**
 - v1.2.0 requirements: 20 total

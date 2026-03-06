@@ -131,7 +131,7 @@ Plans:
   4. Editor kompiluje a funguje bez WASM runtime — vsechny AI funkce bezi nativne
 **Plans:** 2 plans
 Plans:
-- [ ] 17-01-PLAN.md — i18n: cli.ftl, rename keys, replace hardcoded strings, Ollama params
+- [x] 17-01-PLAN.md — i18n: cli.ftl, rename keys, replace hardcoded strings, Ollama params (completed 2026-03-06)
 - [ ] 17-02-PLAN.md — WASM removal: delete plugin system, clean references, remove extism
 
 ## Progress
@@ -154,7 +154,7 @@ Plans:
 | 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
 | 15. Streaming Chat UI | 5/5 | Complete    | 2026-03-06 | - |
 | 16. Tool Execution | 4/4 | In Progress|  | - |
-| 17. i18n & WASM Cleanup | v1.2.0 | 0/2 | Not started | - |
+| 17. i18n & WASM Cleanup | v1.2.0 | 1/2 | In Progress | - |
 
 ## Known Issues / TODO
 

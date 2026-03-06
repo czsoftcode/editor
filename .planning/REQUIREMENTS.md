@@ -26,7 +26,7 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 
 ### Context & Tools
 
-- [ ] **TOOL-01**: Automaticky editor kontext — otevrene soubory, git stav, build errory
+- [x] **TOOL-01**: Automaticky editor kontext — otevrene soubory, git stav, build errory
 - [x] **TOOL-02**: File read tool — AI cte soubory s approval
 - [x] **TOOL-03**: File write/replace tool — AI upravuje soubory s approval a diff preview
 - [x] **TOOL-04**: Command execution tool — AI spousti prikazy s approval
@@ -79,7 +79,7 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 | CHAT-05 | Phase 15 | Complete |
 | CHAT-06 | Phase 15 | Pending |
 | CHAT-07 | Phase 15 | Complete |
-| TOOL-01 | Phase 16 | Pending |
+| TOOL-01 | Phase 16 | Complete |
 | TOOL-02 | Phase 16 | Complete |
 | TOOL-03 | Phase 16 | Complete |
 | TOOL-04 | Phase 16 | Complete |

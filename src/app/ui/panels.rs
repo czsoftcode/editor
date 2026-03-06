@@ -130,6 +130,7 @@ fn render_plugin_bar(
                 crate::app::ui::terminal::ai_chat::AiChatAction::NewQuery,
                 ws,
                 shared,
+                i18n,
             );
         }
 

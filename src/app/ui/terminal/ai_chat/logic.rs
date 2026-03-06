@@ -8,14 +8,14 @@ use crate::app::ui::workspace::state::WorkspaceState;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-pub fn send_query_to_agent(ws: &mut WorkspaceState) {
+pub fn send_query_to_agent(ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
     if ws.ai.chat.prompt.trim().is_empty() {
         return;
     }
 
     if ws.ai.ollama.status != OllamaConnectionStatus::Connected {
         ws.toasts
-            .push(Toast::error("Ollama is not connected.".to_string()));
+            .push(Toast::error(i18n.get("cli-chat-ollama-disconnected")));
         return;
     }
 

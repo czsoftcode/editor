@@ -369,7 +369,7 @@ pub(super) fn process_background_events(
                                         crate::app::cli::executor::ToolResult::Error(e) => {
                                             (e.clone(), true)
                                         }
-                                        _ => ("Unexpected result".to_string(), true),
+                                        _ => (i18n.get("cli-chat-unexpected-result"), true),
                                     };
                                     let (asst_msg, tool_msg) =
                                         crate::app::cli::executor::ToolExecutor::build_approval_messages(
@@ -490,7 +490,7 @@ pub(super) fn process_background_events(
                     let (output, is_err) = match &result {
                         crate::app::cli::executor::ToolResult::Success(o) => (o.clone(), false),
                         crate::app::cli::executor::ToolResult::Error(e) => (e.clone(), true),
-                        _ => ("Unexpected result".to_string(), true),
+                        _ => (i18n.get("cli-chat-unexpected-result"), true),
                     };
                     let (asst_msg, tool_msg) =
                         crate::app::cli::executor::ToolExecutor::build_approval_messages(

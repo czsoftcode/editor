@@ -60,16 +60,16 @@ pub fn show(
     ws.show_ai_chat = show_flag;
 
     if let Some(act) = action {
-        handle_action(act, ws, shared);
+        handle_action(act, ws, shared, i18n);
     }
 
     interacted
 }
 
-pub fn handle_action(act: AiChatAction, ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
+pub fn handle_action(act: AiChatAction, ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>, i18n: &I18n) {
     match act {
         AiChatAction::Send => {
-            logic::send_query_to_agent(ws);
+            logic::send_query_to_agent(ws, i18n);
         }
         AiChatAction::NewQuery => {
             let model = {

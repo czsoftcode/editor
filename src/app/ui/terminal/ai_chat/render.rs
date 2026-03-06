@@ -44,16 +44,24 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
         let model_tooltip = ws.ai.ollama.model_info.as_ref().and_then(|info| {
             let mut tip = String::new();
             if !info.family.is_empty() {
-                tip.push_str(&format!("Family: {}\n", info.family));
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("value", info.family.clone());
+                tip.push_str(&format!("{}\n", i18n.get_args("cli-chat-model-family", &args)));
             }
             if !info.parameter_size.is_empty() {
-                tip.push_str(&format!("Parameters: {}\n", info.parameter_size));
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("value", info.parameter_size.clone());
+                tip.push_str(&format!("{}\n", i18n.get_args("cli-chat-model-params", &args)));
             }
             if !info.quantization_level.is_empty() {
-                tip.push_str(&format!("Quantization: {}\n", info.quantization_level));
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("value", info.quantization_level.clone());
+                tip.push_str(&format!("{}\n", i18n.get_args("cli-chat-model-quant", &args)));
             }
             if let Some(ctx) = info.context_length {
-                tip.push_str(&format!("Context: {ctx}\n"));
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("value", ctx as i64);
+                tip.push_str(&format!("{}\n", i18n.get_args("cli-chat-model-context", &args)));
             }
             if !info.parameters.is_empty() {
                 tip.push_str(&format!("\n--- Parameters ---\n{}", info.parameters));
@@ -107,11 +115,11 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
         // Model info + token counter on the right
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let weak_color = ui.visuals().weak_text_color();
+            let mut token_args = fluent_bundle::FluentArgs::new();
+            token_args.set("input", ws.ai.chat.in_tokens as i64);
+            token_args.set("output", ws.ai.chat.out_tokens as i64);
             ui.label(
-                egui::RichText::new(format!(
-                    "In: {} | Out: {}",
-                    ws.ai.chat.in_tokens, ws.ai.chat.out_tokens
-                ))
+                egui::RichText::new(i18n.get_args("cli-chat-token-counter", &token_args))
                 .color(weak_color)
                 .small(),
             );
@@ -321,7 +329,7 @@ fn render_chat_content(
             .inner_margin(egui::Margin::symmetric(8, 2))
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                render_info_bar(ui, ws, loading);
+                render_info_bar(ui, ws, loading, i18n);
             });
 
         ui.add_space(4.0);
@@ -486,13 +494,13 @@ pub fn render_footer(
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
-fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool) {
+fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool, i18n: &I18n) {
     let weak_color = ui.visuals().weak_text_color();
     ui.horizontal(|ui| {
         if loading {
             ui.spinner();
             ui.label(
-                egui::RichText::new("Generating...")
+                egui::RichText::new(i18n.get("cli-chat-generating"))
                     .color(weak_color)
                     .small(),
             );
@@ -504,11 +512,11 @@ fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool) {
             );
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let mut token_args = fluent_bundle::FluentArgs::new();
+            token_args.set("input", ws.ai.chat.in_tokens as i64);
+            token_args.set("output", ws.ai.chat.out_tokens as i64);
             ui.label(
-                egui::RichText::new(format!(
-                    "In: {} | Out: {}",
-                    ws.ai.chat.in_tokens, ws.ai.chat.out_tokens
-                ))
+                egui::RichText::new(i18n.get_args("cli-chat-token-counter", &token_args))
                 .color(weak_color),
             );
         });

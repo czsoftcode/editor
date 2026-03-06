@@ -130,8 +130,10 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &I18
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new("\u{2753}").size(22.0));
+                    let mut ask_args = fluent_bundle::FluentArgs::new();
+                    ask_args.set("agent", "AI");
                     ui.label(
-                        egui::RichText::new(i18n.get("cli-tool-ask-heading"))
+                        egui::RichText::new(i18n.get_args("cli-tool-ask-heading", &ask_args))
                             .strong()
                             .size(18.0)
                             .color(egui::Color32::from_rgb(100, 160, 255)),

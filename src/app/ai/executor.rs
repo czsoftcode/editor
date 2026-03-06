@@ -13,6 +13,17 @@ use super::security::{
 // ToolResult
 // ---------------------------------------------------------------------------
 
+/// Decision made by user on a tool approval dialog.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ApprovalDecision {
+    /// Execute the tool call this time.
+    Approve,
+    /// Deny the tool call.
+    Deny,
+    /// Execute and auto-approve this tool in the future.
+    Always,
+}
+
 /// Result of executing (or pre-evaluating) a tool call.
 #[derive(Debug, Clone)]
 pub enum ToolResult {
@@ -187,6 +198,80 @@ impl ToolExecutor {
         }
 
         result
+    }
+
+    /// Processes an approval decision for a tool call that required approval.
+    /// Centralizes approve/deny/always logic for testability.
+    pub fn process_approval_response(
+        &mut self,
+        tool_name: &str,
+        args: &Value,
+        decision: ApprovalDecision,
+    ) -> ToolResult {
+        match decision {
+            ApprovalDecision::Approve => {
+                self.audit
+                    .log_tool_call(tool_name, "user_approved", &format!("args={}", args));
+                self.execute_approved(tool_name, args)
+            }
+            ApprovalDecision::Deny => {
+                self.audit
+                    .log_tool_call(tool_name, "user_denied", &format!("args={}", args));
+                ToolResult::Error("Tool call denied by user".to_string())
+            }
+            ApprovalDecision::Always => {
+                self.auto_approved.insert(tool_name.to_string());
+                self.audit
+                    .log_tool_call(tool_name, "user_always_approved", &format!("args={}", args));
+                self.execute_approved(tool_name, args)
+            }
+        }
+    }
+
+    /// Returns true if a tool is in the always-approved set (runtime, set via "Always" button).
+    pub fn check_always_approved(&self, tool_name: &str) -> bool {
+        self.auto_approved.contains(tool_name)
+    }
+
+    /// Resets scratch memory (called on new conversation start).
+    pub fn reset_scratch(&mut self) {
+        self.scratch.clear();
+    }
+
+    /// Builds the pair of conversation messages needed to resume the AI after tool execution.
+    /// Returns (assistant tool_call message, tool result message).
+    pub fn build_approval_messages(
+        tool_call_id: &str,
+        tool_name: &str,
+        args: &Value,
+        result_content: &str,
+        is_error: bool,
+    ) -> (super::types::AiMessage, super::types::AiMessage) {
+        let assistant_msg = super::types::AiMessage {
+            role: "assistant".to_string(),
+            content: String::new(),
+            monologue: Vec::new(),
+            timestamp: 0,
+            tool_call_name: Some(tool_name.to_string()),
+            tool_call_id: Some(tool_call_id.to_string()),
+            tool_result_for_id: None,
+            tool_is_error: false,
+            tool_call_arguments: Some(args.clone()),
+        };
+
+        let tool_result_msg = super::types::AiMessage {
+            role: "tool".to_string(),
+            content: result_content.to_string(),
+            monologue: Vec::new(),
+            timestamp: 0,
+            tool_call_name: None,
+            tool_call_id: None,
+            tool_result_for_id: Some(tool_call_id.to_string()),
+            tool_is_error: is_error,
+            tool_call_arguments: None,
+        };
+
+        (assistant_msg, tool_result_msg)
     }
 
     // -----------------------------------------------------------------------
@@ -1391,6 +1476,112 @@ mod tests {
         match result {
             ToolResult::Error(msg) => assert!(msg.contains("rate limit") || msg.contains("Rate limit")),
             other => panic!("Expected Error, got {:?}", other),
+        }
+    }
+
+    // --- Approval response tests (TOOL-05) ---
+
+    #[test]
+    fn test_approval_approve_executes_tool() {
+        let (_tmp, mut executor) = setup_test_executor();
+        let args = serde_json::json!({"path": "approved.rs", "content": "fn approved() {}"});
+        let result = executor.process_approval_response("write_file", &args, ApprovalDecision::Approve);
+        match result {
+            ToolResult::Success(msg) => assert!(msg.contains("approved.rs")),
+            other => panic!("Expected Success after approve, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_approval_deny_returns_error() {
+        let (_tmp, mut executor) = setup_test_executor();
+        let args = serde_json::json!({"command": "echo test"});
+        let result = executor.process_approval_response("exec", &args, ApprovalDecision::Deny);
+        match result {
+            ToolResult::Error(msg) => assert!(msg.contains("denied by user")),
+            other => panic!("Expected Error after deny, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_approval_always_adds_to_auto_approved() {
+        let (_tmp, mut executor) = setup_test_executor();
+        let args = serde_json::json!({"path": "always.rs", "content": "fn always() {}"});
+        assert!(!executor.check_always_approved("write_file"));
+
+        let result = executor.process_approval_response("write_file", &args, ApprovalDecision::Always);
+        match result {
+            ToolResult::Success(_) => {}
+            other => panic!("Expected Success after always, got {:?}", other),
+        }
+
+        assert!(executor.check_always_approved("write_file"));
+    }
+
+    #[test]
+    fn test_approval_already_always_approved_skips() {
+        let (_tmp, mut executor) = setup_test_executor();
+        // Manually add to auto_approved
+        executor.auto_approved.insert("write_file".to_string());
+        assert!(executor.check_always_approved("write_file"));
+    }
+
+    #[test]
+    fn test_approval_execute_error_propagates() {
+        let (_tmp, mut executor) = setup_test_executor();
+        // Try to approve an unknown tool — should get error from execute_approved
+        let args = serde_json::json!({});
+        let result = executor.process_approval_response("unknown_tool", &args, ApprovalDecision::Approve);
+        match result {
+            ToolResult::Error(msg) => assert!(msg.contains("unknown") || msg.contains("Unknown")),
+            other => panic!("Expected Error for unknown tool, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_build_approval_messages_success() {
+        let (assistant, tool_result) = ToolExecutor::build_approval_messages(
+            "tc_1",
+            "read_project_file",
+            &serde_json::json!({"path": "src/main.rs"}),
+            "fn main() {}",
+            false,
+        );
+
+        assert_eq!(assistant.role, "assistant");
+        assert_eq!(assistant.tool_call_name.as_deref(), Some("read_project_file"));
+        assert_eq!(assistant.tool_call_id.as_deref(), Some("tc_1"));
+        assert!(assistant.tool_call_arguments.is_some());
+
+        assert_eq!(tool_result.role, "tool");
+        assert_eq!(tool_result.tool_result_for_id.as_deref(), Some("tc_1"));
+        assert_eq!(tool_result.content, "fn main() {}");
+        assert!(!tool_result.tool_is_error);
+    }
+
+    #[test]
+    fn test_build_approval_messages_error() {
+        let (_, tool_result) = ToolExecutor::build_approval_messages(
+            "tc_2",
+            "exec",
+            &serde_json::json!({"command": "failing"}),
+            "Command failed",
+            true,
+        );
+
+        assert!(tool_result.tool_is_error);
+        assert_eq!(tool_result.content, "Command failed");
+    }
+
+    #[test]
+    fn test_reset_scratch() {
+        let (_tmp, mut executor) = setup_test_executor();
+        executor.execute("store_scratch", &serde_json::json!({"key": "k", "value": "v"}));
+        executor.reset_scratch();
+        let result = executor.execute("retrieve_scratch", &serde_json::json!({"key": "k"}));
+        match result {
+            ToolResult::Success(val) => assert_eq!(val, ""),
+            other => panic!("Expected empty Success after reset, got {:?}", other),
         }
     }
 }

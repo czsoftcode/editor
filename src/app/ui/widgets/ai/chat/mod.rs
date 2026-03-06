@@ -28,8 +28,11 @@ impl AiChatWidget {
         conversation: &[(String, String)],
         font_size: f32,
         cache: &mut egui_commonmark::CommonMarkCache,
+        model_name: &str,
+        out_tokens: u32,
+        is_streaming: bool,
     ) {
-        conversation::ui_conversation(ui, conversation, font_size, cache)
+        conversation::ui_conversation(ui, conversation, font_size, cache, model_name, out_tokens, is_streaming)
     }
 
     /// Renders the real-time "thinking" monologue.

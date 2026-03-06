@@ -4,14 +4,15 @@ pub fn render_markdown(
     ui: &mut egui::Ui,
     text: &str,
     font_size: f32,
-    terminal_text: egui::Color32,
-    path_purple: egui::Color32,
     path_re: &Option<regex::Regex>,
     cache: &mut egui_commonmark::CommonMarkCache,
 ) {
     ui.scope(|ui| {
         let avail_width = ui.available_width();
         let md_font_size = font_size * 1.2;
+        let terminal_text = ui.visuals().text_color();
+        let path_purple = ui.visuals().hyperlink_color;
+
         let style = ui.style_mut();
         style.visuals.widgets.noninteractive.fg_stroke.color = terminal_text;
         style.visuals.widgets.inactive.fg_stroke.color = terminal_text;
@@ -161,14 +162,14 @@ pub fn ui_monologue(
     font_size: f32,
     cache: &mut egui_commonmark::CommonMarkCache,
 ) {
-    let path_purple = egui::Color32::from_rgb(120, 80, 170);
-    let terminal_text = egui::Color32::from_rgb(175, 175, 175);
-
     if monologue.is_empty() {
         return;
     }
 
     ui.scope(|ui| {
+        let terminal_text = ui.visuals().text_color();
+        let path_purple = ui.visuals().hyperlink_color;
+
         let style = ui.style_mut();
         style.text_styles.insert(
             egui::TextStyle::Body,

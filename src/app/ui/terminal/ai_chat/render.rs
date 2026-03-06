@@ -147,6 +147,9 @@ fn render_chat_content(
                     &ws.ai.chat.conversation,
                     font_size,
                     &mut ws.ai.markdown_cache,
+                    &ws.ai.ollama.selected_model,
+                    ws.ai.chat.out_tokens,
+                    ws.ai.chat.loading,
                 );
                 if !ws.ai.chat.monologue.is_empty() {
                     ui.add_space(8.0);

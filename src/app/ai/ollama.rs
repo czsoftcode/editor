@@ -21,7 +21,7 @@ pub struct OllamaProvider {
 }
 
 impl OllamaProvider {
-    pub fn new(base_url: String, model: String) -> Self {
+    pub fn new(base_url: String, model: String, api_key: Option<String>) -> Self {
         let agent = ureq::AgentBuilder::new()
             .timeout_read(Duration::from_secs(300))
             .timeout_write(Duration::from_secs(30))
@@ -32,8 +32,18 @@ impl OllamaProvider {
                 model,
                 temperature: 0.7,
                 num_ctx: 4096,
+                api_key,
             },
             agent,
+        }
+    }
+
+    /// Apply Bearer authorization header if api_key is set.
+    fn apply_auth<'a>(&self, req: ureq::Request) -> ureq::Request {
+        if let Some(ref key) = self.config.api_key {
+            req.set("Authorization", &format!("Bearer {key}"))
+        } else {
+            req
         }
     }
 }
@@ -45,14 +55,14 @@ impl AiProvider for OllamaProvider {
 
     fn is_available(&self) -> bool {
         let url = format!("{}/api/tags", self.config.base_url);
-        self.agent.get(&url).call().is_ok()
+        let req = self.apply_auth(self.agent.get(&url));
+        req.call().is_ok()
     }
 
     fn available_models(&self) -> Result<Vec<String>, String> {
         let url = format!("{}/api/tags", self.config.base_url);
-        let resp = self
-            .agent
-            .get(&url)
+        let req = self.apply_auth(self.agent.get(&url));
+        let resp = req
             .call()
             .map_err(|e| format!("Failed to reach Ollama: {e}"))?;
         let body = resp
@@ -98,9 +108,8 @@ impl AiProvider for OllamaProvider {
             }
         });
 
-        let resp = self
-            .agent
-            .post(&url)
+        let req = self.apply_auth(self.agent.post(&url));
+        let resp = req
             .send_json(&body)
             .map_err(|e| format!("Ollama request failed: {e}"))?;
         let text = resp
@@ -159,7 +168,12 @@ impl AiProvider for OllamaProvider {
                 }
             });
 
-            let resp = match agent.post(&url).send_json(&body) {
+            let req = if let Some(ref key) = config.api_key {
+                agent.post(&url).set("Authorization", &format!("Bearer {key}"))
+            } else {
+                agent.post(&url)
+            };
+            let resp = match req.send_json(&body) {
                 Ok(r) => r,
                 Err(e) => {
                     let _ = tx.send(StreamEvent::Error(format!("Ollama request failed: {e}")));
@@ -246,9 +260,9 @@ pub fn parse_ndjson_line(line: &str) -> Option<StreamEvent> {
 /// Validate an Ollama API URL.
 ///
 /// Returns `Some(cleaned_url)` if the URL is a valid Ollama endpoint,
-/// `None` otherwise. Rejects URLs without an explicit port (e.g.
-/// `https://ollama.com`) since real Ollama API servers always run on
-/// an explicit port. Strips trailing slash.
+/// `None` otherwise. Accepts both local URLs with explicit port
+/// (e.g. `http://localhost:11434`) and cloud URLs without port
+/// (e.g. `https://ollama.example.com`). Strips trailing slash.
 pub fn validate_ollama_url(url: &str) -> Option<String> {
     let trimmed = url.trim();
     if trimmed.is_empty() {
@@ -264,17 +278,14 @@ pub fn validate_ollama_url(url: &str) -> Option<String> {
     }
 
     // Must have a host
-    if parsed.host_str().is_none() {
-        return None;
-    }
+    let host = parsed.host_str()?;
 
-    // Must have an explicit port — URLs like https://ollama.com have no port
-    if parsed.port().is_none() {
-        return None;
-    }
-
-    // Build cleaned URL without trailing slash
-    let mut clean = format!("{}://{}:{}", parsed.scheme(), parsed.host_str().unwrap(), parsed.port().unwrap());
+    // Build cleaned URL — include port only when explicitly specified
+    let mut clean = if let Some(port) = parsed.port() {
+        format!("{}://{}:{}", parsed.scheme(), host, port)
+    } else {
+        format!("{}://{}", parsed.scheme(), host)
+    };
 
     // Preserve path if present (but strip trailing slash)
     let path = parsed.path().trim_end_matches('/');
@@ -286,7 +297,7 @@ pub fn validate_ollama_url(url: &str) -> Option<String> {
 }
 
 /// Spawn a background thread to check Ollama availability and return status.
-pub fn spawn_ollama_check(base_url: String) -> mpsc::Receiver<OllamaStatus> {
+pub fn spawn_ollama_check(base_url: String, api_key: Option<String>) -> mpsc::Receiver<OllamaStatus> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let agent = ureq::AgentBuilder::new()
@@ -294,7 +305,12 @@ pub fn spawn_ollama_check(base_url: String) -> mpsc::Receiver<OllamaStatus> {
             .timeout_write(Duration::from_secs(5))
             .build();
         let url = format!("{base_url}/api/tags");
-        let status = match agent.get(&url).call() {
+        let req = if let Some(ref key) = api_key {
+            agent.get(&url).set("Authorization", &format!("Bearer {key}"))
+        } else {
+            agent.get(&url)
+        };
+        let status = match req.call() {
             Ok(resp) => {
                 if let Ok(body) = resp.into_string() {
                     match parse_tags_response(&body) {
@@ -414,16 +430,26 @@ mod tests {
 
     #[test]
     fn ollama_provider_new_and_name() {
-        let provider = OllamaProvider::new("http://localhost:11434".to_string(), "llama3".to_string());
+        let provider = OllamaProvider::new("http://localhost:11434".to_string(), "llama3".to_string(), None);
         assert_eq!(provider.name(), "ollama");
     }
 
     #[test]
     fn ollama_provider_capabilities() {
-        let provider = OllamaProvider::new("http://localhost:11434".to_string(), "llama3".to_string());
+        let provider = OllamaProvider::new("http://localhost:11434".to_string(), "llama3".to_string(), None);
         let caps = provider.capabilities();
         assert!(caps.supports_streaming);
         assert!(!caps.supports_tools);
+    }
+
+    #[test]
+    fn ollama_provider_api_key_stored() {
+        let provider = OllamaProvider::new(
+            "http://localhost:11434".to_string(),
+            "llama3".to_string(),
+            Some("sk-test-key".to_string()),
+        );
+        assert_eq!(provider.config().api_key, Some("sk-test-key".to_string()));
     }
 
     #[test]
@@ -443,8 +469,27 @@ mod tests {
     }
 
     #[test]
-    fn validate_ollama_url_rejects_web_url() {
-        assert_eq!(validate_ollama_url("https://ollama.com"), None);
+    fn validate_ollama_url_accepts_https_no_port() {
+        assert_eq!(
+            validate_ollama_url("https://ollama.com"),
+            Some("https://ollama.com".to_string())
+        );
+    }
+
+    #[test]
+    fn validate_ollama_url_https_with_path() {
+        assert_eq!(
+            validate_ollama_url("https://my-proxy.com/ollama/"),
+            Some("https://my-proxy.com/ollama".to_string())
+        );
+    }
+
+    #[test]
+    fn validate_ollama_url_http_no_port() {
+        assert_eq!(
+            validate_ollama_url("http://ollama.local"),
+            Some("http://ollama.local".to_string())
+        );
     }
 
     #[test]
@@ -471,5 +516,10 @@ mod tests {
             validate_ollama_url("http://my-server:11434"),
             Some("http://my-server:11434".to_string())
         );
+    }
+
+    #[test]
+    fn validate_ollama_url_rejects_ftp_scheme() {
+        assert_eq!(validate_ollama_url("ftp://server.com:11434"), None);
     }
 }

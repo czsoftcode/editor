@@ -17,6 +17,8 @@ pub struct ProviderConfig {
     pub model: String,
     pub temperature: f64,
     pub num_ctx: u64,
+    #[serde(default)]
+    pub api_key: Option<String>,
 }
 
 /// Events emitted during a streaming chat response.

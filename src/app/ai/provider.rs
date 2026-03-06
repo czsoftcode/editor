@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::mpsc;
 
-use super::types::AiMessage;
+use super::types::{AiMessage, AiToolDeclaration};
 
 /// Capabilities advertised by an AI provider.
 #[derive(Clone, Debug)]
@@ -46,5 +46,5 @@ pub trait AiProvider: Send + Sync {
     fn capabilities(&self) -> ProviderCapabilities;
     fn config(&self) -> &ProviderConfig;
     fn send_chat(&self, messages: &[AiMessage], config: &ProviderConfig) -> Result<AiMessage, String>;
-    fn stream_chat(&self, messages: Vec<AiMessage>, config: ProviderConfig) -> mpsc::Receiver<StreamEvent>;
+    fn stream_chat(&self, messages: Vec<AiMessage>, config: ProviderConfig, tools: Vec<AiToolDeclaration>) -> mpsc::Receiver<StreamEvent>;
 }

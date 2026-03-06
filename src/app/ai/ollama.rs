@@ -1,11 +1,15 @@
 use std::io::BufRead;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
 use serde_json::Value;
 
 use super::provider::{AiProvider, ProviderCapabilities, ProviderConfig, StreamEvent};
-use super::types::AiMessage;
+use super::types::{AiMessage, AiToolDeclaration};
+
+/// Global counter for generating unique tool call IDs.
+static TOOL_CALL_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// Status returned by the Ollama availability check.
 #[derive(Clone, Debug)]
@@ -74,7 +78,7 @@ impl AiProvider for OllamaProvider {
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities {
             supports_streaming: true,
-            supports_tools: false,
+            supports_tools: true,
         }
     }
 
@@ -88,15 +92,7 @@ impl AiProvider for OllamaProvider {
         config: &ProviderConfig,
     ) -> Result<AiMessage, String> {
         let url = format!("{}/api/chat", config.base_url);
-        let msgs: Vec<Value> = messages
-            .iter()
-            .map(|m| {
-                serde_json::json!({
-                    "role": m.role,
-                    "content": m.content,
-                })
-            })
-            .collect();
+        let msgs: Vec<Value> = messages.iter().map(|m| serialize_message(m)).collect();
 
         let body = serde_json::json!({
             "model": config.model,
@@ -143,31 +139,44 @@ impl AiProvider for OllamaProvider {
         &self,
         messages: Vec<AiMessage>,
         config: ProviderConfig,
+        tools: Vec<AiToolDeclaration>,
     ) -> mpsc::Receiver<StreamEvent> {
         let (tx, rx) = mpsc::channel();
         let agent = self.agent.clone();
 
         std::thread::spawn(move || {
             let url = format!("{}/api/chat", config.base_url);
-            let msgs: Vec<Value> = messages
-                .iter()
-                .map(|m| {
-                    serde_json::json!({
-                        "role": m.role,
-                        "content": m.content,
-                    })
-                })
-                .collect();
+            let msgs: Vec<Value> = messages.iter().map(|m| serialize_message(m)).collect();
 
-            let body = serde_json::json!({
+            let has_tools = !tools.is_empty();
+
+            let mut body = serde_json::json!({
                 "model": config.model,
                 "messages": msgs,
-                "stream": true,
+                "stream": !has_tools,
                 "options": {
                     "temperature": config.temperature,
                     "num_ctx": config.num_ctx,
                 }
             });
+
+            // Add tools array when tools are present
+            if has_tools {
+                let tools_json: Vec<Value> = tools
+                    .iter()
+                    .map(|t| {
+                        serde_json::json!({
+                            "type": "function",
+                            "function": {
+                                "name": t.name,
+                                "description": t.description,
+                                "parameters": t.parameters,
+                            }
+                        })
+                    })
+                    .collect();
+                body["tools"] = Value::Array(tools_json);
+            }
 
             let req = if let Some(ref key) = config.api_key {
                 agent.post(&url).set("Authorization", &format!("Bearer {key}"))
@@ -182,19 +191,78 @@ impl AiProvider for OllamaProvider {
                 }
             };
 
-            let reader = std::io::BufReader::new(resp.into_reader());
-            for line in reader.lines() {
-                let line = match line {
-                    Ok(l) => l,
+            if has_tools {
+                // Non-streaming: read full response, parse tool_calls or content
+                let text = match resp.into_string() {
+                    Ok(t) => t,
                     Err(e) => {
                         let _ = tx.send(StreamEvent::Error(format!("Read error: {e}")));
                         return;
                     }
                 };
+                let parsed: Value = match serde_json::from_str(&text) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        let _ = tx.send(StreamEvent::Error(format!("Invalid JSON: {e}")));
+                        return;
+                    }
+                };
 
-                if let Some(event) = parse_ndjson_line(&line) {
-                    if tx.send(event).is_err() {
-                        return; // receiver dropped
+                if let Some(err) = parsed["error"].as_str() {
+                    let _ = tx.send(StreamEvent::Error(err.to_string()));
+                    return;
+                }
+
+                // Check for tool_calls in the response
+                if let Some(tool_calls) = parsed["message"]["tool_calls"].as_array() {
+                    if !tool_calls.is_empty() {
+                        for tc in tool_calls {
+                            let name = tc["function"]["name"]
+                                .as_str()
+                                .unwrap_or("unknown")
+                                .to_string();
+                            let arguments = tc["function"]["arguments"].clone();
+                            let id = format!(
+                                "tc_{}_{}",
+                                name,
+                                TOOL_CALL_COUNTER.fetch_add(1, Ordering::Relaxed)
+                            );
+                            let _ = tx.send(StreamEvent::ToolCall { id, name, arguments });
+                        }
+                    }
+                }
+
+                // Also emit content if present
+                let content = parsed["message"]["content"].as_str().unwrap_or("");
+                if !content.is_empty() {
+                    let _ = tx.send(StreamEvent::Token(content.to_string()));
+                }
+
+                // Emit Done
+                let model = parsed["model"].as_str().unwrap_or("").to_string();
+                let prompt_tokens = parsed["prompt_eval_count"].as_u64().unwrap_or(0);
+                let completion_tokens = parsed["eval_count"].as_u64().unwrap_or(0);
+                let _ = tx.send(StreamEvent::Done {
+                    model,
+                    prompt_tokens,
+                    completion_tokens,
+                });
+            } else {
+                // Streaming: read NDJSON lines
+                let reader = std::io::BufReader::new(resp.into_reader());
+                for line in reader.lines() {
+                    let line = match line {
+                        Ok(l) => l,
+                        Err(e) => {
+                            let _ = tx.send(StreamEvent::Error(format!("Read error: {e}")));
+                            return;
+                        }
+                    };
+
+                    if let Some(event) = parse_ndjson_line(&line) {
+                        if tx.send(event).is_err() {
+                            return; // receiver dropped
+                        }
                     }
                 }
             }
@@ -225,6 +293,7 @@ pub fn parse_tags_response(json: &str) -> Result<Vec<String>, String> {
 }
 
 /// Parse a single NDJSON line from Ollama streaming response.
+/// Detects tool_calls in addition to token/done/error events.
 pub fn parse_ndjson_line(line: &str) -> Option<StreamEvent> {
     let trimmed = line.trim();
     if trimmed.is_empty() {
@@ -235,6 +304,23 @@ pub fn parse_ndjson_line(line: &str) -> Option<StreamEvent> {
 
     if let Some(err) = parsed["error"].as_str() {
         return Some(StreamEvent::Error(err.to_string()));
+    }
+
+    // Check for tool_calls before content (streaming tool support)
+    if let Some(tool_calls) = parsed["message"]["tool_calls"].as_array() {
+        if let Some(tc) = tool_calls.first() {
+            let name = tc["function"]["name"]
+                .as_str()
+                .unwrap_or("unknown")
+                .to_string();
+            let arguments = tc["function"]["arguments"].clone();
+            let id = format!(
+                "tc_{}_{}",
+                name,
+                TOOL_CALL_COUNTER.fetch_add(1, Ordering::Relaxed)
+            );
+            return Some(StreamEvent::ToolCall { id, name, arguments });
+        }
     }
 
     let done = parsed["done"].as_bool().unwrap_or(false);
@@ -256,6 +342,60 @@ pub fn parse_ndjson_line(line: &str) -> Option<StreamEvent> {
     } else {
         None
     }
+}
+
+/// Serialize an AiMessage to Ollama JSON format, including tool call metadata.
+fn serialize_message(m: &AiMessage) -> Value {
+    // Assistant messages with tool_calls
+    if m.role == "assistant" && m.tool_call_name.is_some() {
+        let mut msg = serde_json::json!({
+            "role": "assistant",
+            "content": m.content,
+        });
+        let name = m.tool_call_name.as_deref().unwrap_or("unknown");
+        let arguments = m
+            .tool_call_arguments
+            .clone()
+            .unwrap_or(Value::Object(Default::default()));
+        msg["tool_calls"] = serde_json::json!([{
+            "function": {
+                "name": name,
+                "arguments": arguments,
+            }
+        }]);
+        return msg;
+    }
+
+    // Tool result messages
+    if m.role == "tool" {
+        return serde_json::json!({
+            "role": "tool",
+            "content": m.content,
+        });
+    }
+
+    // Regular messages (user, system, assistant without tool_calls)
+    serde_json::json!({
+        "role": m.role,
+        "content": m.content,
+    })
+}
+
+/// Convert tool declarations to Ollama tools JSON format.
+pub fn tools_to_ollama_json(tools: &[AiToolDeclaration]) -> Vec<Value> {
+    tools
+        .iter()
+        .map(|t| {
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.parameters,
+                }
+            })
+        })
+        .collect()
 }
 
 /// Validate an Ollama API URL.
@@ -440,7 +580,7 @@ mod tests {
         let provider = OllamaProvider::new("http://localhost:11434".to_string(), "llama3".to_string(), None);
         let caps = provider.capabilities();
         assert!(caps.supports_streaming);
-        assert!(!caps.supports_tools);
+        assert!(caps.supports_tools);
     }
 
     #[test]
@@ -522,5 +662,113 @@ mod tests {
     #[test]
     fn validate_ollama_url_rejects_ftp_scheme() {
         assert_eq!(validate_ollama_url("ftp://server.com:11434"), None);
+    }
+
+    #[test]
+    fn parse_ndjson_tool_call() {
+        let line = r#"{"model":"llama3","message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"read_project_file","arguments":{"path":"src/main.rs"}}}]},"done":false}"#;
+        let event = parse_ndjson_line(line).unwrap();
+        if let StreamEvent::ToolCall { id, name, arguments } = event {
+            assert!(id.starts_with("tc_read_project_file_"));
+            assert_eq!(name, "read_project_file");
+            assert_eq!(arguments["path"], "src/main.rs");
+        } else {
+            panic!("Expected ToolCall, got {:?}", event);
+        }
+    }
+
+    #[test]
+    fn parse_ndjson_tool_call_id_format() {
+        // Two consecutive tool_calls should have incrementing IDs
+        let line = r#"{"model":"llama3","message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"exec","arguments":{"command":"cargo check"}}}]},"done":false}"#;
+        let event1 = parse_ndjson_line(line).unwrap();
+        let event2 = parse_ndjson_line(line).unwrap();
+        if let (StreamEvent::ToolCall { id: id1, .. }, StreamEvent::ToolCall { id: id2, .. }) =
+            (event1, event2)
+        {
+            assert!(id1.starts_with("tc_exec_"));
+            assert!(id2.starts_with("tc_exec_"));
+            assert_ne!(id1, id2); // IDs must be unique
+        } else {
+            panic!("Expected ToolCall variants");
+        }
+    }
+
+    #[test]
+    fn tools_to_ollama_json_format() {
+        let tools = vec![AiToolDeclaration {
+            name: "exec".to_string(),
+            description: "Run a command".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "command": { "type": "string" }
+                },
+                "required": ["command"]
+            }),
+        }];
+        let json = tools_to_ollama_json(&tools);
+        assert_eq!(json.len(), 1);
+        assert_eq!(json[0]["type"], "function");
+        assert_eq!(json[0]["function"]["name"], "exec");
+        assert_eq!(json[0]["function"]["description"], "Run a command");
+        assert!(json[0]["function"]["parameters"]["properties"]["command"].is_object());
+    }
+
+    #[test]
+    fn serialize_message_regular() {
+        let msg = AiMessage {
+            role: "user".to_string(),
+            content: "Hello".to_string(),
+            monologue: Vec::new(),
+            timestamp: 0,
+            tool_call_name: None,
+            tool_call_id: None,
+            tool_result_for_id: None,
+            tool_is_error: false,
+            tool_call_arguments: None,
+        };
+        let json = serialize_message(&msg);
+        assert_eq!(json["role"], "user");
+        assert_eq!(json["content"], "Hello");
+        assert!(json.get("tool_calls").is_none());
+    }
+
+    #[test]
+    fn serialize_message_assistant_with_tool_call() {
+        let msg = AiMessage {
+            role: "assistant".to_string(),
+            content: String::new(),
+            monologue: Vec::new(),
+            timestamp: 0,
+            tool_call_name: Some("read_project_file".to_string()),
+            tool_call_id: Some("tc_read_1".to_string()),
+            tool_result_for_id: None,
+            tool_is_error: false,
+            tool_call_arguments: Some(serde_json::json!({"path": "src/main.rs"})),
+        };
+        let json = serialize_message(&msg);
+        assert_eq!(json["role"], "assistant");
+        let tc = &json["tool_calls"][0];
+        assert_eq!(tc["function"]["name"], "read_project_file");
+        assert_eq!(tc["function"]["arguments"]["path"], "src/main.rs");
+    }
+
+    #[test]
+    fn serialize_message_tool_result() {
+        let msg = AiMessage {
+            role: "tool".to_string(),
+            content: "file content here".to_string(),
+            monologue: Vec::new(),
+            timestamp: 0,
+            tool_call_name: None,
+            tool_call_id: None,
+            tool_result_for_id: Some("tc_read_1".to_string()),
+            tool_is_error: false,
+            tool_call_arguments: None,
+        };
+        let json = serialize_message(&msg);
+        assert_eq!(json["role"], "tool");
+        assert_eq!(json["content"], "file content here");
     }
 }

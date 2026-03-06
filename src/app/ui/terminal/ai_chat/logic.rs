@@ -1,6 +1,7 @@
 use crate::app::ai::ollama::OllamaProvider;
 use crate::app::ai::provider::{AiProvider, ProviderConfig};
 use crate::app::ai::state::OllamaConnectionStatus;
+use crate::app::ai::tools::get_standard_tools;
 use crate::app::ai::types::AiMessage;
 use crate::app::types::Toast;
 use crate::app::ui::workspace::state::WorkspaceState;
@@ -124,5 +125,6 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState) {
     };
 
     // stream_chat() spawns its own thread and returns Receiver immediately
-    ws.ai.chat.stream_rx = Some(provider.stream_chat(messages, config));
+    let tools = get_standard_tools();
+    ws.ai.chat.stream_rx = Some(provider.stream_chat(messages, config, tools));
 }

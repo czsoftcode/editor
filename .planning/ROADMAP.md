@@ -157,7 +157,7 @@ Plans:
 | 15. Streaming Chat UI | v1.2.0 | 5/5 | Complete | 2026-03-06 |
 | 16. Tool Execution | v1.2.0 | 4/4 | Complete | 2026-03-06 |
 | 17. i18n & WASM Cleanup | v1.2.0 | 3/3 | Complete | 2026-03-06 |
-| 18. Phase 16 Verification & i18n Fixes | 2/2 | Complete   | 2026-03-06 | - |
+| 18. Phase 16 Verification & i18n Fixes | v1.2.0 | 2/2 | Complete | 2026-03-06 |
 
 ### Phase 18: Phase 16 Verification & i18n Fixes
 **Goal**: Uzavrit vsechny mezery z milestone auditu — formalni verifikace Phase 16, oprava i18n bugu, lokalizace hardcoded stringu, cleanup
@@ -174,8 +174,8 @@ Plans:
   7. REQUIREMENTS.md checkboxy pro PROV-01, PROV-02, CHAT-01, CHAT-06 jsou oznaceny [x]
 **Plans:** 2/2 plans complete
 Plans:
-- [ ] 18-01-PLAN.md — Documentation artifacts (16-04-SUMMARY, 16-VERIFICATION) + checkbox updates
-- [ ] 18-02-PLAN.md — i18n fixes: ask-heading bug, hardcoded strings, orphaned key
+- [x] 18-01-PLAN.md — Documentation artifacts (16-04-SUMMARY, 16-VERIFICATION) + checkbox updates (completed 2026-03-06)
+- [x] 18-02-PLAN.md — i18n fixes: ask-heading bug, hardcoded strings, orphaned key (completed 2026-03-06)
 
 ## Known Issues / TODO
 

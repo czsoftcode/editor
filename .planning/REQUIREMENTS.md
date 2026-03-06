@@ -11,7 +11,7 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 
 - [ ] **PROV-01**: AiProvider trait s metodami send_chat(), stream_chat(), name(), available_models()
 - [ ] **PROV-02**: OllamaProvider implementuje AiProvider s NDJSON streaming pres ureq + std::thread
-- [ ] **PROV-03**: Auto-detect Ollama serveru na localhost:11434 (GET /api/tags)
+- [x] **PROV-03**: Auto-detect Ollama serveru na localhost:11434 (GET /api/tags)
 - [ ] **PROV-04**: Model picker — ComboBox s dostupnymi modely z Ollama API
 
 ### Chat UI
@@ -70,7 +70,7 @@ Requirements pro AI Chat Rewrite. Kazdy mapuje na roadmap faze.
 |-------------|-------|--------|
 | PROV-01 | Phase 13 | Pending |
 | PROV-02 | Phase 13 | Pending |
-| PROV-03 | Phase 13 | Pending |
+| PROV-03 | Phase 13 | Complete |
 | PROV-04 | Phase 15 | Pending |
 | CHAT-01 | Phase 15 | Pending |
 | CHAT-02 | Phase 15 | Pending |

@@ -49,7 +49,7 @@ Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
 
 **Milestone Goal:** Kompletni prestava AI Chat asistenta — nativni Rust providery misto WASM, terminalovy hybrid UI, plna integrace s editorem (kontext + tools)
 
-- [ ] **Phase 13: Provider Foundation** - AiProvider trait, OllamaProvider s NDJSON streaming, auto-detect
+- [x] **Phase 13: Provider Foundation** - AiProvider trait, OllamaProvider s NDJSON streaming, auto-detect (completed 2026-03-06)
 - [ ] **Phase 14: State Refactor** - AiChatState sub-struct, konsolidace ~30 ai_* poli z WorkspaceState
 - [ ] **Phase 15: Streaming Chat UI** - Hybrid CLI layout, streaming rendering, dark/light mode, markdown, historie, model picker
 - [ ] **Phase 16: Tool Execution** - Editor kontext, file read/write tools, command execution, approval UI
@@ -66,7 +66,7 @@ Archive: `.planning/milestones/v1.1.0-ROADMAP.md`
   2. OllamaProvider dokaze streamovat odpoved z Ollama /api/chat endpointu token po tokenu na background threadu
   3. Editor automaticky detekuje bezici Ollama server na localhost:11434 a zobrazi dostupne modely
   4. Streaming nepblokuje UI thread — editor zustava responzivni behem generovani odpovedi
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 13-01-PLAN.md — AiProvider trait + OllamaProvider s NDJSON streaming
 - [ ] 13-02-PLAN.md — Ollama auto-detect polling + status ikona + model ComboBox v AI baru
@@ -133,7 +133,7 @@ Plans:
 | 10. UI & State Cleanup | v1.1.0 | 1/1 | Complete | 2026-03-05 |
 | 11. File Operations, Watcher & Guard Removal | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 2/2 | Complete | 2026-03-05 |
-| 13. Provider Foundation | v1.2.0 | 2/3 | In Progress | - |
+| 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
 | 14. State Refactor | v1.2.0 | 0/? | Not started | - |
 | 15. Streaming Chat UI | v1.2.0 | 0/? | Not started | - |
 | 16. Tool Execution | v1.2.0 | 0/? | Not started | - |

@@ -144,6 +144,6 @@ Plans:
 | 12. I18n Cleanup & Integrity Verification | v1.1.0 | 2/2 | Complete | 2026-03-05 |
 | 13. Provider Foundation | 3/3 | Complete   | 2026-03-06 | - |
 | 14. State Refactor | v1.2.0 | Complete    | 2026-03-06 | 2026-03-06 |
-| 15. Streaming Chat UI | 5/5 | Complete   | 2026-03-06 | - |
+| 15. Streaming Chat UI | 5/5 | Complete    | 2026-03-06 | - |
 | 16. Tool Execution | v1.2.0 | 0/? | Not started | - |
 | 17. i18n & WASM Cleanup | v1.2.0 | 0/? | Not started | - |

@@ -1,0 +1,46 @@
+name: polycredo-editor
+base: core24
+adopt-info: polycredo-editor
+summary: PolyCredo Editor — Local-first AI-powered editor for Rust and more.
+description: |
+  PolyCredo Editor is a modern, high-performance editor built with Rust.
+  It features deep AI integration, a built-in terminal, and focuses on 
+  local-first privacy.
+
+grade: devel # must be 'stable' to release to the main store
+confinement: classic # classic confinement for development tools
+
+apps:
+  polycredo-editor:
+    command: bin/polycredo-editor
+    desktop: usr/share/applications/polycredo-editor.desktop
+
+parts:
+  polycredo-editor:
+    plugin: rust
+    source: .
+    override-pull: |
+      craftctl default
+      # Nastavení verze pomocí našeho skriptu
+      VERSION=$(./scripts/get-version.sh snap)
+      craftctl set version="$VERSION"
+    build-packages:
+      - pkg-config
+      - libx11-dev
+      - libxcb1-dev
+      - libxkbcommon-dev
+      - libwayland-dev
+      - libegl1-mesa-dev
+      - libgl1-mesa-dev
+      - libssl-dev
+    stage-packages:
+      - ripgrep
+      - fonts-noto-core
+      - fonts-noto-mono
+      - fonts-noto-color-emoji
+    override-build: |
+      craftctl default
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/applications
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps
+      cp packaging/deb/polycredo-editor.desktop $CRAFT_PART_INSTALL/usr/share/applications/
+      cp packaging/icons/icon-256.png $CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/polycredo-editor.png

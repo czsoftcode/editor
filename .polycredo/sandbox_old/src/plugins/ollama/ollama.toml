@@ -1,0 +1,6 @@
+name = "Ollama AI"
+version = "0.1.0"
+type = "ai_agent"
+description = "Místní AI asistent využívající Ollama API."
+author = "PolyCredo Team"
+allowed_hosts = ["localhost", "127.0.0.1"]

@@ -1,0 +1,472 @@
+name: Dev Pre-release
+
+on:
+  push:
+    branches:
+      - develop
+
+env:
+  CARGO_TERM_COLOR: always
+  APP_NAME: polycredo-editor
+  CARGO_TARGET_DIR: target
+
+jobs:
+  # ============================================================
+  # TESTY
+  # ============================================================
+  test:
+    name: Testy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Instalace display závislostí
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libx11-dev libxcb1 libxkbcommon0
+
+      - name: Spustit testy
+        run: xvfb-run --auto-servernum cargo test --all-features
+
+  # ============================================================
+  # DEBIAN (.deb)
+  # ============================================================
+  build-deb:
+    name: Debian (.deb)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Instalace cargo-deb
+        run: cargo install cargo-deb
+
+      - name: Build .deb
+        run: cargo deb
+
+      - name: Upload artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-deb
+          path: target/debian/*.deb
+
+  # ============================================================
+  # UBUNTU (.snap)
+  # ============================================================
+  build-snap:
+    name: Ubuntu (.snap)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace Snapcraft
+        uses: snapcore/action-build@v1
+        id: snapcraft
+
+      - name: Upload artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-snap
+          path: ${{ steps.snapcraft.outputs.snap }}
+
+  # ============================================================
+  # FEDORA (.rpm)
+  # ============================================================
+  build-rpm:
+    name: Fedora (.rpm)
+    needs: test
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace závislostí
+        run: |
+          dnf install -y \
+            curl gcc gcc-c++ rpm-build pkg-config \
+            openssl-devel \
+            libX11-devel libxcb-devel libxkbcommon-devel \
+            wayland-devel mesa-libEGL-devel mesa-libGL-devel \
+            fontconfig-devel freetype-devel
+
+      - name: Instalace Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Instalace cargo-generate-rpm
+        run: cargo install cargo-generate-rpm
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Build .rpm
+        run: cargo generate-rpm
+
+      - name: Upload artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: fedora-rpm
+          path: target/generate-rpm/*.rpm
+
+  # ============================================================
+  # APPIMAGE
+  # ============================================================
+  build-appimage:
+    name: AppImage
+    needs: test
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Instalace závislostí
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 desktop-file-utils wget
+
+      - name: Stažení appimagetool
+        run: |
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Sestavit AppDir strukturu
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cp target/release/${{ env.APP_NAME }} AppDir/usr/bin/
+          cp packaging/deb/polycredo-editor.desktop AppDir/usr/share/applications/${{ env.APP_NAME }}.desktop
+          cp packaging/icons/icon-256.png AppDir/usr/share/icons/hicolor/256x256/apps/${{ env.APP_NAME }}.png
+          # AppImage potřebuje .desktop a ikonu i v kořeni AppDir
+          cp packaging/deb/polycredo-editor.desktop AppDir/${{ env.APP_NAME }}.desktop
+          cp packaging/icons/icon-256.png AppDir/${{ env.APP_NAME }}.png
+
+      - name: Build AppImage
+        run: |
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage AppDir ${{ env.APP_NAME }}-x86_64.AppImage
+
+      - name: Upload artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: "*.AppImage"
+
+  # ============================================================
+  # FLATPAK
+  # ============================================================
+  build-flatpak:
+    name: Flatpak
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: |
+          cargo build --release
+          cp target/release/${{ env.APP_NAME }} .
+
+      - name: Instalace Flatpak nástrojů
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install -y flathub \
+            org.freedesktop.Platform//24.08 \
+            org.freedesktop.Sdk//24.08
+
+      - name: Build Flatpak
+        run: |
+          flatpak-builder --repo=flatpak-repo --force-clean build-flatpak com.polycredo.Editor.yml
+          flatpak build-bundle flatpak-repo ${{ env.APP_NAME }}.flatpak com.polycredo.Editor
+
+      - name: Upload artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: "*.flatpak"
+
+  # ============================================================
+  # WINDOWS — NSIS (.exe)
+  # ============================================================
+  build-windows-exe:
+    name: Windows (.exe NSIS)
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Instalace NSIS
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Vytvoření NSIS skriptu
+        shell: bash
+        run: |
+          cat > installer.nsi << 'EOF'
+          !define APP_NAME "Polycredo Editor"
+          !define APP_EXE "polycredo-editor.exe"
+          OutFile "polycredo-editor-setup.exe"
+          InstallDir "$PROGRAMFILES64\PolycredoEditor"
+          RequestExecutionLevel admin
+
+          Section "Install"
+            SetOutPath "$INSTDIR"
+            File "target\release\polycredo-editor.exe"
+            CreateShortcut "$DESKTOP\Polycredo Editor.lnk" "$INSTDIR\$APP_EXE"
+            WriteUninstaller "$INSTDIR\uninstall.exe"
+          SectionEnd
+
+          Section "Uninstall"
+            Delete "$INSTDIR\$APP_EXE"
+            Delete "$INSTDIR\uninstall.exe"
+            Delete "$DESKTOP\Polycredo Editor.lnk"
+            RMDir "$INSTDIR"
+          SectionEnd
+          EOF
+
+      - name: Build NSIS installer
+        run: makensis installer.nsi
+
+      - name: Upload artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: polycredo-editor-setup.exe
+
+  # ============================================================
+  # WINDOWS — MSI
+  # ============================================================
+  build-windows-msi:
+    name: Windows (.msi)
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Build MSI installer
+        shell: bash
+        run: |
+          cargo install cargo-wix
+          MSI_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/' | sed 's/-.*//' | tr -d '\r')
+          cargo wix --nocapture --install-version "$MSI_VERSION"
+
+      - name: Upload artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: target/wix/*.msi
+
+  # ============================================================
+  # MACOS — Intel (x86_64) + Apple Silicon (aarch64)
+  # ============================================================
+  build-macos:
+    name: macOS (${{ matrix.arch }})
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: macos-latest
+            target: x86_64-apple-darwin
+          - arch: aarch64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalace Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Zabalit do .tar.gz
+        run: |
+          tar -czf ${{ env.APP_NAME }}-macos-${{ matrix.arch }}.tar.gz \
+            -C target/${{ matrix.target }}/release ${{ env.APP_NAME }}
+
+      - name: Upload artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: "*.tar.gz"
+
+  # ============================================================
+  # VYTVOŘENÍ PRE-RELEASE
+  # ============================================================
+  release:
+    name: Vytvořit pre-release
+    needs:
+      - build-deb
+      - build-snap
+      - build-rpm
+      - build-appimage
+      - build-flatpak
+      - build-windows-exe
+      - build-windows-msi
+      - build-macos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stáhnout všechny artefakty
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+
+      - name: Smazat starý dev-latest release
+        run: |
+          gh release delete dev-latest --yes || true
+          git push origin :refs/tags/dev-latest || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Vytvořit pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-latest
+          name: "Dev build (${{ github.sha }})"
+          prerelease: true
+          body: |
+            ⚠️ **Vývojový build** — není určen pro produkční použití.
+
+            **Větev:** `develop`
+            **Commit:** `${{ github.sha }}`
+            **Datum:** ${{ github.event.head_commit.timestamp }}
+            **Zpráva:** ${{ github.event.head_commit.message }}
+
+            | Platforma | Soubor |
+            |-----------|--------|
+            | Debian | `.deb` |
+            | Ubuntu | `.snap` |
+            | Fedora | `.rpm` |
+            | Linux univerzální | `.AppImage` |
+            | Linux sandboxed | `.flatpak` |
+            | Windows (NSIS) | `-setup.exe` |
+            | Windows (MSI) | `.msi` |
+            | macOS Intel | `-macos-x86_64.tar.gz` |
+            | macOS Apple Silicon | `-macos-aarch64.tar.gz` |
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ================================================================
+# POZNÁMKY — co musíš přidat do repozitáře
+# ================================================================
+#
+# 1. SNAP — vytvoř soubor snap/snapcraft.yaml:
+#
+#    name: polycredo-editor
+#    version: '0.1.0-dev'
+#    summary: Polycredo Editor
+#    description: Polycredo Editor dev build
+#    grade: devel
+#    confinement: devmode
+#    base: core22
+#    parts:
+#      polycredo-editor:
+#        plugin: rust
+#        source: .
+#    apps:
+#      polycredo-editor:
+#        command: bin/polycredo-editor
+#
+# ----------------------------------------------------------------
+# 2. FLATPAK — vytvoř soubor com.polycredo.Editor.yml:
+#
+#    app-id: com.polycredo.Editor
+#    runtime: org.freedesktop.Platform
+#    runtime-version: '23.08'
+#    sdk: org.freedesktop.Sdk
+#    sdk-extensions:
+#      - org.freedesktop.Sdk.Extension.rust-stable
+#    command: polycredo-editor
+#    modules:
+#      - name: polycredo-editor
+#        buildsystem: simple
+#        build-commands:
+#          - cargo build --release
+#          - install -Dm755 target/release/polycredo-editor /app/bin/polycredo-editor
+#        sources:
+#          - type: dir
+#            path: .
+#
+# ----------------------------------------------------------------
+# 3. DEBIAN — přidej do Cargo.toml:
+#
+#    [package.metadata.deb]
+#    maintainer = "Tvoje Jméno <email@example.com>"
+#    copyright = "2024, Tvoje Jméno"
+#    depends = "$auto"
+#    section = "utility"
+#    assets = [
+#      ["target/release/polycredo-editor", "usr/bin/", "755"],
+#    ]
+#
+# ----------------------------------------------------------------
+# 4. FEDORA — přidej do Cargo.toml:
+#
+#    [package.metadata.generate-rpm]
+#    assets = [
+#      { source = "target/release/polycredo-editor", dest = "/usr/bin/polycredo-editor", mode = "755" },
+#    ]
+#
+# ----------------------------------------------------------------
+# 5. APPIMAGE — nahraď prázdný placeholder AppDir/polycredo-editor.png
+#    skutečnou ikonou 256x256 PNG.

@@ -1,0 +1,14 @@
+Template: polycredo-editor/accept-license
+Type: boolean
+Default: false
+Description: Do you accept the PolyCredo Editor License (AGPLv3)?
+ PolyCredo Editor is distributed under the GNU Affero General Public License v3.0.
+ .
+ By installing this software, you acknowledge that you have read and understood
+ the terms of the AGPLv3. This software is provided "AS IS", without any
+ warranty, express or implied.
+ .
+ Full license text is available at /usr/share/doc/polycredo-editor/copyright
+ after installation.
+ .
+ Do you accept these terms?

@@ -1,16 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
+milestone: v1.2.0
+milestone_name: AI Chat Rewrite
 status: completed
-stopped_at: Completed 18-01-PLAN.md and 18-02-PLAN.md
-last_updated: "2026-03-06T20:52:00Z"
-last_activity: "2026-03-06 — Documentation artifacts + checkbox updates (18-01)"
+last_updated: "2026-03-06T21:30:00.000Z"
+last_activity: "2026-03-06 — v1.2.0 milestone completed and archived"
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 17
-  completed_plans: 16
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 19
+  completed_plans: 19
   percent: 100
 ---
 
@@ -21,16 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
-**Current focus:** v1.2.0 — Phase 17: i18n + WASM Cleanup
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 18 (Phase 16 Verification & i18n Fixes)
-Plan: 18-02 complete (2 of 2)
-Status: Phase 18 in progress
-Last activity: 2026-03-06 — i18n coverage: ask-heading fix + hardcoded string replacement (18-02)
-
-Progress: [████████████] 100%
+Milestone: v1.2.0 AI Chat Rewrite — SHIPPED
+Status: Complete, archived to .planning/milestones/
+Next: `/gsd:new-milestone`
 
 ## Performance Metrics
 
@@ -38,7 +34,8 @@ Progress: [████████████] 100%
 - v1.0.2: 17 plans completed (5 phases)
 - v1.0.6: 1 plan completed (1 phase, covered 3 planned phases)
 - v1.1.0: 8 plans completed (4 phases), 15 feat/fix commits, -2,878 net lines
-- Total: 26 plans across 10 phases (3 milestones)
+- v1.2.0: 19 plans completed (6 phases), 42 feat/fix commits, +3,212 net lines
+- Total: 45 plans across 16 phases (4 milestones)
 
 ## Accumulated Context
 
@@ -46,31 +43,11 @@ Progress: [████████████] 100%
 
 Key decisions logged in PROJECT.md Key Decisions table.
 
-Recent for v1.2.0:
-- ureq + std::thread (not reqwest/tokio) for HTTP — matches codebase threading model
-- Ollama first, trait abstraction extensible for Claude/Gemini later
-- State refactor early to avoid widespread renames after UI wiring
-- WASM removal last — both systems coexist until native path validated
-- [Phase 13]: Port-based URL validation: ~~reject URLs without explicit port~~ reverted (quick-5) — accept cloud endpoints without explicit port
-- [Phase 14]: AI state consolidated into AiState sub-struct with ChatState, OllamaState, AiSettings nested structs
-- [Phase 15-00]: Wave 0 pre-provisioning — added streaming fields + AI settings fields with defaults before implementation plans
-- [Phase 15-01]: Direct OllamaProvider.stream_chat() call, collect-then-process pattern in background polling
-- [Phase 15]: Ollama config placed before custom_agents in AI settings; sync block runs every frame with URL change detection
-- [Phase 15]: faint_bg_color for AI messages, explicit green status, one-frame memory flag for scroll-to-bottom, dynamic reasoning depth injection
-- [Phase 16-01]: LazyLock for static regex, manual ISO 8601 timestamps (no chrono), audit eprintln errors
-- [Phase 16-02]: stream:false when tools present, AtomicU32 tool call ID counter, context params deferred to Plan 04
-- [Phase 16-03]: ToolExecutor combined Tasks 1+2, exec timeout via thread+mpsc, facts in .polycredo/ai-facts.json
-- [Phase 17-01]: Renamed ai-chat-*/ai-plugin-bar-* to cli-chat-*/cli-bar-*, build_options() DRY helper for Ollama params, seed=0 means random
-- [Phase 17-02]: Complete WASM plugin removal (~6500 LOC), AI init reads top-level Settings, old WASM approval UI removed
-- [Phase 17-03]: ComboBox selected_text uses match-based i18n dispatch, render_head extended with i18n parameter
-- [Phase 18-02]: Threaded i18n through send_query_to_agent/handle_action, fluent_bundle::FluentArgs for all parameterized i18n
-
 ### Known Tech Debt
 
-- Nyquist VALIDATION.md: 6 fazi ve stavu draft
+- Nyquist VALIDATION.md: faze ve stavu draft
 - Warning text kontrast v light mode (Settings modal)
-- UI-02: zalozkov indikator nema dedicated kontrast test
-- 2 stale sandbox komentare (plugins/mod.rs:98, modal_dialogs.rs:77)
+- Syntax highlighting v AI chatu nefunguje (egui_commonmark code blocky cernobile)
 
 ### Pending Todos
 

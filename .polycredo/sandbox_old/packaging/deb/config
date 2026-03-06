@@ -1,0 +1,7 @@
+#!/bin/sh
+set -e
+
+. /usr/share/debconf/confmodule
+
+db_input critical polycredo-editor/accept-license || true
+db_go || true

@@ -1,22 +1,53 @@
+## [1.2.0-dev] - 2026-03-07
+
+### Added
+- **AI Provider System**: New `AiProvider` trait and `OllamaProvider` with NDJSON streaming, Bearer authentication and URL validation.
+- **Streaming AI Chat**: Fully streamed chat with Claude/Ollama panel — token polling, auto-scroll, stop/send toggle, theme-aware conversation and markdown rendering.
+- **Model Picker**: Type-to-filter model selector in chat header with status indicator.
+- **AI Settings**: AI provider configuration directly in Settings modal — URL, API key, generation parameters (temperature, top_p, top_k, num_predict).
+- **Tool Execution**: Complete AI tool calls system — security infrastructure, audit logger, tool executor with dispatch and approval workflow, tool approval UI with blacklist.
+- **Ollama Tools API**: Support for `tools` parameter in Ollama API, parsing `tool_calls` from NDJSON responses, text-based fallback on error.
+- **Thinking Blocks**: Rendering of thinking blocks in AI responses.
+- **Context Injection**: Extended `AiContextPayload` with terminal output, LSP diagnostics and system message builder.
+- **i18n for CLI Panel**: Localized Rank/Depth/Model/Filter labels, new i18n keys for AI chat and CLI.
+
+### Changed
+- **State Refactor**: Extracted `ChatState`, `AiState` and `OllamaState` from `WorkspaceState` into separate modules in `ai/`.
+- **Rename ai → cli**: Complete rename of `src/app/ai/` to `src/app/cli/` and all paths.
+- **Compile Buttons**: Moved compile buttons into build bar, removed standalone `compile_bar`.
+- **Ollama Generation Params**: Added generation parameter configuration to `ProviderConfig` and Settings UI.
+
+### Removed
+- **WASM Plugin System**: Complete removal of extism, PluginManager, plugin sources and related i18n keys.
+- **systemd-run Wrapper**: Removed systemd-run wrapper from `run_limited.sh` and `packaging/deb/wrapper.sh`.
+
+### Fixed
+- **AI Chat UI**: Fixed chat window expansion, transparent AI background, model picker height.
+- **ScrollArea**: Fixed height expansion and scroll-to-bottom button.
+- **Stream Disconnect**: Fixed stream disconnect and API key synchronization.
+- **Terminal Focus**: Prevented terminal from stealing focus when AI chat is open.
+- **i18n**: Replaced hardcoded English strings with i18n calls, fixed ask-heading bug.
+- **Reasoning Depth**: Injected reasoning depth and expertise into every AI query.
+
 ## [1.1.0-dev] - 2026-03-06
 
 ### Removed
-- **Sandbox režim**: Kompletní odstranění sandbox režimu ze všech vrstev aplikace (fáze 9–12):
-  - **Settings**: Odebrání `sandbox_mode` z konfigurace, migrace existujících nastavení.
-  - **Typy a struktury**: Odstranění sandbox struktur z `types.rs`, `state/mod.rs` a `sandbox.rs`.
-  - **UI**: Odebrání sandbox modálu, settings bloku, build bar labelu, gitignore filtru a `is_sandbox` parametru z file tree.
-  - **Editor a terminál**: Odstranění sandbox logiky z editor files, editor UI a terminálových instancí.
-  - **Watcher a migrace**: Odebrání sandbox filtru z watcheru a sandbox komentářů z migrace.
-  - **Pluginy**: Přejmenování `sandbox_root` na `project_root` v plugin registry, `exec_in_sandbox` na `exec` v AI tools a WASM pluginech.
-  - **i18n**: Odebrání všech sandbox i18n klíčů ze všech lokalizací (cs, en, de, ru, sk) a aktualizace sandbox-zmiňujících hodnot.
+- **Sandbox Mode**: Complete removal of sandbox mode from all application layers (phases 9–12):
+  - **Settings**: Removed `sandbox_mode` from configuration, migrated existing settings.
+  - **Types and Structures**: Removed sandbox structs from `types.rs`, `state/mod.rs` and `sandbox.rs`.
+  - **UI**: Removed sandbox modal, settings block, build bar label, gitignore filter and `is_sandbox` parameter from file tree.
+  - **Editor and Terminal**: Removed sandbox logic from editor files, editor UI and terminal instances.
+  - **Watcher and Migration**: Removed sandbox filter from watcher and sandbox comments from migration.
+  - **Plugins**: Renamed `sandbox_root` to `project_root` in plugin registry, `exec_in_sandbox` to `exec` in AI tools and WASM plugins.
+  - **i18n**: Removed all sandbox i18n keys from all locales (cs, en, de, ru, sk) and updated sandbox-mentioning values.
 
 ### Fixed
-- **Build bar**: Odstranění přebytečného separátoru a zachování git barev ve file tree.
-- **WASM pluginy**: Přestavba pluginů pro přejmenování `exec` a oprava opětovného spouštění chyb pluginů.
-- **Compile warnings**: Odstranění 3 varování (nepoužitý import, parametry).
+- **Build Bar**: Removed extra separator and preserved git colors in file tree.
+- **WASM Plugins**: Rebuilt plugins for `exec` rename and fixed plugin error re-triggering.
+- **Compile Warnings**: Removed 3 warnings (unused import, parameters).
 
 ### Changed
-- **Metadata**: Aktualizace autora na `stkremen@kremenservices.cz` a copyright na `(c) Copyright 2026 Kremen Services s.r.o.` v packager a deb metadatech.
+- **Metadata**: Updated author to `stkremen@kremenservices.cz` and copyright to `(c) Copyright 2026 Kremen Services s.r.o.` in packager and deb metadata.
 
 ## [1.0.6-dev] - 2026-03-05
 

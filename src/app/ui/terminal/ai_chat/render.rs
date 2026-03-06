@@ -67,8 +67,16 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
                         ui.memory_mut(|m| m.close_popup());
                     }
                 }
-                if !any {
-                    ui.weak("Žádný model neodpovídá filtru");
+                if !any && !filter_lower.is_empty() {
+                    // Allow using the typed text as a custom model name
+                    let custom = ws.ai.ollama.model_filter.clone();
+                    if ui.selectable_label(false, format!("+ {}", custom)).clicked()
+                        || (filter_resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                    {
+                        ws.ai.ollama.selected_model = custom;
+                        ws.ai.ollama.model_filter.clear();
+                        ui.memory_mut(|m| m.close_popup());
+                    }
                 }
             });
         });
@@ -196,6 +204,7 @@ fn render_chat_content(
                     &ws.ai.ollama.selected_model,
                     ws.ai.chat.out_tokens,
                     ws.ai.chat.loading,
+                    &ws.ai.chat.thinking_history,
                 );
                 if !ws.ai.chat.monologue.is_empty() {
                     ui.add_space(8.0);

@@ -36,6 +36,11 @@ pub enum StreamEvent {
         name: String,
         arguments: serde_json::Value,
     },
+    /// Model thinking/reasoning block (e.g. cogito `<thinking>` tags).
+    Thinking(String),
+    /// Replace the entire streaming buffer with this cleaned content.
+    /// Used when post-processing strips special tokens from accumulated output.
+    ContentReplace(String),
 }
 
 /// Trait abstraction for AI providers (Ollama, Claude, Gemini, …).

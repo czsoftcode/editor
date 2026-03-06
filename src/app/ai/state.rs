@@ -32,6 +32,8 @@ pub struct ChatState {
     pub streaming_buffer: String,
     /// Whether the chat view should auto-scroll to the latest content.
     pub auto_scroll: bool,
+    /// Thinking/reasoning text per conversation entry (parallel to `conversation` vec).
+    pub thinking_history: Vec<Option<String>>,
 }
 
 impl Default for ChatState {
@@ -52,6 +54,7 @@ impl Default for ChatState {
             stream_rx: None,
             streaming_buffer: String::new(),
             auto_scroll: true,
+            thinking_history: Vec::new(),
         }
     }
 }

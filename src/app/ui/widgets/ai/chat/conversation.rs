@@ -9,6 +9,7 @@ pub fn ui_conversation(
     model_name: &str,
     out_tokens: u32,
     is_streaming: bool,
+    thinking_history: &[Option<String>],
 ) {
     let poly_color = egui::Color32::from_rgb(100, 160, 220);
     let credo_color = egui::Color32::from_rgb(100, 220, 160);
@@ -87,6 +88,23 @@ pub fn ui_conversation(
                 });
             });
             ui.add_space(4.0);
+        }
+
+        // Thinking block (from thinking_history for this conversation entry)
+        if let Some(Some(thinking)) = thinking_history.get(i) {
+            let thinking_size = font_size * 0.95;
+            let text_color = ui.visuals().text_color();
+            egui::Frame::new()
+                .inner_margin(egui::Margin::symmetric(8, 4))
+                .show(ui, |ui| {
+                    ui.label(
+                        egui::RichText::new(thinking.as_str())
+                            .color(text_color)
+                            .italics()
+                            .size(thinking_size),
+                    );
+                });
+            ui.add_space(2.0);
         }
 
         // Agent Answer

@@ -202,9 +202,9 @@ pub(super) fn process_background_events(
         match status {
             OllamaStatus::Available(models) => {
                 ws.ai.ollama.status = OllamaConnectionStatus::Connected;
-                if ws.ai.ollama.selected_model.is_empty()
-                    || !models.contains(&ws.ai.ollama.selected_model)
-                {
+                // Only auto-select if no model is chosen yet — don't
+                // overwrite a custom/cloud model that isn't in the local list
+                if ws.ai.ollama.selected_model.is_empty() {
                     if let Some(first) = models.first() {
                         ws.ai.ollama.selected_model = first.clone();
                     }
@@ -281,6 +281,19 @@ pub(super) fn process_background_events(
                         ws.toasts.push(Toast::error(format!("AI: {}", msg)));
                     }
                     done = true;
+                }
+                StreamEvent::Thinking(text) => {
+                    // Store thinking text for the current conversation entry
+                    let idx = ws.ai.chat.conversation.len().saturating_sub(1);
+                    while ws.ai.chat.thinking_history.len() <= idx {
+                        ws.ai.chat.thinking_history.push(None);
+                    }
+                    ws.ai.chat.thinking_history[idx] = Some(text);
+                }
+                StreamEvent::ContentReplace(clean) => {
+                    // Replace entire streaming buffer with post-processed clean content
+                    ws.ai.chat.streaming_buffer = clean;
+                    tokens_this_frame += 1;
                 }
                 StreamEvent::ToolCall { id, name, arguments } => {
                     // Process tool call through executor

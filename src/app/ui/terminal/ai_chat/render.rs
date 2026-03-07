@@ -417,14 +417,13 @@ fn render_chat_content(
                     ws.slash_autocomplete.selected = matches.len().saturating_sub(1);
                 }
 
-                // Calculate popup position above the input
+                // Calculate popup position below the input
                 let input_rect = resp.rect;
                 let popup_width = input_rect.width().min(350.0);
                 let line_height = font_size * 1.6;
-                let popup_height = (matches.len() as f32 * line_height).min(line_height * 7.0);
                 let popup_pos = egui::pos2(
                     input_rect.left(),
-                    input_rect.top() - popup_height - 4.0,
+                    input_rect.bottom() + 4.0,
                 );
 
                 egui::Area::new(egui::Id::new("slash_autocomplete"))
@@ -478,10 +477,11 @@ fn render_chat_content(
                                         desc_color,
                                     );
 
-                                    // Click to select
+                                    // Click to select and execute
                                     if response.clicked() {
                                         ws.ai.chat.prompt = format!("/{}", name);
                                         ws.slash_autocomplete.active = false;
+                                        action = Some(AiChatAction::Send);
                                     }
                                 }
                             });

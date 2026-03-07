@@ -6,11 +6,15 @@ pub struct SlashAutocomplete {
     pub active: bool,
     /// Currently selected index in the filtered list (0-based).
     pub selected: usize,
+    /// True when user dismissed with Escape — prevents re-activation until text changes.
+    pub dismissed: bool,
+    /// Previous frame's text — used to detect changes and reset dismissed state.
+    pub prev_text: String,
 }
 
 impl Default for SlashAutocomplete {
     fn default() -> Self {
-        Self { active: false, selected: 0 }
+        Self { active: false, selected: 0, dismissed: false, prev_text: String::new() }
     }
 }
 
@@ -24,6 +28,7 @@ pub fn ui_input(
     autocomplete: &mut SlashAutocomplete,
 ) -> (bool, egui::Response) {
     let mut send = false;
+    let mut refocus = false;
 
     let (enter_pressed, shift, ctrl, j_pressed, up_pressed, down_pressed, tab_pressed, escape_pressed) = ui.input(|i| {
         (
@@ -38,10 +43,17 @@ pub fn ui_input(
         )
     });
 
+    // Reset dismissed state when text changes
+    if *text != autocomplete.prev_text {
+        autocomplete.dismissed = false;
+        autocomplete.prev_text = text.clone();
+    }
+
     // Detect autocomplete activation: prompt starts with `/` and has no whitespace
-    if text.starts_with('/') && !text[1..].contains(char::is_whitespace) && text.len() > 0 {
+    let should_show = text.starts_with('/') && !text[1..].contains(char::is_whitespace);
+    if should_show && !autocomplete.dismissed {
         autocomplete.active = true;
-    } else {
+    } else if !should_show {
         autocomplete.active = false;
         autocomplete.selected = 0;
     }
@@ -70,20 +82,22 @@ pub fn ui_input(
         if escape_pressed {
             ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
             autocomplete.active = false;
+            autocomplete.dismissed = true;
         } else if tab_pressed {
             ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab));
             let selected_cmd = matches[autocomplete.selected].0;
             *text = format!("/{} ", selected_cmd);
             autocomplete.active = false;
+            autocomplete.prev_text = text.clone();
+            refocus = true;
         } else if enter_pressed && !shift && !ctrl {
             ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
             let selected_cmd = matches[autocomplete.selected].0;
             *text = format!("/{}", selected_cmd);
             autocomplete.active = false;
-            if !text.trim().is_empty() {
-                send = true;
-                *history_index = None;
-            }
+            autocomplete.prev_text = text.clone();
+            send = true;
+            *history_index = None;
         } else {
             if up_pressed {
                 ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp));
@@ -147,6 +161,11 @@ pub fn ui_input(
             .desired_rows(1)
             .frame(false),
     );
+
+    // After Tab autocomplete, keep focus on the input (prevent Tab focus traversal)
+    if refocus {
+        response.request_focus();
+    }
 
     (send, response)
 }

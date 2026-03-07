@@ -29,11 +29,11 @@ Requirements for GSD Integration + Slash Commands milestone. Each maps to roadma
 
 ### GSD State & Progress
 
-- [ ] **STATE-01**: User can run `/gsd state` to see current project state (milestone, phase, plan, progress)
-- [ ] **STATE-02**: User can run `/gsd state update <field> <value>` to update STATE.md fields
-- [ ] **STATE-03**: User can run `/gsd state patch` to batch-update multiple STATE.md fields
-- [ ] **STATE-04**: User can run `/gsd progress` to see visual progress bar and phase/plan counts
-- [ ] **STATE-05**: GSD state module can record metrics, add decisions, add blockers to STATE.md
+- [x] **STATE-01**: User can run `/gsd state` to see current project state (milestone, phase, plan, progress)
+- [x] **STATE-02**: User can run `/gsd state update <field> <value>` to update STATE.md fields
+- [x] **STATE-03**: User can run `/gsd state patch` to batch-update multiple STATE.md fields
+- [x] **STATE-04**: User can run `/gsd progress` to see visual progress bar and phase/plan counts
+- [x] **STATE-05**: GSD state module can record metrics, add decisions, add blockers to STATE.md
 
 ### GSD Phase & Roadmap
 
@@ -116,11 +116,11 @@ Requirements for GSD Integration + Slash Commands milestone. Each maps to roadma
 | CORE-03 | Phase 20 | Complete |
 | CORE-04 | Phase 20 | Complete |
 | CORE-05 | Phase 20 | Complete |
-| STATE-01 | Phase 20 | Pending |
-| STATE-02 | Phase 20 | Pending |
-| STATE-03 | Phase 20 | Pending |
-| STATE-04 | Phase 20 | Pending |
-| STATE-05 | Phase 20 | Pending |
+| STATE-01 | Phase 20 | Complete |
+| STATE-02 | Phase 20 | Complete |
+| STATE-03 | Phase 20 | Complete |
+| STATE-04 | Phase 20 | Complete |
+| STATE-05 | Phase 20 | Complete |
 | PHASE-01 | Phase 21 | Pending |
 | PHASE-02 | Phase 21 | Pending |
 | PHASE-03 | Phase 21 | Pending |

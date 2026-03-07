@@ -65,7 +65,7 @@ Archive: `.planning/milestones/v1.2.0-ROADMAP.md`
 **Milestone Goal:** Slash command dispatch infrastruktura a kompletni port GSD workflow tools z Node.js do Rustu.
 
 - [x] **Phase 19: Slash Command Infrastructure** - Dispatch system, built-in commands (/help, /clear, /new, /model, /git, /build, /settings), error handling (completed 2026-03-07)
-- [ ] **Phase 20: GSD Core + State Engine** - Frontmatter parser, config management, path helpers, state/progress commands
+- [x] **Phase 20: GSD Core + State Engine** - Frontmatter parser, config management, path helpers, state/progress commands (completed 2026-03-07)
 - [ ] **Phase 21: GSD Operations** - Phase/roadmap management, verify/template/scaffold, milestone/commit/requirements commands
 - [ ] **Phase 22: GSD Init + AI Integration** - Context aggregation commands, AI model delegation for content generation
 - [ ] **Phase 23: Attribution + i18n** - MIT attribution in help/about, localization of all GSD strings in 5 languages
@@ -99,7 +99,7 @@ Plans:
   3. User runs `/gsd state update` or `/gsd state patch` and the STATE.md file is updated on disk with the new values
   4. User runs `/gsd progress` and sees a visual progress bar with phase/plan completion counts
   5. When `.planning/` directory is missing, GSD commands show a helpful message instead of crashing
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 20-01-PLAN.md — Frontmatter parser with round-trip fidelity (TDD)
 - [x] 20-02-PLAN.md — GSD dispatch module, config management, path helpers, slash integration
@@ -160,7 +160,7 @@ Plans:
 | 17. i18n & WASM Cleanup | v1.2.0 | 3/3 | Complete | 2026-03-06 |
 | 18. Phase 16 Verification & i18n Fixes | v1.2.0 | 2/2 | Complete | 2026-03-06 |
 | 19. Slash Command Infrastructure | 4/4 | Complete    | 2026-03-07 | 2026-03-07 |
-| 20. GSD Core + State Engine | 2/3 | In Progress | 2026-03-07 | - |
+| 20. GSD Core + State Engine | 3/3 | Complete   | 2026-03-07 | - |
 | 21. GSD Operations | v1.2.1-dev | 0/? | Not started | - |
 | 22. GSD Init + AI Integration | v1.2.1-dev | 0/? | Not started | - |
 | 23. Attribution + i18n | v1.2.1-dev | 0/? | Not started | - |

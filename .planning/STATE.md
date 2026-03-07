@@ -1,32 +1,35 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2.0
-milestone_name: AI Chat Rewrite
-status: completed
-last_updated: "2026-03-06T21:30:00.000Z"
-last_activity: "2026-03-06 — v1.2.0 milestone completed and archived"
+milestone: v1.2.1-dev
+milestone_name: GSD Integration + Slash Commands
+status: active
+last_updated: "2026-03-07T00:38:22.398Z"
+last_activity: 2026-03-07 — Completed 19-01 slash command dispatch + system message rendering
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-06)
+See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 19 - Slash Command Infrastructure
 
 ## Current Position
 
-Milestone: v1.2.0 AI Chat Rewrite — SHIPPED
-Status: Complete, archived to .planning/milestones/
-Next: `/gsd:new-milestone`
+Phase: 19 of 23 (Slash Command Infrastructure)
+Plan: 1 of 3 in current phase
+Status: Active
+Last activity: 2026-03-07 — Completed 19-01 slash command dispatch + system message rendering
+
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -42,6 +45,12 @@ Next: `/gsd:new-milestone`
 ### Decisions
 
 Key decisions logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- [v1.2.0]: ureq + std::thread misto reqwest/tokio — odpovida threading modelu codebase
+- [v1.2.0]: Security-first tool execution — PathSandbox + approval workflow
+- [v1.2.1-dev]: Zero new dependencies — cely GSD port pouziva existujici crates
+- [v1.2.1-dev]: Slash commands — static slice registry, SYSTEM_MSG_MARKER prefix, Levenshtein fuzzy match
 
 ### Known Tech Debt
 
@@ -55,7 +64,9 @@ Key decisions logged in PROJECT.md Key Decisions table.
 
 ### Blockers/Concerns
 
-None.
+- Research flag: Phase 20 (frontmatter parser) — two-pass parsing a FrontmatterValue arena design potrebuji detailni specifikaci
+- Research flag: Phase 20 (state operations) — writeStateMd round-trip complexity potrebuje caching strategii
+- Research flag: Phase 22 (AI init) — init command context aggregation potrebuje vyhodnoceni relevance pro Ollama
 
 ### Quick Tasks Completed
 

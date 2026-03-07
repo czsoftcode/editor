@@ -140,6 +140,16 @@ pub struct WorkspaceState {
     pub tool_approval_rx: Option<mpsc::Receiver<bool>>,
     /// Receiver for native ask_user responses from the UI.
     pub tool_ask_rx: Option<mpsc::Receiver<String>>,
+
+    // --- Slash command async state (Phase 19) ---
+    /// Receiver for slash /build async result.
+    pub slash_build_rx: Option<mpsc::Receiver<Vec<crate::app::build_runner::BuildError>>>,
+    /// Receiver for slash /git async result.
+    pub slash_git_rx: Option<mpsc::Receiver<String>>,
+    /// Generation counter for conversation — incremented on /clear and /new to detect stale async results.
+    pub slash_conversation_gen: u64,
+    /// Generation at which the slash build was started (to detect if conversation was cleared).
+    pub slash_build_gen: u64,
 }
 
 impl Drop for WorkspaceState {

@@ -219,6 +219,10 @@ pub fn init_workspace(
         tool_always_approved: std::collections::HashSet::new(),
         tool_approval_rx: None,
         tool_ask_rx: None,
+        slash_build_rx: None,
+        slash_git_rx: None,
+        slash_conversation_gen: 0,
+        slash_build_gen: 0,
     }
 }
 

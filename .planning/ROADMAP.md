@@ -82,7 +82,7 @@ Archive: `.planning/milestones/v1.2.0-ROADMAP.md`
   3. User types `/model` to list models or `/model <name>` to switch; `/git` shows git status; `/build` triggers cargo build; `/settings` opens settings dialog
   4. Typing `/` followed by an unregistered command shows an error with suggestions of similar commands
   5. Slash commands are intercepted before reaching the AI model -- no AI query is sent for recognized commands
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 19-01-PLAN.md — Slash dispatch system, sync commands (/help, /clear, /new, /settings), system message rendering
 - [ ] 19-02-PLAN.md — Async commands (/model, /git, /build) with background polling
@@ -153,7 +153,7 @@ Plans:
 | 16. Tool Execution | v1.2.0 | 4/4 | Complete | 2026-03-06 |
 | 17. i18n & WASM Cleanup | v1.2.0 | 3/3 | Complete | 2026-03-06 |
 | 18. Phase 16 Verification & i18n Fixes | v1.2.0 | 2/2 | Complete | 2026-03-06 |
-| 19. Slash Command Infrastructure | v1.2.1-dev | 0/2 | Not started | - |
+| 19. Slash Command Infrastructure | 1/2 | In Progress|  | - |
 | 20. GSD Core + State Engine | v1.2.1-dev | 0/? | Not started | - |
 | 21. GSD Operations | v1.2.1-dev | 0/? | Not started | - |
 | 22. GSD Init + AI Integration | v1.2.1-dev | 0/? | Not started | - |

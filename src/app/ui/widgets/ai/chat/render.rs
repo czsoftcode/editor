@@ -42,9 +42,25 @@ pub fn render_markdown(
 
         let mut current_block = String::new();
         let mut is_monologue_mode = false;
+        let mut in_code_fence = false;
 
         for line in text.lines() {
             let trimmed = line.trim();
+
+            // Track fenced code blocks — skip all monologue detection inside them
+            if trimmed.starts_with("```") {
+                in_code_fence = !in_code_fence;
+                current_block.push_str(line);
+                current_block.push('\n');
+                continue;
+            }
+
+            if in_code_fence {
+                current_block.push_str(line);
+                current_block.push('\n');
+                continue;
+            }
+
             let is_step = trimmed.contains("Step")
                 && (trimmed.starts_with("Step")
                     || trimmed.starts_with('>')
@@ -117,17 +133,21 @@ fn flush_block(
     }
     let mut text = block.clone();
     if let Some(re) = &path_re {
-        text = re
-            .replace_all(&text, |caps: &regex::Captures| {
-                if caps.name("link").is_some() {
-                    caps[0].to_string()
-                } else if let Some(c) = caps.name("code_inner") {
-                    format!("[{}](code)", c.as_str())
-                } else {
-                    format!("[{}](path)", &caps[0])
-                }
-            })
-            .to_string();
+        // Do NOT replace paths inside fenced code blocks — it breaks code block syntax
+        let has_code_fence = text.lines().any(|l| l.trim().starts_with("```"));
+        if !has_code_fence {
+            text = re
+                .replace_all(&text, |caps: &regex::Captures| {
+                    if caps.name("link").is_some() {
+                        caps[0].to_string()
+                    } else if let Some(c) = caps.name("code_inner") {
+                        format!("[{}](code)", c.as_str())
+                    } else {
+                        format!("[{}](path)", &caps[0])
+                    }
+                })
+                .to_string();
+        }
     }
 
     if mono {

@@ -82,7 +82,7 @@ Archive: `.planning/milestones/v1.2.0-ROADMAP.md`
   3. User types `/model` to list models or `/model <name>` to switch; `/git` shows git status; `/build` triggers cargo build; `/settings` opens settings dialog
   4. Typing `/` followed by an unregistered command shows an error with suggestions of similar commands
   5. Slash commands are intercepted before reaching the AI model -- no AI query is sent for recognized commands
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 19-01-PLAN.md — Slash dispatch system, sync commands (/help, /clear, /new, /settings), system message rendering
 - [x] 19-02-PLAN.md — Async commands (/model, /git, /build) with background polling
@@ -99,7 +99,11 @@ Plans:
   3. User runs `/gsd state update` or `/gsd state patch` and the STATE.md file is updated on disk with the new values
   4. User runs `/gsd progress` and sees a visual progress bar with phase/plan completion counts
   5. When `.planning/` directory is missing, GSD commands show a helpful message instead of crashing
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 20-01-PLAN.md — Frontmatter parser with round-trip fidelity (TDD)
+- [ ] 20-02-PLAN.md — GSD dispatch module, config management, path helpers, slash integration
+- [ ] 20-03-PLAN.md — State display, update, patch, progress commands
 
 ### Phase 21: GSD Operations
 **Goal**: Users can manage phases, roadmap, verification, templates, milestones, and git commits through GSD commands
@@ -155,8 +159,8 @@ Plans:
 | 16. Tool Execution | v1.2.0 | 4/4 | Complete | 2026-03-06 |
 | 17. i18n & WASM Cleanup | v1.2.0 | 3/3 | Complete | 2026-03-06 |
 | 18. Phase 16 Verification & i18n Fixes | v1.2.0 | 2/2 | Complete | 2026-03-06 |
-| 19. Slash Command Infrastructure | 3/4 | In Progress|  | 2026-03-07 |
-| 20. GSD Core + State Engine | v1.2.1-dev | 0/? | Not started | - |
+| 19. Slash Command Infrastructure | 4/4 | Complete    | 2026-03-07 | 2026-03-07 |
+| 20. GSD Core + State Engine | v1.2.1-dev | 0/3 | Not started | - |
 | 21. GSD Operations | v1.2.1-dev | 0/? | Not started | - |
 | 22. GSD Init + AI Integration | v1.2.1-dev | 0/? | Not started | - |
 | 23. Attribution + i18n | v1.2.1-dev | 0/? | Not started | - |

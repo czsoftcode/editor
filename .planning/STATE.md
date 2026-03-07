@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2.1-dev
-milestone_name: GSD Integration + Slash Commands
-status: active
-last_updated: "2026-03-07T00:48:27Z"
-last_activity: 2026-03-07 — Completed 19-02 async slash commands (/model, /git, /build)
+milestone: v1.0
+milestone_name: milestone
+status: completed
+last_updated: "2026-03-07T01:11:13.321Z"
+last_activity: 2026-03-07 — Completed 19-03 code-fence fix for /git rendering
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 3
+  percent: 75
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 19 of 23 (Slash Command Infrastructure)
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-03-07 — Completed 19-02 async slash commands (/model, /git, /build)
+Plan: 3 of 4 in current phase
+Status: In Progress
+Last activity: 2026-03-07 — Completed 19-03 code-fence fix for /git rendering
 
-Progress: [██████████] 100%
+Progress: [████████--] 75%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Recent decisions affecting current work:
 - [v1.2.1-dev]: Zero new dependencies — cely GSD port pouziva existujici crates
 - [v1.2.1-dev]: Slash commands — static slice registry, SYSTEM_MSG_MARKER prefix, Levenshtein fuzzy match
 - [Phase 19]: Async slash commands via mpsc + generation counter for stale result detection
+- [Phase 19]: Conservative code-fence check: skip ALL path regex for blocks containing any code fence
 
 ### Known Tech Debt
 
@@ -77,4 +78,5 @@ Recent decisions affecting current work:
 | 4 | Move compile bar next to build bar, remove compile_bar.rs | 2026-03-06 | 9c4b211 | [4-move-compile-bar-next-to-build-bar-remov](./quick/4-move-compile-bar-next-to-build-bar-remov/) |
 | 5 | Revert validate_ollama_url port restriction + Bearer auth | 2026-03-06 | 3cc63a0 | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
 | 6 | Rename src/app/ai to src/app/cli + update 48 path references | 2026-03-06 | eecb769 | [6-rename-ai-to-cli](./quick/6-rename-ai-to-cli/) |
+| Phase 19 P03 | 1min | 1 tasks | 1 files |
 

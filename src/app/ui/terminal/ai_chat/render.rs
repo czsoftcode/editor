@@ -408,8 +408,14 @@ fn render_chat_content(
 
         // ── SLASH AUTOCOMPLETE POPUP ─────────────────────────────────────────
         if ws.slash_autocomplete.active {
-            let filter = ws.ai.chat.prompt.strip_prefix('/').unwrap_or("").to_string();
-            let matches = crate::app::ui::terminal::ai_chat::slash::matching_commands(&filter);
+            // Detect /gsd subcommand autocomplete vs top-level command autocomplete
+            let (matches, is_gsd_sub) = if ws.ai.chat.prompt.starts_with("/gsd ") {
+                let gsd_rest = &ws.ai.chat.prompt[5..]; // after "/gsd "
+                (crate::app::ui::terminal::ai_chat::gsd::matching_subcommands(gsd_rest), true)
+            } else {
+                let filter = ws.ai.chat.prompt.strip_prefix('/').unwrap_or("").to_string();
+                (crate::app::ui::terminal::ai_chat::slash::matching_commands(&filter), false)
+            };
 
             if !matches.is_empty() {
                 // Clamp selected index
@@ -457,8 +463,12 @@ fn render_chat_content(
                                     );
                                     ui.painter().rect_filled(rect, 2.0, bg);
 
-                                    // Command name
-                                    let cmd_text = format!("/{}", name);
+                                    // Command name — show /gsd <sub> for GSD subcommands
+                                    let cmd_text = if is_gsd_sub {
+                                        format!("/gsd {}", name)
+                                    } else {
+                                        format!("/{}", name)
+                                    };
                                     ui.painter().text(
                                         rect.left_center() + egui::vec2(8.0, 0.0),
                                         egui::Align2::LEFT_CENTER,
@@ -479,7 +489,12 @@ fn render_chat_content(
 
                                     // Click to select and execute
                                     if response.clicked() {
-                                        ws.ai.chat.prompt = format!("/{}", name);
+                                        if is_gsd_sub {
+                                            // For GSD subcommands, set prompt to /gsd <sub> and send
+                                            ws.ai.chat.prompt = format!("/gsd {}", name);
+                                        } else {
+                                            ws.ai.chat.prompt = format!("/{}", name);
+                                        }
                                         ws.slash_autocomplete.active = false;
                                         action = Some(AiChatAction::Send);
                                     }

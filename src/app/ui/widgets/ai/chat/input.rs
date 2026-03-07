@@ -49,8 +49,12 @@ pub fn ui_input(
         autocomplete.prev_text = text.clone();
     }
 
-    // Detect autocomplete activation: prompt starts with `/` and has no whitespace
-    let should_show = text.starts_with('/') && !text[1..].contains(char::is_whitespace);
+    // Detect autocomplete activation:
+    // 1. Top-level: prompt starts with `/` and no whitespace after it
+    // 2. GSD sub-level: prompt starts with `/gsd ` (show subcommand autocomplete)
+    let is_gsd_sub = text.starts_with("/gsd ") && !text[5..].contains(char::is_whitespace);
+    let is_top_level = text.starts_with('/') && !text[1..].contains(char::is_whitespace);
+    let should_show = is_top_level || is_gsd_sub;
     if should_show && !autocomplete.dismissed {
         autocomplete.active = true;
     } else if !should_show {
@@ -60,8 +64,13 @@ pub fn ui_input(
 
     // Get matching commands when autocomplete is active
     let matches = if autocomplete.active {
-        let filter = &text[1..]; // strip leading `/`
-        crate::app::ui::terminal::ai_chat::slash::matching_commands(filter)
+        if is_gsd_sub {
+            let filter = &text[5..]; // after "/gsd "
+            crate::app::ui::terminal::ai_chat::gsd::matching_subcommands(filter)
+        } else {
+            let filter = &text[1..]; // strip leading `/`
+            crate::app::ui::terminal::ai_chat::slash::matching_commands(filter)
+        }
     } else {
         Vec::new()
     };
@@ -86,14 +95,22 @@ pub fn ui_input(
         } else if tab_pressed {
             ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab));
             let selected_cmd = matches[autocomplete.selected].0;
-            *text = format!("/{} ", selected_cmd);
+            if is_gsd_sub {
+                *text = format!("/gsd {} ", selected_cmd);
+            } else {
+                *text = format!("/{} ", selected_cmd);
+            }
             autocomplete.active = false;
             autocomplete.prev_text = text.clone();
             refocus = true;
         } else if enter_pressed && !shift && !ctrl {
             ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
             let selected_cmd = matches[autocomplete.selected].0;
-            *text = format!("/{}", selected_cmd);
+            if is_gsd_sub {
+                *text = format!("/gsd {}", selected_cmd);
+            } else {
+                *text = format!("/{}", selected_cmd);
+            }
             autocomplete.active = false;
             autocomplete.prev_text = text.clone();
             send = true;

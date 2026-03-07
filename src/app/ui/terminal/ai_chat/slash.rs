@@ -33,6 +33,7 @@ const COMMANDS: &[SlashCommand] = &[
     SlashCommand { name: "git", description: "Show git diff summary" },
     SlashCommand { name: "build", description: "Run cargo build" },
     SlashCommand { name: "settings", description: "Open settings" },
+    SlashCommand { name: "gsd", description: "GSD project management (/gsd help for subcommands)" },
 ];
 
 /// Returns matching commands for autocomplete. Each item is (name, description).
@@ -73,6 +74,7 @@ pub fn dispatch(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
         "model" => cmd_model(ws, args),
         "git" => cmd_git(ws),
         "build" => cmd_build(ws),
+        "gsd" => super::gsd::cmd_gsd(ws, args),
         _ => {
             // Fuzzy suggestion for unknown commands
             fuzzy_or_passthrough(cmd_word, ws, &prompt)
@@ -338,6 +340,7 @@ mod tests {
                 assert!(text.contains("/git"));
                 assert!(text.contains("/build"));
                 assert!(text.contains("/settings"));
+                assert!(text.contains("/gsd"));
             }
             _ => panic!("Expected Immediate result from /help"),
         }
@@ -534,7 +537,7 @@ mod tests {
     #[test]
     fn test_matching_commands() {
         let all = matching_commands("");
-        assert_eq!(all.len(), 7);
+        assert_eq!(all.len(), 8);
         let filtered = matching_commands("he");
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].0, "help");

@@ -1,6 +1,7 @@
 pub mod frontmatter;
 pub mod config;
 pub mod paths;
+pub mod state;
 
 use std::path::Path;
 
@@ -34,12 +35,8 @@ pub fn cmd_gsd(ws: &mut WorkspaceState, args: &str) -> SlashResult {
 
     match sub.as_str() {
         "" | "help" => cmd_gsd_help(),
-        "state" => SlashResult::Immediate(
-            "GSD state commands are not yet implemented. Coming in Plan 20-03.".to_string()
-        ),
-        "progress" => SlashResult::Immediate(
-            "GSD progress display is not yet implemented. Coming in Plan 20-03.".to_string()
-        ),
+        "state" => state::cmd_state(ws, sub_args),
+        "progress" => state::cmd_progress(ws),
         "config" => config::cmd_config(ws, sub_args),
         _ => SlashResult::Immediate(format!(
             "Unknown GSD command: `{}`. Type `/gsd help` for available commands.", sub

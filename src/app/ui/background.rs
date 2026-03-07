@@ -556,6 +556,42 @@ pub(super) fn process_background_events(
         ws.build_error_rx = None;
     }
 
+    // --- 6. Slash command async results ---
+
+    // Poll /build result
+    if let Some(rx) = &ws.slash_build_rx
+        && let Ok(errors) = rx.try_recv()
+    {
+        // Only update if conversation wasn't cleared since build started
+        if ws.slash_conversation_gen == ws.slash_build_gen {
+            let summary = format_slash_build_summary(&errors);
+            // Update the last conversation entry that has the "Building..." placeholder
+            for entry in ws.ai.chat.conversation.iter_mut().rev() {
+                if entry.1.contains("Building...") {
+                    entry.1 = format!("{}{}", crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER, summary);
+                    break;
+                }
+            }
+            // Also update ws.build_errors so the editor state reflects latest build
+            ws.build_errors = errors;
+        }
+        ws.slash_build_rx = None;
+    }
+
+    // Poll /git result
+    if let Some(rx) = &ws.slash_git_rx
+        && let Ok(result) = rx.try_recv()
+    {
+        // Update the last conversation entry that has the "Loading git status..." placeholder
+        for entry in ws.ai.chat.conversation.iter_mut().rev() {
+            if entry.1.contains("Loading git status...") {
+                entry.1 = format!("{}{}", crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER, result);
+                break;
+            }
+        }
+        ws.slash_git_rx = None;
+    }
+
     if ws.external_change_conflict.is_none() {
         if let Some(err) = ws.editor.try_autosave(
             i18n,
@@ -751,6 +787,33 @@ fn log_to_stderr_file(msg: &str) {
             .as_secs();
         let _ = writeln!(f, "[{secs}] {msg}");
     }
+}
+
+fn format_slash_build_summary(errors: &[crate::app::build_runner::BuildError]) -> String {
+    let error_count = errors.iter().filter(|e| !e.is_warning).count();
+    let warning_count = errors.iter().filter(|e| e.is_warning).count();
+
+    if errors.is_empty() {
+        return "Build OK (0 errors, 0 warnings)".to_string();
+    }
+
+    let mut out = format!("**Build complete** ({} errors, {} warnings)\n\n", error_count, warning_count);
+
+    // List errors first, then warnings
+    for err in errors.iter().filter(|e| !e.is_warning) {
+        let file = err.file.file_name()
+            .map(|f| f.to_string_lossy().into_owned())
+            .unwrap_or_else(|| err.file.to_string_lossy().into_owned());
+        out.push_str(&format!("- **error** `{}:{}` {}\n", file, err.line, err.message));
+    }
+    for err in errors.iter().filter(|e| e.is_warning) {
+        let file = err.file.file_name()
+            .map(|f| f.to_string_lossy().into_owned())
+            .unwrap_or_else(|| err.file.to_string_lossy().into_owned());
+        out.push_str(&format!("- **warning** `{}:{}` {}\n", file, err.line, err.message));
+    }
+
+    out
 }
 
 pub(crate) fn fetch_git_status(

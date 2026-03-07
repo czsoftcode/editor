@@ -479,13 +479,6 @@ fn split_inline_items(s: &str) -> Vec<String> {
     items
 }
 
-/// Represents a pending line during parsing.
-struct PendingLine<'a> {
-    indent: usize,
-    content: &'a str,
-    raw: &'a str,
-}
-
 /// Parse YAML-like frontmatter lines into FmNode list.
 fn parse_yaml_lines(lines: &[&str]) -> (Vec<FmNode>, Vec<String>, Vec<String>) {
     let mut nodes = Vec::new();

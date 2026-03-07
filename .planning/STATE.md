@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 last_updated: "2026-03-07T02:17:35.106Z"
-last_activity: 2026-03-07 — Completed 20-01 frontmatter parser with round-trip fidelity
+last_activity: 2026-03-07 — Completed 20-02 GSD dispatch, config, path helpers, slash integration
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
-  percent: 92
+  completed_plans: 6
+  percent: 95
 ---
 
 # Project State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 20 of 23 (GSD Core + State Engine)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-07 — Completed 20-01 frontmatter parser with round-trip fidelity
+Last activity: 2026-03-07 — Completed 20-02 GSD dispatch, config, path helpers, slash integration
 
-Progress: [█████████░] 92%
+Progress: [█████████░] 95%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Recent decisions affecting current work:
 - [Phase 19]: Async slash commands via mpsc + generation counter for stale result detection
 - [Phase 19]: Conservative code-fence check: skip ALL path regex for blocks containing any code fence
 - [Phase 20]: Custom YAML-like frontmatter parser with raw_lines round-trip preservation pattern
+- [Phase 20]: GSD dispatch via match-based routing, two-level autocomplete for /gsd subcommands
 
 ### Known Tech Debt
 
@@ -81,4 +82,5 @@ Recent decisions affecting current work:
 | 6 | Rename src/app/ai to src/app/cli + update 48 path references | 2026-03-06 | eecb769 | [6-rename-ai-to-cli](./quick/6-rename-ai-to-cli/) |
 | Phase 19 P03 | 1min | 1 tasks | 1 files |
 | Phase 20 P01 | 7min | 3 tasks | 1 files |
+| Phase 20 P02 | 8min | 2 tasks | 7 files |
 

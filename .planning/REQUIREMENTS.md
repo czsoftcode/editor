@@ -23,9 +23,9 @@ Requirements for GSD Integration + Slash Commands milestone. Each maps to roadma
 
 - [x] **CORE-01**: GSD frontmatter parser can parse YAML-like frontmatter from `.planning/` markdown files
 - [x] **CORE-02**: GSD frontmatter serializer can write frontmatter back to markdown files preserving content
-- [ ] **CORE-03**: GSD config module can load, read, and update `.planning/config.json` with dot-notation paths
-- [ ] **CORE-04**: GSD core utilities provide path helpers, phase numbering (integer + decimal), slug generation
-- [ ] **CORE-05**: GSD handles missing `.planning/` directory gracefully with helpful user message
+- [x] **CORE-03**: GSD config module can load, read, and update `.planning/config.json` with dot-notation paths
+- [x] **CORE-04**: GSD core utilities provide path helpers, phase numbering (integer + decimal), slug generation
+- [x] **CORE-05**: GSD handles missing `.planning/` directory gracefully with helpful user message
 
 ### GSD State & Progress
 
@@ -113,9 +113,9 @@ Requirements for GSD Integration + Slash Commands milestone. Each maps to roadma
 | SLASH-09 | Phase 19 | Complete |
 | CORE-01 | Phase 20 | Complete |
 | CORE-02 | Phase 20 | Complete |
-| CORE-03 | Phase 20 | Pending |
-| CORE-04 | Phase 20 | Pending |
-| CORE-05 | Phase 20 | Pending |
+| CORE-03 | Phase 20 | Complete |
+| CORE-04 | Phase 20 | Complete |
+| CORE-05 | Phase 20 | Complete |
 | STATE-01 | Phase 20 | Pending |
 | STATE-02 | Phase 20 | Pending |
 | STATE-03 | Phase 20 | Pending |

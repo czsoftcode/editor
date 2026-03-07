@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-last_updated: "2026-03-07T01:11:13.321Z"
-last_activity: 2026-03-07 — Completed 19-03 code-fence fix for /git rendering
+status: executing
+last_updated: "2026-03-07T02:17:35.106Z"
+last_activity: 2026-03-07 — Completed 20-01 frontmatter parser with round-trip fidelity
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 5
+  percent: 92
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
-**Current focus:** Phase 19 - Slash Command Infrastructure (complete)
+**Current focus:** Phase 20 - GSD Core + State Engine
 
 ## Current Position
 
-Phase: 19 of 23 (Slash Command Infrastructure)
-Plan: 3 of 4 in current phase
+Phase: 20 of 23 (GSD Core + State Engine)
+Plan: 1 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-07 — Completed 19-03 code-fence fix for /git rendering
+Last activity: 2026-03-07 — Completed 20-01 frontmatter parser with round-trip fidelity
 
-Progress: [████████--] 75%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Recent decisions affecting current work:
 - [v1.2.1-dev]: Slash commands — static slice registry, SYSTEM_MSG_MARKER prefix, Levenshtein fuzzy match
 - [Phase 19]: Async slash commands via mpsc + generation counter for stale result detection
 - [Phase 19]: Conservative code-fence check: skip ALL path regex for blocks containing any code fence
+- [Phase 20]: Custom YAML-like frontmatter parser with raw_lines round-trip preservation pattern
 
 ### Known Tech Debt
 
@@ -66,7 +67,7 @@ Recent decisions affecting current work:
 
 ### Blockers/Concerns
 
-- Research flag: Phase 20 (frontmatter parser) — two-pass parsing a FrontmatterValue arena design potrebuji detailni specifikaci
+- ~~Research flag: Phase 20 (frontmatter parser)~~ — RESOLVED: two-pass parser implemented with FmNode raw_lines pattern
 - Research flag: Phase 20 (state operations) — writeStateMd round-trip complexity potrebuje caching strategii
 - Research flag: Phase 22 (AI init) — init command context aggregation potrebuje vyhodnoceni relevance pro Ollama
 
@@ -79,4 +80,5 @@ Recent decisions affecting current work:
 | 5 | Revert validate_ollama_url port restriction + Bearer auth | 2026-03-06 | 3cc63a0 | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
 | 6 | Rename src/app/ai to src/app/cli + update 48 path references | 2026-03-06 | eecb769 | [6-rename-ai-to-cli](./quick/6-rename-ai-to-cli/) |
 | Phase 19 P03 | 1min | 1 tasks | 1 files |
+| Phase 20 P01 | 7min | 3 tasks | 1 files |
 

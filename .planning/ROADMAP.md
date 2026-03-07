@@ -99,7 +99,7 @@ Plans:
   3. User runs `/gsd state update` or `/gsd state patch` and the STATE.md file is updated on disk with the new values
   4. User runs `/gsd progress` and sees a visual progress bar with phase/plan completion counts
   5. When `.planning/` directory is missing, GSD commands show a helpful message instead of crashing
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 Plans:
 - [ ] 20-01-PLAN.md — Frontmatter parser with round-trip fidelity (TDD)
 - [ ] 20-02-PLAN.md — GSD dispatch module, config management, path helpers, slash integration
@@ -160,7 +160,7 @@ Plans:
 | 17. i18n & WASM Cleanup | v1.2.0 | 3/3 | Complete | 2026-03-06 |
 | 18. Phase 16 Verification & i18n Fixes | v1.2.0 | 2/2 | Complete | 2026-03-06 |
 | 19. Slash Command Infrastructure | 4/4 | Complete    | 2026-03-07 | 2026-03-07 |
-| 20. GSD Core + State Engine | v1.2.1-dev | 0/3 | Not started | - |
+| 20. GSD Core + State Engine | 1/3 | In Progress|  | - |
 | 21. GSD Operations | v1.2.1-dev | 0/? | Not started | - |
 | 22. GSD Init + AI Integration | v1.2.1-dev | 0/? | Not started | - |
 | 23. Attribution + i18n | v1.2.1-dev | 0/? | Not started | - |

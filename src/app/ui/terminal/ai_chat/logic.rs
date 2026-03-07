@@ -3,13 +3,19 @@ use crate::app::cli::provider::{AiProvider, ProviderConfig};
 use crate::app::cli::state::OllamaConnectionStatus;
 use crate::app::cli::tools::get_standard_tools;
 use crate::app::cli::types::AiMessage;
-use crate::app::types::Toast;
+use crate::app::types::{AppShared, Toast};
 use crate::app::ui::workspace::state::WorkspaceState;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-pub fn send_query_to_agent(ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+pub fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>, i18n: &crate::i18n::I18n) {
     if ws.ai.chat.prompt.trim().is_empty() {
+        return;
+    }
+
+    // Slash command intercept — works even when Ollama is disconnected
+    if ws.ai.chat.prompt.starts_with('/') {
+        super::slash::dispatch(ws, shared);
         return;
     }
 
@@ -73,6 +79,10 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
 
     // Conversation history (multi-turn)
     for (q, a) in &ws.ai.chat.conversation {
+        // Skip system messages — they're slash command output, not AI conversation
+        if a.starts_with(super::slash::SYSTEM_MSG_MARKER) {
+            continue;
+        }
         if !q.is_empty() {
             messages.push(AiMessage {
                 role: "user".to_string(),

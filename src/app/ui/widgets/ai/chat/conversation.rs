@@ -1,4 +1,5 @@
 use super::render::render_markdown;
+use crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER;
 use eframe::egui;
 
 pub fn ui_conversation(
@@ -110,63 +111,109 @@ pub fn ui_conversation(
 
         // Agent Answer
         if !a.is_empty() {
+            let is_system_msg = a.starts_with(SYSTEM_MSG_MARKER);
+            let display_content = if is_system_msg {
+                &a[SYSTEM_MSG_MARKER.len()..]
+            } else {
+                a.as_str()
+            };
+
             let weak_color = ui.visuals().weak_text_color();
 
-            // Metadata bar
-            ui.horizontal(|ui| {
-                let role_label = if model_name.is_empty() { "AI" } else { model_name };
-                ui.label(
-                    egui::RichText::new(role_label)
-                        .color(weak_color)
-                        .small()
-                        .strong(),
-                );
-                ui.label(
-                    egui::RichText::new(&timestamp)
-                        .color(weak_color)
-                        .small(),
-                );
-                // Token count only for the last AI response
-                if is_last && out_tokens > 0 {
+            if is_system_msg {
+                // System message — distinct rendering
+                ui.horizontal(|ui| {
                     ui.label(
-                        egui::RichText::new(format!("{} tokens", out_tokens))
+                        egui::RichText::new("System")
+                            .color(weak_color)
+                            .small()
+                            .strong(),
+                    );
+                    ui.label(
+                        egui::RichText::new(&timestamp)
                             .color(weak_color)
                             .small(),
                     );
-                }
-                if is_last && is_streaming {
-                    ui.spinner();
-                }
-            });
+                });
 
-            if a.contains("____        __") && a.contains("CLI") {
-                render_logo(ui, a, font_size, poly_color, credo_color);
-            } else {
+                let sys_bg = if ui.visuals().dark_mode {
+                    egui::Color32::from_rgb(25, 35, 50)
+                } else {
+                    egui::Color32::from_rgb(230, 240, 250)
+                };
+
                 egui::Frame::new()
+                    .fill(sys_bg)
                     .inner_margin(egui::Margin::symmetric(8, 4))
+                    .corner_radius(4.0)
                     .show(ui, |ui| {
-                        render_markdown(
-                            ui,
-                            a,
-                            font_size,
-                            &path_re,
-                            cache,
-                        );
+                        render_markdown(ui, display_content, font_size, &path_re, cache);
                     });
-            }
-            // Copy button after the AI message block
-            ui.horizontal(|ui| {
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button(i18n.get("cli-chat-copy")).clicked() {
-                        let full_text = if q.is_empty() {
-                            a.clone()
-                        } else {
-                            format!(">>> {}\n\n{}", q, a)
-                        };
-                        ui.ctx().copy_text(full_text);
+
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.small_button(i18n.get("cli-chat-copy")).clicked() {
+                            ui.ctx().copy_text(display_content.to_string());
+                        }
+                    });
+                });
+            } else {
+                // Standard AI response rendering
+                ui.horizontal(|ui| {
+                    let role_label = if model_name.is_empty() { "AI" } else { model_name };
+                    ui.label(
+                        egui::RichText::new(role_label)
+                            .color(weak_color)
+                            .small()
+                            .strong(),
+                    );
+                    ui.label(
+                        egui::RichText::new(&timestamp)
+                            .color(weak_color)
+                            .small(),
+                    );
+                    // Token count only for the last AI response
+                    if is_last && out_tokens > 0 {
+                        ui.label(
+                            egui::RichText::new(format!("{} tokens", out_tokens))
+                                .color(weak_color)
+                                .small(),
+                        );
+                    }
+                    if is_last && is_streaming {
+                        ui.spinner();
                     }
                 });
-            });
+
+                if display_content.contains("____        __") && display_content.contains("CLI") {
+                    render_logo(ui, display_content, font_size, poly_color, credo_color);
+                } else {
+                    egui::Frame::new()
+                        .inner_margin(egui::Margin::symmetric(8, 4))
+                        .show(ui, |ui| {
+                            render_markdown(
+                                ui,
+                                display_content,
+                                font_size,
+                                &path_re,
+                                cache,
+                            );
+                        });
+                }
+                // Copy button after the AI message block
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.small_button(i18n.get("cli-chat-copy")).clicked() {
+                            let full_text = if q.is_empty() {
+                                display_content.to_string()
+                            } else {
+                                format!(">>> {}\n\n{}", q, display_content)
+                            };
+                            ui.ctx().copy_text(full_text);
+                        }
+                    });
+                });
+            }
         }
 
         ui.add_space(4.0);

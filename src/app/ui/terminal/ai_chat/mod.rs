@@ -70,7 +70,7 @@ pub fn show(
 pub fn handle_action(act: AiChatAction, ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>, i18n: &I18n) {
     match act {
         AiChatAction::Send => {
-            logic::send_query_to_agent(ws, i18n);
+            logic::send_query_to_agent(ws, shared, i18n);
         }
         AiChatAction::NewQuery => {
             let model = {

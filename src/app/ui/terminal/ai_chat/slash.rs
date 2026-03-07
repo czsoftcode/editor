@@ -35,6 +35,17 @@ const COMMANDS: &[SlashCommand] = &[
     SlashCommand { name: "settings", description: "Open settings" },
 ];
 
+/// Returns matching commands for autocomplete. Each item is (name, description).
+/// If filter is empty, returns all commands. Otherwise filters by prefix match on name.
+pub fn matching_commands(filter: &str) -> Vec<(&'static str, &'static str)> {
+    let lower = filter.to_lowercase();
+    COMMANDS
+        .iter()
+        .filter(|cmd| lower.is_empty() || cmd.name.starts_with(&lower))
+        .map(|cmd| (cmd.name, cmd.description))
+        .collect()
+}
+
 /// Main entry point for slash command dispatch.
 /// Called from `logic.rs` when prompt starts with `/`.
 pub fn dispatch(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
@@ -440,6 +451,7 @@ mod tests {
             slash_git_rx: None,
             slash_conversation_gen: 0,
             slash_build_gen: 0,
+            slash_autocomplete: Default::default(),
         };
         ws.ai.ollama.models = models;
         ws.ai.ollama.selected_model = selected.to_string();
@@ -517,6 +529,17 @@ mod tests {
             }
             _ => panic!("Expected Immediate result from /model with no models"),
         }
+    }
+
+    #[test]
+    fn test_matching_commands() {
+        let all = matching_commands("");
+        assert_eq!(all.len(), 7);
+        let filtered = matching_commands("he");
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].0, "help");
+        let none = matching_commands("xyz");
+        assert!(none.is_empty());
     }
 
     #[test]

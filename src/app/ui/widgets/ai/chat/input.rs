@@ -1,5 +1,19 @@
 use eframe::egui;
 
+/// State for slash command autocomplete popup.
+pub struct SlashAutocomplete {
+    /// Whether the popup is currently visible.
+    pub active: bool,
+    /// Currently selected index in the filtered list (0-based).
+    pub selected: usize,
+}
+
+impl Default for SlashAutocomplete {
+    fn default() -> Self {
+        Self { active: false, selected: 0 }
+    }
+}
+
 pub fn ui_input(
     ui: &mut egui::Ui,
     text: &mut String,
@@ -7,10 +21,11 @@ pub fn ui_input(
     hint: &str,
     history: &[String],
     history_index: &mut Option<usize>,
+    autocomplete: &mut SlashAutocomplete,
 ) -> (bool, egui::Response) {
     let mut send = false;
 
-    let (enter_pressed, shift, ctrl, j_pressed, up_pressed, down_pressed) = ui.input(|i| {
+    let (enter_pressed, shift, ctrl, j_pressed, up_pressed, down_pressed, tab_pressed, escape_pressed) = ui.input(|i| {
         (
             i.key_pressed(egui::Key::Enter),
             i.modifiers.shift,
@@ -18,43 +33,106 @@ pub fn ui_input(
             i.key_pressed(egui::Key::J),
             i.key_pressed(egui::Key::ArrowUp),
             i.key_pressed(egui::Key::ArrowDown),
+            i.key_pressed(egui::Key::Tab),
+            i.key_pressed(egui::Key::Escape),
         )
     });
 
-    if enter_pressed && !shift && !ctrl {
-        ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
-        if !text.trim().is_empty() {
-            send = true;
-            *history_index = None;
-        }
+    // Detect autocomplete activation: prompt starts with `/` and has no whitespace
+    if text.starts_with('/') && !text[1..].contains(char::is_whitespace) && text.len() > 0 {
+        autocomplete.active = true;
+    } else {
+        autocomplete.active = false;
+        autocomplete.selected = 0;
     }
 
-    if ctrl && j_pressed {
-        ui.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::J));
-        text.push('\n');
+    // Get matching commands when autocomplete is active
+    let matches = if autocomplete.active {
+        let filter = &text[1..]; // strip leading `/`
+        crate::app::ui::terminal::ai_chat::slash::matching_commands(filter)
+    } else {
+        Vec::new()
+    };
+
+    // Deactivate if no matches
+    if autocomplete.active && matches.is_empty() {
+        autocomplete.active = false;
+        autocomplete.selected = 0;
     }
 
-    if !history.is_empty() {
-        if up_pressed {
-            ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp));
-            let new_idx = match *history_index {
-                None => Some(history.len().saturating_sub(1)),
-                Some(idx) => Some(idx.saturating_sub(1)),
-            };
-            if let Some(idx) = new_idx {
-                *text = history[idx].clone();
-                *history_index = Some(idx);
+    // Clamp selected index
+    if autocomplete.active && autocomplete.selected >= matches.len() {
+        autocomplete.selected = matches.len().saturating_sub(1);
+    }
+
+    // Keyboard handling when autocomplete is active
+    if autocomplete.active && !matches.is_empty() {
+        if escape_pressed {
+            ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+            autocomplete.active = false;
+        } else if tab_pressed {
+            ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab));
+            let selected_cmd = matches[autocomplete.selected].0;
+            *text = format!("/{} ", selected_cmd);
+            autocomplete.active = false;
+        } else if enter_pressed && !shift && !ctrl {
+            ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+            let selected_cmd = matches[autocomplete.selected].0;
+            *text = format!("/{}", selected_cmd);
+            autocomplete.active = false;
+            if !text.trim().is_empty() {
+                send = true;
+                *history_index = None;
             }
-        } else if down_pressed {
-            ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown));
-            if let Some(idx) = *history_index {
-                if idx + 1 < history.len() {
-                    let next_idx = idx + 1;
-                    *text = history[next_idx].clone();
-                    *history_index = Some(next_idx);
-                } else {
-                    *text = String::new();
-                    *history_index = None;
+        } else {
+            if up_pressed {
+                ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp));
+                autocomplete.selected = autocomplete.selected.saturating_sub(1);
+            }
+            if down_pressed {
+                ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown));
+                if autocomplete.selected + 1 < matches.len() {
+                    autocomplete.selected += 1;
+                }
+            }
+        }
+    } else {
+        // Normal (non-autocomplete) key handling
+        if enter_pressed && !shift && !ctrl {
+            ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+            if !text.trim().is_empty() {
+                send = true;
+                *history_index = None;
+            }
+        }
+
+        if ctrl && j_pressed {
+            ui.input_mut(|i| i.consume_key(egui::Modifiers::CTRL, egui::Key::J));
+            text.push('\n');
+        }
+
+        if !history.is_empty() {
+            if up_pressed {
+                ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp));
+                let new_idx = match *history_index {
+                    None => Some(history.len().saturating_sub(1)),
+                    Some(idx) => Some(idx.saturating_sub(1)),
+                };
+                if let Some(idx) = new_idx {
+                    *text = history[idx].clone();
+                    *history_index = Some(idx);
+                }
+            } else if down_pressed {
+                ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown));
+                if let Some(idx) = *history_index {
+                    if idx + 1 < history.len() {
+                        let next_idx = idx + 1;
+                        *text = history[next_idx].clone();
+                        *history_index = Some(next_idx);
+                    } else {
+                        *text = String::new();
+                        *history_index = None;
+                    }
                 }
             }
         }

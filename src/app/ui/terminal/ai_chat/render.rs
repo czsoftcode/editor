@@ -374,6 +374,7 @@ fn render_chat_content(
                                 &i18n.get("cli-chat-placeholder-prompt"),
                                 &ws.ai.chat.history,
                                 &mut ws.ai.chat.history_index,
+                                &mut ws.slash_autocomplete,
                             )
                         })
                         .inner;

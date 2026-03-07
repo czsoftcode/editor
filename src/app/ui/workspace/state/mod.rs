@@ -16,6 +16,7 @@ use crate::app::ui::editor::Editor;
 use crate::app::ui::file_tree::FileTree;
 use crate::app::ui::git_status::GitVisualStatus;
 use crate::app::ui::terminal::Terminal;
+use crate::app::ui::widgets::ai::chat::input::SlashAutocomplete;
 use crate::app::ui::widgets::command_palette::CommandPaletteState;
 use crate::watcher::{FileWatcher, ProjectWatcher};
 
@@ -150,6 +151,10 @@ pub struct WorkspaceState {
     pub slash_conversation_gen: u64,
     /// Generation at which the slash build was started (to detect if conversation was cleared).
     pub slash_build_gen: u64,
+
+    // --- Slash autocomplete state (Phase 19) ---
+    /// Autocomplete popup state for slash commands.
+    pub slash_autocomplete: SlashAutocomplete,
 }
 
 impl Drop for WorkspaceState {

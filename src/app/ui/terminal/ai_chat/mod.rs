@@ -2,6 +2,7 @@ pub mod approval;
 pub mod inspector;
 pub mod logic;
 pub mod render;
+pub mod slash;
 
 use crate::app::cli::AiManager;
 use crate::app::types::{AppShared, FocusedPanel};

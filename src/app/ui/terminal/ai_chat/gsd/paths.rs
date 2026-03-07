@@ -2,28 +2,53 @@ use std::path::{Path, PathBuf};
 
 /// Returns the .planning directory path.
 pub fn planning_dir(root: &Path) -> PathBuf {
-    todo!()
+    root.join(".planning")
 }
 
 /// Returns the phase directory path: root/.planning/phases/{number}-{slug}
 pub fn phase_dir(root: &Path, number: &str, slug: &str) -> PathBuf {
-    todo!()
+    root.join(".planning")
+        .join("phases")
+        .join(format!("{}-{}", number, slug))
 }
 
 /// Returns the STATE.md path.
 pub fn state_path(root: &Path) -> PathBuf {
-    todo!()
+    root.join(".planning").join("STATE.md")
 }
 
 /// Returns the ROADMAP.md path.
 pub fn roadmap_path(root: &Path) -> PathBuf {
-    todo!()
+    root.join(".planning").join("ROADMAP.md")
 }
 
 /// Converts a name to a URL-safe slug.
 /// Lowercase, replace non-alphanum with '-', collapse multiple '-', trim '-'.
 pub fn slugify(name: &str) -> String {
-    todo!()
+    let mut slug = String::with_capacity(name.len());
+    for ch in name.chars() {
+        if ch.is_ascii_alphanumeric() {
+            slug.push(ch.to_ascii_lowercase());
+        } else {
+            slug.push('-');
+        }
+    }
+    // Collapse multiple dashes
+    let mut result = String::with_capacity(slug.len());
+    let mut prev_dash = false;
+    for ch in slug.chars() {
+        if ch == '-' {
+            if !prev_dash {
+                result.push('-');
+            }
+            prev_dash = true;
+        } else {
+            result.push(ch);
+            prev_dash = false;
+        }
+    }
+    // Trim leading/trailing dashes
+    result.trim_matches('-').to_string()
 }
 
 #[cfg(test)]

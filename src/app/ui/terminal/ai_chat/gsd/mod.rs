@@ -21,20 +21,62 @@ const GSD_SUBCOMMANDS: &[GsdSubcommand] = &[
 
 /// Main GSD dispatch — called from slash.rs with everything after `/gsd `.
 pub fn cmd_gsd(ws: &mut WorkspaceState, args: &str) -> SlashResult {
-    todo!()
+    let parts: Vec<&str> = args.splitn(2, char::is_whitespace).collect();
+    let sub = parts.first().map(|s| s.to_lowercase()).unwrap_or_default();
+    let sub_args = parts.get(1).unwrap_or(&"").trim();
+
+    // Guard: check .planning/ exists (except for help)
+    if sub != "help" && !sub.is_empty() {
+        if let Some(err) = check_planning_dir(&ws.root_path) {
+            return err;
+        }
+    }
+
+    match sub.as_str() {
+        "" | "help" => cmd_gsd_help(),
+        "state" => SlashResult::Immediate(
+            "GSD state commands are not yet implemented. Coming in Plan 20-03.".to_string()
+        ),
+        "progress" => SlashResult::Immediate(
+            "GSD progress display is not yet implemented. Coming in Plan 20-03.".to_string()
+        ),
+        "config" => config::cmd_config(ws, sub_args),
+        _ => SlashResult::Immediate(format!(
+            "Unknown GSD command: `{}`. Type `/gsd help` for available commands.", sub
+        )),
+    }
 }
 
 /// Returns matching GSD subcommands for autocomplete.
 pub fn matching_subcommands(filter: &str) -> Vec<(&'static str, &'static str)> {
-    todo!()
+    let lower = filter.to_lowercase();
+    GSD_SUBCOMMANDS
+        .iter()
+        .filter(|cmd| lower.is_empty() || cmd.name.starts_with(&lower))
+        .map(|cmd| (cmd.name, cmd.description))
+        .collect()
 }
 
 fn check_planning_dir(root: &Path) -> Option<SlashResult> {
-    todo!()
+    let planning = root.join(".planning");
+    if !planning.is_dir() {
+        Some(SlashResult::Immediate(
+            "No `.planning/` directory found in this project.\n\n\
+             To get started with GSD, create a `.planning/` directory with STATE.md and config.json."
+                .to_string(),
+        ))
+    } else {
+        None
+    }
 }
 
 fn cmd_gsd_help() -> SlashResult {
-    todo!()
+    let mut table = String::from("## GSD Commands\n\n| Subcommand | Description |\n|------------|-------------|\n");
+    for cmd in GSD_SUBCOMMANDS {
+        table.push_str(&format!("| /gsd {} | {} |\n", cmd.name, cmd.description));
+    }
+    table.push_str("\nUsage: `/gsd <subcommand> [args]`");
+    SlashResult::Immediate(table)
 }
 
 #[cfg(test)]
@@ -43,7 +85,6 @@ mod tests {
 
     #[test]
     fn test_cmd_gsd_help_empty_args() {
-        // cmd_gsd("", ws) should return help text
         let result = cmd_gsd_help();
         match result {
             SlashResult::Immediate(text) => {

@@ -405,6 +405,92 @@ fn render_chat_content(
         if send_via_kb {
             action = Some(AiChatAction::Send);
         }
+
+        // ── SLASH AUTOCOMPLETE POPUP ─────────────────────────────────────────
+        if ws.slash_autocomplete.active {
+            let filter = ws.ai.chat.prompt.strip_prefix('/').unwrap_or("").to_string();
+            let matches = crate::app::ui::terminal::ai_chat::slash::matching_commands(&filter);
+
+            if !matches.is_empty() {
+                // Clamp selected index
+                if ws.slash_autocomplete.selected >= matches.len() {
+                    ws.slash_autocomplete.selected = matches.len().saturating_sub(1);
+                }
+
+                // Calculate popup position above the input
+                let input_rect = resp.rect;
+                let popup_width = input_rect.width().min(350.0);
+                let line_height = font_size * 1.6;
+                let popup_height = (matches.len() as f32 * line_height).min(line_height * 7.0);
+                let popup_pos = egui::pos2(
+                    input_rect.left(),
+                    input_rect.top() - popup_height - 4.0,
+                );
+
+                egui::Area::new(egui::Id::new("slash_autocomplete"))
+                    .fixed_pos(popup_pos)
+                    .order(egui::Order::Foreground)
+                    .show(ui.ctx(), |ui| {
+                        egui::Frame::new()
+                            .fill(ui.visuals().window_fill)
+                            .stroke(ui.visuals().window_stroke)
+                            .corner_radius(4.0)
+                            .inner_margin(4.0)
+                            .shadow(ui.visuals().window_shadow)
+                            .show(ui, |ui| {
+                                ui.set_width(popup_width);
+                                for (i, (name, desc)) in matches.iter().enumerate() {
+                                    let is_selected = i == ws.slash_autocomplete.selected;
+                                    let bg = if is_selected {
+                                        ui.visuals().selection.bg_fill
+                                    } else {
+                                        egui::Color32::TRANSPARENT
+                                    };
+                                    let text_color = if is_selected {
+                                        ui.visuals().selection.stroke.color
+                                    } else {
+                                        ui.visuals().text_color()
+                                    };
+
+                                    let (rect, response) = ui.allocate_exact_size(
+                                        egui::vec2(popup_width, line_height),
+                                        egui::Sense::click(),
+                                    );
+                                    ui.painter().rect_filled(rect, 2.0, bg);
+
+                                    // Command name
+                                    let cmd_text = format!("/{}", name);
+                                    ui.painter().text(
+                                        rect.left_center() + egui::vec2(8.0, 0.0),
+                                        egui::Align2::LEFT_CENTER,
+                                        &cmd_text,
+                                        egui::FontId::monospace(font_size),
+                                        text_color,
+                                    );
+
+                                    // Description (after command name)
+                                    let desc_color = text_color.gamma_multiply(0.6);
+                                    ui.painter().text(
+                                        rect.left_center() + egui::vec2(120.0, 0.0),
+                                        egui::Align2::LEFT_CENTER,
+                                        desc,
+                                        egui::FontId::proportional(font_size * 0.9),
+                                        desc_color,
+                                    );
+
+                                    // Click to select
+                                    if response.clicked() {
+                                        ws.ai.chat.prompt = format!("/{}", name);
+                                        ws.slash_autocomplete.active = false;
+                                    }
+                                }
+                            });
+                    });
+            } else {
+                // No matches — hide popup
+                ws.slash_autocomplete.active = false;
+            }
+        }
     }
 
     // ── SETTINGS PANEL ────────────────────────────────────────────────────────

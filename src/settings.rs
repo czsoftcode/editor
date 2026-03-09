@@ -67,6 +67,14 @@ pub enum LightVariant {
     Sepia,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Debug, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SaveMode {
+    Automatic,
+    #[default]
+    Manual,
+}
+
 // ---------------------------------------------------------------------------
 // Settings — persistent application configuration
 // ---------------------------------------------------------------------------
@@ -85,6 +93,10 @@ pub struct Settings {
     /// Phase 3 will use this for per-variant panel colors.
     #[serde(default)]
     pub light_variant: LightVariant,
+
+    /// Save mode for editor files.
+    #[serde(default)]
+    pub save_mode: SaveMode,
 
     /// Default directory for new projects.
     #[serde(default = "default_project_path")]
@@ -170,6 +182,7 @@ impl Default for Settings {
             editor_font_size: default_editor_font_size(),
             dark_theme: default_dark_theme(),
             light_variant: LightVariant::default(),
+            save_mode: SaveMode::Manual,
             default_project_path: default_project_path(),
             lang: default_lang(),
             diff_side_by_side: false,

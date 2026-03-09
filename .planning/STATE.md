@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-09T19:27:27.072Z"
-last_activity: 2026-03-09 - Completed plan 24-01
+last_updated: "2026-03-09T19:36:40Z"
+last_activity: 2026-03-09 - Completed plan 24-02
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 25
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu — idle CPU zatez musi byt minimalni.
-**Current focus:** Phase 20 - GSD Core + State Engine
+**Current focus:** Phase 24 - Save Mode Foundation
 
 ## Current Position
 
 Phase: 24 of 26 (Save Mode Foundation)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-03-09 - Completed plan 24-01
+Last activity: 2026-03-09 - Completed plan 24-02
 
-Progress: [███░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -58,6 +58,9 @@ Recent decisions affecting current work:
 - [Phase 20]: ISO timestamp generation without chrono crate using Howard Hinnant date algorithm
 - [Phase 24]: SaveMode persistence uses snake_case serde values automatic/manual for stable TOML representation.
 - [Phase 24]: Missing save_mode in legacy settings defaults to Manual via serde default for backward compatibility.
+- [Phase 24-save-mode-foundation]: Ctrl+S prefers settings draft save when Settings modal is open; editor save remains default outside modal.
+- [Phase 24-save-mode-foundation]: Save mode change toast is emitted only after successful settings save and only when mode actually changed.
+- [Phase 24-save-mode-foundation]: Save mode labels/toasts/status are fully i18n-driven for language parity.
 
 ### Known Tech Debt
 
@@ -89,3 +92,4 @@ Recent decisions affecting current work:
 | Phase 20 P02 | 8min | 2 tasks | 7 files |
 | Phase 20 P03 | 3min | 2 tasks | 2 files |
 | Phase 24-save-mode-foundation P01 | 1min | 2 tasks | 1 files |
+| Phase 24-save-mode-foundation P02 | 6min | 3 tasks | 8 files |

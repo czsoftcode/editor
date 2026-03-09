@@ -4,7 +4,7 @@ use crate::app::ui::background::spawn_task;
 use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::i18n::I18n;
-use crate::settings::LightVariant;
+use crate::settings::{LightVariant, SaveMode};
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 
@@ -91,6 +91,22 @@ fn should_persist_settings_change(
     draft: &crate::settings::Settings,
 ) -> bool {
     original.map(|snapshot| snapshot != draft).unwrap_or(true)
+}
+
+fn save_mode_changed(
+    original: Option<&crate::settings::Settings>,
+    draft: &crate::settings::Settings,
+) -> bool {
+    original
+        .map(|snapshot| snapshot.save_mode != draft.save_mode)
+        .unwrap_or(false)
+}
+
+fn save_mode_toast_text(save_mode: &SaveMode) -> &'static str {
+    match save_mode {
+        SaveMode::Automatic => "Automatic Save enabled",
+        SaveMode::Manual => "Manual Save enabled",
+    }
 }
 
 fn apply_theme_preview(shared: &Arc<Mutex<AppShared>>, draft: &crate::settings::Settings) {
@@ -324,6 +340,22 @@ pub fn show(
                                     .step_by(1.0)
                                     .suffix(" px"),
                             );
+                            ui.add_space(16.0);
+
+                            ui.strong("Save mode");
+                            ui.add_space(4.0);
+                            ui.horizontal(|ui| {
+                                ui.radio_value(
+                                    &mut draft.save_mode,
+                                    SaveMode::Automatic,
+                                    "Automatic Save",
+                                );
+                                ui.radio_value(
+                                    &mut draft.save_mode,
+                                    SaveMode::Manual,
+                                    "Manual Save",
+                                );
+                            });
                         } else if selected_cat == "ai" {
                             ui.strong(
                                 egui::RichText::new(i18n.get("cli-settings-section")).size(18.0),
@@ -592,10 +624,19 @@ pub fn show(
     } else if save_requested {
         if let Some(draft) = ws.settings_draft.take() {
             let original_settings = ws.settings_original.clone();
+            let save_mode_was_changed = save_mode_changed(original_settings.as_ref(), &draft);
+            let mut saved_successfully = true;
             if should_persist_settings_change(original_settings.as_ref(), &draft) {
                 if let Err(err) = draft.try_save() {
+                    saved_successfully = false;
                     ws.toasts.push(crate::app::types::Toast::error(err));
                 }
+            }
+            if save_mode_was_changed && saved_successfully {
+                ws.toasts
+                    .push(crate::app::types::Toast::info(save_mode_toast_text(
+                        &draft.save_mode,
+                    )));
             }
             ws.wizard.path = draft.default_project_path.clone();
             let lang = draft.lang.clone();

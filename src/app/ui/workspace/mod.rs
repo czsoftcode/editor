@@ -41,6 +41,46 @@ fn save_mode_status_key(save_mode: &SaveMode) -> &'static str {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ManualSaveRequest {
+    SaveSettingsDraft,
+    SaveEditorFile,
+    ShowAlreadySavedInfo,
+    NoActiveTab,
+}
+
+fn manual_save_request(show_settings: bool, active_modified: Option<bool>) -> ManualSaveRequest {
+    if should_save_settings_draft_on_ctrl_s(show_settings) {
+        ManualSaveRequest::SaveSettingsDraft
+    } else {
+        match active_modified {
+            Some(true) => ManualSaveRequest::SaveEditorFile,
+            Some(false) => ManualSaveRequest::ShowAlreadySavedInfo,
+            None => ManualSaveRequest::NoActiveTab,
+        }
+    }
+}
+
+pub(super) fn handle_manual_save_action(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
+    match manual_save_request(ws.show_settings, ws.editor.active().map(|tab| tab.modified)) {
+        ManualSaveRequest::SaveSettingsDraft => modal_dialogs::save_settings_draft(ws, shared, i18n),
+        ManualSaveRequest::SaveEditorFile => {
+            let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
+            if let Some(err) = ws.editor.save(i18n, &internal_save) {
+                ws.toasts.push(Toast::error(err));
+            }
+        }
+        ManualSaveRequest::ShowAlreadySavedInfo => {
+            ws.toasts.push(Toast::info(i18n.get("info-file-already-saved")));
+        }
+        ManualSaveRequest::NoActiveTab => {}
+    }
+}
+
 pub(crate) fn render_workspace(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
@@ -149,14 +189,7 @@ pub(crate) fn render_workspace(
     }
 
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        if should_save_settings_draft_on_ctrl_s(ws.show_settings) {
-            modal_dialogs::save_settings_draft(ws, shared, i18n);
-        } else {
-            let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
-            if let Some(err) = ws.editor.save(i18n, &internal_save) {
-                ws.toasts.push(Toast::error(err));
-            }
-        }
+        handle_manual_save_action(ws, shared, i18n);
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) {
         ws.editor.clear();

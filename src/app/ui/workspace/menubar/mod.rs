@@ -6,6 +6,7 @@ use eframe::egui;
 
 use super::super::super::build_runner::run_build_check;
 use super::super::super::types::{AppAction, AppShared, Toast};
+use super::handle_manual_save_action;
 use super::state::{FilePicker, WorkspaceState};
 
 mod edit;
@@ -81,16 +82,8 @@ pub(super) fn process_menu_actions(
             .actions
             .push(AppAction::QuitAll);
     }
-    if actions.save
-        && let Some(err) = ws.editor.save(
-            i18n,
-            &shared
-                .lock()
-                .expect("Failed to lock AppShared for save action")
-                .is_internal_save,
-        )
-    {
-        ws.toasts.push(Toast::error(err));
+    if actions.save {
+        handle_manual_save_action(ws, shared, i18n);
     }
     if actions.close_file {
         ws.editor.clear();

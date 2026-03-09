@@ -642,6 +642,47 @@ default_project_path = "/home/test"
     }
 
     #[test]
+    fn save_mode_default_is_manual() {
+        let s = Settings::default();
+        assert_eq!(s.save_mode, SaveMode::Manual);
+    }
+
+    #[test]
+    fn save_mode_toml_roundtrip_for_both_variants() {
+        let automatic_settings = Settings {
+            save_mode: SaveMode::Automatic,
+            ..Default::default()
+        };
+        let automatic_toml = toml::to_string(&automatic_settings).expect("serialize automatic");
+        let automatic_restored: Settings =
+            toml::from_str(&automatic_toml).expect("deserialize automatic");
+        assert_eq!(automatic_restored.save_mode, SaveMode::Automatic);
+
+        let manual_settings = Settings {
+            save_mode: SaveMode::Manual,
+            ..Default::default()
+        };
+        let manual_toml = toml::to_string(&manual_settings).expect("serialize manual");
+        let manual_restored: Settings = toml::from_str(&manual_toml).expect("deserialize manual");
+        assert_eq!(manual_restored.save_mode, SaveMode::Manual);
+    }
+
+    #[test]
+    fn save_mode_backward_compat_without_field_defaults_to_manual() {
+        let old_toml = r#"
+editor_font_size = 14.0
+dark_theme = true
+default_project_path = ""
+lang = "en"
+diff_side_by_side = false
+privacy_accepted = false
+auto_show_ai_diff = false
+"#;
+        let s: Settings = toml::from_str(old_toml).expect("deserialize old settings");
+        assert_eq!(s.save_mode, SaveMode::Manual);
+    }
+
+    #[test]
     fn settings_backward_compat_no_ai_fields() {
         // Simulate old TOML format without AI fields
         let old_toml = r#"
@@ -654,6 +695,7 @@ privacy_accepted = false
 auto_show_ai_diff = false
 "#;
         let s: Settings = toml::from_str(old_toml).unwrap();
+        assert_eq!(s.save_mode, SaveMode::Manual);
         assert_eq!(s.ollama_base_url, "http://localhost:11434");
         assert!(s.ollama_api_key.is_empty());
         assert!(s.ai_default_model.is_empty());

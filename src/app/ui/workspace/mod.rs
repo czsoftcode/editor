@@ -506,10 +506,20 @@ fn render_semantic_indexing_modal(
 #[cfg(test)]
 mod tests {
     use super::should_save_settings_draft_on_ctrl_s;
+    use crate::settings::SaveMode;
 
     #[test]
     fn ctrl_s_is_routed_to_settings_when_settings_modal_is_open() {
         assert!(should_save_settings_draft_on_ctrl_s(true));
         assert!(!should_save_settings_draft_on_ctrl_s(false));
+    }
+
+    #[test]
+    fn status_bar_uses_mode_specific_save_mode_key() {
+        assert_eq!(
+            save_mode_status_key(&SaveMode::Automatic),
+            "statusbar-save-mode-automatic"
+        );
+        assert_eq!(save_mode_status_key(&SaveMode::Manual), "statusbar-save-mode-manual");
     }
 }

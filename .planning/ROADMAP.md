@@ -58,7 +58,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 24. Save Mode Foundation | 2/4 | In Progress|  | - |
+| 24. Save Mode Foundation | 3/4 | In Progress|  | - |
 | 25. Unsaved Close Guard | v1.3.0 | 0/? | Not started | - |
 | 26. Save UX Polish + Regression Hardening | v1.3.0 | 0/? | Not started | - |
 

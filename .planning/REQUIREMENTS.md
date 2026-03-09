@@ -9,9 +9,9 @@ Requirements for Save Modes + Unsaved Changes Guard milestone. Each maps to road
 
 ### Save Controls
 
-- [ ] **SAVE-01**: User can press `Ctrl+S` and save currently active file tab.
-- [ ] **SAVE-02**: Manual save updates tab/file state from modified to saved without requiring focus change.
-- [ ] **SAVE-03**: Save errors are surfaced in UI (toast/message) and do not silently fail.
+- [x] **SAVE-01**: User can press `Ctrl+S` and save currently active file tab.
+- [x] **SAVE-02**: Manual save updates tab/file state from modified to saved without requiring focus change.
+- [x] **SAVE-03**: Save errors are surfaced in UI (toast/message) and do not silently fail.
 
 ### Save Mode Settings
 
@@ -47,9 +47,9 @@ Requirements for Save Modes + Unsaved Changes Guard milestone. Each maps to road
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SAVE-01 | Phase 24 | Pending |
-| SAVE-02 | Phase 24 | Pending |
-| SAVE-03 | Phase 24 | Pending |
+| SAVE-01 | Phase 24 | Complete |
+| SAVE-02 | Phase 24 | Complete |
+| SAVE-03 | Phase 24 | Complete |
 | MODE-01 | Phase 24 | Complete |
 | MODE-02 | Phase 24 | Complete |
 | MODE-03 | Phase 24 | Complete |

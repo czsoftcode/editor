@@ -283,6 +283,10 @@ conflict-hover-keep = Ponechat rozpracované změny v editoru; verze na disku bu
 conflict-hover-dismiss = Zavřít upozornění bez provedení změn
 
 md-open-external = ↗ Otevřít v externím prohlížeči
+md-layout-pod-sebou = Pod sebou
+md-layout-vedle-sebe = Vedle sebe
+md-layout-jenom-kod = Jenom kód
+md-layout-jenom-nahled = Jenom náhled
 
 svg-open-external = ↗ Otevřít náhled v prohlížeči
 

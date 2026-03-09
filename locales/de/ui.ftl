@@ -276,6 +276,10 @@ conflict-hover-keep = In Arbeit befindliche Änderungen im Editor behalten; die 
 conflict-hover-dismiss = Benachrichtigung schließen, ohne Änderungen vorzunehmen
 
 md-open-external = ⧉ In externem Betrachter öffnen
+md-layout-pod-sebou = Untereinander
+md-layout-vedle-sebe = Nebeneinander
+md-layout-jenom-kod = Nur Code
+md-layout-jenom-nahled = Nur Vorschau
 
 svg-open-external = ⧉ Vorschau im Betrachter öffnen
 

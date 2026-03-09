@@ -293,6 +293,10 @@ conflict-hover-keep = Оставить текущие изменения в ре
 conflict-hover-dismiss = Закрыть уведомление без внесения изменений
 
 md-open-external = ↗ Открыть во внешнем браузере
+md-layout-pod-sebou = Друг под другом
+md-layout-vedle-sebe = Рядом
+md-layout-jenom-kod = Только код
+md-layout-jenom-nahled = Только предпросмотр
 
 svg-open-external = ↗ Открыть предпросмотр в браузере
 

@@ -73,6 +73,17 @@ pub enum MarkdownLayoutMode {
     JenomNahled,
 }
 
+impl MarkdownLayoutMode {
+    pub fn next(self) -> Self {
+        match self {
+            Self::PodSebou => Self::VedleSebe,
+            Self::VedleSebe => Self::JenomKod,
+            Self::JenomKod => Self::JenomNahled,
+            Self::JenomNahled => Self::PodSebou,
+        }
+    }
+}
+
 #[derive(PartialEq)]
 pub enum SaveStatus {
     None,

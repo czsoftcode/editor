@@ -4,6 +4,23 @@ use crate::app::ui::editor::*;
 use eframe::egui;
 use std::time::Instant;
 
+fn markdown_preview_bg(visuals: &egui::Visuals) -> egui::Color32 {
+    if visuals.dark_mode {
+        egui::Color32::from_rgb(33, 37, 43)
+    } else {
+        visuals.faint_bg_color
+    }
+}
+
+fn markdown_layout_label(mode: MarkdownLayoutMode, i18n: &crate::i18n::I18n) -> String {
+    match mode {
+        MarkdownLayoutMode::PodSebou => i18n.get("md-layout-pod-sebou"),
+        MarkdownLayoutMode::VedleSebe => i18n.get("md-layout-vedle-sebe"),
+        MarkdownLayoutMode::JenomKod => i18n.get("md-layout-jenom-kod"),
+        MarkdownLayoutMode::JenomNahled => i18n.get("md-layout-jenom-nahled"),
+    }
+}
+
 impl Editor {
     // --- Markdown split view ---
 
@@ -53,6 +70,10 @@ impl Editor {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button(i18n.get("md-open-external")).clicked() {
                         let _ = std::process::Command::new("xdg-open").arg(&path).spawn();
+                    }
+                    let layout_label = markdown_layout_label(self.md_layout_mode, i18n);
+                    if ui.button(layout_label).clicked() {
+                        self.md_layout_mode = self.md_layout_mode.next();
                     }
                 });
             });
@@ -219,9 +240,9 @@ impl Editor {
                 ui.label(egui::RichText::new(i18n.get("editor-preview-label")).strong());
                 ui.separator();
 
-                // Return to dark theme with dynamic font
+                // Preview panel respektuje aktivni light/dark tema.
                 let preview_frame = egui::Frame::new()
-                    .fill(egui::Color32::from_rgb(33, 37, 43)) // Dark gray background
+                    .fill(markdown_preview_bg(ui.visuals()))
                     .inner_margin(egui::Margin::same(24));
 
                 preview_frame.show(ui, |ui| {
@@ -302,5 +323,18 @@ impl Editor {
         self.process_lsp_interactions(ui, idx, &tab_path, lsp_client, &saved_response, i18n);
 
         clicked
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::markdown_preview_bg;
+    use eframe::egui::Visuals;
+
+    #[test]
+    fn markdown_preview_bg_is_light_in_light_mode() {
+        let visuals = Visuals::light();
+        let bg = markdown_preview_bg(&visuals);
+        assert_ne!(bg, eframe::egui::Color32::from_rgb(33, 37, 43));
     }
 }

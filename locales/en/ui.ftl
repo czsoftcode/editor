@@ -275,6 +275,10 @@ conflict-hover-keep = Keep your work-in-progress changes in the editor; the vers
 conflict-hover-dismiss = Close notification without making changes
 
 md-open-external = ↗ Open in External Viewer
+md-layout-pod-sebou = Stacked
+md-layout-vedle-sebe = Side by side
+md-layout-jenom-kod = Code only
+md-layout-jenom-nahled = Preview only
 
 svg-open-external = ↗ Open preview in viewer
 

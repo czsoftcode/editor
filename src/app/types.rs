@@ -212,3 +212,28 @@ pub(crate) fn path_env() -> String {
 pub(crate) fn default_wizard_path() -> String {
     crate::settings::default_project_path()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::SAVE_ERROR_DEDUPE_WINDOW;
+    use super::save_error_dedupe_decision;
+
+    #[test]
+    fn save_error_dedupe_suppresses_repeated_error_within_window() {
+        let now = std::time::Instant::now();
+        let old = now - (SAVE_ERROR_DEDUPE_WINDOW + std::time::Duration::from_millis(1));
+        let recent = now - std::time::Duration::from_millis(5);
+
+        assert!(save_error_dedupe_decision(None, now, SAVE_ERROR_DEDUPE_WINDOW));
+        assert!(save_error_dedupe_decision(
+            Some(old),
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
+        assert!(!save_error_dedupe_decision(
+            Some(recent),
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
+    }
+}

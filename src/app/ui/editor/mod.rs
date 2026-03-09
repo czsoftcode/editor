@@ -65,6 +65,14 @@ pub struct EditorUiResult {
     pub diff_action: Option<(String, DiffAction, String)>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarkdownLayoutMode {
+    PodSebou,
+    VedleSebe,
+    JenomKod,
+    JenomNahled,
+}
+
 #[derive(PartialEq)]
 pub enum SaveStatus {
     None,
@@ -124,6 +132,7 @@ pub struct Editor {
     pub(crate) current_match: Option<usize>,
     pub(crate) search_focus_requested: bool,
     pub(crate) md_split_ratio: f32,
+    pub(crate) md_layout_mode: MarkdownLayoutMode,
     pub(crate) tab_scroll_x: f32,
     pub(crate) scroll_to_active: bool,
     /// Pending jump to (line, column) — 1-based
@@ -180,6 +189,7 @@ impl Editor {
             current_match: None,
             search_focus_requested: false,
             md_split_ratio: 0.5,
+            md_layout_mode: MarkdownLayoutMode::PodSebou,
             tab_scroll_x: 0.0,
             scroll_to_active: false,
             pending_jump: None,

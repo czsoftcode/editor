@@ -43,6 +43,7 @@ error-unknown = An unknown error occurred.
 
 ## Informational messages (toast info)
 info-file-saved = File saved.
+info-file-already-saved = File is already saved.
 info-project-created = Project { $name } created successfully.
 info-session-restored =
     { $count ->

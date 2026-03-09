@@ -43,6 +43,7 @@ error-unknown = Vyskytla sa neznáma chyba.
 
 ## Informačné správy (toast info)
 info-file-saved = Súbor uložený.
+info-file-already-saved = Súbor je už uložený.
 info-project-created = Projekt { $name } bol úspešne vytvorený.
 info-session-restored =
     { $count ->

@@ -24,8 +24,13 @@ use crate::app::cli::provider::StreamEvent;
 use crate::app::cli::state::OllamaConnectionStatus;
 use crate::app::cli::ollama::spawn_model_info_fetch;
 use crate::app::cli::{OllamaStatus, spawn_ollama_check};
+use crate::settings::SaveMode;
 use crate::watcher::{FileEvent, FsChange};
 use std::sync::Mutex;
+
+fn should_run_autosave(save_mode: SaveMode) -> bool {
+    matches!(save_mode, SaveMode::Automatic)
+}
 
 /// Processes events from watchers, build results, and autosave.
 pub(super) fn process_background_events(
@@ -592,11 +597,10 @@ pub(super) fn process_background_events(
         ws.slash_git_rx = None;
     }
 
-    if ws.external_change_conflict.is_none() {
-        if let Some(err) = ws.editor.try_autosave(
-            i18n,
-            &shared.lock().expect("lock").is_internal_save,
-        ) {
+    let save_mode = { shared.lock().expect("lock").settings.save_mode.clone() };
+    if should_run_autosave(save_mode) && ws.external_change_conflict.is_none() {
+        let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
+        if let Some(err) = ws.editor.try_autosave(i18n, &internal_save) {
             ws.toasts.push(Toast::error(err));
         }
     }

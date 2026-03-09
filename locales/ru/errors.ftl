@@ -43,6 +43,7 @@ error-unknown = Произошла неизвестная ошибка.
 
 ## Информационные сообщения (toast info)
 info-file-saved = Файл сохранён.
+info-file-already-saved = Файл уже сохранён.
 info-project-created = Проект { $name } успешно создан.
 info-session-restored =
     { $count ->

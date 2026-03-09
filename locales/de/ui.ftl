@@ -44,6 +44,8 @@ statusbar-saving = Speichern…
 statusbar-saved = Gespeichert
 statusbar-lsp-initializing = LSP wird initialisiert...
 statusbar-filetype-plain = Nur Text
+statusbar-save-mode-automatic = Auto-Speichern
+statusbar-save-mode-manual = Manuelles Speichern
 
 ## Editor-Tabs
 tab-unsaved-indicator = ●
@@ -213,6 +215,11 @@ settings-light-variant = Helle Variante
 settings-light-variant-warm-ivory = Warmes Elfenbein
 settings-light-variant-cool-gray = Kühles Grau
 settings-light-variant-sepia = Sepia
+settings-save-mode-title = Speichermodus
+settings-save-mode-automatic = Automatisches Speichern
+settings-save-mode-manual = Manuelles Speichern
+settings-save-mode-toast-automatic = Automatisches Speichern aktiviert
+settings-save-mode-toast-manual = Manuelles Speichern aktiviert
 settings-auto-show-diff = KI-Änderungsvorschau automatisch öffnen
 settings-conflict-title = Einstellungen geändert
 settings-conflict-message = Einstellungen wurden in einem anderen Fenster aktualisiert. Neu laden oder aktuellen Entwurf beibehalten?

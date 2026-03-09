@@ -44,6 +44,8 @@ statusbar-saving = Saving…
 statusbar-saved = Saved
 statusbar-lsp-initializing = LSP initializing...
 statusbar-filetype-plain = Plain Text
+statusbar-save-mode-automatic = Auto Save
+statusbar-save-mode-manual = Manual Save
 
 ## Editor tabs
 tab-unsaved-indicator = ●
@@ -213,6 +215,11 @@ settings-light-variant = Light variant
 settings-light-variant-warm-ivory = Warm Ivory
 settings-light-variant-cool-gray = Cool Gray
 settings-light-variant-sepia = Sepia
+settings-save-mode-title = Save mode
+settings-save-mode-automatic = Automatic Save
+settings-save-mode-manual = Manual Save
+settings-save-mode-toast-automatic = Automatic Save enabled
+settings-save-mode-toast-manual = Manual Save enabled
 settings-auto-show-diff = Automatically open AI change preview
 settings-conflict-title = Settings Changed
 settings-conflict-message = Settings were updated in another window. Reload to see the latest values, or keep editing your current draft.

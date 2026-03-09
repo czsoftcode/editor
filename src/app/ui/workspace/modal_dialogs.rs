@@ -88,6 +88,10 @@ pub(super) fn render_dialogs(
     any_interacted
 }
 
-pub(super) fn save_settings_draft(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
-    settings::save_settings_draft(ws, shared);
+pub(super) fn save_settings_draft(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
+    settings::save_settings_draft(ws, shared, i18n);
 }

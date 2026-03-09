@@ -55,6 +55,8 @@ statusbar-saving = Ukladám…
 statusbar-saved = Uložené
 statusbar-lsp-initializing = LSP sa inicializuje...
 statusbar-filetype-plain = Obyčajný text
+statusbar-save-mode-automatic = Auto ukladanie
+statusbar-save-mode-manual = Ručné ukladanie
 
 ## Záložky editora
 tab-unsaved-indicator = ●
@@ -217,6 +219,11 @@ settings-light-variant = Svetlá varianta
 settings-light-variant-warm-ivory = Teplá slonovinová
 settings-light-variant-cool-gray = Studená sivá
 settings-light-variant-sepia = Sepia
+settings-save-mode-title = Režim ukladania
+settings-save-mode-automatic = Automatické ukladanie
+settings-save-mode-manual = Ručné ukladanie
+settings-save-mode-toast-automatic = Automatické ukladanie zapnuté
+settings-save-mode-toast-manual = Ručné ukladanie zapnuté
 settings-auto-show-diff = Automaticky otvárať náhľad zmien AI
 settings-diff-mode = Zobrazenie AI Diffu
 settings-diff-inline = Zlúčené (+ / -)

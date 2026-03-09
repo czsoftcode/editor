@@ -102,10 +102,17 @@ fn save_mode_changed(
         .unwrap_or(false)
 }
 
-fn save_mode_toast_text(save_mode: &SaveMode) -> &'static str {
+fn save_mode_label_key(save_mode: &SaveMode) -> &'static str {
     match save_mode {
-        SaveMode::Automatic => "Automatic Save enabled",
-        SaveMode::Manual => "Manual Save enabled",
+        SaveMode::Automatic => "settings-save-mode-automatic",
+        SaveMode::Manual => "settings-save-mode-manual",
+    }
+}
+
+fn save_mode_toast_key(save_mode: &SaveMode) -> &'static str {
+    match save_mode {
+        SaveMode::Automatic => "settings-save-mode-toast-automatic",
+        SaveMode::Manual => "settings-save-mode-toast-manual",
     }
 }
 
@@ -139,7 +146,11 @@ pub(super) fn discard_settings_draft(ws: &mut WorkspaceState, shared: &Arc<Mutex
     ws.settings_draft = None;
 }
 
-pub(super) fn save_settings_draft(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
+pub(super) fn save_settings_draft(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &I18n,
+) {
     if let Some(draft) = ws.settings_draft.take() {
         let original_settings = ws.settings_original.clone();
         let save_mode_was_changed = save_mode_changed(original_settings.as_ref(), &draft);
@@ -152,9 +163,9 @@ pub(super) fn save_settings_draft(ws: &mut WorkspaceState, shared: &Arc<Mutex<Ap
         }
         if save_mode_was_changed && saved_successfully {
             ws.toasts
-                .push(crate::app::types::Toast::info(save_mode_toast_text(
+                .push(crate::app::types::Toast::info(i18n.get(save_mode_toast_key(
                     &draft.save_mode,
-                )));
+                ))));
         }
         ws.wizard.path = draft.default_project_path.clone();
         let lang = draft.lang.clone();
@@ -388,18 +399,18 @@ pub fn show(
                             );
                             ui.add_space(16.0);
 
-                            ui.strong("Save mode");
+                            ui.strong(i18n.get("settings-save-mode-title"));
                             ui.add_space(4.0);
                             ui.horizontal(|ui| {
                                 ui.radio_value(
                                     &mut draft.save_mode,
                                     SaveMode::Automatic,
-                                    "Automatic Save",
+                                    i18n.get(save_mode_label_key(&SaveMode::Automatic)),
                                 );
                                 ui.radio_value(
                                     &mut draft.save_mode,
                                     SaveMode::Manual,
-                                    "Manual Save",
+                                    i18n.get(save_mode_label_key(&SaveMode::Manual)),
                                 );
                             });
                         } else if selected_cat == "ai" {
@@ -668,7 +679,7 @@ pub fn show(
         discard_settings_draft(ws, shared);
         ws.show_settings = false;
     } else if save_requested {
-        save_settings_draft(ws, shared);
+        save_settings_draft(ws, shared, i18n);
     }
 }
 
@@ -699,12 +710,24 @@ mod tests {
     #[test]
     fn save_mode_toast_text_is_mode_specific() {
         assert_eq!(
-            save_mode_toast_text(&SaveMode::Automatic),
-            "Automatic Save enabled"
+            save_mode_toast_key(&SaveMode::Automatic),
+            "settings-save-mode-toast-automatic"
         );
         assert_eq!(
-            save_mode_toast_text(&SaveMode::Manual),
-            "Manual Save enabled"
+            save_mode_toast_key(&SaveMode::Manual),
+            "settings-save-mode-toast-manual"
+        );
+    }
+
+    #[test]
+    fn save_mode_label_keys_are_mode_specific() {
+        assert_eq!(
+            save_mode_label_key(&SaveMode::Automatic),
+            "settings-save-mode-automatic"
+        );
+        assert_eq!(
+            save_mode_label_key(&SaveMode::Manual),
+            "settings-save-mode-manual"
         );
     }
 }

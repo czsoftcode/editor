@@ -28,9 +28,17 @@ use crate::tr;
 pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
 use modal_dialogs::render_dialogs;
+use crate::settings::SaveMode;
 
 fn should_save_settings_draft_on_ctrl_s(show_settings: bool) -> bool {
     show_settings
+}
+
+fn save_mode_status_key(save_mode: &SaveMode) -> &'static str {
+    match save_mode {
+        SaveMode::Automatic => "statusbar-save-mode-automatic",
+        SaveMode::Manual => "statusbar-save-mode-manual",
+    }
 }
 
 pub(crate) fn render_workspace(
@@ -142,7 +150,7 @@ pub(crate) fn render_workspace(
 
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
         if should_save_settings_draft_on_ctrl_s(ws.show_settings) {
-            modal_dialogs::save_settings_draft(ws, shared);
+            modal_dialogs::save_settings_draft(ws, shared, i18n);
         } else {
             let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
             if let Some(err) = ws.editor.save(i18n, &internal_save) {
@@ -261,9 +269,14 @@ pub(crate) fn render_workspace(
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
         .show(ctx, |ui| {
+            let active_save_mode = shared.lock().expect("lock").settings.save_mode.clone();
             ui.horizontal(|ui| {
                 ws.editor
                     .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
+                ui.separator();
+                ui.label(
+                    egui::RichText::new(i18n.get(save_mode_status_key(&active_save_mode))).small(),
+                );
                 let is_indexing = ws
                     .semantic_index
                     .lock()
@@ -506,6 +519,7 @@ fn render_semantic_indexing_modal(
 #[cfg(test)]
 mod tests {
     use super::should_save_settings_draft_on_ctrl_s;
+    use super::save_mode_status_key;
     use crate::settings::SaveMode;
 
     #[test]

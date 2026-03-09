@@ -45,6 +45,8 @@ statusbar-saving = Ukládání…
 statusbar-saved = Uloženo
 statusbar-lsp-initializing = LSP se inicializuje...
 statusbar-filetype-plain = Prostý text
+statusbar-save-mode-automatic = Auto ukládání
+statusbar-save-mode-manual = Ruční ukládání
 
 ## Záložky editoru
 tab-unsaved-indicator = ●
@@ -218,6 +220,11 @@ settings-light-variant = Světlá varianta
 settings-light-variant-warm-ivory = Teplá slonová kost
 settings-light-variant-cool-gray = Studená šedá
 settings-light-variant-sepia = Sépie
+settings-save-mode-title = Režim ukládání
+settings-save-mode-automatic = Automatické ukládání
+settings-save-mode-manual = Ruční ukládání
+settings-save-mode-toast-automatic = Automatické ukládání zapnuto
+settings-save-mode-toast-manual = Ruční ukládání zapnuto
 settings-auto-show-diff = Automaticky otevírat náhled změn AI
 settings-conflict-title = Nastavení změněno
 settings-conflict-message = Nastavení bylo upraveno v jiném okně. Načtěte nejnovější hodnoty, nebo pokračujte v aktuálním návrhu.

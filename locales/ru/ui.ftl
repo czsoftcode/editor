@@ -55,6 +55,8 @@ statusbar-saving = Сохранение…
 statusbar-saved = Сохранено
 statusbar-lsp-initializing = LSP инициализируется...
 statusbar-filetype-plain = Обычный текст
+statusbar-save-mode-automatic = Автосохранение
+statusbar-save-mode-manual = Ручное сохранение
 
 ## Вкладки редактора
 tab-unsaved-indicator = ●
@@ -232,6 +234,11 @@ settings-light-variant = Вариант светлой темы
 settings-light-variant-warm-ivory = Теплая слоновая кость
 settings-light-variant-cool-gray = Холодный серый
 settings-light-variant-sepia = Сепия
+settings-save-mode-title = Режим сохранения
+settings-save-mode-automatic = Автосохранение
+settings-save-mode-manual = Ручное сохранение
+settings-save-mode-toast-automatic = Автосохранение включено
+settings-save-mode-toast-manual = Ручное сохранение включено
 settings-auto-show-diff = Автоматически открывать предпросмотр изменений ИИ
 settings-diff-mode = Отображение AI Diff
 settings-diff-inline = Совмещенное (+ / -)

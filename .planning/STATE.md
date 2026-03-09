@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-03-07T02:25:07.676Z"
-last_activity: 2026-03-07 — Completed 20-03 State & progress commands
+status: completed
+last_updated: "2026-03-07T04:49:50.514Z"
+last_activity: 2026-03-09 - Completed quick task 7: md nahled je nyni pod sebou. udelej mi vedle tlacitka Otevřít v externím prohlížeči jeste toggle tlacitko na zmeny nahledu - Pod sebou | Vedle sebe | Jenom kód | Jenom náhled - kter bude prepinat cyklicky mezi mody zobrazeni
 progress:
   total_phases: 5
   completed_phases: 2
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 Phase: 20 of 23 (GSD Core + State Engine) -- COMPLETE
 Plan: 3 of 3 in current phase
 Status: Complete
-Last activity: 2026-03-07 — Completed 20-03 State & progress commands
+Last activity: 2026-03-09 - Completed quick task 7: md nahled je nyni pod sebou. udelej mi vedle tlacitka Otevřít v externím prohlížeči jeste toggle tlacitko na zmeny nahledu - Pod sebou | Vedle sebe | Jenom kód | Jenom náhled - kter bude prepinat cyklicky mezi mody zobrazeni
 
 Progress: [██████████] 100%
 
@@ -81,8 +81,8 @@ Recent decisions affecting current work:
 | 4 | Move compile bar next to build bar, remove compile_bar.rs | 2026-03-06 | 9c4b211 | [4-move-compile-bar-next-to-build-bar-remov](./quick/4-move-compile-bar-next-to-build-bar-remov/) |
 | 5 | Revert validate_ollama_url port restriction + Bearer auth | 2026-03-06 | 3cc63a0 | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
 | 6 | Rename src/app/ai to src/app/cli + update 48 path references | 2026-03-06 | eecb769 | [6-rename-ai-to-cli](./quick/6-rename-ai-to-cli/) |
+| 7 | md nahled je nyni pod sebou. udelej mi vedle tlacitka Otevřít v externím prohlížeči jeste toggle tlacitko na zmeny nahledu - Pod sebou \| Vedle sebe \| Jenom kód \| Jenom náhled - kter bude prepinat cyklicky mezi mody zobrazeni | 2026-03-09 | 84c7067 | [7-md-nahled-je-nyni-pod-sebou-udelej-mi-ve](./quick/7-md-nahled-je-nyni-pod-sebou-udelej-mi-ve/) |
 | Phase 19 P03 | 1min | 1 tasks | 1 files |
 | Phase 20 P01 | 7min | 3 tasks | 1 files |
 | Phase 20 P02 | 8min | 2 tasks | 7 files |
 | Phase 20 P03 | 3min | 2 tasks | 2 files |
-

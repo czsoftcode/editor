@@ -518,6 +518,8 @@ fn render_semantic_indexing_modal(
 
 #[cfg(test)]
 mod tests {
+    use super::ManualSaveRequest;
+    use super::manual_save_request;
     use super::should_save_settings_draft_on_ctrl_s;
     use super::save_mode_status_key;
     use crate::settings::SaveMode;
@@ -535,5 +537,18 @@ mod tests {
             "statusbar-save-mode-automatic"
         );
         assert_eq!(save_mode_status_key(&SaveMode::Manual), "statusbar-save-mode-manual");
+    }
+
+    #[test]
+    fn manual_save_request_routes_to_settings_when_modal_is_open() {
+        assert_eq!(manual_save_request(true, Some(true)), ManualSaveRequest::SaveSettingsDraft);
+    }
+
+    #[test]
+    fn manual_save_request_returns_noop_for_non_modified_tab() {
+        assert_eq!(
+            manual_save_request(false, Some(false)),
+            ManualSaveRequest::ShowAlreadySavedInfo
+        );
     }
 }

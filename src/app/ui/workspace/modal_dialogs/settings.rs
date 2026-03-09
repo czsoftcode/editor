@@ -139,6 +139,52 @@ pub(super) fn discard_settings_draft(ws: &mut WorkspaceState, shared: &Arc<Mutex
     ws.settings_draft = None;
 }
 
+pub(super) fn save_settings_draft(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
+    if let Some(draft) = ws.settings_draft.take() {
+        let original_settings = ws.settings_original.clone();
+        let save_mode_was_changed = save_mode_changed(original_settings.as_ref(), &draft);
+        let mut saved_successfully = true;
+        if should_persist_settings_change(original_settings.as_ref(), &draft) {
+            if let Err(err) = draft.try_save() {
+                saved_successfully = false;
+                ws.toasts.push(crate::app::types::Toast::error(err));
+            }
+        }
+        if save_mode_was_changed && saved_successfully {
+            ws.toasts
+                .push(crate::app::types::Toast::info(save_mode_toast_text(
+                    &draft.save_mode,
+                )));
+        }
+        ws.wizard.path = draft.default_project_path.clone();
+        let lang = draft.lang.clone();
+        let mut s = shared.lock().expect("lock");
+
+        // Immediate agent registry update
+        s.registry.agents.clear();
+        for ca in &draft.custom_agents {
+            let cmd = if ca.args.is_empty() {
+                ca.command.clone()
+            } else {
+                format!("{} {}", ca.command, ca.args)
+            };
+            s.registry.agents.register(crate::app::registry::Agent {
+                id: ca.name.to_lowercase().replace(' ', "_"),
+                label: ca.name.clone(),
+                command: cmd,
+                context_aware: true,
+            });
+        }
+
+        s.settings = Arc::new(draft);
+        s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
+        s.settings_version
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+    ws.settings_original = None;
+    ws.show_settings = false;
+}
+
 pub fn show(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
@@ -622,49 +668,7 @@ pub fn show(
         discard_settings_draft(ws, shared);
         ws.show_settings = false;
     } else if save_requested {
-        if let Some(draft) = ws.settings_draft.take() {
-            let original_settings = ws.settings_original.clone();
-            let save_mode_was_changed = save_mode_changed(original_settings.as_ref(), &draft);
-            let mut saved_successfully = true;
-            if should_persist_settings_change(original_settings.as_ref(), &draft) {
-                if let Err(err) = draft.try_save() {
-                    saved_successfully = false;
-                    ws.toasts.push(crate::app::types::Toast::error(err));
-                }
-            }
-            if save_mode_was_changed && saved_successfully {
-                ws.toasts
-                    .push(crate::app::types::Toast::info(save_mode_toast_text(
-                        &draft.save_mode,
-                    )));
-            }
-            ws.wizard.path = draft.default_project_path.clone();
-            let lang = draft.lang.clone();
-            let mut s = shared.lock().expect("lock");
-
-            // Immediate agent registry update
-            s.registry.agents.clear();
-            for ca in &draft.custom_agents {
-                let cmd = if ca.args.is_empty() {
-                    ca.command.clone()
-                } else {
-                    format!("{} {}", ca.command, ca.args)
-                };
-                s.registry.agents.register(crate::app::registry::Agent {
-                    id: ca.name.to_lowercase().replace(' ', "_"),
-                    label: ca.name.clone(),
-                    command: cmd,
-                    context_aware: true,
-                });
-            }
-
-            s.settings = Arc::new(draft);
-            s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
-            s.settings_version
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        }
-        ws.settings_original = None;
-        ws.show_settings = false;
+        save_settings_draft(ws, shared);
     }
 }
 

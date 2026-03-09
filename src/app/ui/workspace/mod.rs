@@ -29,6 +29,10 @@ pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
 use modal_dialogs::render_dialogs;
 
+fn should_save_settings_draft_on_ctrl_s(show_settings: bool) -> bool {
+    show_settings
+}
+
 pub(crate) fn render_workspace(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
@@ -137,12 +141,13 @@ pub(crate) fn render_workspace(
     }
 
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
-        if let Some(err) = ws
-            .editor
-            .save(i18n, &internal_save)
-        {
-            ws.toasts.push(Toast::error(err));
+        if should_save_settings_draft_on_ctrl_s(ws.show_settings) {
+            modal_dialogs::save_settings_draft(ws, shared);
+        } else {
+            let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
+            if let Some(err) = ws.editor.save(i18n, &internal_save) {
+                ws.toasts.push(Toast::error(err));
+            }
         }
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) {
@@ -500,6 +505,8 @@ fn render_semantic_indexing_modal(
 
 #[cfg(test)]
 mod tests {
+    use super::should_save_settings_draft_on_ctrl_s;
+
     #[test]
     fn ctrl_s_is_routed_to_settings_when_settings_modal_is_open() {
         assert!(should_save_settings_draft_on_ctrl_s(true));

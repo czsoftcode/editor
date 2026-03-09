@@ -15,7 +15,7 @@
 
 **Milestone Goal:** Zpřehlednit a zbezpečnit ukládání v editoru přes Ctrl+S default, přepínání auto/manual režimu a ochranu proti ztrátě neuložené práce při zavírání tabu nebo aplikace.
 
-- [ ] **Phase 24: Save Mode Foundation** — Ctrl+S default, save mode settings persistence, runtime apply
+- [x] **Phase 24: Save Mode Foundation** — Ctrl+S default, save mode settings persistence, runtime apply (completed 2026-03-09)
 - [ ] **Phase 25: Unsaved Close Guard** — tab close + app close confirm flow, save/discard/cancel decision handling
 - [ ] **Phase 26: Save UX Polish + Regression Hardening** — mode/status UI clarity, edge-case coverage, regression tests
 
@@ -58,7 +58,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 24. Save Mode Foundation | 3/4 | In Progress|  | - |
+| 24. Save Mode Foundation | v1.3.0 | 4/4 | Complete | 2026-03-09 |
 | 25. Unsaved Close Guard | v1.3.0 | 0/? | Not started | - |
 | 26. Save UX Polish + Regression Hardening | v1.3.0 | 0/? | Not started | - |
 

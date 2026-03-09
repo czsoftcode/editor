@@ -626,3 +626,40 @@ pub fn show(
         ws.show_settings = false;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::{SaveMode, Settings};
+
+    #[test]
+    fn save_mode_change_is_detected_against_original_snapshot() {
+        let original = Settings {
+            save_mode: SaveMode::Manual,
+            ..Settings::default()
+        };
+        let unchanged = Settings {
+            save_mode: SaveMode::Manual,
+            ..Settings::default()
+        };
+        let changed = Settings {
+            save_mode: SaveMode::Automatic,
+            ..Settings::default()
+        };
+
+        assert!(!save_mode_changed(Some(&original), &unchanged));
+        assert!(save_mode_changed(Some(&original), &changed));
+    }
+
+    #[test]
+    fn save_mode_toast_text_is_mode_specific() {
+        assert_eq!(
+            save_mode_toast_text(&SaveMode::Automatic),
+            "Automatic Save enabled"
+        );
+        assert_eq!(
+            save_mode_toast_text(&SaveMode::Manual),
+            "Manual Save enabled"
+        );
+    }
+}

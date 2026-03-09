@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-last_updated: "2026-03-07T04:49:50.514Z"
-last_activity: 2026-03-09 - Completed quick task 7: md nahled je nyni pod sebou. udelej mi vedle tlacitka Otevřít v externím prohlížeči jeste toggle tlacitko na zmeny nahledu - Pod sebou | Vedle sebe | Jenom kód | Jenom náhled - kter bude prepinat cyklicky mezi mody zobrazeni
+milestone: v1.3.0
+milestone_name: Save Modes + Unsaved Changes Guard
+status: defining_requirements
+last_updated: "2026-03-09T00:00:00.000Z"
+last_activity: 2026-03-09 - Milestone v1.3.0 started
 progress:
-  total_phases: 5
-  completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -24,12 +24,12 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 
 ## Current Position
 
-Phase: 20 of 23 (GSD Core + State Engine) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Complete
-Last activity: 2026-03-09 - Completed quick task 7: md nahled je nyni pod sebou. udelej mi vedle tlacitka Otevřít v externím prohlížeči jeste toggle tlacitko na zmeny nahledu - Pod sebou | Vedle sebe | Jenom kód | Jenom náhled - kter bude prepinat cyklicky mezi mody zobrazeni
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-09 - Milestone v1.3.0 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 

@@ -835,3 +835,15 @@ pub(crate) fn fetch_git_status(
         parse_git_status(&root, &raw)
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::should_run_autosave;
+    use crate::settings::SaveMode;
+
+    #[test]
+    fn should_run_autosave_only_in_automatic_mode() {
+        assert!(should_run_autosave(SaveMode::Automatic));
+        assert!(!should_run_autosave(SaveMode::Manual));
+    }
+}

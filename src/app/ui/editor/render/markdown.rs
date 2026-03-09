@@ -81,219 +81,184 @@ impl Editor {
         }
 
         let available = ui.available_size();
-        let handle_h = 6.0_f32;
-        let top_h = (available.y * self.md_split_ratio)
-            .max(50.0)
-            .min(available.y - handle_h - 50.0);
-        let bottom_h = (available.y - top_h - handle_h).max(50.0);
-
+        let handle_size = 6.0_f32;
         let mut editor_scroll_pct = 0.0;
         let mut editor_max_scroll = 0.0;
-
-        // Top half: Editor
-        ui.allocate_ui_with_layout(
-            egui::vec2(available.x, top_h),
-            egui::Layout::top_down(egui::Align::LEFT),
-            |ui| {
-                ui.label(egui::RichText::new("Editor").strong());
-                ui.separator();
-
-                let frame = egui::Frame::new()
-                    .fill(bg)
-                    .inner_margin(egui::Margin::same(8));
-
-                frame.show(ui, |ui| {
-                    if !is_readonly {
-                        self.handle_smart_typing(ui, edit_id, idx);
-                    }
-                    let scroll_y = self.tabs[idx].scroll_offset;
-
-                    let scroll_output = egui::ScrollArea::both()
-                        .id_salt(("md_editor_scroll", &tab_path))
-                        .auto_shrink([false, false])
-                        .vertical_scroll_offset(scroll_y)
-                        .show(ui, |ui| {
-                            let highlighter = &self.highlighter;
-                            let search_matches = &self.search_matches;
-                            let tab = &mut self.tabs[idx];
-
-                            // TRICK: If readonly, we pass a temporary copy of the string to TextEdit.
-                            // This way it remains interactive (cursor, selection, shortcuts for movement),
-                            // but changes are never saved back to the tab.
-                            let mut temp_content;
-                            let content_to_edit = if is_readonly {
-                                temp_content = tab.content.clone();
-                                &mut temp_content
-                            } else {
-                                &mut tab.content
-                            };
-
-                            let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                                let job_arc = highlighter.highlight(
-                                    text,
-                                    &ext,
-                                    &fname,
-                                    Self::current_editor_font_size(ui),
-                                    theme_name,
-                                );
-                                // Cloned for dynamic overlays (wrap, search).
-                                let mut job = (*job_arc).clone();
-                                job.wrap.max_width = wrap_width;
-                                apply_search_highlights(&mut job, search_matches, current_match);
-                                ui.fonts(|f| f.layout_job(job))
-                            };
-
-                            let line_count = content_to_edit.lines().count().max(1)
-                                + if content_to_edit.ends_with('\n') {
-                                    1
-                                } else {
-                                    0
-                                };
-                            let gutter_width = Self::gutter_width(ui, line_count);
-
-                            ui.horizontal_top(|ui| {
-                                let (gutter_rect, _) = ui.allocate_exact_size(
-                                    egui::vec2(gutter_width, ui.available_height()),
-                                    egui::Sense::hover(),
-                                );
-
-                                let response = egui::TextEdit::multiline(content_to_edit)
-                                    .id(edit_id)
-                                    .font(egui::TextStyle::Monospace)
-                                    .code_editor()
-                                    .interactive(true)
-                                    .desired_width(f32::INFINITY)
-                                    .layouter(&mut layouter)
-                                    .show(ui);
-
-                                Self::paint_line_numbers(
-                                    ui,
-                                    &response,
-                                    gutter_rect,
-                                    diagnostics_for_file,
-                                );
-                                Self::paint_squiggles(ui, &response, diagnostics_for_file);
-
-                                if dialog_open {
-                                    if response.response.clicked() {
-                                        clicked = true;
-                                    }
-                                } else if response.response.clicked()
-                                    || response.response.has_focus()
-                                {
-                                    clicked = true;
-                                }
-                                if response.response.changed() && !is_readonly {
-                                    tab.modified = true;
-                                    tab.last_edit = Some(Instant::now());
-                                    tab.save_status = SaveStatus::Modified;
-                                    tab.lsp_version += 1;
-                                    content_changed = true;
-                                }
-                                saved_response = Some(response);
-                            });
-                        });
-
-                    self.tabs[idx].scroll_offset = scroll_output.state.offset.y;
-                    editor_max_scroll =
-                        (scroll_output.content_size.y - scroll_output.inner_rect.height()).max(0.0);
-                    if editor_max_scroll > 0.0 {
-                        editor_scroll_pct = self.tabs[idx].scroll_offset / editor_max_scroll;
-                    }
-                });
-            },
-        );
-
-        // Resizing handle
-        let (handle_rect, handle_response) =
-            ui.allocate_exact_size(egui::vec2(available.x, handle_h), egui::Sense::drag());
-        let handle_color = if handle_response.hovered() || handle_response.dragged() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
-            egui::Color32::from_rgb(100, 140, 200)
-        } else {
-            egui::Color32::from_rgb(55, 60, 70)
-        };
-        ui.painter().rect_filled(handle_rect, 0.0, handle_color);
-        let dot_y = handle_rect.center().y;
-        let dot_r = 1.5_f32;
-        for dx in [-6.0_f32, 0.0, 6.0] {
-            ui.painter().circle_filled(
-                egui::pos2(handle_rect.center().x + dx, dot_y),
-                dot_r,
-                egui::Color32::from_rgb(160, 170, 190),
-            );
-        }
-        if handle_response.dragged() {
-            let delta = handle_response.drag_delta().y;
-            self.md_split_ratio =
-                ((self.md_split_ratio * available.y + delta) / available.y).clamp(0.1, 0.9);
-        }
-
-        // Bottom half: Preview
         let mut preview_scroll_pct = 0.0;
         let mut preview_max_scroll = 0.0;
+        let mut sync_scrolling = false;
+        let split_axis = |total: f32, ratio: f32| -> (f32, f32) {
+            let usable = (total - handle_size).max(0.0);
+            if usable <= 100.0 {
+                let half = usable / 2.0;
+                (half, half)
+            } else {
+                let first = (usable * ratio).clamp(50.0, usable - 50.0);
+                (first, usable - first)
+            }
+        };
 
-        ui.allocate_ui_with_layout(
-            egui::vec2(available.x, bottom_h),
-            egui::Layout::top_down(egui::Align::LEFT),
-            |ui| {
-                ui.label(egui::RichText::new(i18n.get("editor-preview-label")).strong());
-                ui.separator();
+        let preview_header = i18n.get("editor-preview-label");
+        match self.md_layout_mode {
+            MarkdownLayoutMode::PodSebou => {
+                let (top_h, bottom_h) = split_axis(available.y, self.md_split_ratio);
+                let (scroll_pct, max_scroll) = self.render_markdown_editor_panel(
+                    ui,
+                    egui::vec2(available.x, top_h),
+                    idx,
+                    &tab_path,
+                    edit_id,
+                    bg,
+                    &ext,
+                    &fname,
+                    current_match,
+                    diagnostics_for_file,
+                    is_readonly,
+                    theme_name,
+                    dialog_open,
+                    &mut clicked,
+                    &mut saved_response,
+                    &mut content_changed,
+                );
+                editor_scroll_pct = scroll_pct;
+                editor_max_scroll = max_scroll;
 
-                // Preview panel respektuje aktivni light/dark tema.
-                let preview_frame = egui::Frame::new()
-                    .fill(markdown_preview_bg(ui.visuals()))
-                    .inner_margin(egui::Margin::same(24));
+                let (handle_rect, handle_response) =
+                    ui.allocate_exact_size(egui::vec2(available.x, handle_size), egui::Sense::drag());
+                let handle_color = if handle_response.hovered() || handle_response.dragged() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+                    egui::Color32::from_rgb(100, 140, 200)
+                } else {
+                    egui::Color32::from_rgb(55, 60, 70)
+                };
+                ui.painter().rect_filled(handle_rect, 0.0, handle_color);
+                let dot_y = handle_rect.center().y;
+                for dx in [-6.0_f32, 0.0, 6.0] {
+                    ui.painter().circle_filled(
+                        egui::pos2(handle_rect.center().x + dx, dot_y),
+                        1.5,
+                        egui::Color32::from_rgb(160, 170, 190),
+                    );
+                }
+                if handle_response.dragged() {
+                    let delta = handle_response.drag_delta().y;
+                    let usable = (available.y - handle_size).max(1.0);
+                    self.md_split_ratio =
+                        ((self.md_split_ratio * usable + delta) / usable).clamp(0.1, 0.9);
+                }
 
-                preview_frame.show(ui, |ui| {
-                    // Dynamic font adaptation based on editor settings
-                    let font_size = Self::current_editor_font_size(ui);
+                let (scroll_pct, max_scroll) = self.render_markdown_preview_panel(
+                    ui,
+                    egui::vec2(available.x, bottom_h),
+                    idx,
+                    Some(&preview_header),
+                );
+                preview_scroll_pct = scroll_pct;
+                preview_max_scroll = max_scroll;
+                sync_scrolling = true;
+            }
+            MarkdownLayoutMode::VedleSebe => {
+                let (left_w, right_w) = split_axis(available.x, self.md_split_ratio);
+                ui.horizontal(|ui| {
+                    let (scroll_pct, max_scroll) = self.render_markdown_editor_panel(
+                        ui,
+                        egui::vec2(left_w, available.y),
+                        idx,
+                        &tab_path,
+                        edit_id,
+                        bg,
+                        &ext,
+                        &fname,
+                        current_match,
+                        diagnostics_for_file,
+                        is_readonly,
+                        theme_name,
+                        dialog_open,
+                        &mut clicked,
+                        &mut saved_response,
+                        &mut content_changed,
+                    );
+                    editor_scroll_pct = scroll_pct;
+                    editor_max_scroll = max_scroll;
 
-                    if let Some(body) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Body) {
-                        body.size = font_size;
+                    let (handle_rect, handle_response) = ui.allocate_exact_size(
+                        egui::vec2(handle_size, available.y),
+                        egui::Sense::drag(),
+                    );
+                    let handle_color = if handle_response.hovered() || handle_response.dragged() {
+                        ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
+                        egui::Color32::from_rgb(100, 140, 200)
+                    } else {
+                        egui::Color32::from_rgb(55, 60, 70)
+                    };
+                    ui.painter().rect_filled(handle_rect, 0.0, handle_color);
+                    let dot_x = handle_rect.center().x;
+                    for dy in [-6.0_f32, 0.0, 6.0] {
+                        ui.painter().circle_filled(
+                            egui::pos2(dot_x, handle_rect.center().y + dy),
+                            1.5,
+                            egui::Color32::from_rgb(160, 170, 190),
+                        );
                     }
-                    if let Some(heading) = ui
-                        .style_mut()
-                        .text_styles
-                        .get_mut(&egui::TextStyle::Heading)
-                    {
-                        heading.size = font_size * 1.4;
+                    if handle_response.dragged() {
+                        let delta = handle_response.drag_delta().x;
+                        let usable = (available.x - handle_size).max(1.0);
+                        self.md_split_ratio =
+                            ((self.md_split_ratio * usable + delta) / usable).clamp(0.1, 0.9);
                     }
 
-                    let md_scroll_offset = self.tabs[idx].md_scroll_offset;
-
-                    let preview_scroll_output = egui::ScrollArea::vertical()
-                        .id_salt("md_preview_scroll")
-                        .auto_shrink([false, false])
-                        .vertical_scroll_offset(md_scroll_offset)
-                        .show(ui, |ui| {
-                            let tab = &mut self.tabs[idx];
-                            let content = &tab.content;
-                            Self::render_markdown_preview(ui, &mut tab.md_cache, content);
-                        });
-
-                    let tab = &mut self.tabs[idx];
-                    tab.md_scroll_offset = preview_scroll_output.state.offset.y;
-                    preview_max_scroll = (preview_scroll_output.content_size.y
-                        - preview_scroll_output.inner_rect.height())
-                    .max(0.0);
-                    if preview_max_scroll > 0.0 {
-                        preview_scroll_pct = tab.md_scroll_offset / preview_max_scroll;
-                    }
+                    let (scroll_pct, max_scroll) = self.render_markdown_preview_panel(
+                        ui,
+                        egui::vec2(right_w, available.y),
+                        idx,
+                        Some(&preview_header),
+                    );
+                    preview_scroll_pct = scroll_pct;
+                    preview_max_scroll = max_scroll;
                 });
-            },
-        );
+                sync_scrolling = true;
+            }
+            MarkdownLayoutMode::JenomKod => {
+                let (scroll_pct, max_scroll) = self.render_markdown_editor_panel(
+                    ui,
+                    available,
+                    idx,
+                    &tab_path,
+                    edit_id,
+                    bg,
+                    &ext,
+                    &fname,
+                    current_match,
+                    diagnostics_for_file,
+                    is_readonly,
+                    theme_name,
+                    dialog_open,
+                    &mut clicked,
+                    &mut saved_response,
+                    &mut content_changed,
+                );
+                editor_scroll_pct = scroll_pct;
+                editor_max_scroll = max_scroll;
+            }
+            MarkdownLayoutMode::JenomNahled => {
+                let (scroll_pct, max_scroll) =
+                    self.render_markdown_preview_panel(ui, available, idx, Some(&preview_header));
+                preview_scroll_pct = scroll_pct;
+                preview_max_scroll = max_scroll;
+            }
+        }
 
-        // Proportional Sync
-        let tab = &mut self.tabs[idx];
-        if tab.scroll_offset != prev_editor_scroll {
-            // Editor scrolled -> update preview offset proportionally
-            tab.md_scroll_offset =
-                (editor_scroll_pct * preview_max_scroll).clamp(0.0, preview_max_scroll);
-        } else if tab.md_scroll_offset != prev_preview_scroll {
-            // Preview scrolled -> update editor offset proportionally
-            tab.scroll_offset =
-                (preview_scroll_pct * editor_max_scroll).clamp(0.0, editor_max_scroll);
+        if sync_scrolling {
+            let tab = &mut self.tabs[idx];
+            if tab.scroll_offset != prev_editor_scroll {
+                // Editor scrolled -> update preview offset proportionally
+                tab.md_scroll_offset =
+                    (editor_scroll_pct * preview_max_scroll).clamp(0.0, preview_max_scroll);
+            } else if tab.md_scroll_offset != prev_preview_scroll {
+                // Preview scrolled -> update editor offset proportionally
+                tab.scroll_offset =
+                    (preview_scroll_pct * editor_max_scroll).clamp(0.0, editor_max_scroll);
+            }
         }
 
         if let Some(lsp) = lsp_client {
@@ -323,6 +288,185 @@ impl Editor {
         self.process_lsp_interactions(ui, idx, &tab_path, lsp_client, &saved_response, i18n);
 
         clicked
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn render_markdown_editor_panel(
+        &mut self,
+        ui: &mut egui::Ui,
+        size: egui::Vec2,
+        idx: usize,
+        tab_path: &std::path::Path,
+        edit_id: egui::Id,
+        bg: egui::Color32,
+        ext: &str,
+        fname: &str,
+        current_match: Option<usize>,
+        diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>,
+        is_readonly: bool,
+        theme_name: &str,
+        dialog_open: bool,
+        clicked: &mut bool,
+        saved_response: &mut Option<egui::text_edit::TextEditOutput>,
+        content_changed: &mut bool,
+    ) -> (f32, f32) {
+        let mut editor_scroll_pct = 0.0;
+        let mut editor_max_scroll = 0.0;
+        ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::LEFT), |ui| {
+            ui.label(egui::RichText::new("Editor").strong());
+            ui.separator();
+
+            let frame = egui::Frame::new().fill(bg).inner_margin(egui::Margin::same(8));
+
+            frame.show(ui, |ui| {
+                if !is_readonly {
+                    self.handle_smart_typing(ui, edit_id, idx);
+                }
+                let scroll_y = self.tabs[idx].scroll_offset;
+
+                let scroll_output = egui::ScrollArea::both()
+                    .id_salt(("md_editor_scroll", tab_path))
+                    .auto_shrink([false, false])
+                    .vertical_scroll_offset(scroll_y)
+                    .show(ui, |ui| {
+                        let highlighter = &self.highlighter;
+                        let search_matches = &self.search_matches;
+                        let tab = &mut self.tabs[idx];
+
+                        // TRICK: If readonly, we pass a temporary copy of the string to TextEdit.
+                        // This way it remains interactive (cursor, selection, shortcuts for movement),
+                        // but changes are never saved back to the tab.
+                        let mut temp_content;
+                        let content_to_edit = if is_readonly {
+                            temp_content = tab.content.clone();
+                            &mut temp_content
+                        } else {
+                            &mut tab.content
+                        };
+
+                        let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                            let job_arc = highlighter.highlight(
+                                text,
+                                ext,
+                                fname,
+                                Self::current_editor_font_size(ui),
+                                theme_name,
+                            );
+                            // Cloned for dynamic overlays (wrap, search).
+                            let mut job = (*job_arc).clone();
+                            job.wrap.max_width = wrap_width;
+                            apply_search_highlights(&mut job, search_matches, current_match);
+                            ui.fonts(|f| f.layout_job(job))
+                        };
+
+                        let line_count = content_to_edit.lines().count().max(1)
+                            + if content_to_edit.ends_with('\n') { 1 } else { 0 };
+                        let gutter_width = Self::gutter_width(ui, line_count);
+
+                        ui.horizontal_top(|ui| {
+                            let (gutter_rect, _) = ui.allocate_exact_size(
+                                egui::vec2(gutter_width, ui.available_height()),
+                                egui::Sense::hover(),
+                            );
+
+                            let response = egui::TextEdit::multiline(content_to_edit)
+                                .id(edit_id)
+                                .font(egui::TextStyle::Monospace)
+                                .code_editor()
+                                .interactive(true)
+                                .desired_width(f32::INFINITY)
+                                .layouter(&mut layouter)
+                                .show(ui);
+
+                            Self::paint_line_numbers(ui, &response, gutter_rect, diagnostics_for_file);
+                            Self::paint_squiggles(ui, &response, diagnostics_for_file);
+
+                            if dialog_open {
+                                if response.response.clicked() {
+                                    *clicked = true;
+                                }
+                            } else if response.response.clicked() || response.response.has_focus() {
+                                *clicked = true;
+                            }
+                            if response.response.changed() && !is_readonly {
+                                tab.modified = true;
+                                tab.last_edit = Some(Instant::now());
+                                tab.save_status = SaveStatus::Modified;
+                                tab.lsp_version += 1;
+                                *content_changed = true;
+                            }
+                            *saved_response = Some(response);
+                        });
+                    });
+
+                self.tabs[idx].scroll_offset = scroll_output.state.offset.y;
+                editor_max_scroll = (scroll_output.content_size.y - scroll_output.inner_rect.height())
+                    .max(0.0);
+                if editor_max_scroll > 0.0 {
+                    editor_scroll_pct = self.tabs[idx].scroll_offset / editor_max_scroll;
+                }
+            });
+        });
+
+        (editor_scroll_pct, editor_max_scroll)
+    }
+
+    fn render_markdown_preview_panel(
+        &mut self,
+        ui: &mut egui::Ui,
+        size: egui::Vec2,
+        idx: usize,
+        header_label: Option<&str>,
+    ) -> (f32, f32) {
+        let mut preview_scroll_pct = 0.0;
+        let mut preview_max_scroll = 0.0;
+        ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::LEFT), |ui| {
+            if let Some(label) = header_label {
+                ui.label(egui::RichText::new(label).strong());
+                ui.separator();
+            }
+
+            // Preview panel respektuje aktivni light/dark tema.
+            let preview_frame = egui::Frame::new()
+                .fill(markdown_preview_bg(ui.visuals()))
+                .inner_margin(egui::Margin::same(24));
+
+            preview_frame.show(ui, |ui| {
+                // Dynamic font adaptation based on editor settings
+                let font_size = Self::current_editor_font_size(ui);
+
+                if let Some(body) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Body) {
+                    body.size = font_size;
+                }
+                if let Some(heading) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Heading)
+                {
+                    heading.size = font_size * 1.4;
+                }
+
+                let md_scroll_offset = self.tabs[idx].md_scroll_offset;
+
+                let preview_scroll_output = egui::ScrollArea::vertical()
+                    .id_salt("md_preview_scroll")
+                    .auto_shrink([false, false])
+                    .vertical_scroll_offset(md_scroll_offset)
+                    .show(ui, |ui| {
+                        let tab = &mut self.tabs[idx];
+                        let content = &tab.content;
+                        Self::render_markdown_preview(ui, &mut tab.md_cache, content);
+                    });
+
+                let tab = &mut self.tabs[idx];
+                tab.md_scroll_offset = preview_scroll_output.state.offset.y;
+                preview_max_scroll = (preview_scroll_output.content_size.y
+                    - preview_scroll_output.inner_rect.height())
+                .max(0.0);
+                if preview_max_scroll > 0.0 {
+                    preview_scroll_pct = tab.md_scroll_offset / preview_max_scroll;
+                }
+            });
+        });
+
+        (preview_scroll_pct, preview_max_scroll)
     }
 }
 

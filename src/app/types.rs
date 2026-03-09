@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 // ---------------------------------------------------------------------------
 // Build / Runner Profiles
@@ -190,6 +192,38 @@ impl Toast {
     pub(crate) fn is_expired(&self) -> bool {
         self.created.elapsed().as_secs() >= 4
     }
+}
+
+pub(crate) const SAVE_ERROR_DEDUPE_WINDOW: Duration = Duration::from_millis(1500);
+static SAVE_ERROR_LAST_SEEN: OnceLock<Mutex<std::collections::HashMap<String, Instant>>> =
+    OnceLock::new();
+
+pub(crate) fn save_error_dedupe_decision(
+    last_seen: Option<Instant>,
+    now: Instant,
+    window: Duration,
+) -> bool {
+    match last_seen {
+        None => true,
+        Some(prev) => now.duration_since(prev) > window,
+    }
+}
+
+pub(crate) fn should_emit_save_error_toast(error_key: &str) -> bool {
+    let now = Instant::now();
+    let mut seen = SAVE_ERROR_LAST_SEEN
+        .get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+        .lock()
+        .expect("Failed to lock save error dedupe map");
+    let should_emit =
+        save_error_dedupe_decision(seen.get(error_key).copied(), now, SAVE_ERROR_DEDUPE_WINDOW);
+    if should_emit {
+        seen.insert(error_key.to_string(), now);
+    }
+
+    let retention = SAVE_ERROR_DEDUPE_WINDOW + SAVE_ERROR_DEDUPE_WINDOW;
+    seen.retain(|_, ts| now.duration_since(*ts) <= retention);
+    should_emit
 }
 
 // ---------------------------------------------------------------------------

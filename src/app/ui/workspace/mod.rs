@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use eframe::egui;
 
 use super::super::build_runner::run_build_check;
-use super::super::types::{AppShared, FocusedPanel, Toast};
+use super::super::types::{AppShared, FocusedPanel, Toast, should_emit_save_error_toast};
 use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{render_file_picker, render_project_search_dialog};
@@ -71,7 +71,9 @@ pub(super) fn handle_manual_save_action(
         ManualSaveRequest::SaveEditorFile => {
             let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
             if let Some(err) = ws.editor.save(i18n, &internal_save) {
-                ws.toasts.push(Toast::error(err));
+                if should_emit_save_error_toast(&err) {
+                    ws.toasts.push(Toast::error(err));
+                }
             }
         }
         ManualSaveRequest::ShowAlreadySavedInfo => {

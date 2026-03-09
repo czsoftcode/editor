@@ -17,7 +17,7 @@ where
     rx
 }
 
-use super::super::types::{AppShared, Toast};
+use super::super::types::{AppShared, Toast, should_emit_save_error_toast};
 use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
 use crate::app::cli::provider::StreamEvent;
@@ -601,7 +601,9 @@ pub(super) fn process_background_events(
     if should_run_autosave(save_mode) && ws.external_change_conflict.is_none() {
         let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
         if let Some(err) = ws.editor.try_autosave(i18n, &internal_save) {
-            ws.toasts.push(Toast::error(err));
+            if should_emit_save_error_toast(&err) {
+                ws.toasts.push(Toast::error(err));
+            }
         }
     }
 

@@ -498,3 +498,11 @@ fn render_semantic_indexing_modal(
         });
 }
 
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn ctrl_s_is_routed_to_settings_when_settings_modal_is_open() {
+        assert!(should_save_settings_draft_on_ctrl_s(true));
+        assert!(!should_save_settings_draft_on_ctrl_s(false));
+    }
+}

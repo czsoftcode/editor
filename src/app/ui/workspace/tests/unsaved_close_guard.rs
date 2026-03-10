@@ -130,3 +130,13 @@ fn unsaved_close_guard_target_tab_from_tabbar_close() {
     assert_eq!(tabbar_close_target_path(&tabs, 2), Some(c));
     assert_eq!(tabbar_close_target_path(&tabs, 99), None);
 }
+
+#[test]
+fn unsaved_close_guard_single_tab_regressions() {
+    let path1 = PathBuf::from("/project/a.txt");
+    let path2 = PathBuf::from("/project/b.txt");
+    let mut flow = make_flow(vec![path1, path2]);
+
+    let outcome = apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Save, Ok(()));
+    assert_eq!(outcome, UnsavedCloseOutcome::Finished);
+}

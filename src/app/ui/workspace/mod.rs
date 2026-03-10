@@ -90,12 +90,22 @@ fn manual_save_request(show_settings: bool, active_modified: Option<bool>) -> Ma
     }
 }
 
+fn manual_save_request_for_shortcut(
+    show_settings: bool,
+    active_modified: Option<bool>,
+) -> ManualSaveRequest {
+    manual_save_request(show_settings, active_modified)
+}
+
 pub(super) fn handle_manual_save_action(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
 ) {
-    match manual_save_request(ws.show_settings, ws.editor.active().map(|tab| tab.modified)) {
+    match manual_save_request_for_shortcut(
+        ws.show_settings,
+        ws.editor.active().map(|tab| tab.modified),
+    ) {
         ManualSaveRequest::SaveSettingsDraft => {
             modal_dialogs::save_settings_draft(ws, shared, i18n)
         }

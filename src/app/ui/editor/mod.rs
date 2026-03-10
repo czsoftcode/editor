@@ -13,6 +13,7 @@ use std::time::Instant;
 use eframe::egui;
 
 use crate::highlighter::Highlighter;
+use crate::app::ui::widgets::tab_bar::TabBarAction;
 
 const AUTOSAVE_DELAY_MS: u128 = 500;
 /// Hover debounce: wait this long after mouse stops before sending request.
@@ -63,6 +64,7 @@ pub enum DiffAction {
 pub struct EditorUiResult {
     pub clicked: bool,
     pub diff_action: Option<(String, DiffAction, String)>,
+    pub tab_action: Option<TabBarAction>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,7 +86,7 @@ impl MarkdownLayoutMode {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SaveStatus {
     None,
     Modified,

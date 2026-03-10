@@ -5,6 +5,7 @@ use crate::app::ui::dialogs::confirm::UnsavedGuardDecision;
 use super::super::{PendingCloseFlow, PendingCloseMode, UnsavedCloseOutcome};
 use super::super::apply_unsaved_close_decision;
 use super::super::consume_close_tab_shortcut;
+use super::super::editor_input_locked;
 
 // Helper to construct a simple PendingCloseFlow for testing.
 fn make_flow(queue: Vec<PathBuf>) -> PendingCloseFlow {
@@ -109,4 +110,12 @@ fn unsaved_close_guard_ctrl_w_consumes_shortcut() {
     assert!(!consume_close_tab_shortcut(&ctx));
 
     let _ = ctx.end_pass();
+}
+
+#[test]
+fn unsaved_close_guard_input_lock() {
+    assert!(editor_input_locked(false, true));
+    assert!(editor_input_locked(true, false));
+    assert!(editor_input_locked(true, true));
+    assert!(!editor_input_locked(false, false));
 }

@@ -39,12 +39,12 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 
 ## Current Position
 
-Phase: 24 of 26 (Save Mode Foundation)
-Plan: 4 of 4 in current phase
-Status: Complete
-Last activity: 2026-03-10 - Completed quick task 8: Root close button closes active project
+Phase: 25 of 26 (Unsaved Close Guard)
+Plan: 8 of 10 in current phase
+Status: In Progress
+Last activity: 2026-03-10 - Completed plan 25-08: Ctrl+W consume + guard input lock
 
-Progress: [██████████] 100%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -120,4 +120,3 @@ Recent decisions affecting current work:
 | Phase 24-save-mode-foundation P03 | 4min                                                                                                                                                                                                                             | 3 tasks    | 10 files |                                                                                                   |
 | Phase 24-save-mode-foundation P04 | 2min                                                                                                                                                                                                                             | 2 tasks    | 2 files  |                                                                                                   |
 | Phase 25-unsaved-close-guard P08 | 3min | 2 tasks | 3 files |
-

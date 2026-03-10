@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in_progress
-last_updated: "2026-03-10T19:42:22.637Z"
-last_activity: "2026-03-10 - Completed plan 26-03: Save feedback regression pack"
+status: completed
+last_updated: "2026-03-10T19:49:04.101Z"
+last_activity: "2026-03-10 - Completed plan 26-04: Final hardening for save UX i18n and idle safety"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
   percent: 100
 ---
 
@@ -40,11 +40,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 26 of 26 (Save UX Polish + Regression Hardening)
-Plan: 03 of 4 completed (next: 04)
-Status: In Progress
-Last activity: 2026-03-10 - Completed plan 26-03: Save feedback regression pack
+Plan: 04 of 4 completed
+Status: Completed
+Last activity: 2026-03-10 - Completed plan 26-04: Final hardening for save UX i18n and idle safety
 
-Progress: [██████████] 98%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -95,6 +95,8 @@ Recent decisions affecting current work:
 - [Phase 26-save-ux-polish-regression-hardening]: Ctrl+S routing is mediated through manual_save_request_for_shortcut to keep branch mapping deterministic.
 - [Phase 26-save-ux-polish-regression-hardening]: Guard save-failure handling is centralized to keep inline error, toast feedback, and close eligibility testable.
 - [Phase 26-save-ux-polish-regression-hardening]: Save error dedupe uses an explicit within-window classifier while preserving existing 1.5s semantics.
+- [Phase 26-save-ux-polish-regression-hardening]: Save UX klice faze 26 jsou centralizovane v i18n helperu phase_26_save_ux_keys pro jednotnou smoke coverage.
+- [Phase 26-save-ux-polish-regression-hardening]: Idle safety regression guard je realizovan source-inspection testem bez benchmark frameworku a bez novych zavislosti.
 
 ### Known Tech Debt
 
@@ -137,3 +139,4 @@ Recent decisions affecting current work:
 | Phase 26-save-ux-polish-regression-hardening P01 | 3min | 3 tasks | 4 files |
 | Phase 26-save-ux-polish-regression-hardening P02 | 6min | 2 tasks | 2 files |
 | Phase 26-save-ux-polish-regression-hardening P03 | 6 min | 3 tasks | 5 files |
+| Phase 26-save-ux-polish-regression-hardening P04 | 3 min | 2 tasks | 3 files |

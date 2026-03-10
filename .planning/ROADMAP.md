@@ -17,7 +17,7 @@
 
 - [x] **Phase 24: Save Mode Foundation** — Ctrl+S default, save mode settings persistence, runtime apply (completed 2026-03-09)
 - [x] **Phase 25: Unsaved Close Guard** — tab close + app close confirm flow, save/discard/cancel decision handling (completed 2026-03-10)
-- [ ] **Phase 26: Save UX Polish + Regression Hardening** — mode/status UI clarity, edge-case coverage, regression tests
+- [x] **Phase 26: Save UX Polish + Regression Hardening** — mode/status UI clarity, edge-case coverage, regression tests (completed 2026-03-10)
 
 ## Phase Details
 
@@ -60,7 +60,7 @@
 |-------|-----------|----------------|--------|-----------|
 | 24. Save Mode Foundation | v1.3.0 | Complete    | 2026-03-09 | 2026-03-09 |
 | 25. Unsaved Close Guard | 10/10 | Complete    | 2026-03-10 | - |
-| 26. Save UX Polish + Regression Hardening | 3/4 | In Progress|  | - |
+| 26. Save UX Polish + Regression Hardening | 4/4 | Complete   | 2026-03-10 | - |
 
 ## Known Issues / TODO
 

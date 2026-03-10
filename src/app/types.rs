@@ -203,9 +203,17 @@ pub(crate) fn save_error_dedupe_decision(
     now: Instant,
     window: Duration,
 ) -> bool {
+    !is_within_save_error_dedupe_window(last_seen, now, window)
+}
+
+pub(crate) fn is_within_save_error_dedupe_window(
+    last_seen: Option<Instant>,
+    now: Instant,
+    window: Duration,
+) -> bool {
     match last_seen {
-        None => true,
-        Some(prev) => now.duration_since(prev) > window,
+        None => false,
+        Some(prev) => now.duration_since(prev) <= window,
     }
 }
 

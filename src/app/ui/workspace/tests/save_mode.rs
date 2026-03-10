@@ -57,3 +57,11 @@ fn save_ux_contrast_regression_dirty_marker_stays_primary_over_mode_badge() {
         tab_label_with_mode_indicator_for_tests("main.rs", true, false, true, &SaveMode::Manual);
     assert!(label.contains("● ·M"));
 }
+
+#[test]
+fn save_ux_contrast_regression_mode_badge_is_hidden_for_inactive_tab() {
+    let inactive_label =
+        tab_label_with_mode_indicator_for_tests("lib.rs", true, false, false, &SaveMode::Manual);
+    assert!(inactive_label.contains("●"));
+    assert!(!inactive_label.contains("·M"));
+}

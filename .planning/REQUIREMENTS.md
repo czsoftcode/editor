@@ -22,10 +22,10 @@ Requirements for Save Modes + Unsaved Changes Guard milestone. Each maps to road
 
 ### Unsaved Changes Protection
 
-- [ ] **GUARD-01**: Closing a tab with unsaved changes opens a confirmation decision flow.
-- [ ] **GUARD-02**: Closing the application with any unsaved tabs opens a confirmation decision flow.
-- [ ] **GUARD-03**: Confirmation flow allows user to save changes, discard changes, or cancel close.
-- [ ] **GUARD-04**: If save fails during close flow, user is informed and close is not silently completed.
+- [x] **GUARD-01**: Closing a tab with unsaved changes opens a confirmation decision flow.
+- [x] **GUARD-02**: Closing the application with any unsaved tabs opens a confirmation decision flow.
+- [x] **GUARD-03**: Confirmation flow allows user to save changes, discard changes, or cancel close.
+- [x] **GUARD-04**: If save fails during close flow, user is informed and close is not silently completed.
 
 ## Future Requirements
 
@@ -54,10 +54,10 @@ Requirements for Save Modes + Unsaved Changes Guard milestone. Each maps to road
 | MODE-02 | Phase 24 | Complete |
 | MODE-03 | Phase 24 | Complete |
 | MODE-04 | Phase 26 | Pending |
-| GUARD-01 | Phase 25 | Pending |
-| GUARD-02 | Phase 25 | Pending |
-| GUARD-03 | Phase 25 | Pending |
-| GUARD-04 | Phase 25 | Pending |
+| GUARD-01 | Phase 25 | Complete |
+| GUARD-02 | Phase 25 | Complete |
+| GUARD-03 | Phase 25 | Complete |
+| GUARD-04 | Phase 25 | Complete |
 
 **Coverage:**
 - v1.3.0 requirements: 11 total

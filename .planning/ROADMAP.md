@@ -37,7 +37,9 @@
 4. 4th light variant shows visual swatch in theme picker
 5. 4th light variant has localized label in all 5 languages (cs, en, de, ru, sk)
 
-**Plans:** TBD
+**Plans:** 1 plan
+
+- [ ] 27-01-PLAN.md — Add WarmTan light variant (enum, colors, UI picker, i18n)
 
 ---
 
@@ -87,7 +89,7 @@ Následující fáze jsou pozastaveny (nebudou dokončeny):
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 27 | v1.3.0 | 0/1 | Not started | - |
+| 27 | v1.3.0 | 1/1 | Planning complete | - |
 | 28 | v1.3.0 | 0/1 | Not started | - |
 | 29 | v1.3.0 | 0/1 | Not started | - |
 | 19-23 | v1.2.2-dev | - | Deferred | - |

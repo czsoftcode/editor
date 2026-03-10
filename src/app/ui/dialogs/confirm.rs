@@ -159,3 +159,33 @@ pub(crate) fn show_close_project_confirm_dialog(
         QuitDialogResult::Open
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsaved_close_guard_esc_cancel() {
+        let ctx = egui::Context::default();
+
+        ctx.begin_pass(egui::RawInput {
+            events: vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+            ..Default::default()
+        });
+
+        assert!(consume_unsaved_guard_escape(&ctx));
+        assert!(!consume_unsaved_guard_escape(&ctx));
+        assert_eq!(
+            resolve_unsaved_guard_decision(UnsavedGuardDecision::Pending, true, true),
+            UnsavedGuardDecision::Cancel
+        );
+
+        let _ = ctx.end_pass();
+    }
+}

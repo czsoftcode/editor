@@ -1,4 +1,5 @@
 use crate::app::cli::{AiExpertiseRole, AiReasoningDepth};
+use eframe::egui::Color32;
 use std::path::PathBuf;
 
 const SETTINGS_FILE: &str = "settings.toml";
@@ -14,6 +15,16 @@ fn default_editor_font_size() -> f32 {
 }
 fn default_dark_theme() -> bool {
     true
+}
+// ---------------------------------------------------------------------------
+// DarkVariant — secondary dark-theme variants (Phase 28)
+// ---------------------------------------------------------------------------
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Debug, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DarkVariant {
+    #[default]
+    Default,
+    Midnight,
 }
 fn default_lang() -> String {
     crate::i18n::detect_system_lang()
@@ -86,9 +97,14 @@ pub struct Settings {
     #[serde(default = "default_editor_font_size")]
     pub editor_font_size: f32,
 
-    /// true = dark theme, false = light theme.
-    #[serde(default = "default_dark_theme")]
+    /// Backwards-compat: flag for dark theme (kept for existing tests/UX).
+    /// Phase 28 adds a per-variant dark theme via `DarkVariant`.
+    #[serde(default)]
     pub dark_theme: bool,
+
+    /// Dark mode color variant (Phase 28).
+    #[serde(default)]
+    pub dark_variant: DarkVariant,
 
     /// Light mode color variant (only relevant when dark_theme = false).
     /// Phase 3 will use this for per-variant panel colors.
@@ -187,6 +203,7 @@ impl Default for Settings {
         Self {
             editor_font_size: default_editor_font_size(),
             dark_theme: default_dark_theme(),
+            dark_variant: DarkVariant::default(),
             light_variant: LightVariant::default(),
             save_mode: SaveMode::Manual,
             default_project_path: default_project_path(),
@@ -291,7 +308,9 @@ impl Settings {
     /// Returns the syntect theme name for the current mode.
     /// Dark → "base16-ocean.dark", Light → "Solarized (light)".
     pub fn syntect_theme_name(&self) -> &'static str {
-        if self.dark_theme {
+        // Treat Midnight/Default variants as dark as well; keep compatibility with
+        // existing tests, while enabling per-variant dark styling.
+        if self.dark_theme || self.dark_variant != DarkVariant::Default {
             "base16-ocean.dark"
         } else {
             "Solarized (light)"
@@ -301,8 +320,17 @@ impl Settings {
     /// Returns egui Visuals for the current theme.
     /// Phase 1: basic Visuals::dark()/light(). Phase 3 will add per-variant colors.
     pub fn to_egui_visuals(&self) -> eframe::egui::Visuals {
-        if self.dark_theme {
-            eframe::egui::Visuals::dark()
+        // Determine dark mode by either the legacy flag or the new variant.
+        if self.dark_theme || self.dark_variant != DarkVariant::Default {
+            // Start from dark visuals
+            let mut visuals = eframe::egui::Visuals::dark();
+            if self.dark_variant == DarkVariant::Midnight {
+                // Per-variant customization for Midnight
+                visuals.panel_fill = eframe::egui::Color32::from_rgb(30, 35, 45);
+                visuals.window_fill = eframe::egui::Color32::from_rgb(25, 28, 38);
+                visuals.faint_bg_color = eframe::egui::Color32::from_rgb(20, 22, 32);
+            }
+            visuals
         } else {
             let mut visuals = eframe::egui::Visuals::light();
 

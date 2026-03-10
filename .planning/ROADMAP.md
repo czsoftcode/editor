@@ -59,7 +59,7 @@
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 24. Save Mode Foundation | v1.3.0 | Complete    | 2026-03-09 | 2026-03-09 |
-| 25. Unsaved Close Guard | 7/7 | Complete   | 2026-03-10 | - |
+| 25. Unsaved Close Guard | 8/10 | In Progress|  | - |
 | 26. Save UX Polish + Regression Hardening | v1.3.0 | 0/? | Not started | - |
 
 ## Known Issues / TODO

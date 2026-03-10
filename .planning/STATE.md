@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-last_updated: "2026-03-10T16:35:34.122Z"
-last_activity: 2026-03-09 - Completed plan 24-04
+last_updated: "2026-03-10T18:23:45.423Z"
+last_activity: "2026-03-10 - Completed quick task 8: Root close button closes active project"
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
+  completed_phases: 1
+  total_plans: 14
+  completed_plans: 12
   percent: 100
 ---
 
@@ -20,7 +20,7 @@ milestone: v1.0
 milestone_name: milestone
 status: completed
 last_updated: "2026-03-10T15:47:14.744Z"
-last_activity: 2026-03-09 - Completed plan 24-04
+last_activity: 2026-03-10 - Completed quick task 8: Root close button closes active project
 progress:
   [██████████] 100%
   completed_phases: 1
@@ -42,7 +42,7 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 Phase: 24 of 26 (Save Mode Foundation)
 Plan: 4 of 4 in current phase
 Status: Complete
-Last activity: 2026-03-09 - Completed plan 24-04
+Last activity: 2026-03-10 - Completed quick task 8: Root close button closes active project
 
 Progress: [██████████] 100%
 
@@ -81,6 +81,8 @@ Recent decisions affecting current work:
 - [Phase 24-save-mode-foundation]: Save error dedupe key is the final localized error message with a 1.5s suppression window.
 - [Phase 24-save-mode-foundation]: Validation map is locked to final task IDs from plans 24-01 through 24-03.
 - [Phase 24-save-mode-foundation]: Nyquist compliance flip now requires green automated gates plus PASS for all M-* manual scenarios.
+- [Phase 25-unsaved-close-guard]: Ctrl+W handling moved to egui consume_shortcut to prevent TextEdit fallback.
+- [Phase 25-unsaved-close-guard]: Editor lock derives from dialog_open_base OR pending_close_flow active state.
 
 ### Known Tech Debt
 
@@ -108,6 +110,7 @@ Recent decisions affecting current work:
 | 5                                 | Revert validate_ollama_url port restriction + Bearer auth                                                                                                                                                                        | 2026-03-06 | 3cc63a0  | [5-revert-validate-ollama-url-port-restrict](./quick/5-revert-validate-ollama-url-port-restrict/) |
 | 6                                 | Rename src/app/ai to src/app/cli + update 48 path references                                                                                                                                                                     | 2026-03-06 | eecb769  | [6-rename-ai-to-cli](./quick/6-rename-ai-to-cli/)                                                 |
 | 7                                 | md nahled je nyni pod sebou. udelej mi vedle tlacitka Otevřít v externím prohlížeči jeste toggle tlacitko na zmeny nahledu - Pod sebou | Vedle sebe | Jenom kód | Jenom náhled - kter bude prepinat cyklicky mezi mody zobrazeni | 2026-03-09 | 84c7067  | [7-md-nahled-je-nyni-pod-sebou-udelej-mi-ve](./quick/7-md-nahled-je-nyni-pod-sebou-udelej-mi-ve/) |
+| 8                                 | Root close button in main window now closes active project via RootProjectClose flow                                                                                                                                             | 2026-03-10 | N/A      | [8-kdyz-mam-otevreno-hlavni-okno-s-jednim-p](./quick/8-kdyz-mam-otevreno-hlavni-okno-s-jednim-p/) |
 | Phase 19 P03                      | 1min                                                                                                                                                                                                                             | 1 tasks    | 1 files  |                                                                                                   |
 | Phase 20 P01                      | 7min                                                                                                                                                                                                                             | 3 tasks    | 1 files  |                                                                                                   |
 | Phase 20 P02                      | 8min                                                                                                                                                                                                                             | 2 tasks    | 7 files  |                                                                                                   |
@@ -116,5 +119,5 @@ Recent decisions affecting current work:
 | Phase 24-save-mode-foundation P02 | 6min                                                                                                                                                                                                                             | 3 tasks    | 8 files  |                                                                                                   |
 | Phase 24-save-mode-foundation P03 | 4min                                                                                                                                                                                                                             | 3 tasks    | 10 files |                                                                                                   |
 | Phase 24-save-mode-foundation P04 | 2min                                                                                                                                                                                                                             | 2 tasks    | 2 files  |                                                                                                   |
-
+| Phase 25-unsaved-close-guard P08 | 3min | 2 tasks | 3 files |
 

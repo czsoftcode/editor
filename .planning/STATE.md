@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-last_updated: "2026-03-10T22:40:13.025Z"
+last_updated: "2026-03-10T23:30:22.098Z"
 last_activity: "2026-03-10 - Completed Phase 29 Plan 01: Syntect Theme Mapping"
 progress:
   total_phases: 3
   completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 0
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
 ---
 
 ---
@@ -85,6 +85,8 @@ Key decisions logged in PROJECT.md Key Decisions table.
 - [Phase 29-syntect-theme-mapping]: Theme mapping zůstává centralizované v Settings::syntect_theme_name().
 - [Phase 29-syntect-theme-mapping]: Fallback validace používá OnceLock + ThemeSet::load_defaults().
 - [Phase 29-syntect-theme-mapping]: ThemeSet defaults obsahuje jen 3 light built-in témata; WarmTan vyžaduje navazující rozhodnutí.
+- [Phase 29-syntect-theme-mapping]: Dark terminal palette je odvozená z aktivního visuals.panel_fill místo statického defaultu.
+- [Phase 29-syntect-theme-mapping]: Regresní gate pro dark terminál je definovaná přes distinct variant background + foreground/background contrast >= 4.5.
 
 ### Known Tech Debt
 
@@ -115,3 +117,5 @@ Key decisions logged in PROJECT.md Key Decisions table.
 
 *Last updated: 2026-03-10*
 | Phase 29-syntect-theme-mapping P01 | 9min | 3 tasks | 1 files |
+| Phase 29-syntect-theme-mapping P02 | 6 min | 2 tasks | 1 files |
+

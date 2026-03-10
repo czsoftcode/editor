@@ -77,7 +77,7 @@
 2. Dark variants (Default, Midnight) map to distinct syntect dark themes
 3. Syntax highlighting visually matches the selected color palette
 
-**Plans:** 1/1 plans complete
+**Plans:** 2/2 plans complete
 
 ---
 
@@ -94,7 +94,7 @@ Následující fáze jsou pozastaveny (nebudou dokončeny):
 |-------|-----------|----------------|--------|-----------|
 | 27 | v1.3.0 | Complete    | 2026-03-10 | - |
 | 28 | 0/1 | Planned    |  | - |
-| 29 | 1/1 | Complete   | 2026-03-10 | - |
+| 29 | 2/2 | Complete   | 2026-03-10 | - |
 | 19-23 | v1.2.2-dev | - | Deferred | - |
 
 ## Coverage Map

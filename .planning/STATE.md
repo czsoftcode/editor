@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in_progress
-last_updated: "2026-03-10T19:32:50.973Z"
-last_activity: "2026-03-10 - Completed plan 26-01: Save mode status and MODE-04 regression hardening"
+status: completed
+last_updated: "2026-03-10T19:42:22.637Z"
+last_activity: "2026-03-10 - Completed plan 26-02: Dirty-first status bar priority and save UX contrast regression guard"
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 18
-  completed_plans: 15
-  percent: 93
+  completed_plans: 17
+  percent: 100
 ---
 
 ---
@@ -40,11 +40,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 26 of 26 (Save UX Polish + Regression Hardening)
-Plan: 01 of 4 completed (next: 02)
+Plan: 02 of 4 completed (next: 03)
 Status: In Progress
-Last activity: 2026-03-10 - Completed plan 26-01: Save mode status and MODE-04 regression hardening
+Last activity: 2026-03-10 - Completed plan 26-02: Dirty-first status bar priority and save UX contrast regression guard
 
-Progress: [█████████░] 93%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -90,6 +90,11 @@ Recent decisions affecting current work:
 - [Phase 26-save-ux-polish-regression-hardening]: Status bar save mode key cte pouze runtime mode; settings draft se nepropisuje mimo apply.
 - [Phase 26-save-ux-polish-regression-hardening]: Tab save mode marker je pouze doplnkovy na aktivnim tabu (·M/·A) a dirty symbol zustava primarni.
 - [Phase 26-save-ux-polish-regression-hardening]: MODE-04 regression coverage je oddelena v src/app/ui/workspace/tests/save_mode.rs.
+- [Phase 26]: Dirty stav ve status baru je explicitne primarni signal (dirty-first) pri soubehu s mode informaci.
+- [Phase 26]: Save UX kontrast/priorita jsou kryte targeted regression testy save_ux_contrast_regression.
+- [Phase 26-save-ux-polish-regression-hardening]: Ctrl+S routing is mediated through manual_save_request_for_shortcut to keep branch mapping deterministic.
+- [Phase 26-save-ux-polish-regression-hardening]: Guard save-failure handling is centralized to keep inline error, toast feedback, and close eligibility testable.
+- [Phase 26-save-ux-polish-regression-hardening]: Save error dedupe uses an explicit within-window classifier while preserving existing 1.5s semantics.
 
 ### Known Tech Debt
 
@@ -130,3 +135,6 @@ Recent decisions affecting current work:
 | Phase 25-unsaved-close-guard P10 | 3min | 3 tasks | 3 files |
 | Phase 25-unsaved-close-guard P09 | 3min | 2 tasks | 4 files |
 | Phase 26-save-ux-polish-regression-hardening P01 | 3min | 3 tasks | 4 files |
+| Phase 26-save-ux-polish-regression-hardening P02 | 6min | 2 tasks | 2 files |
+| Phase 26-save-ux-polish-regression-hardening P03 | 6 min | 3 tasks | 5 files |
+

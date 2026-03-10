@@ -59,3 +59,37 @@ fn unsaved_close_guard_save_fail() {
     assert_eq!(outcome, UnsavedCloseOutcome::Continue);
 }
 
+#[test]
+fn unsaved_close_guard_tab_triggers() {
+    let path1 = PathBuf::from("/project/a.txt");
+    let path2 = PathBuf::from("/project/b.txt");
+
+    // Workspace-level guard queue should process all items until finished
+    // when the user consistently chooses Save/Discard.
+    let mut flow = make_flow(vec![path1.clone(), path2.clone()]);
+
+    // First item: successful save advances the queue.
+    let outcome_1 =
+        apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Save, Ok(()));
+    assert_eq!(flow.current_index, 1);
+    assert!(flow.inline_error.is_none());
+    assert_eq!(outcome_1, UnsavedCloseOutcome::Continue);
+
+    // Second item: Discard finishes the flow.
+    let outcome_2 =
+        apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Discard, Ok(()));
+    assert_eq!(flow.current_index, 1);
+    assert!(flow.inline_error.is_none());
+    assert_eq!(outcome_2, UnsavedCloseOutcome::Finished);
+
+    // A fresh flow: Cancel on the first item should stop the guard without
+    // touching the queue indices, mirroring a user pressing Cancel in the
+    // tab-close guard dialog.
+    let mut flow_cancel = make_flow(vec![path1, path2]);
+    let outcome_cancel =
+        apply_unsaved_close_decision(&mut flow_cancel, UnsavedGuardDecision::Cancel, Ok(()));
+    assert_eq!(flow_cancel.current_index, 0);
+    assert!(flow_cancel.inline_error.is_none());
+    assert_eq!(outcome_cancel, UnsavedCloseOutcome::Cancelled);
+}
+

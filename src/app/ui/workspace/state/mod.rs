@@ -244,8 +244,24 @@ pub fn build_dirty_close_queue(
 
 #[cfg(test)]
 mod tests {
-    use super::build_dirty_close_queue;
+    use super::{DirtyCloseQueueMode, build_dirty_close_queue, build_dirty_close_queue_for_mode};
     use std::path::PathBuf;
+
+    #[test]
+    fn unsaved_close_guard_queue_single_tab_target() {
+        let a = PathBuf::from("/project/a.txt");
+        let b = PathBuf::from("/project/b.txt");
+        let c = PathBuf::from("/project/c.txt");
+
+        let tabs = vec![
+            (b.clone(), true),
+            (a.clone(), true),
+            (c.clone(), false),
+        ];
+
+        let queue = build_dirty_close_queue_for_mode(DirtyCloseQueueMode::SingleTab(&a), &tabs);
+        assert_eq!(queue, vec![a]);
+    }
 
     #[test]
     fn unsaved_close_guard_queue() {

@@ -269,6 +269,26 @@ fn config_dir() -> PathBuf {
 }
 
 impl Settings {
+    fn is_dark_mode(&self) -> bool {
+        self.dark_theme || self.dark_variant != DarkVariant::Default
+    }
+
+    fn mapped_syntect_theme_name(&self) -> &'static str {
+        if self.is_dark_mode() {
+            match self.dark_variant {
+                DarkVariant::Default => "Solarized (dark)",
+                DarkVariant::Midnight => "base16-ocean.dark",
+            }
+        } else {
+            match self.light_variant {
+                LightVariant::WarmIvory => "Solarized (light)",
+                LightVariant::CoolGray => "InspiredGitHub",
+                LightVariant::Sepia => "base16-ocean.light",
+                LightVariant::WarmTan => "base16-mocha.dark",
+            }
+        }
+    }
+
     fn load_from_config_dir(config_root: &std::path::Path) -> Self {
         let path = settings_path_in(config_root);
         if let Ok(content) = std::fs::read_to_string(&path) {
@@ -306,15 +326,9 @@ impl Settings {
     }
 
     /// Returns the syntect theme name for the current mode.
-    /// Dark → "base16-ocean.dark", Light → "Solarized (light)".
+    /// Theme mapping is explicit per light/dark variant.
     pub fn syntect_theme_name(&self) -> &'static str {
-        // Treat Midnight/Default variants as dark as well; keep compatibility with
-        // existing tests, while enabling per-variant dark styling.
-        if self.dark_theme || self.dark_variant != DarkVariant::Default {
-            "base16-ocean.dark"
-        } else {
-            "Solarized (light)"
-        }
+        self.mapped_syntect_theme_name()
     }
 
     /// Returns egui Visuals for the current theme.
@@ -465,7 +479,7 @@ dark_theme = true
             dark_theme: true,
             ..Default::default()
         };
-        assert_eq!(settings.syntect_theme_name(), "base16-ocean.dark");
+        assert_eq!(settings.syntect_theme_name(), "Solarized (dark)");
     }
 
     #[test]
@@ -475,6 +489,52 @@ dark_theme = true
             ..Default::default()
         };
         assert_eq!(settings.syntect_theme_name(), "Solarized (light)");
+    }
+
+    #[test]
+    fn syntax01_light_mapping_matrix_complete() {
+        let cases = [
+            (LightVariant::WarmIvory, "Solarized (light)"),
+            (LightVariant::CoolGray, "InspiredGitHub"),
+            (LightVariant::Sepia, "base16-ocean.light"),
+            (LightVariant::WarmTan, "base16-mocha.dark"),
+        ];
+
+        for (variant, expected) in cases {
+            let settings = Settings {
+                dark_theme: false,
+                dark_variant: DarkVariant::Default,
+                light_variant: variant,
+                ..Default::default()
+            };
+            assert_eq!(settings.syntect_theme_name(), expected);
+        }
+    }
+
+    #[test]
+    fn syntax01_light_mapping_unique() {
+        use std::collections::HashSet;
+
+        let variants = [
+            LightVariant::WarmIvory,
+            LightVariant::CoolGray,
+            LightVariant::Sepia,
+            LightVariant::WarmTan,
+        ];
+        let mut names = HashSet::new();
+
+        for variant in variants {
+            let settings = Settings {
+                dark_theme: false,
+                dark_variant: DarkVariant::Default,
+                light_variant: variant,
+                ..Default::default()
+            };
+            assert!(
+                names.insert(settings.syntect_theme_name()),
+                "Light variant must map to unique syntect theme"
+            );
+        }
     }
 
     // THEME-02: to_egui_visuals()

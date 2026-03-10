@@ -5,6 +5,7 @@ use crate::app::ui::dialogs::confirm::UnsavedGuardDecision;
 use super::super::apply_unsaved_close_decision;
 use super::super::consume_close_tab_shortcut;
 use super::super::editor_input_locked;
+use super::super::tabbar_close_target_path;
 use super::super::{PendingCloseFlow, PendingCloseMode, UnsavedCloseOutcome};
 
 // Helper to construct a simple PendingCloseFlow for testing.
@@ -117,4 +118,15 @@ fn unsaved_close_guard_input_lock() {
     assert!(editor_input_locked(true, false));
     assert!(editor_input_locked(true, true));
     assert!(!editor_input_locked(false, false));
+}
+
+#[test]
+fn unsaved_close_guard_target_tab_from_tabbar_close() {
+    let a = PathBuf::from("/project/a.txt");
+    let b = PathBuf::from("/project/b.txt");
+    let c = PathBuf::from("/project/c.txt");
+    let tabs = vec![(a.clone(), true), (b.clone(), false), (c.clone(), true)];
+
+    assert_eq!(tabbar_close_target_path(&tabs, 2), Some(c));
+    assert_eq!(tabbar_close_target_path(&tabs, 99), None);
 }

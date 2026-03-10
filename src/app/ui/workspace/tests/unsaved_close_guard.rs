@@ -1,11 +1,13 @@
 use std::path::PathBuf;
 
 use crate::app::ui::dialogs::confirm::UnsavedGuardDecision;
+use crate::app::ui::editor::Editor;
 use crate::app::ui::workspace::state::{DirtyCloseQueueMode, build_dirty_close_queue_for_mode};
 
 use super::super::apply_unsaved_close_decision;
 use super::super::consume_close_tab_shortcut;
 use super::super::editor_input_locked;
+use super::super::open_guard_queue_item_without_focus;
 use super::super::tabbar_close_target_path;
 use super::super::{PendingCloseFlow, PendingCloseMode, UnsavedCloseOutcome};
 
@@ -164,4 +166,27 @@ fn unsaved_close_guard_single_tab_regressions() {
     let mut flow = make_flow(queue_from_ctrl_w);
     let outcome = apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Save, Ok(()));
     assert_eq!(outcome, UnsavedCloseOutcome::Finished);
+}
+
+#[test]
+fn unsaved_close_guard_focus_handoff() {
+    let mut editor = Editor::new();
+    let first = std::env::temp_dir().join("polycredo_unsaved_guard_focus_first.txt");
+    let second = std::env::temp_dir().join("polycredo_unsaved_guard_focus_second.txt");
+
+    std::fs::write(&first, "first").expect("create first temp file");
+    std::fs::write(&second, "second").expect("create second temp file");
+
+    editor.open_file(&first);
+    editor.focus_editor_requested = false;
+
+    open_guard_queue_item_without_focus(&mut editor, &second);
+    assert_eq!(editor.active_path(), Some(&second));
+    assert!(
+        !editor.focus_editor_requested,
+        "guard flow must not request editor focus while modal is active"
+    );
+
+    let _ = std::fs::remove_file(first);
+    let _ = std::fs::remove_file(second);
 }

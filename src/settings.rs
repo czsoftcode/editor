@@ -681,6 +681,17 @@ dark_theme = true
     }
 
     #[test]
+    fn settings_light_variant_switch_to_warmtan() {
+        let visuals = Settings {
+            dark_theme: false,
+            light_variant: LightVariant::WarmTan,
+            ..Default::default()
+        }
+        .to_egui_visuals();
+        assert_eq!(rgb(visuals.panel_fill), (215, 200, 185));
+    }
+
+    #[test]
     fn test_lite04_faint_bg_differs_from_panel_and_between_variants() {
         let warm = Settings {
             dark_theme: false,
@@ -750,6 +761,24 @@ default_project_path = "/home/test"
         let loaded = Settings::load_from_config_dir(&temp.path);
         assert!(!loaded.dark_theme);
         assert_eq!(loaded.light_variant, LightVariant::Sepia);
+    }
+
+    #[test]
+    fn settings_light_variant_warmtan_roundtrip_persistence() {
+        let temp = TempConfigDir::new("warmtan-roundtrip");
+        let settings = Settings {
+            dark_theme: false,
+            light_variant: LightVariant::WarmTan,
+            ..Default::default()
+        };
+
+        settings
+            .try_save_to_config_dir(&temp.path)
+            .expect("save warm tan settings");
+
+        let loaded = Settings::load_from_config_dir(&temp.path);
+        assert!(!loaded.dark_theme);
+        assert_eq!(loaded.light_variant, LightVariant::WarmTan);
     }
 
     #[test]

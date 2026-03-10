@@ -67,6 +67,15 @@ pub enum PendingCloseMode {
     WorkspaceClose,
 }
 
+/// Input mode used for building the unsaved-close queue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DirtyCloseQueueMode<'a> {
+    /// Build queue for closing exactly one specific tab.
+    SingleTab(&'a PathBuf),
+    /// Build queue for workspace-level close (all dirty tabs).
+    WorkspaceClose(Option<&'a PathBuf>),
+}
+
 /// State for the unsaved close guard flow.
 #[derive(Debug, Clone)]
 pub struct PendingCloseFlow {
@@ -212,34 +221,56 @@ impl WorkspaceState {
 ///
 /// The queue always starts with the active tab (if it is dirty), followed by
 /// the remaining dirty tabs in a deterministic order.
+pub fn build_dirty_close_queue_for_mode(
+    mode: DirtyCloseQueueMode<'_>,
+    tabs: &[(PathBuf, bool)],
+) -> Vec<PathBuf> {
+    match mode {
+        DirtyCloseQueueMode::SingleTab(target) => tabs
+            .iter()
+            .find_map(|(path, modified)| {
+                if path == target && *modified {
+                    Some(path.clone())
+                } else {
+                    None
+                }
+            })
+            .into_iter()
+            .collect(),
+        DirtyCloseQueueMode::WorkspaceClose(active_path) => {
+            let mut dirty: Vec<PathBuf> = tabs
+                .iter()
+                .filter(|(_, modified)| *modified)
+                .map(|(path, _)| path.clone())
+                .collect();
+
+            if dirty.is_empty() {
+                return Vec::new();
+            }
+
+            // Sort to ensure deterministic order independent of input ordering.
+            dirty.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
+
+            if let Some(active) = active_path
+                && let Some(pos) = dirty.iter().position(|p| p == active)
+            {
+                let active_entry = dirty.remove(pos);
+                let mut ordered = Vec::with_capacity(dirty.len() + 1);
+                ordered.push(active_entry);
+                ordered.extend(dirty);
+                return ordered;
+            }
+
+            dirty
+        }
+    }
+}
+
 pub fn build_dirty_close_queue(
     active_path: Option<&PathBuf>,
     tabs: &[(PathBuf, bool)],
 ) -> Vec<PathBuf> {
-    let mut dirty: Vec<PathBuf> = tabs
-        .iter()
-        .filter(|(_, modified)| *modified)
-        .map(|(path, _)| path.clone())
-        .collect();
-
-    if dirty.is_empty() {
-        return Vec::new();
-    }
-
-    // Sort to ensure deterministic order independent of input ordering.
-    dirty.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
-
-    if let Some(active) = active_path {
-        if let Some(pos) = dirty.iter().position(|p| p == active) {
-            let active_entry = dirty.remove(pos);
-            let mut ordered = Vec::with_capacity(dirty.len() + 1);
-            ordered.push(active_entry);
-            ordered.extend(dirty.into_iter());
-            return ordered;
-        }
-    }
-
-    dirty
+    build_dirty_close_queue_for_mode(DirtyCloseQueueMode::WorkspaceClose(active_path), tabs)
 }
 
 #[cfg(test)]

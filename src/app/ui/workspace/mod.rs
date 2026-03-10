@@ -29,6 +29,7 @@ pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
 use modal_dialogs::render_dialogs;
 use crate::settings::SaveMode;
+use crate::app::ui::workspace::state::{build_dirty_close_queue, PendingCloseFlow, PendingCloseMode};
 
 fn should_save_settings_draft_on_ctrl_s(show_settings: bool) -> bool {
     show_settings
@@ -81,6 +82,47 @@ pub(super) fn handle_manual_save_action(
         }
         ManualSaveRequest::NoActiveTab => {}
     }
+}
+
+/// Guard-aware entry point for closing the active editor tab.
+///
+/// - If there is no active tab, nothing happens.
+/// - If there are no dirty tabs, the active tab is closed immediately.
+/// - If a guard flow is already active, new close requests are ignored.
+/// - Otherwise, a new `PendingCloseFlow` is created with a stable queue of dirty tabs.
+pub(crate) fn request_close_active_tab(ws: &mut WorkspaceState) {
+    // Re-entrancy guard: ignore new requests while a flow is in progress.
+    if ws.pending_close_flow.is_some() {
+        return;
+    }
+
+    let active_path = match ws.editor.active_path() {
+        Some(path) => path.clone(),
+        None => return,
+    };
+
+    // Snapshot dirty tabs for queue building.
+    let tabs_snapshot: Vec<(PathBuf, bool)> = ws
+        .editor
+        .tabs
+        .iter()
+        .map(|t| (t.path.clone(), t.modified))
+        .collect();
+
+    let queue = build_dirty_close_queue(Some(&active_path), &tabs_snapshot);
+
+    if queue.is_empty() {
+        // No dirty tabs at all — close immediately without guard dialog.
+        ws.editor.clear();
+        return;
+    }
+
+    ws.pending_close_flow = Some(PendingCloseFlow {
+        mode: PendingCloseMode::SingleTab,
+        queue,
+        current_index: 0,
+        inline_error: None,
+    });
 }
 
 pub(crate) fn render_workspace(

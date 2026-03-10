@@ -9,10 +9,10 @@ Requirements for Additional Themes milestone.
 
 ### Theme Variants
 
-- [ ] **THEME-01**: User can select 4th light theme variant in Settings (between Sepia and Brown, pleasant for eyes, not too dark)
-- [ ] **THEME-02**: 4th light theme is persisted across app restart in settings.toml
-- [ ] **THEME-03**: 4th light theme shows correctly in theme picker with visual swatch
-- [ ] **THEME-04**: 4th light theme has localized label in all 5 languages (cs, en, de, ru, sk)
+- [x] **THEME-01**: User can select 4th light theme variant in Settings (between Sepia and Brown, pleasant for eyes, not too dark)
+- [x] **THEME-02**: 4th light theme is persisted across app restart in settings.toml
+- [x] **THEME-03**: 4th light theme shows correctly in theme picker with visual swatch
+- [x] **THEME-04**: 4th light theme has localized label in all 5 languages (cs, en, de, ru, sk)
 - [ ] **THEME-05**: User can select 2nd dark theme variant in Settings (optional variant to existing dark)
 - [ ] **THEME-06**: 2nd dark theme is persisted across app restart in settings.toml
 - [ ] **THEME-07**: 2nd dark theme shows correctly in theme picker with visual swatch
@@ -41,10 +41,10 @@ Requirements for Additional Themes milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THEME-01 | Phase 27 | Pending |
-| THEME-02 | Phase 27 | Pending |
-| THEME-03 | Phase 27 | Pending |
-| THEME-04 | Phase 27 | Pending |
+| THEME-01 | Phase 27 | Complete |
+| THEME-02 | Phase 27 | Complete |
+| THEME-03 | Phase 27 | Complete |
+| THEME-04 | Phase 27 | Complete |
 | THEME-05 | Phase 28 | Pending |
 | THEME-06 | Phase 28 | Pending |
 | THEME-07 | Phase 28 | Pending |

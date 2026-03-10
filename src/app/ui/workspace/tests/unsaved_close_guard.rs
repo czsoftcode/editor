@@ -225,3 +225,11 @@ fn unsaved_close_guard_save_failure_feedback() {
         "save fail nesmi zavrit tab ani projekt bez dalsiho uzivatelskeho rozhodnuti"
     );
 }
+
+#[test]
+fn save_ux_idle_safety_guard() {
+    assert!(
+        save_ux_paths_are_event_driven(),
+        "save UX guard cesty nesmi zavest periodicky repaint/timer trigger"
+    );
+}

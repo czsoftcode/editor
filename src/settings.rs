@@ -1,5 +1,4 @@
 use crate::app::cli::{AiExpertiseRole, AiReasoningDepth};
-use eframe::egui::Color32;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use syntect::highlighting::ThemeSet;
@@ -560,6 +559,42 @@ dark_theme = true
         let fallback = resolve_syntect_theme_name_or_fallback("this-theme-does-not-exist");
         assert_eq!(fallback, "base16-ocean.dark");
         assert!(syntect_builtin_theme_set().themes.contains_key(fallback));
+    }
+
+    #[test]
+    fn syntax02_dark_mapping_matrix_complete() {
+        let default_variant = Settings {
+            dark_theme: true,
+            dark_variant: DarkVariant::Default,
+            ..Default::default()
+        };
+        let midnight_variant = Settings {
+            dark_theme: true,
+            dark_variant: DarkVariant::Midnight,
+            ..Default::default()
+        };
+
+        assert_eq!(default_variant.syntect_theme_name(), "Solarized (dark)");
+        assert_eq!(midnight_variant.syntect_theme_name(), "base16-ocean.dark");
+    }
+
+    #[test]
+    fn syntax02_dark_variants_are_distinct() {
+        let default_variant = Settings {
+            dark_theme: true,
+            dark_variant: DarkVariant::Default,
+            ..Default::default()
+        };
+        let midnight_variant = Settings {
+            dark_theme: true,
+            dark_variant: DarkVariant::Midnight,
+            ..Default::default()
+        };
+
+        assert_ne!(
+            default_variant.syntect_theme_name(),
+            midnight_variant.syntect_theme_name()
+        );
     }
 
     // THEME-02: to_egui_visuals()

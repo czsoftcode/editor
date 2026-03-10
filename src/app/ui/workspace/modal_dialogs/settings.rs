@@ -4,7 +4,7 @@ use crate::app::ui::background::spawn_task;
 use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::i18n::I18n;
-use crate::settings::{LightVariant, SaveMode};
+use crate::settings::{LightVariant, SaveMode, DarkVariant};
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 
@@ -18,6 +18,7 @@ fn light_variant_label_key(variant: &LightVariant) -> &'static str {
         LightVariant::WarmIvory => "settings-light-variant-warm-ivory",
         LightVariant::CoolGray => "settings-light-variant-cool-gray",
         LightVariant::Sepia => "settings-light-variant-sepia",
+        LightVariant::WarmTan => "settings-light-variant-warm-tan",
     }
 }
 
@@ -26,6 +27,7 @@ fn light_variant_swatch(variant: &LightVariant) -> egui::Color32 {
         LightVariant::WarmIvory => egui::Color32::from_rgb(250, 246, 235),
         LightVariant::CoolGray => egui::Color32::from_rgb(236, 236, 236),
         LightVariant::Sepia => egui::Color32::from_rgb(234, 223, 202),
+        LightVariant::WarmTan => egui::Color32::from_rgb(215, 200, 185),
     }
 }
 
@@ -82,8 +84,8 @@ fn show_light_variant_card(
     false
 }
 
-fn theme_fingerprint(settings: &crate::settings::Settings) -> (bool, LightVariant) {
-    (settings.dark_theme, settings.light_variant.clone())
+fn theme_fingerprint(settings: &crate::settings::Settings) -> (DarkVariant, LightVariant) {
+    (settings.dark_variant.clone(), settings.light_variant.clone())
 }
 
 fn should_persist_settings_change(
@@ -376,6 +378,7 @@ pub fn show(
                                         LightVariant::WarmIvory,
                                         LightVariant::CoolGray,
                                         LightVariant::Sepia,
+                                        LightVariant::WarmTan,
                                     ] {
                                         theme_controls_changed |=
                                             show_light_variant_card(ui, draft, i18n, variant);
@@ -385,7 +388,8 @@ pub fn show(
                                 ui.add_space(16.0);
                             }
 
-                            if theme_controls_changed && theme_before != theme_fingerprint(draft) {
+                            let theme_after = theme_fingerprint(draft);
+                            if theme_controls_changed && theme_before != theme_after {
                                 apply_theme_preview(shared, draft);
                             }
 

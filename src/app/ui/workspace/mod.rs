@@ -46,6 +46,13 @@ fn save_mode_status_key(save_mode: &SaveMode) -> &'static str {
     }
 }
 
+fn status_bar_save_mode_key_for_runtime(
+    runtime_mode: &SaveMode,
+    _settings_draft_mode: Option<&SaveMode>,
+) -> &'static str {
+    save_mode_status_key(runtime_mode)
+}
+
 fn consume_close_tab_shortcut(ctx: &egui::Context) -> bool {
     ctx.input_mut(|input| {
         input.consume_shortcut(&egui::KeyboardShortcut::new(
@@ -540,13 +547,18 @@ pub(crate) fn render_workspace(
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
         .show(ctx, |ui| {
-            let active_save_mode = shared.lock().expect("lock").settings.save_mode.clone();
+            let runtime_save_mode = shared.lock().expect("lock").settings.save_mode.clone();
+            let settings_draft_mode = ws.settings_draft.as_ref().map(|draft| &draft.save_mode);
             ui.horizontal(|ui| {
                 ws.editor
                     .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
                 ui.separator();
                 ui.label(
-                    egui::RichText::new(i18n.get(save_mode_status_key(&active_save_mode))).small(),
+                    egui::RichText::new(i18n.get(status_bar_save_mode_key_for_runtime(
+                        &runtime_save_mode,
+                        settings_draft_mode,
+                    )))
+                    .small(),
                 );
                 let is_indexing = ws
                     .semantic_index

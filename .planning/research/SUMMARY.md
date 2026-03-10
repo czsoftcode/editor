@@ -1,118 +1,192 @@
 # Project Research Summary
 
-**Project:** PolyCredo Editor
-**Domain:** Desktop editor save workflow and unsaved-changes safety
-**Researched:** 2026-03-09
+**Project:** PolyCredo Editor - Additional Themes
+**Domain:** Rust/egui Desktop Editor Theme System Extension
+**Researched:** 2026-03-10
 **Confidence:** HIGH
+
+---
 
 ## Executive Summary
 
-Milestone v1.3.0 má velmi jasný cíl: sjednotit ukládání tak, aby bylo předvídatelné (Ctrl+S jako default), konfigurovatelné (auto/manual režim) a bezpečné (žádná ztráta neuložené práce při zavření tabu nebo aplikace).
+PolyCredo Editor je Rust/egui desktop textový editor s existujícím theme systémem (3 light varianty, 1 dark). Výzkum ukazuje, že přidání 4. light theme a volitelného 2. dark theme je **nízkoriziková, dobře izolovaná změna** — žádné nové závislosti nejsou potřeba, existující architektura plně podporuje rozšíření přes `LightVariant` / `DarkVariant` enumy.
 
-Doporučený přístup nevyžaduje nové závislosti. Nejlepší cesta je rozšířit stávající settings model o jednoznačný save mode, centralizovat rozhodování save/close do jednoho flow a použít existující modal pattern pro Save/Discard/Cancel.
+**Doporučený přístup:**
+1. **Fáze 1 (nutná):** Přidat 4. light variantu ("Stone" nebo "Cream") — 0.5-1 MD, nízké riziko
+2. **Fáze 2 (volitelná):** Opravit syntect theme mapping — 0.5 MD
+3. **Fáze 3 (volitelná):** Přidat DarkVariant enum pro druhé dark téma — 1-1.5 MD
 
-Největší riziko je nekonzistence mezi více close cestami a focus stavy. Mitigace: shared close guard handler, explicitní testy na tab close + app close + Ctrl+S focus edge cases.
+**Klíčová rizika:**
+- Syntect syntax highlighting ignoruje `LightVariant` — vrací "Solarized (light)" pro všechny
+- Hardcoded barvy v UI komponentách mohou porušit nová témata
+- Chybějící i18n klíče způsobí zobrazení názvu enum místo lokalizace
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-Použít stávající stack: Rust + eframe/egui + settings persistence. Integrace je nízkoriziková a zapadá do aktuální architektury bez async runtime změn.
+Žádné nové závislosti nejsou potřeba. Existující stack plně pokrývá požadavky:
 
-**Core technologies:**
-- Rust: save/close orchestrace a error handling
-- eframe/egui: toggle + confirm dialog UI
-- serde settings model: persistovaný auto/manual režim
+| Technology | Purpose | Rationale |
+|------------|---------|-----------|
+| eframe/egui 0.31 | Framework + UI | Podporuje `Visuals` struct s plnou customizací barev |
+| egui_extras 0.31 | Komponenty | UI picker pro varianty |
+| syntect | Syntax highlighting | Téma mapováno přes `syntect_theme_name()` |
+
+**Změny v kódu:**
+- `src/settings.rs` — přidat variantu do enum + barvy v `to_egui_visuals()`
+- `src/app/ui/workspace/modal_dialogs/settings.rs` — UI picker rozšíření
+- 5× i18n soubory — nové překladové klíče
 
 ### Expected Features
 
 **Must have (table stakes):**
-- Ctrl+S ukládání jako defaultní cesta
-- Režim auto/manual v Settings
-- Confirm při close neuloženého tabu
-- Confirm při close aplikace s neuloženými změnami
+- Nová `LightVariant` v enum — rozšíření existujícího systému
+- Barvy v `to_egui_visuals()` — `panel_fill`, `window_fill`, `faint_bg_color`
+- i18n label — lokalizovaný název v Settings UI
+- UI swatch — náhled v Settings kartě
+- Serializace — serde roundtrip pro persistence
 
-**Should have (competitive):**
-- Jednotný close-flow pro tab i app
-- Viditelná indikace aktivního save režimu
+**Should have (differentiators):**
+- Per-variant syntect mapping — odlišné barvy syntax highlighting pro CoolGray/Sepia
+- Per-variant accent colors — odlišné barvy pro selection, hyperlinky
+- Dark variant selector — druhé dark téma (Deep Navy / High Contrast)
 
 **Defer (v2+):**
-- Per-project save režim
-- Save-all/discard-all při app close
+- Vlastní theme editor — mimo rozsah v1.3.0
+- Animované přechody témat — egui nepodporuje
+- Theme export/import — zbytečná komplexita
 
 ### Architecture Approach
 
-Architektura má stát na jednom source-of-truth pro save mode a jednom close guard handleru, který je volán ze všech close entrypointů. Dirty-state zůstává per tab a je vstupem pro decision dialog.
+Architektura je **Visuals-first**: všechny komponenty přijímají `&egui::Visuals`, ne `LightVariant`. Přidání nových variant nevyžaduje změny v render logice — pouze definici barev v `to_egui_visuals()`.
 
-**Major components:**
-1. Save mode state (settings + runtime apply)
-2. Save dispatcher (manual vs auto behavior)
-3. Close guard decision engine (Save/Discard/Cancel)
+```
+Settings (Settings struct)
+    │
+    ▼ to_egui_visuals()
+egui::Visuals (read-only)
+    │
+    ├─► Terminal Theme (blends from panel_fill)
+    ├─► File Tree (reads visuals)
+    ├─► Git Status (reads visuals)
+    └─► Settings UI (label + swatch + i18n)
+```
+
+**Klíčové principy:**
+1. Visuals-first: render komponenty nevidí enum, pouze hotové barvy
+2. Heuristic detection: `warm_ivory_bg()` detekuje teplé/studené tóny automaticky
+3. i18n decoupling: názvy témat jsou klíče, ne hardcoded stringy
 
 ### Critical Pitfalls
 
-1. **Silent data loss on close** — vždy vynutit confirm flow při dirty stavech
-2. **Inconsistent auto/manual behavior** — držet single source-of-truth v settings
-3. **Ctrl+S focus regressions** — přidat testy pro modal/focus scénáře
+1. **Syntect Theme Not Mapped to Light Variants** — `syntect_theme_name()` vrací "Solarized (light)" pro všechny light varianty. Nutno mapovat CoolGray → base16-ocean.light, Sepia → vhodné téma.
+
+2. **Hardcoded Colors Override Theme** — UI komponenty používají `Color32::from_rgb()` místo `ui.visuals()`. Prevence: audit všech přímých barev.
+
+3. **Terminal/FileTree Desync on Theme Change** — komponenty cacheují Visuals při konstrukci. Prevence: používat `ui.visuals()` uvnitř paint/show callbacků.
+
+4. **Missing serde Deserialize for New Enum Variants** — přidání nové varianty může rozbít deserializaci existujícího settings.toml. Prevence: mít `#[default]` na existující variantě.
+
+5. **Missing UI Strings for New Variants** — chybějící i18n klíče zobrazí enum název. Prevence: aktualizovat `light_variant_label_key()` ve všech 5 jazycích.
+
+---
 
 ## Implications for Roadmap
 
-### Phase 24: Save Mode Foundation
-**Rationale:** Nejprve je potřeba stabilní základ save mode logiky.
-**Delivers:** Ctrl+S default, save mode settings, runtime apply.
-**Addresses:** Manual save + auto/manual toggle requirements.
-**Avoids:** Nekonzistence režimu a skryté save side-effecty.
+### Phase 1: 4th Light Theme
+**Rationale:** Nejjednodušší změna, nízké riziko, plně podporovaná existující architekturou. Odhad: 0.5-1 MD.
 
-### Phase 25: Unsaved Close Guard
-**Rationale:** Navazuje na hotovou save mode logiku.
-**Delivers:** Guard dialog pro tab close a app close.
-**Uses:** Dirty-state model a save dispatcher z Phase 24.
-**Implements:** Centrální close decision flow.
+**Delivers:**
+- Nová `LightVariant::Stone` (mezi Sepia a brown)
+- Barvy v `to_egui_visuals()`: panel_fill ~RGB(235,228,218)
+- UI picker rozšíření v Settings
+- i18n klíče do všech 5 locales
 
-### Phase 26: UX + Regression Hardening
-**Rationale:** Po zavedení chování zpevnit UX a testy.
-**Delivers:** Indikace režimu/stavu, edge-case testy, polish.
+**Addresses:**
+- FEATURES: nová light varianta (MVP)
+- STACK: žádné nové závislosti
 
-### Phase Ordering Rationale
+**Avoids:**
+- PITFALL #4: serde deserializace — otestovat roundtrip
+- PITFALL #5: i18n klíče — přidat do všech souborů
 
-- Save mode musí být zaveden před close guard, jinak nebude jasné, co „save“ znamená.
-- Close guard až druhý krok: vyžaduje stabilní save API.
-- Test/polish fáze nakonec minimalizuje regresní riziko.
+### Phase 2: Syntect Theme Mapping Fix
+**Rationale:** Každá light varianta má jiné optimální barvy pro syntax highlighting. Nutno opravit před release.
+
+**Delivers:**
+- Rozšířená `syntect_theme_name()`:
+  - WarmIvory → "Solarized (light)"
+  - CoolGray → "base16-ocean.light"
+  - Sepia → "Solarized (light)"
+  - Stone → "InspiredGitHub" nebo ekvivalent
+
+**Avoids:**
+- PITFALL #1: syntect mismatch — hlavní riziko v1.3.0
+
+### Phase 3: Dark Variant Support (Optional)
+**Rationale:** Vyšší komplexita, vyžaduje nový `DarkVariant` enum a UI selector. Odhad: 1-1.5 MD.
+
+**Delivers:**
+- `DarkVariant::Default` + `DarkVariant::Midnight`
+- Vlastní barvy v dark branch `to_egui_visuals()`
+- UI selector (radiobutton/picker) pod dark_theme toggle
+- Odlišné syntect mapping pro dark varianty
+
+**Addresses:**
+- FEATURES: dark variant selector (differentiator)
+- STACK: DarkVariant enum v settings.rs
+
+**Avoids:**
+- PITFALL #2: audit hardcoded barev před přidáním dark varianty
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 25:** UX wording a multi-file close decision behavior.
+**Needs research:**
+- **Phase 3 (Dark Variant):** Které syntect téma je nejlepší pro "Midnight" dark variant? Vyžaduje testování více témat.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 24:** standard settings + shortcut + runtime apply pattern.
-- **Phase 26:** standard regression hardening/testing workflow.
+**Standard patterns (skip research):**
+- **Phase 1:** Light variant — standardní egui patterns, plně zdokumentované v kódu
+- **Phase 2:** Syntect mapping — jednoduchá změna, žádné API research
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Bez nových dependencies, plná kompatibilita s existující architekturou |
-| Features | HIGH | Požadavky jsou konkrétní a běžně očekávané v editorech |
-| Architecture | HIGH | Přímé napojení na stávající settings/editor/modal patterns |
-| Pitfalls | HIGH | Rizika dobře známá z editor domény |
+| Stack | HIGH | Žádné nové závislosti, egui 0.31 plně pokrývá |
+| Features | HIGH | Jasný MVP rozsah, varianty jsou additive |
+| Architecture | HIGH | Visuals-first pattern plně pochopen, kód analyzován |
+| Pitfalls | HIGH | Známé problémy z existujícího kódu + tech debt |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- Přesné UX texty dialogů (tab close vs app close) doladit při plan-phase.
-- Rozhodnout, zda app-close dialog nabídne i „Save all“ už ve v1.3.0.
+- **Syntect theme choice:** Které téma je optimální pro novou Stone light variantu? Ověřit vizuálně při implementaci.
+- **Dark variant design:** Jaké barvy pro Midnight variant? Není hotový design — nechat na Phase 3 planning.
+- **WCAG kontrast:** Formální testování kontrastu není součástí research — provést před release.
+
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `.planning/PROJECT.md` — constraints, current architecture, milestone intent
-- Existing code structure in `src/app/ui/editor`, `src/app/ui/workspace`, `src/settings.rs`
+- `src/settings.rs` — LightVariant enum, to_egui_visuals(), existing implementation
+- `src/app/ui/workspace/modal_dialogs/settings.rs` — UI picker, light_variant_swatch
+- `src/app/ui/terminal/instance/theme.rs` — terminal color blending heuristics
 
 ### Secondary (MEDIUM confidence)
-- Běžné UX konvence desktop editorů (Ctrl+S, dirty close confirm)
+- egui GitHub issue #4490 — custom theme support
+- egui GitHub PR #4744 — set_dark_style/set_light_style API
+
+### Tertiary (LOW confidence)
+- WebAIM WCAG guidelines — pro kontrast testování (potřebuje validaci)
 
 ---
-*Research completed: 2026-03-09*
+
+*Research completed: 2026-03-10*
 *Ready for roadmap: yes*

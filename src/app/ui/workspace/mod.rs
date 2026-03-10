@@ -823,6 +823,7 @@ fn render_semantic_indexing_modal(
 mod tests {
     use super::ManualSaveRequest;
     use super::manual_save_request;
+    use super::manual_save_request_for_shortcut;
     use super::save_mode_status_key;
     use super::status_bar_save_mode_key_for_runtime;
     use super::should_save_settings_draft_on_ctrl_s;
@@ -878,10 +879,46 @@ mod tests {
     }
 
     #[test]
-    fn manual_save_request_returns_noop_for_non_modified_tab() {
+    fn manual_save_request_routes_modified_tab_to_file_save() {
+        assert_eq!(
+            manual_save_request(false, Some(true)),
+            ManualSaveRequest::SaveEditorFile
+        );
+    }
+
+    #[test]
+    fn manual_save_request_routes_clean_tab_to_info_toast() {
         assert_eq!(
             manual_save_request(false, Some(false)),
             ManualSaveRequest::ShowAlreadySavedInfo
+        );
+    }
+
+    #[test]
+    fn manual_save_request_routes_no_active_tab_to_noop() {
+        assert_eq!(
+            manual_save_request(false, None),
+            ManualSaveRequest::NoActiveTab
+        );
+    }
+
+    #[test]
+    fn manual_save_request_shortcut_helper_respects_settings_priority() {
+        assert_eq!(
+            manual_save_request_for_shortcut(true, Some(true)),
+            ManualSaveRequest::SaveSettingsDraft
+        );
+        assert_eq!(
+            manual_save_request_for_shortcut(false, Some(true)),
+            ManualSaveRequest::SaveEditorFile
+        );
+        assert_eq!(
+            manual_save_request_for_shortcut(false, Some(false)),
+            ManualSaveRequest::ShowAlreadySavedInfo
+        );
+        assert_eq!(
+            manual_save_request_for_shortcut(false, None),
+            ManualSaveRequest::NoActiveTab
         );
     }
 }

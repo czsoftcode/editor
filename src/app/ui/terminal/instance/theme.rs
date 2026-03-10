@@ -115,9 +115,49 @@ fn tone_light_palette(palette: ColorPalette, visuals: &egui::Visuals) -> ColorPa
     }
 }
 
+fn tone_dark_palette(palette: ColorPalette, visuals: &egui::Visuals) -> ColorPalette {
+    let tone = visuals.panel_fill;
+    let background = mix_color(parse_hex_rgb(&palette.background), tone, 0.72);
+    let background = mix_color(background, egui::Color32::BLACK, 0.12);
+
+    ColorPalette {
+        foreground: blend_hex(&palette.foreground, tone, 0.06),
+        background: to_hex_rgb(background),
+        black: blend_hex(&palette.black, tone, 0.12),
+        red: blend_hex(&palette.red, tone, 0.1),
+        green: blend_hex(&palette.green, tone, 0.1),
+        yellow: blend_hex(&palette.yellow, tone, 0.1),
+        blue: blend_hex(&palette.blue, tone, 0.1),
+        magenta: blend_hex(&palette.magenta, tone, 0.1),
+        cyan: blend_hex(&palette.cyan, tone, 0.1),
+        white: blend_hex(&palette.white, tone, 0.14),
+        bright_black: blend_hex(&palette.bright_black, tone, 0.08),
+        bright_red: blend_hex(&palette.bright_red, tone, 0.1),
+        bright_green: blend_hex(&palette.bright_green, tone, 0.1),
+        bright_yellow: blend_hex(&palette.bright_yellow, tone, 0.1),
+        bright_blue: blend_hex(&palette.bright_blue, tone, 0.1),
+        bright_magenta: blend_hex(&palette.bright_magenta, tone, 0.1),
+        bright_cyan: blend_hex(&palette.bright_cyan, tone, 0.1),
+        bright_white: blend_hex(&palette.bright_white, tone, 0.1),
+        bright_foreground: palette
+            .bright_foreground
+            .as_ref()
+            .map(|color| blend_hex(color, tone, 0.06)),
+        dim_foreground: blend_hex(&palette.dim_foreground, tone, 0.08),
+        dim_black: blend_hex(&palette.dim_black, tone, 0.1),
+        dim_red: blend_hex(&palette.dim_red, tone, 0.1),
+        dim_green: blend_hex(&palette.dim_green, tone, 0.1),
+        dim_yellow: blend_hex(&palette.dim_yellow, tone, 0.1),
+        dim_blue: blend_hex(&palette.dim_blue, tone, 0.1),
+        dim_magenta: blend_hex(&palette.dim_magenta, tone, 0.1),
+        dim_cyan: blend_hex(&palette.dim_cyan, tone, 0.1),
+        dim_white: blend_hex(&palette.dim_white, tone, 0.12),
+    }
+}
+
 pub(crate) fn terminal_palette(visuals: &egui::Visuals) -> ColorPalette {
     if visuals.dark_mode {
-        return ColorPalette::default();
+        return tone_dark_palette(ColorPalette::default(), visuals);
     }
 
     tone_light_palette(light_terminal_base_palette(), visuals)

@@ -808,6 +808,7 @@ mod tests {
     use super::ManualSaveRequest;
     use super::manual_save_request;
     use super::save_mode_status_key;
+    use super::status_bar_save_mode_key_for_runtime;
     use super::should_save_settings_draft_on_ctrl_s;
     use crate::settings::SaveMode;
 
@@ -828,6 +829,26 @@ mod tests {
         assert_eq!(
             save_mode_status_key(&SaveMode::Manual),
             "statusbar-save-mode-manual"
+        );
+    }
+
+    #[test]
+    fn save_mode_status_ignores_settings_draft_before_apply() {
+        let runtime_mode = SaveMode::Manual;
+        let settings_draft_mode = Some(&SaveMode::Automatic);
+        assert_eq!(
+            status_bar_save_mode_key_for_runtime(&runtime_mode, settings_draft_mode),
+            "statusbar-save-mode-manual"
+        );
+    }
+
+    #[test]
+    fn save_mode_status_tracks_runtime_after_apply() {
+        let runtime_mode = SaveMode::Automatic;
+        let settings_draft_mode = Some(&SaveMode::Manual);
+        assert_eq!(
+            status_bar_save_mode_key_for_runtime(&runtime_mode, settings_draft_mode),
+            "statusbar-save-mode-automatic"
         );
     }
 

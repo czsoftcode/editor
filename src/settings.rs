@@ -65,6 +65,7 @@ pub enum LightVariant {
     WarmIvory,
     CoolGray,
     Sepia,
+    WarmTan,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Debug, Default)]
@@ -320,6 +321,11 @@ impl Settings {
                     visuals.panel_fill = eframe::egui::Color32::from_rgb(240, 230, 210);
                     visuals.window_fill = eframe::egui::Color32::from_rgb(234, 223, 202);
                     visuals.faint_bg_color = eframe::egui::Color32::from_rgb(223, 210, 186);
+                }
+                LightVariant::WarmTan => {
+                    visuals.panel_fill = eframe::egui::Color32::from_rgb(215, 200, 185);
+                    visuals.window_fill = eframe::egui::Color32::from_rgb(205, 190, 175);
+                    visuals.faint_bg_color = eframe::egui::Color32::from_rgb(195, 180, 165);
                 }
             }
 

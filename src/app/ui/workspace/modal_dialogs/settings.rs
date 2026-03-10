@@ -4,7 +4,7 @@ use crate::app::ui::background::spawn_task;
 use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::i18n::I18n;
-use crate::settings::{LightVariant, SaveMode, DarkVariant};
+use crate::settings::{DarkVariant, LightVariant, SaveMode};
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 
@@ -92,7 +92,10 @@ fn show_light_variant_card(
 }
 
 fn theme_fingerprint(settings: &crate::settings::Settings) -> (DarkVariant, LightVariant) {
-    (settings.dark_variant.clone(), settings.light_variant.clone())
+    (
+        settings.dark_variant.clone(),
+        settings.light_variant.clone(),
+    )
 }
 
 fn should_persist_settings_change(
@@ -691,6 +694,7 @@ pub fn show(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::i18n::{I18n, SUPPORTED_LANGS};
     use crate::settings::{LightVariant, SaveMode, Settings};
 
     #[test]
@@ -739,5 +743,15 @@ mod tests {
     #[test]
     fn settings_light_variant_picker_includes_warmtan() {
         assert!(LIGHT_VARIANT_OPTIONS.contains(&LightVariant::WarmTan));
+    }
+
+    #[test]
+    fn settings_light_variant_label_warmtan_localized() {
+        for &lang in SUPPORTED_LANGS {
+            let i18n = I18n::new(lang);
+            let label = i18n.get(light_variant_label_key(&LightVariant::WarmTan));
+            assert_ne!(label, "settings-light-variant-warm-tan");
+            assert!(!label.is_empty());
+        }
     }
 }

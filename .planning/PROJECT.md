@@ -44,17 +44,32 @@ Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí 
   - Plná i18n lokalizace CLI chatu v 5 jazycích (cs, en, de, ru, sk)
   - 20/20 requirements satisfied, 58,187 LOC Rust
 
+- v1.2.1 Save Modes + Unsaved Changes Guard:
+  - Ctrl+S ukládá aktivní tab bez změny fokusu
+  - Nastavení Auto/Manual save mode v Settings s okamžitým runtime apply
+  - Guard dialog při zavírání neuloženého tabu (Save/Discard/Cancel)
+  - Guard dialog při zavírání aplikace s neuloženými soubory
+  - Status bar indikace save režimu (Manual/Auto) a dirty stavu
+  - Tab dirty indikace (●) s vizuální prioritou před mode markerem
+  - Save error toast + inline error zpráva, tab zůstává otevřený
+  - 18 regression testů pro save UX kontrakt
+
 ### Active
 
-- [ ] Ctrl+S je defaultní ruční uložení aktuálního souboru
-- [ ] Nastavení režimu ukládání: Automatické ukládání vs Ruční ukládání
-- [ ] Potvrzení před zavřením tabu s neuloženými změnami
-- [ ] Potvrzení před ukončením aplikace při neuložených změnách napříč taby
-- [ ] Jasné UI indikace režimu ukládání a stavu neuložených změn
+(Další requirements budou definovány v další milestone)
 
-## Current Milestone: v1.3.0 Save Modes + Unsaved Changes Guard
+## Current Milestone: v1.2.1 Save Modes + Unsaved Changes Guard — SHIPPED
 
 **Goal:** Zpřehlednit a zbezpečnit ukládání v editoru přes výchozí Ctrl+S workflow, přepínání auto/manual režimu a ochranu proti ztrátě neuložené práce při zavírání tabu nebo aplikace.
+
+**Status:** ✅ SHIPPED 2026-03-10
+
+**Výsledky:**
+- 3 fáze (24-26), 18 plans, všechny dokončeny
+- Save mode runtime key kontrakt oddělen od settings draftu
+- MODE-04 regression testy v dedikovaném workspace test modulu
+- Save UX priority dirty-first vizuální kontrakt
+- i18n smoke coverage pro 5 jazyků
 
 **Target features:**
 - Výchozí ruční ukládání přes Ctrl+S
@@ -122,6 +137,10 @@ Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí 
 | ureq + std::thread místo reqwest/tokio | Odpovídá threading modelu codebase | ✓ Jednodušší, bez async runtime |
 | Collect-then-process v background polling | Borrow checker safety pro StreamEvent zpracování | ✓ Čistý pattern |
 | Security-first tool execution | PathSandbox + approval workflow před jakýmkoli nástrojem | ✓ 28 security testů |
+| Status bar save mode z runtime, ne draft | Oddělení runtime kontraktu od settings draftu | ✓ MODE-04 baseline |
+| Dirty-first vizuální priorita v status baru | Dirty stav je primární signál, mode marker sekundární | ✓ Čitelnost zachována |
+| TDD test-first pro UI kontrakt | Red/green commits s explicitními regression testy | ✓ MODE-04 testy pokrývají edge cases |
+| i18n smoke test pro phase-specific keys | phase_26_save_ux_keys helper pro lokalizaci | ✓ 5 jazyků ověřeno |
 
 ---
-*Last updated: 2026-03-09 after v1.3.0 milestone started*
+*Last updated: 2026-03-10 after v1.2.1 milestone shipped*

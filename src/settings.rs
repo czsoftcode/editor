@@ -1,6 +1,8 @@
 use crate::app::cli::{AiExpertiseRole, AiReasoningDepth};
 use eframe::egui::Color32;
 use std::path::PathBuf;
+use std::sync::OnceLock;
+use syntect::highlighting::ThemeSet;
 
 const SETTINGS_FILE: &str = "settings.toml";
 const OLD_SETTINGS_FILE: &str = "settings.json";
@@ -268,6 +270,22 @@ fn config_dir() -> PathBuf {
     dirs::config_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
+fn syntect_builtin_theme_set() -> &'static ThemeSet {
+    static THEME_SET: OnceLock<ThemeSet> = OnceLock::new();
+    THEME_SET.get_or_init(ThemeSet::load_defaults)
+}
+
+fn resolve_syntect_theme_name_or_fallback(mapped_name: &'static str) -> &'static str {
+    if syntect_builtin_theme_set().themes.contains_key(mapped_name) {
+        mapped_name
+    } else {
+        eprintln!(
+            "warning: missing syntect theme '{mapped_name}', using fallback base16-ocean.dark"
+        );
+        "base16-ocean.dark"
+    }
+}
+
 impl Settings {
     fn is_dark_mode(&self) -> bool {
         self.dark_theme || self.dark_variant != DarkVariant::Default
@@ -328,7 +346,7 @@ impl Settings {
     /// Returns the syntect theme name for the current mode.
     /// Theme mapping is explicit per light/dark variant.
     pub fn syntect_theme_name(&self) -> &'static str {
-        self.mapped_syntect_theme_name()
+        resolve_syntect_theme_name_or_fallback(self.mapped_syntect_theme_name())
     }
 
     /// Returns egui Visuals for the current theme.
@@ -535,6 +553,13 @@ dark_theme = true
                 "Light variant must map to unique syntect theme"
             );
         }
+    }
+
+    #[test]
+    fn syntect_theme_fallback_contract() {
+        let fallback = resolve_syntect_theme_name_or_fallback("this-theme-does-not-exist");
+        assert_eq!(fallback, "base16-ocean.dark");
+        assert!(syntect_builtin_theme_set().themes.contains_key(fallback));
     }
 
     // THEME-02: to_egui_visuals()

@@ -36,6 +36,17 @@ fn tab_label_with_mode_indicator(
     label
 }
 
+#[cfg(test)]
+pub(crate) fn tab_label_with_mode_indicator_for_tests(
+    name: &str,
+    modified: bool,
+    deleted: bool,
+    is_active: bool,
+    save_mode: &crate::settings::SaveMode,
+) -> String {
+    tab_label_with_mode_indicator(name, modified, deleted, is_active, save_mode)
+}
+
 impl Editor {
     pub fn tab_bar(
         &mut self,

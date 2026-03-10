@@ -232,6 +232,29 @@ fn apply_unsaved_close_decision(
     }
 }
 
+fn process_guard_save_failure_feedback(
+    flow: &mut PendingCloseFlow,
+    toasts: &mut Vec<Toast>,
+    message: &str,
+    emit_toast: bool,
+) -> UnsavedCloseOutcome {
+    if emit_toast {
+        toasts.push(Toast::error(message.to_string()));
+    }
+    apply_unsaved_close_decision(flow, UnsavedGuardDecision::Save, Err(message.to_string()))
+}
+
+fn should_close_tabs_after_guard_decision(
+    decision: UnsavedGuardDecision,
+    save_result: &Result<(), String>,
+) -> bool {
+    match decision {
+        UnsavedGuardDecision::Discard => true,
+        UnsavedGuardDecision::Save => save_result.is_ok(),
+        UnsavedGuardDecision::Cancel | UnsavedGuardDecision::Pending => false,
+    }
+}
+
 fn process_unsaved_close_guard_dialog(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
@@ -293,6 +316,7 @@ fn process_unsaved_close_guard_dialog(
         return;
     }
 
+    let mut precomputed_outcome = None;
     // Only attempt a save when the user explicitly chose Save.
     let save_result: Result<(), String> = if matches!(decision, UnsavedGuardDecision::Save) {
         let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
@@ -301,10 +325,13 @@ fn process_unsaved_close_guard_dialog(
             args.set("name", file_name);
             args.set("reason", err.as_str());
             let message = i18n.get_args("unsaved_close_guard_save_failed", &args);
-            if should_emit_save_error_toast(&message) {
-                ws.toasts.push(Toast::error(message.clone()));
-            }
-            Err(message)
+            precomputed_outcome = Some(process_guard_save_failure_feedback(
+                flow,
+                &mut ws.toasts,
+                &message,
+                should_emit_save_error_toast(&message),
+            ));
+            Err(message.clone())
         } else {
             Ok(())
         }
@@ -312,14 +339,11 @@ fn process_unsaved_close_guard_dialog(
         Ok(())
     };
 
-    let outcome = apply_unsaved_close_decision(flow, decision, save_result.clone());
+    let outcome = precomputed_outcome
+        .unwrap_or_else(|| apply_unsaved_close_decision(flow, decision, save_result.clone()));
 
-    // Close tabs only when the decision is not Cancel and the save (if any) succeeded.
-    let should_close_tabs = match decision {
-        UnsavedGuardDecision::Discard => true,
-        UnsavedGuardDecision::Save => save_result.is_ok(),
-        UnsavedGuardDecision::Cancel | UnsavedGuardDecision::Pending => false,
-    };
+    // Close tabs only when the decision allows it and the save (if any) succeeded.
+    let should_close_tabs = should_close_tabs_after_guard_decision(decision, &save_result);
 
     if should_close_tabs {
         ws.editor.close_tabs_for_path(&current_path);

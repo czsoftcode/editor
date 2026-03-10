@@ -1,3 +1,23 @@
+## [1.2.1-dev] - 2026-03-10
+
+### Added
+- **Manual Save (Ctrl+S)**: Default manual save for active file tab without focus change.
+- **Auto/Manual Save Mode**: Toggle between Automatic and Manual save in Settings, persisted across restart.
+- **Runtime Save Mode Apply**: Save mode applies immediately after Settings Save without app restart.
+- **Unsaved Close Guard**: Confirmation dialog (Save/Discard/Cancel) when closing tab with unsaved changes.
+- **App Close Guard**: Confirmation dialog when closing app with any unsaved tabs.
+- **Save Status Indicators**: Status bar shows current save mode (Manual/Auto), tab shows dirty indicator (●).
+- **Save Error Feedback**: Toast notification and inline error message on save failure, tab stays open.
+- **Save Mode Tests**: Regression test suite for save UX contract (MODE-04).
+
+### Changed
+- **Status Bar Save Mode**: Now reads from runtime value only, ignoring settings draft until apply.
+- **Dirty Visual Priority**: Dirty symbol (●) remains visually primary in tab labels before mode marker.
+- **Ctrl+S in Settings Modal**: Ctrl+S now saves settings draft (equivalent to Save button), not editor file save.
+
+### Fixed
+- **Save Error Dedupe**: Fixed 1.5s deduplication window semantics for save error toasts.
+
 ## [1.2.0-dev] - 2026-03-07
 
 ### Added

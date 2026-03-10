@@ -28,6 +28,19 @@ Každá light varianta má vlastní syntect theme:
 - Sepia → "Solarized Light"
 - WarmTan → "GitHub Light"
 
+### Swatch Design
+- Standardní swatch - čtvereček barvy s názvem pod ním (jako ostatní varianty)
+
+### i18n klíče
+- cs: "Teplý Tan"
+- en: "Warm Tan"  
+- de: "Warne Tan"
+- sk: "Teplý Tan"
+- ru: "Тёплый тан"
+
+### Výchozí varianta
+- WarmIvory zůstává výchozí pro nové uživatele (neměnit)
+
 </decisions>
 
 <specifics>

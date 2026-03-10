@@ -19,7 +19,7 @@
 - [x] **Phase 27: 4th Light Theme** - Přidat 4. světlé téma (mezi Sepia a Brown) **[IN PROGRESS]** (completed 2026-03-10)
 - [x] **Phase 28: Dark Variant Support** - Přidat 2. dark téma jako variantu
   - Completed: 2026-03-10
-- [ ] **Phase 29: Syntect Theme Mapping** - Opravit mapování syntect témat pro všechny varianty
+- [x] **Phase 29: Syntect Theme Mapping** - Opravit mapování syntect témat pro všechny varianty (completed 2026-03-10)
 
 ---
 
@@ -73,11 +73,11 @@
 **Requirements:** SYNTAX-01, SYNTAX-02
 
 **Success Criteria** (what must be TRUE):
-1. Each light theme variant (WarmIvory, CoolGray, Sepia, Stone) maps to distinct syntect theme
+1. Each light theme variant (WarmIvory, CoolGray, Sepia, WarmTan) maps to distinct syntect theme
 2. Dark variants (Default, Midnight) map to distinct syntect dark themes
 3. Syntax highlighting visually matches the selected color palette
 
-**Plans:** TBD
+**Plans:** 1/1 plans complete
 
 ---
 
@@ -94,7 +94,7 @@ Následující fáze jsou pozastaveny (nebudou dokončeny):
 |-------|-----------|----------------|--------|-----------|
 | 27 | v1.3.0 | Complete    | 2026-03-10 | - |
 | 28 | 0/1 | Planned    |  | - |
-| 29 | v1.3.0 | 0/1 | Not started | - |
+| 29 | 1/1 | Complete   | 2026-03-10 | - |
 | 19-23 | v1.2.2-dev | - | Deferred | - |
 
 ## Coverage Map

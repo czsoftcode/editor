@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-last_updated: "2026-03-10T21:17:24.736Z"
-last_activity: 2026-03-10 - Completed WarmTan light theme implementation
+last_updated: "2026-03-10T22:40:13.025Z"
+last_activity: "2026-03-10 - Completed Phase 29 Plan 01: Syntect Theme Mapping"
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 3
+  total_plans: 3
+  completed_plans: 3
   percent: 0
 ---
 
@@ -38,12 +38,12 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 28 of 29 (Dark Variant Support)
+Phase: 29 of 29 (Syntect Theme Mapping)
 Plan: 01 completed
-Status: In Progress
-Last activity: 2026-03-10 - Started Phase 28: Dark Variant Support
+Status: Completed
+Last activity: 2026-03-10 - Completed Phase 29 Plan 01: Syntect Theme Mapping
 
-Progress: [..........] 0%
+Progress: [██████████] 100%
 
 ---
 
@@ -82,6 +82,9 @@ Key decisions logged in PROJECT.md Key Decisions table.
 
 - [v1.3.0]: 4th light theme bude přidáno jako `LightVariant::Stone` (mezi Sepia a Brown)
 - [v1.3.0]: Dark variant přidán jako `DarkVariant::Midnight` jako druhá dark varianta
+- [Phase 29-syntect-theme-mapping]: Theme mapping zůstává centralizované v Settings::syntect_theme_name().
+- [Phase 29-syntect-theme-mapping]: Fallback validace používá OnceLock + ThemeSet::load_defaults().
+- [Phase 29-syntect-theme-mapping]: ThemeSet defaults obsahuje jen 3 light built-in témata; WarmTan vyžaduje navazující rozhodnutí.
 
 ### Known Tech Debt
 
@@ -98,7 +101,7 @@ Key decisions logged in PROJECT.md Key Decisions table.
 
 ### Blockers/Concerns
 
-- Žádné aktuální bloky pro v1.3.0
+- Phase 29-01: chybí 4. vhodný light built-in syntect kandidát pro `WarmTan` při zachování požadovaného vizuálního charakteru.
 
 ---
 
@@ -111,3 +114,4 @@ Key decisions logged in PROJECT.md Key Decisions table.
 ---
 
 *Last updated: 2026-03-10*
+| Phase 29-syntect-theme-mapping P01 | 9min | 3 tasks | 1 files |

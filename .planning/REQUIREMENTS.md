@@ -19,8 +19,8 @@ Requirements for Additional Themes milestone.
 
 ### Syntax Highlighting
 
-- [ ] **SYNTAX-01**: Each light theme variant maps to appropriate syntect theme (not all using same "Solarized (light)")
-- [ ] **SYNTAX-02**: Dark variants map to appropriate syntect dark themes
+- [x] **SYNTAX-01**: Each light theme variant maps to appropriate syntect theme (not all using same "Solarized (light)")
+- [x] **SYNTAX-02**: Dark variants map to appropriate syntect dark themes
 
 ## Future Requirements
 
@@ -48,8 +48,8 @@ Requirements for Additional Themes milestone.
 | THEME-05 | Phase 28 | Pending |
 | THEME-06 | Phase 28 | Pending |
 | THEME-07 | Phase 28 | Pending |
-| SYNTAX-01 | Phase 29 | Pending |
-| SYNTAX-02 | Phase 29 | Pending |
+| SYNTAX-01 | Phase 29 | Complete |
+| SYNTAX-02 | Phase 29 | Complete |
 
 **Coverage:**
 - v1.3.0 requirements: 9 total

@@ -825,6 +825,7 @@ mod tests {
     use crate::settings::SaveMode;
 
     mod unsaved_close_guard;
+    mod save_mode;
 
     #[test]
     fn ctrl_s_is_routed_to_settings_when_settings_modal_is_open() {

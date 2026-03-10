@@ -1,0 +1,39 @@
+use crate::settings::SaveMode;
+
+use super::super::status_bar_runtime_mode_key;
+use super::super::status_bar_save_mode_key_for_runtime;
+
+#[test]
+fn mode_04_runtime_visibility_manual_mode_key_is_explicit() {
+    assert_eq!(
+        status_bar_runtime_mode_key(&SaveMode::Manual),
+        "statusbar-save-mode-manual"
+    );
+}
+
+#[test]
+fn mode_04_runtime_visibility_auto_mode_key_is_explicit() {
+    assert_eq!(
+        status_bar_runtime_mode_key(&SaveMode::Automatic),
+        "statusbar-save-mode-automatic"
+    );
+}
+
+#[test]
+fn mode_04_runtime_visibility_settings_draft_does_not_override_runtime_key() {
+    let runtime_mode = SaveMode::Manual;
+    let settings_draft_mode = Some(&SaveMode::Automatic);
+    assert_eq!(
+        status_bar_save_mode_key_for_runtime(&runtime_mode, settings_draft_mode),
+        "statusbar-save-mode-manual"
+    );
+}
+
+#[test]
+fn mode_04_runtime_visibility_updates_immediately_after_apply() {
+    let runtime_mode_after_apply = SaveMode::Automatic;
+    assert_eq!(
+        status_bar_runtime_mode_key(&runtime_mode_after_apply),
+        "statusbar-save-mode-automatic"
+    );
+}

@@ -57,7 +57,9 @@
 3. User can restart app and 2nd dark variant is still selected (persisted in settings.toml)
 4. 2nd dark variant shows visual swatch in theme picker
 
-**Plans:** TBD
+**Plans:** 1/1 planned
+
+- [ ] 28-01-PLAN.md — Add Midnight dark variant (enum, colors, UI picker, i18n)
 
 ---
 
@@ -90,7 +92,7 @@ Následující fáze jsou pozastaveny (nebudou dokončeny):
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 27 | v1.3.0 | Complete    | 2026-03-10 | - |
-| 28 | v1.3.0 | 0/1 | Not started | - |
+| 28 | v1.3.0 | 1/1 | Planned | - |
 | 29 | v1.3.0 | 0/1 | Not started | - |
 | 19-23 | v1.2.2-dev | - | Deferred | - |
 

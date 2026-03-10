@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::app::ui::dialogs::confirm::UnsavedGuardDecision;
+use crate::app::ui::workspace::state::{DirtyCloseQueueMode, build_dirty_close_queue_for_mode};
 
 use super::super::apply_unsaved_close_decision;
 use super::super::consume_close_tab_shortcut;
@@ -64,7 +65,12 @@ fn unsaved_close_guard_tab_triggers() {
 
     // Workspace-level guard queue should process all items until finished
     // when the user consistently chooses Save/Discard.
-    let mut flow = make_flow(vec![path1.clone(), path2.clone()]);
+    let mut flow = PendingCloseFlow {
+        mode: PendingCloseMode::WorkspaceClose,
+        queue: vec![path1.clone(), path2.clone()],
+        current_index: 0,
+        inline_error: None,
+    };
 
     // First item: successful save advances the queue.
     let outcome_1 = apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Save, Ok(()));
@@ -133,10 +139,29 @@ fn unsaved_close_guard_target_tab_from_tabbar_close() {
 
 #[test]
 fn unsaved_close_guard_single_tab_regressions() {
-    let path1 = PathBuf::from("/project/a.txt");
-    let path2 = PathBuf::from("/project/b.txt");
-    let mut flow = make_flow(vec![path1, path2]);
+    let active = PathBuf::from("/project/active.txt");
+    let non_active_dirty = PathBuf::from("/project/non-active.txt");
+    let clean = PathBuf::from("/project/clean.txt");
+    let tabs = vec![
+        (active.clone(), true),
+        (non_active_dirty.clone(), true),
+        (clean, false),
+    ];
 
+    // Klik na X na neaktivnim dirty tabu musi cilit prave na vybrany tab.
+    let target_from_tabbar = tabbar_close_target_path(&tabs, 1).expect("target tab");
+    let queue_from_tabbar = build_dirty_close_queue_for_mode(
+        DirtyCloseQueueMode::SingleTab(&target_from_tabbar),
+        &tabs,
+    );
+    assert_eq!(queue_from_tabbar, vec![non_active_dirty.clone()]);
+
+    // Ctrl+W nad aktivnim dirty tabem nesmi iterovat dalsi dirty taby.
+    let queue_from_ctrl_w =
+        build_dirty_close_queue_for_mode(DirtyCloseQueueMode::SingleTab(&active), &tabs);
+    assert_eq!(queue_from_ctrl_w, vec![active.clone()]);
+
+    let mut flow = make_flow(queue_from_ctrl_w);
     let outcome = apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Save, Ok(()));
     assert_eq!(outcome, UnsavedCloseOutcome::Finished);
 }

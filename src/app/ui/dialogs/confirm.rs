@@ -55,6 +55,22 @@ pub(crate) enum UnsavedGuardDecision {
     Pending,
 }
 
+fn consume_unsaved_guard_escape(ctx: &egui::Context) -> bool {
+    ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
+}
+
+fn resolve_unsaved_guard_decision(
+    decision: UnsavedGuardDecision,
+    show_flag: bool,
+    esc_pressed: bool,
+) -> UnsavedGuardDecision {
+    if decision == UnsavedGuardDecision::Pending && (esc_pressed || !show_flag) {
+        UnsavedGuardDecision::Cancel
+    } else {
+        decision
+    }
+}
+
 /// Shows the unsaved close guard dialog for a single queue item.
 ///
 /// - Always offers `Save`, `Discard`, `Cancel` with a safe default of `Cancel`.
@@ -68,6 +84,10 @@ pub(crate) fn show_unsaved_close_guard_dialog(
 ) -> UnsavedGuardDecision {
     let mut show_flag = true;
     let mut decision = UnsavedGuardDecision::Pending;
+    let esc_pressed = consume_unsaved_guard_escape(ctx);
+    if esc_pressed {
+        show_flag = false;
+    }
 
     let modal = StandardModal::new(i18n.get("unsaved-close-guard-title"), "unsaved_close_guard")
         .with_size(520.0, 260.0)
@@ -112,11 +132,7 @@ pub(crate) fn show_unsaved_close_guard_dialog(
     });
 
     // Treat closing the window (including Esc / X / backdrop) as Cancel if no explicit choice was made.
-    if decision == UnsavedGuardDecision::Pending && !show_flag {
-        UnsavedGuardDecision::Cancel
-    } else {
-        decision
-    }
+    resolve_unsaved_guard_decision(decision, show_flag, esc_pressed)
 }
 
 pub(crate) fn show_close_project_confirm_dialog(

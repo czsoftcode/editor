@@ -94,7 +94,7 @@ Následující fáze jsou pozastaveny (nebudou dokončeny):
 |-------|-----------|----------------|--------|-----------|
 | 27 | v1.3.0 | Complete    | 2026-03-10 | - |
 | 28 | 0/1 | Planned    |  | - |
-| 29 | 2/2 | Complete   | 2026-03-10 | - |
+| 29 | 2/2 | Complete    | 2026-03-10 | - |
 | 19-23 | v1.2.2-dev | - | Deferred | - |
 
 ## Coverage Map

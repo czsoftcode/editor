@@ -250,6 +250,7 @@ pub(crate) fn default_wizard_path() -> String {
 #[cfg(test)]
 mod tests {
     use super::SAVE_ERROR_DEDUPE_WINDOW;
+    use super::is_within_save_error_dedupe_window;
     use super::save_error_dedupe_decision;
 
     #[test]
@@ -269,5 +270,28 @@ mod tests {
             now,
             SAVE_ERROR_DEDUPE_WINDOW
         ));
+    }
+
+    #[test]
+    fn save_error_dedupe_window_classifies_within_and_outside_1_5s() {
+        let now = std::time::Instant::now();
+        let within = now - std::time::Duration::from_millis(250);
+        let outside = now - std::time::Duration::from_millis(1700);
+        let boundary = now - SAVE_ERROR_DEDUPE_WINDOW;
+
+        assert!(is_within_save_error_dedupe_window(
+            Some(within),
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
+        assert!(!is_within_save_error_dedupe_window(
+            Some(outside),
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
+        assert!(
+            is_within_save_error_dedupe_window(Some(boundary), now, SAVE_ERROR_DEDUPE_WINDOW),
+            "presna hranice 1.5s je stale uvnitr dedupe okna"
+        );
     }
 }

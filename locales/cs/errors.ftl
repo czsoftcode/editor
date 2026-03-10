@@ -50,3 +50,6 @@ info-session-restored =
         [one] Obnoveno 1 okno z předchozí session.
        *[other] Obnoveno { $count } oken z předchozí session.
     }
+
+## Strážce neuložených změn
+unsaved_close_guard_save_failed = Nepodařilo se uložit „{ $name }“ během zavírání: { $reason }

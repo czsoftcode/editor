@@ -298,7 +298,14 @@ support-modal-title = Support PolyCredo Development
 support-modal-body = PolyCredo Editor is developed with a vision of privacy, speed, and secure AI assistant integration. If you like the project, we would be grateful for any support. Your contributions help us dedicate more time to developing new features and maintenance.
 support-modal-github = Follow on GitHub
 support-modal-donate = Donate to Development
+semantic-indexing-btn-stop = Stop indexing
 
+## Unsaved close guard
+unsaved-close-guard-title = Unsaved changes
+unsaved-close-guard-message = This file has unsaved changes. What would you like to do before closing?
+unsaved-close-guard-save = Save and close
+unsaved-close-guard-discard = Discard changes
+unsaved-close-guard-cancel = Cancel
 
 ## Settings updates
 settings-blacklist = Plugin Blacklist (blocked files)

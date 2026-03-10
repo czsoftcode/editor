@@ -50,3 +50,6 @@ info-session-restored =
         [one] 1 Fenster der vorherigen Sitzung wiederhergestellt.
        *[other] { $count } Fenster der vorherigen Sitzung wiederhergestellt.
     }
+
+## Unsaved Close Guard
+unsaved_close_guard_save_failed = Speichern von „{ $name }“ während des Schließens fehlgeschlagen: { $reason }

@@ -313,3 +313,10 @@ dep-wizard-status-success = Installation successful!
 dep-wizard-status-error = Installation error: { $error }
 
 dep-wizard-appimagetool-desc = ...
+
+## Unsaved close guard
+unsaved-close-guard-title = Ungespeicherte Änderungen
+unsaved-close-guard-message = Diese Datei enthält ungespeicherte Änderungen. Was möchten Sie vor dem Schließen tun?
+unsaved-close-guard-save = Speichern und schließen
+unsaved-close-guard-discard = Änderungen verwerfen
+unsaved-close-guard-cancel = Abbrechen

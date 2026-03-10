@@ -323,3 +323,10 @@ support-modal-donate = Prispieť na rozvoj
 semantic-indexing-btn-stop = Zastaviť indexáciu
 
 dep-wizard-appimagetool-desc = ...
+
+## Strážca neuložených zmien
+unsaved-close-guard-title = Neuložené zmeny
+unsaved-close-guard-message = Tento súbor má neuložené zmeny. Čo chceš urobiť pred zatvorením?
+unsaved-close-guard-save = Uložiť a zavrieť
+unsaved-close-guard-discard = Zahodiť zmeny
+unsaved-close-guard-cancel = Zrušiť

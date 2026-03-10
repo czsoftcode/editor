@@ -326,3 +326,10 @@ support-modal-donate = Поддержать разработку
 semantic-indexing-btn-stop = Остановить индексацию
 
 dep-wizard-appimagetool-desc = ...
+
+## Защита от потери несохранённых изменений
+unsaved-close-guard-title = Несохранённые изменения
+unsaved-close-guard-message = В этом файле есть несохранённые изменения. Что вы хотите сделать перед закрытием?
+unsaved-close-guard-save = Сохранить и закрыть
+unsaved-close-guard-discard = Отменить изменения
+unsaved-close-guard-cancel = Отмена

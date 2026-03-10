@@ -321,3 +321,10 @@ dep-wizard-btn-run-cmd = Spustit instalaci (vyžaduje sudo)
 dep-wizard-status-running = Instaluji...
 btn-create-deb = Sestavit .deb
 hover-create-deb = Sestaví vývojový balíček .deb pro aktuální architekturu.
+
+## Strážce neuložených změn
+unsaved-close-guard-title = Neuložené změny
+unsaved-close-guard-message = Tento soubor má neuložené změny. Co chceš udělat před zavřením?
+unsaved-close-guard-save = Uložit a zavřít
+unsaved-close-guard-discard = Zahodit změny
+unsaved-close-guard-cancel = Zrušit

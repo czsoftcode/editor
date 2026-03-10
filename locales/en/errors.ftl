@@ -50,3 +50,6 @@ info-session-restored =
         [one] Restored 1 window from the previous session.
        *[other] Restored { $count } windows from the previous session.
     }
+
+## Unsaved close guard
+unsaved_close_guard_save_failed = Failed to save "{ $name }" while closing: { $reason }

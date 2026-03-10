@@ -150,6 +150,11 @@ impl Editor {
         self.scroll_to_active = true;
     }
 
+    pub fn open_file_without_focus(&mut self, path: &PathBuf) {
+        self.open_file(path);
+        self.focus_editor_requested = false;
+    }
+
     pub fn close_tab(&mut self, index: usize) {
         if index >= self.tabs.len() {
             return;

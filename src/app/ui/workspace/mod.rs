@@ -154,6 +154,13 @@ pub(crate) fn tabbar_close_target_path(tabs: &[(PathBuf, bool)], idx: usize) -> 
     tabs.get(idx).map(|(path, _)| path.clone())
 }
 
+pub(crate) fn open_guard_queue_item_without_focus(
+    editor: &mut crate::app::ui::editor::Editor,
+    path: &PathBuf,
+) {
+    editor.open_file_without_focus(path);
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UnsavedCloseOutcome {
     Continue,
@@ -244,8 +251,8 @@ fn process_unsaved_close_guard_dialog(
         return;
     }
 
-    // Keep the editor focused on the tab being processed.
-    ws.editor.open_file(&current_path);
+    // Keep queue alignment without requesting editor focus while modal is active.
+    open_guard_queue_item_without_focus(&mut ws.editor, &current_path);
 
     let file_name = current_path
         .file_name()
@@ -652,7 +659,8 @@ pub(crate) fn render_workspace(
         || ws.show_ai_chat
         || bottom_clicked
         || dialogs_interacted;
-    if !any_panel_interacted {
+    let guard_active = ws.pending_close_flow.is_some();
+    if !any_panel_interacted && !guard_active {
         let in_terminal = ws.focused_panel == FocusedPanel::Claude
             || ws.focused_panel == FocusedPanel::Build
             || ws.focused_panel == FocusedPanel::AiChat;

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-last_updated: "2026-03-10T18:23:45.423Z"
-last_activity: "2026-03-10 - Completed quick task 8: Root close button closes active project"
+last_updated: "2026-03-10T18:32:34.637Z"
+last_activity: "2026-03-10 - Completed plan 25-10: SingleTab close target guard"
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
   percent: 100
 ---
 
@@ -40,11 +40,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 25 of 26 (Unsaved Close Guard)
-Plan: 8 of 10 in current phase
+Plan: 10 of 10 in current phase
 Status: In Progress
-Last activity: 2026-03-10 - Completed plan 25-08: Ctrl+W consume + guard input lock
+Last activity: 2026-03-10 - Completed plan 25-10: SingleTab close target guard
 
-Progress: [██████████] 95%
+Progress: [██████████] 97%
 
 ## Performance Metrics
 
@@ -83,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 24-save-mode-foundation]: Nyquist compliance flip now requires green automated gates plus PASS for all M-* manual scenarios.
 - [Phase 25-unsaved-close-guard]: Ctrl+W handling moved to egui consume_shortcut to prevent TextEdit fallback.
 - [Phase 25-unsaved-close-guard]: Editor lock derives from dialog_open_base OR pending_close_flow active state.
+- [Phase 25-unsaved-close-guard]: DirtyCloseQueueMode::SingleTab(target) vrací max. jednu položku pouze pro dirty target tab.
+- [Phase 25-unsaved-close-guard]: TabBarAction::Close(idx) řeší target přes snapshot path a při race (idx mimo rozsah) je bezpečný no-op.
 
 ### Known Tech Debt
 
@@ -120,3 +122,4 @@ Recent decisions affecting current work:
 | Phase 24-save-mode-foundation P03 | 4min                                                                                                                                                                                                                             | 3 tasks    | 10 files |                                                                                                   |
 | Phase 24-save-mode-foundation P04 | 2min                                                                                                                                                                                                                             | 2 tasks    | 2 files  |                                                                                                   |
 | Phase 25-unsaved-close-guard P08 | 3min | 2 tasks | 3 files |
+| Phase 25-unsaved-close-guard P10 | 3min | 3 tasks | 3 files |

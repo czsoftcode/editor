@@ -17,7 +17,8 @@
 ### v1.3.0 Additional Themes
 
 - [x] **Phase 27: 4th Light Theme** - Přidat 4. světlé téma (mezi Sepia a Brown) **[IN PROGRESS]** (completed 2026-03-10)
-- [ ] **Phase 28: Dark Variant Support** - Přidat 2. dark téma jako variantu
+- [x] **Phase 28: Dark Variant Support** - Přidat 2. dark téma jako variantu
+  - Completed: 2026-03-10
 - [ ] **Phase 29: Syntect Theme Mapping** - Opravit mapování syntect témat pro všechny varianty
 
 ---
@@ -57,7 +58,7 @@
 3. User can restart app and 2nd dark variant is still selected (persisted in settings.toml)
 4. 2nd dark variant shows visual swatch in theme picker
 
-**Plans:** 1/1 planned
+**Plans:** 0/1 plans executed
 
 - [ ] 28-01-PLAN.md — Add Midnight dark variant (enum, colors, UI picker, i18n)
 
@@ -92,7 +93,7 @@ Následující fáze jsou pozastaveny (nebudou dokončeny):
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 27 | v1.3.0 | Complete    | 2026-03-10 | - |
-| 28 | v1.3.0 | 1/1 | Planned | - |
+| 28 | 0/1 | Planned    |  | - |
 | 29 | v1.3.0 | 0/1 | Not started | - |
 | 19-23 | v1.2.2-dev | - | Deferred | - |
 

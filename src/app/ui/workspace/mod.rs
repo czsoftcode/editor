@@ -23,15 +23,17 @@ use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{render_file_picker, render_project_search_dialog};
 use super::terminal::right::render_ai_panel;
 use super::widgets::command_palette::{execute_command, render_command_palette};
+use crate::app::ui::dialogs::confirm::{UnsavedGuardDecision, show_unsaved_close_guard_dialog};
+use crate::app::ui::widgets::tab_bar::TabBarAction;
+use crate::app::ui::workspace::state::{
+    PendingCloseFlow, PendingCloseMode, build_dirty_close_queue,
+};
 use crate::config;
+use crate::settings::SaveMode;
 use crate::tr;
 pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
 use modal_dialogs::render_dialogs;
-use crate::settings::SaveMode;
-use crate::app::ui::workspace::state::{build_dirty_close_queue, PendingCloseFlow, PendingCloseMode};
-use crate::app::ui::dialogs::confirm::{UnsavedGuardDecision, show_unsaved_close_guard_dialog};
-use crate::app::ui::widgets::tab_bar::TabBarAction;
 
 fn should_save_settings_draft_on_ctrl_s(show_settings: bool) -> bool {
     show_settings
@@ -83,7 +85,9 @@ pub(super) fn handle_manual_save_action(
     i18n: &crate::i18n::I18n,
 ) {
     match manual_save_request(ws.show_settings, ws.editor.active().map(|tab| tab.modified)) {
-        ManualSaveRequest::SaveSettingsDraft => modal_dialogs::save_settings_draft(ws, shared, i18n),
+        ManualSaveRequest::SaveSettingsDraft => {
+            modal_dialogs::save_settings_draft(ws, shared, i18n)
+        }
         ManualSaveRequest::SaveEditorFile => {
             let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
             if let Some(err) = ws.editor.save(i18n, &internal_save) {
@@ -93,7 +97,8 @@ pub(super) fn handle_manual_save_action(
             }
         }
         ManualSaveRequest::ShowAlreadySavedInfo => {
-            ws.toasts.push(Toast::info(i18n.get("info-file-already-saved")));
+            ws.toasts
+                .push(Toast::info(i18n.get("info-file-already-saved")));
         }
         ManualSaveRequest::NoActiveTab => {}
     }
@@ -211,11 +216,7 @@ fn process_unsaved_close_guard_dialog(
     let current_path = flow.queue[flow.current_index].clone();
 
     // Ensure the editor is focused on the current item in the queue.
-    if ws.editor
-        .tabs
-        .iter()
-        .all(|t| t.path != current_path)
-    {
+    if ws.editor.tabs.iter().all(|t| t.path != current_path) {
         // Tab no longer exists; treat as discarded and advance the queue.
         let outcome = apply_unsaved_close_decision(flow, UnsavedGuardDecision::Discard, Ok(()));
         match outcome {
@@ -482,7 +483,8 @@ pub(crate) fn render_workspace(
                     let config = crate::app::ui::terminal::right::PanelDisplayConfig {
                         dialog_open: false,
                         focused: ws.focused_panel,
-                        font_size: config::EDITOR_FONT_SIZE * ws.ai.settings.font_scale as f32 / 100.0,
+                        font_size: config::EDITOR_FONT_SIZE * ws.ai.settings.font_scale as f32
+                            / 100.0,
                         is_float: false,
                         is_viewport: true,
                     };
@@ -501,8 +503,7 @@ pub(crate) fn render_workspace(
     }
 
     // --- 3. STATUS BARS ---
-    let should_render_info_separator =
-        ws.lsp_binary_missing || ws.lsp_install_rx.is_some();
+    let should_render_info_separator = ws.lsp_binary_missing || ws.lsp_install_rx.is_some();
 
     if should_render_info_separator {
         egui::TopBottomPanel::top("info_bar_separator")
@@ -569,13 +570,9 @@ pub(crate) fn render_workspace(
     let prev_active_path = ws.editor.active_path().cloned();
     egui::CentralPanel::default().show(ctx, |ui| {
         let settings = Arc::clone(&shared.lock().expect("lock").settings);
-        let editor_res = ws.editor.ui(
-            ui,
-            editor_locked,
-            i18n,
-            ws.lsp_client.as_ref(),
-            &settings,
-        );
+        let editor_res = ws
+            .editor
+            .ui(ui, editor_locked, i18n, ws.lsp_client.as_ref(), &settings);
         if editor_res.clicked {
             ws.focused_panel = FocusedPanel::Editor;
         }
@@ -786,8 +783,8 @@ fn render_semantic_indexing_modal(
 mod tests {
     use super::ManualSaveRequest;
     use super::manual_save_request;
-    use super::should_save_settings_draft_on_ctrl_s;
     use super::save_mode_status_key;
+    use super::should_save_settings_draft_on_ctrl_s;
     use crate::settings::SaveMode;
 
     mod unsaved_close_guard;
@@ -804,12 +801,18 @@ mod tests {
             save_mode_status_key(&SaveMode::Automatic),
             "statusbar-save-mode-automatic"
         );
-        assert_eq!(save_mode_status_key(&SaveMode::Manual), "statusbar-save-mode-manual");
+        assert_eq!(
+            save_mode_status_key(&SaveMode::Manual),
+            "statusbar-save-mode-manual"
+        );
     }
 
     #[test]
     fn manual_save_request_routes_to_settings_when_modal_is_open() {
-        assert_eq!(manual_save_request(true, Some(true)), ManualSaveRequest::SaveSettingsDraft);
+        assert_eq!(
+            manual_save_request(true, Some(true)),
+            ManualSaveRequest::SaveSettingsDraft
+        );
     }
 
     #[test]

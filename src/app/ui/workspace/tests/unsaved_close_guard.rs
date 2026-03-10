@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use crate::app::ui::dialogs::confirm::UnsavedGuardDecision;
 
-use super::super::{PendingCloseFlow, PendingCloseMode, UnsavedCloseOutcome};
 use super::super::apply_unsaved_close_decision;
 use super::super::consume_close_tab_shortcut;
 use super::super::editor_input_locked;
+use super::super::{PendingCloseFlow, PendingCloseMode, UnsavedCloseOutcome};
 
 // Helper to construct a simple PendingCloseFlow for testing.
 fn make_flow(queue: Vec<PathBuf>) -> PendingCloseFlow {
@@ -32,8 +32,7 @@ fn unsaved_close_guard_modal_actions() {
     assert_eq!(outcome, UnsavedCloseOutcome::Continue);
 
     // Cancel should stop the flow without modifying the queue.
-    let outcome =
-        apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Cancel, Ok(()));
+    let outcome = apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Cancel, Ok(()));
     assert_eq!(flow.current_index, 1);
     assert!(flow.inline_error.is_none());
     assert_eq!(outcome, UnsavedCloseOutcome::Cancelled);

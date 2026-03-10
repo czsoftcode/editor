@@ -44,6 +44,15 @@ fn save_mode_status_key(save_mode: &SaveMode) -> &'static str {
     }
 }
 
+fn consume_close_tab_shortcut(ctx: &egui::Context) -> bool {
+    ctx.input_mut(|input| {
+        input.consume_shortcut(&egui::KeyboardShortcut::new(
+            egui::Modifiers::CTRL,
+            egui::Key::W,
+        ))
+    })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ManualSaveRequest {
     SaveSettingsDraft,
@@ -395,7 +404,7 @@ pub(crate) fn render_workspace(
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
         handle_manual_save_action(ws, shared, i18n);
     }
-    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) {
+    if consume_close_tab_shortcut(ctx) {
         request_close_active_tab(ws);
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::B)) {

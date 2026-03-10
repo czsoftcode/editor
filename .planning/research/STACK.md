@@ -1,82 +1,207 @@
-# Stack Research
+# Technology Stack: Additional Themes
 
-**Domain:** Desktop code editor save workflow (Rust + eframe/egui)
-**Researched:** 2026-03-09
-**Confidence:** HIGH
+**Project:** PolyCredo Editor
+**Researched:** 2026-03-10
+**Focus:** Stack changes needed for 4th light theme + optional 2nd dark theme
 
-## Recommended Stack
+---
 
-### Core Technologies
+## Current Stack
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Rust (stable) | existing project toolchain | Implementace save state logiky a guardů | Už je primární jazyk projektu a drží bezpečnost/threading bez nového runtime |
-| eframe/egui | existing project dependency | UI tlačítka, toggle režimu, potvrzovací dialogy | Stávající UI stack a modal pattern už je v projektu zavedený |
-| serde + settings.toml persistence | existing project dependency | Uložení volby auto/manual save do Settings | Již použitý způsob konfigurace bez nových závislostí |
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| eframe/egui | 0.31 | Desktop framework + UI toolkit |
+| egui_extras | 0.31 | Additional egui components |
+| syntect | (via egui_commonmark) | Syntax highlighting theme |
 
-### Supporting Libraries
+---
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| notify (existing) | existing | Eventy změn souborů mimo editor | Jen pro externí změny; ne pro interní save režim přepínání |
-| tokio::sync / std::sync patterns (existing) | existing | Bezpečné předání signalizace mezi UI a background částmi | Když save guard ovlivní více viewportů/windows |
-| anyhow/thiserror style handling already in repo | existing | Přenos I/O chyb do UI toastů | Pro fail-safe save a close-flow chybové stavy |
+## Existing Theme System
 
-### Development Tools
+### Data Model
+- `dark_theme: bool` — boolean for dark/light mode
+- `light_variant: LightVariant` — enum for light theme variants
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| cargo check | Rychlé ověření kompilace | Povinné po každém patchi |
-| ./check.sh | Projektová validační sada | Aktuálně padá na existujících fmt rozdílech mimo scope |
-| targeted cargo test | Ověření save/close edge case logiky | Přidat testy pro modal rozhodnutí a dirty-states |
-
-## Installation
-
-```bash
-# No new packages required for this milestone
-cargo check
-./check.sh
+### LightVariant enum (src/settings.rs:61-68)
+```rust
+pub enum LightVariant {
+    WarmIvory,  // default
+    CoolGray,
+    Sepia,
+}
 ```
 
-## Alternatives Considered
+### Theme Conversion (src/settings.rs:302-328)
+```rust
+pub fn to_egui_visuals(&self) -> eframe::egui::Visuals {
+    if self.dark_theme {
+        eframe::egui::Visuals::dark()
+    } else {
+        let mut visuals = eframe::egui::Visuals::light();
+        match self.light_variant {
+            LightVariant::WarmIvory => { /* colors */ }
+            LightVariant::CoolGray => { /* colors */ }
+            LightVariant::Sepia => { /* colors */ }
+        }
+        visuals
+    }
+}
+```
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| Persistovaný save mode v settings | Runtime-only toggle bez persist | Pouze pro experiment, ne pro uživatelsky očekávané nastavení |
-| Explicitní close-confirm dialog | Tiché auto-save on close | Jen pokud je produkt striktně auto-save-first a uživatel to očekává |
-| Existing egui modal pattern | Nový custom modal framework | Nedoporučeno, pokud současný pattern pokrývá požadavky |
+### Integration Points
+1. **Settings persistence** — `settings.toml` via serde
+2. **UI picker** — `src/app/ui/workspace/modal_dialogs/settings.rs:371-386`
+3. **Syntect highlighting** — `syntect_theme_name()` returns `"Solarized (light)"`
+4. **Terminal colors** — `src/app/ui/terminal/instance/theme.rs` blends against `panel_fill`
+5. **i18n** — 5 language files with variant labels
 
-## What NOT to Use
+---
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| Nový async runtime jen kvůli save flow | Porušuje stávající architekturu a zvyšuje složitost | Stávající sync/background patterny v projektu |
-| Implicitní zahození změn při close | Vede ke ztrátě dat | Povinný confirm flow při dirty stavech |
-| Dvojí zdroj pravdy pro save režim | Rozpad konzistence mezi UI a persistencí | Jediný source-of-truth v Settings + runtime apply |
+## Changes Required
 
-## Stack Patterns by Variant
+### 1. 4th Light Theme (mandatory)
 
-**If Manual Save mode:**
-- Use explicit Ctrl+S and close confirmations.
-- Because uživatel vědomě řídí okamžik zápisu na disk.
+#### A. Add variant to enum (src/settings.rs)
+```rust
+pub enum LightVariant {
+    WarmIvory,
+    CoolGray,
+    Sepia,
+    // NEW: between Sepia (240,230,210) and Brown
+    // Suggested name: "Stone" or "Sand"
+    Stone,
+}
+```
 
-**If Auto Save mode:**
-- Keep background autosave, but still guard against pending write/failure on close.
-- Because auto-save nesmí skrýt chyby ani vést k tichým ztrátám dat.
+#### B. Add colors in to_egui_visuals()
+Colors should be:
+- Between Sepia `rgb(240,230,210)` and Brown
+- Light enough to not feel "dark"
+- Distinct from existing variants
 
-## Version Compatibility
+Example colors for new variant:
+```rust
+LightVariant::Stone => {
+    visuals.panel_fill = eframe::egui::Color32::from_rgb(235, 228, 218);
+    visuals.window_fill = eframe::egui::Color32::from_rgb(229, 221, 209);
+    visuals.faint_bg_color = eframe::egui::Color32::from_rgb(218, 208, 193);
+}
+```
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| eframe/egui (repo) | current settings + modal implementation | Bez změny dependency tree |
-| serde settings model | existing Settings migration logic | Nové pole musí mít `#[serde(default)]` |
+#### C. Update UI picker (src/app/ui/workspace/modal_dialogs/settings.rs:375-379)
+Add new card to variant loop:
+```rust
+for variant in [
+    LightVariant::WarmIvory,
+    LightVariant::CoolGray,
+    LightVariant::Sepia,
+    LightVariant::Stone,  // NEW
+] { /* ... */ }
+```
+
+#### D. Update helper functions (settings.rs)
+- `light_variant_label_key()` — add new match arm
+- `light_variant_swatch()` — add new swatch color
+
+#### E. i18n translations (5 files)
+Add to each locale file (cs, en, de, ru, sk):
+```
+settings-light-variant-stone = [translation]
+```
+
+#### F. Tests (src/settings.rs)
+Add test coverage:
+- Round-trip serialization
+- Distinct panel_fill from other variants
+- Terminal background distinctness
+
+#### G. Terminal theme (no changes expected)
+The `warm_ivory_bg()` heuristic (line 38-45 in theme.rs) uses r-b threshold:
+```rust
+fn warm_ivory_bg(panel_fill: egui::Color32) -> &'static str {
+    if panel_fill.r() as i32 - panel_fill.b() as i32 > 10 {
+        "#f5f2e8"  // warm
+    } else {
+        "#f3f5f7"  // cold
+    }
+}
+```
+New variant will blend automatically. May need test update.
+
+---
+
+### 2. Optional 2nd Dark Theme
+
+**Complexity:** Higher than light variants
+
+#### Option A: DarkVariant enum (recommended)
+```rust
+#[derive(serde::Serialize, serde::Deserialize, Clone, PartialEq, Debug)]
+pub enum DarkVariant {
+    #[default]
+    Default,  // current base16-ocean.dark
+    Midnight, // NEW: deeper blue-black
+}
+```
+
+**Changes needed:**
+1. Add `dark_variant: DarkVariant` to Settings struct
+2. Update `to_egui_visuals()` — currently just returns `Visuals::dark()`
+3. Custom colors for Midnight variant (override dark mode defaults)
+4. Update syntect theme mapping (different dark theme)
+5. UI picker for dark variant (similar to light)
+6. i18n keys
+7. Tests
+
+#### Option B: Dark theme as simple preset
+Keep `dark_theme: bool`, just swap syntect theme name for different dark option. Limited customization, simpler but less flexible.
+
+---
+
+## Source Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/settings.rs` | Enum + to_egui_visuals + helpers + tests |
+| `src/app/ui/workspace/modal_dialogs/settings.rs` | UI picker loop + helpers |
+| `locales/cs/ui.ftl` | Translation key |
+| `locales/en/ui.ftl` | Translation key |
+| `locales/de/ui.ftl` | Translation key |
+| `locales/ru/ui.ftl` | Translation key |
+| `locales/sk/ui.ftl` | Translation key |
+| `src/app/ui/terminal/instance/theme.rs` | Possibly test update |
+
+---
+
+## Confidence Assessment
+
+| Area | Confidence | Notes |
+|------|------------|-------|
+| Light variant changes | HIGH | Standard pattern, existing infrastructure supports |
+| Dark variant option | MEDIUM | No DarkVariant exists yet, more design work |
+| Terminal integration | HIGH | Heuristic-based, should work automatically |
+| i18n scope | HIGH | Known pattern from existing variants |
+
+---
+
+## No Stack Additions Required
+
+- **No new dependencies** — existing egui API sufficient
+- **No version bumps** — 0.31 supports required customization
+- **No breaking changes** — additive only
+
+---
 
 ## Sources
 
-- `.planning/PROJECT.md` — current architecture and constraints
-- `.planning/ROADMAP.md` — existing phase conventions and status
-- Existing code patterns: settings persistence, modal dialogs, tab dirty-state handling
+- `src/settings.rs` — LightVariant enum, to_egui_visuals(), tests
+- `src/app/ui/workspace/modal_dialogs/settings.rs` — Theme picker UI
+- `src/app/ui/terminal/instance/theme.rs` — Terminal color blending
+- `locales/*/ui.ftl` — i18n keys for variants
+- egui 0.31 documentation — Visuals API verification
+- `.planning/PROJECT.md` — Current theme system context
 
 ---
-*Stack research for: desktop editor save workflow*
-*Researched: 2026-03-09*
+
+*Stack research for: additional themes milestone*
+*Researched: 2026-03-10*

@@ -1,153 +1,213 @@
-# Architecture Research
+# Architecture Research: Additional Themes Integration
 
-**Domain:** Save pipeline and close-safety in desktop editor
-**Researched:** 2026-03-09
+**Domain:** Rust/egui Desktop Editor Theme System
+**Researched:** 2026-03-10
 **Confidence:** HIGH
 
-## Standard Architecture
+## Existing Theme Architecture
 
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        UI Layer                             │
-├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌────────────────┐  ┌────────────────┐  │
-│  │ Editor Tabs  │  │ Settings Modal │  │ Close Dialog   │  │
-│  └──────┬───────┘  └──────┬─────────┘  └──────┬─────────┘  │
-│         │                 │                   │             │
-├─────────┴─────────────────┴───────────────────┴─────────────┤
-│                     Save Coordination Layer                  │
-├─────────────────────────────────────────────────────────────┤
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │ Save Mode + Dirty-State + Close Decision Engine      │  │
-│  └───────────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────┤
-│                        Persistence Layer                    │
-│  ┌───────────────┐  ┌───────────────┐                      │
-│  │ File Writes   │  │ settings.toml │                      │
-│  └───────────────┘  └───────────────┘                      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| Editor tab state | Drží `modified/dirty` informaci per soubor | Existing tab model in workspace/editor state |
-| Save mode config | Source of truth auto vs manual režimu | Settings field + serde default + runtime apply |
-| Close guard handler | Rozhodnutí Save/Discard/Cancel při close eventu | Shared handler called from tab-close i app-close paths |
-
-## Recommended Project Structure
+The editor uses a centralized theme system based on `eframe::egui::Visuals`. The architecture follows a **single source of truth** pattern where theme configuration lives in `Settings` and propagates to all UI components.
 
 ```
-src/
-├── app/ui/editor/                  # editor rendering + tab save flow
-├── app/ui/workspace/modal_dialogs/ # settings a confirm dialogy
-├── settings.rs                     # persistovaný config model
-└── app/mod.rs / workspace close    # app close interception body
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Settings Layer                                │
+├─────────────────────────────────────────────────────────────────────┤
+│  src/settings.rs                                                    │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │  LightVariant enum (WarmIvory, CoolGray, Sepia)           │  │
+│  │  dark_theme: bool                                           │  │
+│  │  to_egui_visuals() → egui::Visuals                         │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ propagates Visuals
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Consumption Layer (read-only)                     │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────┐   │
+│  │ Terminal Theme  │  │  File Tree     │  │  Git Status     │   │
+│  │ terminal/      │  │ file_tree/     │  │  git_status.rs  │   │
+│  │ instance/      │  │ render.rs      │  │                  │   │
+│  │ theme.rs       │  │                │  │                  │   │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬─────────┘   │
+│           │                    │                     │              │
+│           ▼                    ▼                     ▼              │
+│  All use: ui.visuals() or Settings::to_egui_visuals()            │
+│  No direct enum access — pure Visuals input                       │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Settings UI Layer                               │
+├─────────────────────────────────────────────────────────────────────┤
+│  src/app/ui/workspace/modal_dialogs/settings.rs                   │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │  light_variant_label_key() → i18n key                      │  │
+│  │  light_variant_swatch() → Color32 preview                  │  │
+│  │  show_light_variant_card() → clickable picker UI           │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
 ```
-
-### Structure Rationale
-
-- **editor/**: dirty-state a save trigger patří k editor tab logice.
-- **settings.rs**: save mode musí být persistovaný stejně jako ostatní uživatelská preference.
-- **modal_dialogs/**: close confirm dialog držet v již existujícím modal patternu.
-
-## Architectural Patterns
-
-### Pattern 1: Single Source of Truth for Save Mode
-
-**What:** Save režim je držen v jednom poli settings + promítnut do runtime.
-**When to use:** Když má režim ovlivnit více částí UI/chování.
-**Trade-offs:** Méně driftu, ale nutnost řešit migraci/default.
-
-### Pattern 2: Centralized Close Guard
-
-**What:** Jedna funkce pro vyhodnocení dirty close scénářů.
-**When to use:** Když existují 2+ cesty zavření (tab, app, viewport).
-**Trade-offs:** Méně duplicit, ale vyžaduje čistý API kontrakt.
-
-### Pattern 3: Explicit User Decision Branching
-
-**What:** Save / Discard / Cancel jako explicitní větve.
-**When to use:** Kdykoliv hrozí ztráta neuložené práce.
-**Trade-offs:** O jeden dialog víc, ale výrazně bezpečnější UX.
-
-## Data Flow
-
-### Request Flow
-
-```
-[User presses Ctrl+S]
-    ↓
-[Editor Handler] → [Save Dispatcher] → [File Write]
-    ↓                                 ↓
-[Status update] ← [Result mapped to UI toast/state]
-```
-
-### State Management
-
-```
-[Settings.save_mode]
-    ↓
-[Workspace/Editor Runtime]
-    ↓
-[Save trigger + close guard behavior]
-```
-
-### Key Data Flows
-
-1. **Mode change flow:** Settings toggle -> persist -> runtime apply -> UI indicator refresh.
-2. **Close guard flow:** Close event -> dirty scan -> decision dialog -> save/discard/cancel action.
-
-## Scaling Considerations
-
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 0-1k files/project | Current in-memory dirty tracking is fine |
-| 1k-100k files/project | Optimize dirty scan to open tabs only |
-| 100k+ files/project | Batch close/save orchestration, async queue visibility |
-
-### Scaling Priorities
-
-1. **First bottleneck:** app-close dirty scan across many tabs.
-2. **Second bottleneck:** sequential save latency at app shutdown.
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Implicit save mode fallback
-
-**What people do:** režim není jasně vidět ani persistován.
-**Why it's wrong:** uživatel neví, proč se soubor uložil/neuložil.
-**Do this instead:** explicitní toggle + label + consistent behavior.
-
-### Anti-Pattern 2: Duplicate close logic per entrypoint
-
-**What people do:** tab close a app close mají vlastní rozdílné rozhodování.
-**Why it's wrong:** nekonzistentní chování a regresní bugy.
-**Do this instead:** shared close guard handler.
 
 ## Integration Points
 
-### External Services
+### 1. Core Theme Definition
 
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| File system | Direct write + error propagation | Chyby vždy přenést do UI, neignorovat |
+**File:** `src/settings.rs`
 
-### Internal Boundaries
+| Component | Current State | Change Required |
+|-----------|---------------|-----------------|
+| `LightVariant` enum | 3 variants | Add new variant(s) |
+| `to_egui_visuals()` | 3 match arms | Add color definitions |
+| Serde serialization | Works | Automatic (enum derive) |
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| settings.rs ↔ editor runtime | shared state + apply on save | Keep atomic update semantics |
-| close event handler ↔ editor tabs | direct state inspection | Use open-tabs dirty scan only |
+**Example structure for new variant (in to_egui_visuals):**
+```rust
+LightVariant::WarmIvory => {
+    visuals.panel_fill = egui::Color32::from_rgb(255, 252, 240);
+    visuals.window_fill = egui::Color32::from_rgb(250, 246, 235);
+    visuals.faint_bg_color = egui::Color32::from_rgb(247, 241, 226);
+}
+```
+
+### 2. Settings UI (Theme Picker)
+
+**File:** `src/app/ui/workspace/modal_dialogs/settings.rs`
+
+| Function | Change Required |
+|----------|-----------------|
+| `light_variant_label_key()` | Add i18n key mapping |
+| `light_variant_swatch()` | Add color swatch preview |
+| Theme selector loop (line 375-379) | Add variant to iteration |
+
+### 3. Terminal Theme Colors
+
+**File:** `src/app/ui/terminal/instance/theme.rs`
+
+| Component | Current State | Change Required |
+|-----------|---------------|-----------------|
+| `terminal_palette()` | Uses `visuals.dark_mode` | No change (automatic) |
+| `warm_ivory_bg()` | Heuristic via r-b threshold | May need adjustment |
+| `tone_light_palette()` | Blends colors based on visuals | No change (automatic) |
+
+**Architecture note:** Terminal themes work automatically because they take `&Visuals` as input, not `LightVariant`. The `warm_ivory_bg()` heuristic detects WarmIvory by `r() > b() + 10`.
+
+### 4. Git Status Colors
+
+**File:** `src/app/ui/git_status.rs`
+
+| Component | Change Required |
+|-----------|-----------------|
+| `git_color_for_visuals()` | No change (uses Visuals) |
+| Tests | Add new variant to test coverage |
+
+### 5. File Tree Render
+
+**File:** `src/app/ui/file_tree/render.rs`
+
+| Component | Change Required |
+|-----------|-----------------|
+| `resolve_file_tree_git_color()` | No change (uses Visuals) |
+| Tests | Add new variant to test coverage |
+
+### 6. i18n Strings
+
+**File:** `src/i18n.rs`
+
+| Language | Change Required |
+|----------|-----------------|
+| cs (Czech) | Add theme name translation |
+| en (English) | Add theme name translation |
+| de (German) | Add theme name translation |
+| ru (Russian) | Add theme name translation |
+| sk (Slovak) | Add theme name translation |
+
+**Key pattern:** `"settings-light-variant-{name}"` format (snake_case)
+
+## Files That Require Modification
+
+### Primary (must modify)
+
+| File | Lines | Changes |
+|------|-------|---------|
+| `src/settings.rs` | 63-68, 308-324 | Enum + to_egui_visuals match |
+| `src/app/ui/workspace/modal_dialogs/settings.rs` | 16-30, 375-379 | UI picker |
+
+### Secondary (tests)
+
+| File | Purpose |
+|------|---------|
+| `src/settings.rs` | Test new variant roundtrip |
+| `src/app/ui/terminal/instance/theme.rs` | Test distinct terminal colors |
+| `src/app/ui/git_status.rs` | Test distinct git status tones |
+| `src/app/ui/file_tree/render.rs` | Test distinct file tree tones |
+
+### Optional (automatic, but verify)
+
+| File | Expected Behavior |
+|------|-------------------|
+| `src/app/ui/terminal/instance/theme.rs` | Works automatically via Visuals |
+| `src/app/ui/git_status.rs` | Works automatically via Visuals |
+| `src/app/ui/file_tree/render.rs` | Works automatically via Visuals |
+
+## Key Design Principles
+
+### 1. Visuals-First Architecture
+All rendering components receive `&egui::Visuals`, not `LightVariant`. This means:
+- Adding new variants doesn't require touching render logic
+- The `warm_ivory_bg()` heuristic detects WarmIvory by color analysis
+- Terminal/file_tree/git colors blend dynamically based on panel_fill
+
+### 2. Heuristic Detection
+The `warm_ivory_bg()` function (line 38-45 in terminal/theme.rs) uses:
+```rust
+if panel_fill.r() as i32 - panel_fill.b() as i32 > 10 {
+    "#f5f2e8" // warm tone
+} else {
+    "#f3f5f7" // cool base
+}
+```
+**Implication:** New light variants that are warm-toned (>10 r-b) will blend with warm ivory; cool-toned variants will use the cool base.
+
+### 3. i18n Decoupling
+Theme names use i18n keys, not hardcoded strings. This allows translation without code changes.
+
+## Anti-Patterns to Avoid
+
+### 1. Direct LightVariant in Render Layer
+**Wrong:** `match light_variant { ... }` in terminal/theme.rs
+**Correct:** Use `visuals.panel_fill` to derive colors
+
+### 2. Hardcoding Theme Names
+**Wrong:** `if variant == "Sepia"`
+**Correct:** Use enum matching with i18n keys for display
+
+### 3. Missing Test Coverage
+**Risk:** New variants may look identical to existing ones
+**Prevention:** Tests verify `HashSet` of backgrounds has distinct values
+
+## Build Order
+
+For implementing new themes:
+
+1. **Phase 1:** Add `LightVariant` enum + `to_egui_visuals()` in settings.rs
+2. **Phase 2:** Add i18n translations (all 5 languages)
+3. **Phase 3:** Add UI picker in settings.rs (label + swatch + iteration)
+4. **Phase 4:** Add/update tests in settings.rs (roundtrip)
+5. **Phase 5:** Verify terminal/file_tree/git colors work automatically
+6. **Phase 6:** Update tests in terminal/git/file_tree (distinctness)
 
 ## Sources
 
-- `.planning/PROJECT.md`
-- Existing code layout under `src/app/ui/editor`, `src/app/ui/workspace`, `src/settings.rs`
+- Implementation files analyzed:
+  - `src/settings.rs` (LightVariant, to_egui_visuals)
+  - `src/app/ui/workspace/modal_dialogs/settings.rs` (UI picker)
+  - `src/app/ui/terminal/instance/theme.rs` (terminal colors)
+  - `src/app/ui/git_status.rs` (git status colors)
+  - `src/app/ui/file_tree/render.rs` (file tree colors)
+- `.planning/PROJECT.md` (milestone context)
 
 ---
-*Architecture research for: save pipeline in desktop editor*
-*Researched: 2026-03-09*
+
+*Architecture research for: PolyCredo Editor v1.3.0 Additional Themes*
+*Researched: 2026-03-10*

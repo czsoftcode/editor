@@ -58,7 +58,17 @@ Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí 
 
 (Další requirements budou definovány v další milestone)
 
-## Current Milestone: v1.2.1 Save Modes + Unsaved Changes Guard — SHIPPED
+## Current Milestone: v1.3.0 Additional Themes
+
+**Goal:** Přidat 4. světlé téma (mezi sepia a hnědou, ne moc tmavé) a volitelně druhé dark téma.
+
+**Target features:**
+- 4. světlé téma: barva mezi sepia a hnědou, příjemná pro oči, ne moc tmavá
+- (Volitelně) 2. dark téma jako varianta k existujícímu
+
+---
+
+## Previous Milestone: v1.2.1 Save Modes + Unsaved Changes Guard — SHIPPED
 
 **Goal:** Zpřehlednit a zbezpečnit ukládání v editoru přes výchozí Ctrl+S workflow, přepínání auto/manual režimu a ochranu proti ztrátě neuložené práce při zavírání tabu nebo aplikace.
 
@@ -69,14 +79,7 @@ Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí 
 - Save mode runtime key kontrakt oddělen od settings draftu
 - MODE-04 regression testy v dedikovaném workspace test modulu
 - Save UX priority dirty-first vizuální kontrakt
-- i18n smoke coverage pro 5 jazyků
-
-**Target features:**
-- Výchozí ruční ukládání přes Ctrl+S
-- Přepínatelné nastavení „Automatické ukládání“ vs „Ruční ukládání“
-- Potvrzovací dialog při zavírání neuloženého tabu
-- Potvrzovací dialog při ukončení aplikace s neuloženými soubory
-- Konzistentní stavové indikace (uloženo/neuloženo, aktivní save režim)
+  - i18n smoke coverage pro 5 jazyků
 
 ### Out of Scope
 
@@ -143,4 +146,4 @@ Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí 
 | i18n smoke test pro phase-specific keys | phase_26_save_ux_keys helper pro lokalizaci | ✓ 5 jazyků ověřeno |
 
 ---
-*Last updated: 2026-03-10 after v1.2.1 milestone shipped*
+*Last updated: 2026-03-10 after v1.3.0 milestone started*

@@ -1,5 +1,6 @@
 use crate::settings::SaveMode;
 use crate::app::ui::editor::render::tabs::tab_label_with_mode_indicator_for_tests;
+use crate::i18n::{I18n, SUPPORTED_LANGS};
 
 use super::super::status_bar_runtime_mode_key;
 use super::super::status_bar_save_mode_key_for_runtime;
@@ -64,4 +65,18 @@ fn save_ux_contrast_regression_mode_badge_is_hidden_for_inactive_tab() {
         tab_label_with_mode_indicator_for_tests("lib.rs", true, false, false, &SaveMode::Manual);
     assert!(inactive_label.contains("●"));
     assert!(!inactive_label.contains("·M"));
+}
+
+#[test]
+fn save_ux_i18n_smoke() {
+    for &lang in SUPPORTED_LANGS {
+        let i18n = I18n::new(lang);
+        for &key in crate::i18n::phase_26_save_ux_keys() {
+            assert_ne!(
+                i18n.get(key),
+                key,
+                "chybi save UX i18n klic '{key}' v jazyce '{lang}'"
+            );
+        }
+    }
 }

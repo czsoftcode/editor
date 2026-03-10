@@ -357,3 +357,32 @@ impl Editor {
             });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::SaveStatus;
+    use super::save_status_presentation;
+
+    #[test]
+    fn dirty_state_visual_priority_marks_modified_as_primary_signal() {
+        let modified = save_status_presentation(SaveStatus::Modified);
+        let saving = save_status_presentation(SaveStatus::Saving);
+
+        assert!(modified.is_some());
+        assert!(saving.is_some());
+        let modified = modified.expect("modified presentation");
+        let saving = saving.expect("saving presentation");
+
+        assert!(modified.is_primary);
+        assert!(!saving.is_primary);
+    }
+
+    #[test]
+    fn dirty_state_visual_priority_keeps_mode_status_secondary() {
+        let modified = save_status_presentation(SaveStatus::Modified).expect("modified presentation");
+        let saved = save_status_presentation(SaveStatus::Saved).expect("saved presentation");
+
+        assert!(modified.is_primary);
+        assert!(!saved.is_primary);
+    }
+}

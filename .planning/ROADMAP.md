@@ -16,7 +16,7 @@
 
 ### v1.3.0 Additional Themes
 
-- [ ] **Phase 27: 4th Light Theme** - Přidat 4. světlé téma (mezi Sepia a Brown)
+- [ ] **Phase 27: 4th Light Theme** - Přidat 4. světlé téma (mezi Sepia a Brown) **[IN PROGRESS]**
 - [ ] **Phase 28: Dark Variant Support** - Přidat 2. dark téma jako variantu
 - [ ] **Phase 29: Syntect Theme Mapping** - Opravit mapování syntect témat pro všechny varianty
 
@@ -39,7 +39,7 @@
 
 **Plans:** 1 plan
 
-- [ ] 27-01-PLAN.md — Add WarmTan light variant (enum, colors, UI picker, i18n)
+- [x] 27-01-PLAN.md — Add WarmTan light variant (enum, colors, UI picker, i18n)
 
 ---
 

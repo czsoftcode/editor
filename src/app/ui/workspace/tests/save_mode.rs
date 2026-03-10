@@ -1,4 +1,5 @@
 use crate::settings::SaveMode;
+use crate::app::ui::editor::render::tabs::tab_label_with_mode_indicator_for_tests;
 
 use super::super::status_bar_runtime_mode_key;
 use super::super::status_bar_save_mode_key_for_runtime;
@@ -36,4 +37,23 @@ fn mode_04_runtime_visibility_updates_immediately_after_apply() {
         status_bar_runtime_mode_key(&runtime_mode_after_apply),
         "statusbar-save-mode-automatic"
     );
+}
+
+#[test]
+fn save_ux_contrast_regression_mode_key_branches_cover_manual_and_auto() {
+    assert_eq!(
+        status_bar_runtime_mode_key(&SaveMode::Manual),
+        "statusbar-save-mode-manual"
+    );
+    assert_eq!(
+        status_bar_runtime_mode_key(&SaveMode::Automatic),
+        "statusbar-save-mode-automatic"
+    );
+}
+
+#[test]
+fn save_ux_contrast_regression_dirty_marker_stays_primary_over_mode_badge() {
+    let label =
+        tab_label_with_mode_indicator_for_tests("main.rs", true, false, true, &SaveMode::Manual);
+    assert!(label.contains("● ·M"));
 }

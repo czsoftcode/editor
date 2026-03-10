@@ -215,6 +215,7 @@ settings-light-variant = Helle Variante
 settings-light-variant-warm-ivory = Warmes Elfenbein
 settings-light-variant-cool-gray = Kühles Grau
 settings-light-variant-sepia = Sepia
+settings-light-variant-warm-tan = Warme Tan
 settings-save-mode-title = Speichermodus
 settings-save-mode-automatic = Automatisches Speichern
 settings-save-mode-manual = Manuelles Speichern

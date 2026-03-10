@@ -215,6 +215,7 @@ settings-light-variant = Light variant
 settings-light-variant-warm-ivory = Warm Ivory
 settings-light-variant-cool-gray = Cool Gray
 settings-light-variant-sepia = Sepia
+settings-light-variant-warm-tan = Warm Tan
 settings-save-mode-title = Save mode
 settings-save-mode-automatic = Automatic Save
 settings-save-mode-manual = Manual Save

@@ -219,6 +219,7 @@ settings-light-variant = Svetlá varianta
 settings-light-variant-warm-ivory = Teplá slonovinová
 settings-light-variant-cool-gray = Studená sivá
 settings-light-variant-sepia = Sepia
+settings-light-variant-warm-tan = Teplý tan
 settings-save-mode-title = Režim ukladania
 settings-save-mode-automatic = Automatické ukladanie
 settings-save-mode-manual = Ručné ukladanie

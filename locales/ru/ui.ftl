@@ -234,6 +234,7 @@ settings-light-variant = Вариант светлой темы
 settings-light-variant-warm-ivory = Теплая слоновая кость
 settings-light-variant-cool-gray = Холодный серый
 settings-light-variant-sepia = Сепия
+settings-light-variant-warm-tan = Тёплый тан
 settings-save-mode-title = Режим сохранения
 settings-save-mode-automatic = Автосохранение
 settings-save-mode-manual = Ручное сохранение

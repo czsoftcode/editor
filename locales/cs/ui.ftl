@@ -220,6 +220,7 @@ settings-light-variant = Světlá varianta
 settings-light-variant-warm-ivory = Teplá slonová kost
 settings-light-variant-cool-gray = Studená šedá
 settings-light-variant-sepia = Sépie
+settings-light-variant-warm-tan = Teplý tan
 settings-save-mode-title = Režim ukládání
 settings-save-mode-automatic = Automatické ukládání
 settings-save-mode-manual = Ruční ukládání

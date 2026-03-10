@@ -8,6 +8,8 @@ use super::super::apply_unsaved_close_decision;
 use super::super::consume_close_tab_shortcut;
 use super::super::editor_input_locked;
 use super::super::open_guard_queue_item_without_focus;
+use super::super::process_guard_save_failure_feedback;
+use super::super::should_close_tabs_after_guard_decision;
 use super::super::tabbar_close_target_path;
 use super::super::{PendingCloseFlow, PendingCloseMode, UnsavedCloseOutcome};
 
@@ -189,4 +191,37 @@ fn unsaved_close_guard_focus_handoff() {
 
     let _ = std::fs::remove_file(first);
     let _ = std::fs::remove_file(second);
+}
+
+#[test]
+fn unsaved_close_guard_save_failure_feedback() {
+    let path = PathBuf::from("/project/save-fail.txt");
+    let mut flow = make_flow(vec![path]);
+    let mut toasts = Vec::new();
+    let unique_err = format!(
+        "save failed {}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("valid timestamp")
+            .as_nanos()
+    );
+
+    let outcome =
+        process_guard_save_failure_feedback(&mut flow, &mut toasts, unique_err.as_str(), true);
+
+    assert_eq!(outcome, UnsavedCloseOutcome::Continue);
+    assert_eq!(flow.current_index, 0);
+    assert_eq!(flow.inline_error.as_deref(), Some(unique_err.as_str()));
+    assert_eq!(toasts.len(), 1);
+    assert_eq!(toasts[0].message, unique_err);
+    assert!(
+        toasts[0].is_error,
+        "save fail v guard flow musi byt surfacnuty jako error toast"
+    );
+
+    let save_result = Err(String::from("save failed"));
+    assert!(
+        !should_close_tabs_after_guard_decision(UnsavedGuardDecision::Save, &save_result),
+        "save fail nesmi zavrit tab ani projekt bez dalsiho uzivatelskeho rozhodnuti"
+    );
 }

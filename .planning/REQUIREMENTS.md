@@ -18,7 +18,7 @@ Requirements for Save Modes + Unsaved Changes Guard milestone. Each maps to road
 - [x] **MODE-01**: User can switch between `Automatic Save` and `Manual Save` in Settings.
 - [x] **MODE-02**: Selected save mode is persisted across app restart.
 - [x] **MODE-03**: Runtime behavior immediately reflects selected save mode after Settings Save.
-- [ ] **MODE-04**: UI clearly indicates active save mode so user understands current behavior.
+- [x] **MODE-04**: UI clearly indicates active save mode so user understands current behavior.
 
 ### Unsaved Changes Protection
 
@@ -53,7 +53,7 @@ Requirements for Save Modes + Unsaved Changes Guard milestone. Each maps to road
 | MODE-01 | Phase 24 | Complete |
 | MODE-02 | Phase 24 | Complete |
 | MODE-03 | Phase 24 | Complete |
-| MODE-04 | Phase 26 | Pending |
+| MODE-04 | Phase 26 | Complete |
 | GUARD-01 | Phase 25 | Complete |
 | GUARD-02 | Phase 25 | Complete |
 | GUARD-03 | Phase 25 | Complete |

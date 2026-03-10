@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-last_updated: "2026-03-10T18:38:33.594Z"
-last_activity: "2026-03-10 - Completed plan 25-10: SingleTab close target guard"
+status: in_progress
+last_updated: "2026-03-10T19:32:50.973Z"
+last_activity: "2026-03-10 - Completed plan 26-01: Save mode status and MODE-04 regression hardening"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 14
-  completed_plans: 14
-  percent: 100
+  total_plans: 18
+  completed_plans: 15
+  percent: 93
 ---
 
 ---
@@ -40,11 +40,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 26 of 26 (Save UX Polish + Regression Hardening)
-Plan: Pending planning
-Status: Ready
-Last activity: 2026-03-10 - Completed plan 25-09: Guard Esc + focus handoff
+Plan: 01 of 4 completed (next: 02)
+Status: In Progress
+Last activity: 2026-03-10 - Completed plan 26-01: Save mode status and MODE-04 regression hardening
 
-Progress: [██████████] 100%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -87,6 +87,9 @@ Recent decisions affecting current work:
 - [Phase 25-unsaved-close-guard]: TabBarAction::Close(idx) řeší target přes snapshot path a při race (idx mimo rozsah) je bezpečný no-op.
 - [Phase 25-unsaved-close-guard]: Esc v unsaved guard dialogu se explicitne consume a mapuje na Cancel vetev.
 - [Phase 25-unsaved-close-guard]: Guard queue handoff otevira tab bez focus requestu, aby modal drzel fokus do ukonceni flow.
+- [Phase 26-save-ux-polish-regression-hardening]: Status bar save mode key cte pouze runtime mode; settings draft se nepropisuje mimo apply.
+- [Phase 26-save-ux-polish-regression-hardening]: Tab save mode marker je pouze doplnkovy na aktivnim tabu (·M/·A) a dirty symbol zustava primarni.
+- [Phase 26-save-ux-polish-regression-hardening]: MODE-04 regression coverage je oddelena v src/app/ui/workspace/tests/save_mode.rs.
 
 ### Known Tech Debt
 
@@ -126,3 +129,4 @@ Recent decisions affecting current work:
 | Phase 25-unsaved-close-guard P08 | 3min | 2 tasks | 3 files |
 | Phase 25-unsaved-close-guard P10 | 3min | 3 tasks | 3 files |
 | Phase 25-unsaved-close-guard P09 | 3min | 2 tasks | 4 files |
+| Phase 26-save-ux-polish-regression-hardening P01 | 3min | 3 tasks | 4 files |

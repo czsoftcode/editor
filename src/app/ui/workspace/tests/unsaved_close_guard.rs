@@ -13,6 +13,8 @@ use super::super::should_close_tabs_after_guard_decision;
 use super::super::tabbar_close_target_path;
 use super::super::{PendingCloseFlow, PendingCloseMode, UnsavedCloseOutcome};
 
+const WORKSPACE_SOURCE: &str = include_str!("../mod.rs");
+
 // Helper to construct a simple PendingCloseFlow for testing.
 fn make_flow(queue: Vec<PathBuf>) -> PendingCloseFlow {
     PendingCloseFlow {
@@ -21,6 +23,52 @@ fn make_flow(queue: Vec<PathBuf>) -> PendingCloseFlow {
         current_index: 0,
         inline_error: None,
     }
+}
+
+fn extract_function_body<'a>(source: &'a str, function_name: &str) -> Option<&'a str> {
+    let signature = format!("fn {function_name}(");
+    let start = source.find(&signature)?;
+    let body_start_rel = source[start..].find('{')?;
+    let body_start = start + body_start_rel;
+
+    let mut depth = 0usize;
+    for (idx, ch) in source[body_start..].char_indices() {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                if depth == 0 {
+                    return None;
+                }
+                depth -= 1;
+                if depth == 0 {
+                    return Some(&source[body_start..=body_start + idx]);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+fn save_ux_paths_are_event_driven() -> bool {
+    let guarded_functions = [
+        "manual_save_request_for_shortcut",
+        "apply_unsaved_close_decision",
+        "process_guard_save_failure_feedback",
+        "should_close_tabs_after_guard_decision",
+        "process_unsaved_close_guard_dialog",
+    ];
+
+    guarded_functions.iter().all(|name| {
+        let Some(body) = extract_function_body(WORKSPACE_SOURCE, name) else {
+            return false;
+        };
+
+        !body.contains("request_repaint_after")
+            && !body.contains("Duration::from_millis")
+            && !body.contains("Duration::from_secs")
+    })
 }
 
 #[test]

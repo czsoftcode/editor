@@ -214,6 +214,7 @@ pub fn init_workspace(
         confirm_discard_changes: None,
         last_keystroke_time: None,
         pending_close_flow: None,
+        last_unsaved_close_cancelled: false,
         tool_executor: None,
         pending_tool_approval: None,
         pending_tool_ask: None,

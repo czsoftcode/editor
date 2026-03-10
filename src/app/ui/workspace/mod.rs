@@ -188,6 +188,9 @@ fn process_unsaved_close_guard_dialog(
     };
 
     if flow.queue.is_empty() || flow.current_index >= flow.queue.len() {
+        // An empty or exhausted queue means the guard flow is effectively done.
+        // Treat this as a cancelled flow from the workspace perspective.
+        ws.last_unsaved_close_cancelled = true;
         ws.pending_close_flow = None;
         return;
     }
@@ -204,12 +207,14 @@ fn process_unsaved_close_guard_dialog(
         let outcome = apply_unsaved_close_decision(flow, UnsavedGuardDecision::Discard, Ok(()));
         match outcome {
             UnsavedCloseOutcome::Cancelled => {
+                ws.last_unsaved_close_cancelled = true;
                 ws.pending_close_flow = None;
             }
             UnsavedCloseOutcome::Continue => {
                 // Nothing else to do this frame; next item will be handled on the next call.
             }
             UnsavedCloseOutcome::Finished => {
+                ws.last_unsaved_close_cancelled = false;
                 ws.pending_close_flow = None;
             }
         }
@@ -241,10 +246,14 @@ fn process_unsaved_close_guard_dialog(
     let save_result: Result<(), String> = if matches!(decision, UnsavedGuardDecision::Save) {
         let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
         if let Some(err) = ws.editor.save(i18n, &internal_save) {
-            if should_emit_save_error_toast(&err) {
-                ws.toasts.push(Toast::error(err.clone()));
+            let mut args = fluent_bundle::FluentArgs::new();
+            args.set("name", file_name);
+            args.set("reason", err.as_str());
+            let message = i18n.get_args("unsaved_close_guard_save_failed", &args);
+            if should_emit_save_error_toast(&message) {
+                ws.toasts.push(Toast::error(message.clone()));
             }
-            Err(err)
+            Err(message)
         } else {
             Ok(())
         }
@@ -270,6 +279,7 @@ fn process_unsaved_close_guard_dialog(
             // Keep the flow active; next item (or same on save-fail) will be handled on the next frame.
         }
         UnsavedCloseOutcome::Finished | UnsavedCloseOutcome::Cancelled => {
+            ws.last_unsaved_close_cancelled = matches!(outcome, UnsavedCloseOutcome::Cancelled);
             ws.pending_close_flow = None;
         }
     }

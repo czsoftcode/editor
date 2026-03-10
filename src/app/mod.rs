@@ -24,6 +24,7 @@ use ui::dialogs::{
 use ui::workspace::{
     SecondaryWorkspace, WorkspaceState, init_workspace, render_workspace, ws_to_panel_state,
 };
+use crate::app::ui::workspace::state::{PendingCloseFlow, PendingCloseMode, build_dirty_close_queue};
 
 use crate::config;
 use crate::ipc::{self, Ipc, IpcServer};
@@ -35,6 +36,16 @@ use eframe::egui;
 // ---------------------------------------------------------------------------
 
 use crate::tr;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum GlobalCloseKind {
+    /// User requested to quit the entire application (menu or Ctrl+Q equivalent).
+    QuitAll,
+    /// Root viewport window close (e.g., clicking OS window close button).
+    RootViewportClose,
+    /// Close project in the root window while keeping the app running.
+    RootProjectClose,
+}
 
 pub struct EditorApp {
     /// Root workspace (None = startup dialog)
@@ -76,6 +87,11 @@ pub struct EditorApp {
 
     /// Last settings version applied to the root viewport context (Audit S-4).
     applied_settings_version: u64,
+
+    /// Pending global close guard flow for Quit/Close Project/root window close.
+    /// When set, root close orchestrace waits for workspace unsaved guard to finish
+    /// before showing the final confirmation dialog or terminating the app.
+    pub(crate) pending_global_close: Option<GlobalCloseKind>,
 }
 
 // ---------------------------------------------------------------------------
@@ -236,6 +252,7 @@ impl EditorApp {
             open_request_rx,
             missing_session_paths,
             applied_settings_version: 0,
+            pending_global_close: None,
         }
     }
 
@@ -344,8 +361,7 @@ impl EditorApp {
                     self.push_recent(path);
                 }
                 AppAction::QuitAll => {
-                    self.show_close_project_confirm = false;
-                    self.show_quit_confirm = true;
+                    self.start_global_close_guard(GlobalCloseKind::QuitAll, ctx);
                 }
             }
 
@@ -465,6 +481,162 @@ impl EditorApp {
                     }
                 },
             );
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_new_with_workspace(ws: WorkspaceState, ctx: &egui::Context) -> Self {
+        use std::sync::mpsc;
+
+        let panel_state = PersistentState::default();
+        let settings = std::sync::Arc::new(crate::settings::Settings::default());
+        let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
+        let registry = {
+            let mut r = crate::app::registry::Registry::new();
+            r.init_defaults();
+            r
+        };
+
+        let shared = Arc::new(Mutex::new(AppShared {
+            recent_projects: Vec::new(),
+            actions: Vec::new(),
+            settings,
+            i18n,
+            is_internal_save: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            registry,
+            settings_version: std::sync::atomic::AtomicU64::new(1),
+            bert_model: None,
+            bert_tokenizer: None,
+        }));
+
+        let (_focus_tx, focus_rx) = mpsc::channel();
+
+        EditorApp {
+            root_ws: Some(ws),
+            secondary: Vec::new(),
+            shared,
+            next_viewport_counter: 0,
+            saved_panel_state: panel_state,
+            privacy_state: PrivacyState::default(),
+            path_buffer: String::new(),
+            startup_browse_rx: None,
+            show_startup_wizard: false,
+            startup_wizard: WizardState::default(),
+            show_quit_confirm: false,
+            quit_confirmed: false,
+            show_close_project_confirm: false,
+            _ipc_server: None,
+            focus_rx,
+            open_request_rx: None,
+            missing_session_paths: Vec::new(),
+            applied_settings_version: 0,
+            pending_global_close: None,
+        }
+    }
+
+    /// Starts a workspace-level unsaved close guard run before executing a
+    /// global close action (Quit/Close Project/root window close).
+    ///
+    /// If there is no workspace or there are no dirty tabs, the original
+    /// action is executed immediately. Otherwise, this sets up a
+    /// `PendingCloseFlow` in `WorkspaceClose` mode and records the
+    /// `pending_global_close` kind so that `update` can resume the original
+    /// action once the guard flow finishes or is cancelled.
+    pub(crate) fn start_global_close_guard(&mut self, kind: GlobalCloseKind, ctx: &egui::Context) {
+        if self.pending_global_close.is_some() {
+            return;
+        }
+
+        let Some(ws) = self.root_ws.as_mut() else {
+            // No workspace open — behave as before.
+            match kind {
+                GlobalCloseKind::QuitAll => {
+                    self.show_close_project_confirm = false;
+                    self.show_quit_confirm = true;
+                }
+                GlobalCloseKind::RootViewportClose => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                GlobalCloseKind::RootProjectClose => {
+                    self.show_close_project_confirm = true;
+                }
+            }
+            return;
+        };
+
+        // Snapshot dirty tabs across the workspace.
+        let tabs_snapshot: Vec<(PathBuf, bool)> = ws
+            .editor
+            .tabs
+            .iter()
+            .map(|t| (t.path.clone(), t.modified))
+            .collect();
+
+        let active_path = ws.editor.active_path().cloned();
+        let queue = build_dirty_close_queue(active_path.as_ref(), &tabs_snapshot);
+
+        if queue.is_empty() {
+            // Nothing dirty — execute the original action immediately.
+            match kind {
+                GlobalCloseKind::QuitAll => {
+                    self.show_close_project_confirm = false;
+                    self.show_quit_confirm = true;
+                }
+                GlobalCloseKind::RootViewportClose => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                GlobalCloseKind::RootProjectClose => {
+                    self.show_close_project_confirm = true;
+                }
+            }
+            return;
+        }
+
+        // Start a workspace-wide guard flow.
+        ws.pending_close_flow = Some(PendingCloseFlow {
+            mode: PendingCloseMode::WorkspaceClose,
+            queue,
+            current_index: 0,
+            inline_error: None,
+        });
+        ws.last_unsaved_close_cancelled = false;
+        self.pending_global_close = Some(kind);
+        // Ensure we process guard dialogs promptly.
+        ctx.request_repaint();
+    }
+
+    /// Resumes a pending global close action after the workspace-level unsaved
+    /// guard flow has finished.
+    fn resume_global_close_after_guard(&mut self, ctx: &egui::Context) {
+        if let Some(kind) = self.pending_global_close {
+            if let Some(ws) = &self.root_ws {
+                if ws.pending_close_flow.is_none() {
+                    let cancelled = ws.last_unsaved_close_cancelled;
+                    match (kind, cancelled) {
+                        // User cancelled at least jedno guard rozhodnutí — abort whole close.
+                        (_, true) => {
+                            self.pending_global_close = None;
+                        }
+                        // All dirty items resolved (Saved/Discarded) — proceed.
+                        (GlobalCloseKind::QuitAll, false) => {
+                            self.pending_global_close = None;
+                            self.show_close_project_confirm = false;
+                            self.show_quit_confirm = true;
+                        }
+                        (GlobalCloseKind::RootViewportClose, false) => {
+                            self.pending_global_close = None;
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                        (GlobalCloseKind::RootProjectClose, false) => {
+                            self.pending_global_close = None;
+                            self.show_close_project_confirm = true;
+                        }
+                    }
+                }
+            } else {
+                // No workspace but still pending flag — nothing to guard, clear it.
+                self.pending_global_close = None;
+            }
         }
     }
 
@@ -631,9 +803,9 @@ impl eframe::App for EditorApp {
             if self.quit_confirmed {
                 // Confirmed — let it close
             } else if self.root_ws.is_some() {
-                // Open project — request close confirmation.
+                // Open project — run unsaved close guard before close confirmation.
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                self.show_close_project_confirm = true;
+                self.start_global_close_guard(GlobalCloseKind::RootViewportClose, ctx);
             } else {
                 // Startup dialog — terminate application
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
@@ -705,6 +877,10 @@ impl eframe::App for EditorApp {
             self.root_ws = Some(ws);
         }
 
+        // If a global close guard is pending and the workspace guard flow has finished,
+        // resume the original close action based on whether the user cancelled.
+        self.resume_global_close_after_guard(ctx);
+
         // Process actions from this frame (new projects, closed workspaces, etc.)
         // Called AFTER render so click actions are processed immediately
         self.process_actions(ctx);
@@ -721,5 +897,144 @@ impl eframe::App for EditorApp {
         if self.show_quit_confirm {
             self.show_quit_confirm_dialog(ctx);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsaved_close_guard_root_flow() {
+        let ctx = egui::Context::default();
+
+        // Minimal workspace with one dirty tab.
+        let mut ws = WorkspaceState {
+            file_tree: crate::app::ui::file_tree::FileTree::new(),
+            editor: crate::app::ui::editor::Editor::new(),
+            watcher: crate::watcher::FileWatcher::new(),
+            project_watcher: crate::watcher::ProjectWatcher::new(&PathBuf::from("/tmp/test")),
+            claude_tabs: Vec::new(),
+            claude_active_tab: 0,
+            next_claude_tab_id: 1,
+            next_terminal_id: 2,
+            build_terminal: None,
+            retired_terminals: Vec::new(),
+            focused_panel: FocusedPanel::Editor,
+            root_path: PathBuf::from("/tmp/test"),
+            show_left_panel: true,
+            show_right_panel: false,
+            show_build_terminal: false,
+            build_terminal_float: false,
+            left_panel_split: 0.5,
+            show_about: false,
+            show_support: false,
+            show_settings: false,
+            show_ai_chat: false,
+            show_semantic_indexing_modal: false,
+            selected_settings_category: None,
+            profiles: ProjectProfiles::default(),
+            build_errors: Vec::new(),
+            build_error_rx: None,
+            selected_agent_id: String::new(),
+            claude_float: false,
+            show_new_project: false,
+            wizard: WizardState::default(),
+            toasts: Vec::new(),
+            folder_pick_rx: None,
+            command_palette: None,
+            project_index: std::sync::Arc::new(
+                crate::app::ui::workspace::index::ProjectIndex::new(PathBuf::from("/tmp/test")),
+            ),
+            semantic_index: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::app::ui::workspace::semantic_index::SemanticIndex::new(PathBuf::from(
+                    "/tmp/test",
+                )),
+            )),
+            file_picker: None,
+            project_search: crate::app::ui::workspace::state::types::ProjectSearch::default(),
+            lsp_client: None,
+            lsp_binary_missing: false,
+            lsp_install_rx: None,
+            git_branch: None,
+            git_branch_rx: None,
+            git_status_rx: None,
+            git_last_refresh: std::time::Instant::now(),
+            lsp_last_retry: std::time::Instant::now(),
+            settings_draft: None,
+            settings_original: None,
+            settings_folder_pick_rx: None,
+            ai_tool_available: std::collections::HashMap::new(),
+            ai_tool_check_rx: None,
+            ai_tool_last_check: std::time::Instant::now(),
+            win_tool_available: std::collections::HashMap::new(),
+            win_tool_check_rx: None,
+            win_tool_last_check: std::time::Instant::now(),
+            external_change_conflict: None,
+            dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
+            terminal_close_requested: None,
+            ai_viewport_open: false,
+            settings_conflict: None,
+            ai: crate::app::cli::AiState::default(),
+            git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
+                "/tmp/test",
+            )),
+            background_io_rx: None,
+            applied_settings_version: 0,
+            confirm_discard_changes: None,
+            last_keystroke_time: None,
+            pending_close_flow: None,
+            last_unsaved_close_cancelled: false,
+            tool_executor: None,
+            pending_tool_approval: None,
+            pending_tool_ask: None,
+            tool_always_approved: std::collections::HashSet::new(),
+            tool_approval_rx: None,
+            tool_ask_rx: None,
+            slash_build_rx: None,
+            slash_git_rx: None,
+            slash_conversation_gen: 0,
+            slash_build_gen: 0,
+            slash_autocomplete: Default::default(),
+        };
+
+        let dirty_path = ws.root_path.join("dirty.txt");
+        ws.editor.tabs.push(crate::app::ui::editor::Tab {
+            content: String::new(),
+            path: dirty_path.clone(),
+            modified: true,
+            deleted: false,
+            last_edit: None,
+            last_autosave_attempt: None,
+            save_status: crate::app::ui::editor::SaveStatus::Modified,
+            last_saved_content: String::new(),
+            scroll_offset: 0.0,
+            md_scroll_offset: 0.0,
+            last_cursor_range: None,
+            is_binary: false,
+            image_texture: None,
+            binary_data: None,
+            svg_modal_shown: false,
+            lsp_version: 0,
+            lsp_synced_version: 0,
+            read_error: false,
+            canonical_path: dirty_path.clone(),
+            md_cache: egui_commonmark::CommonMarkCache::default(),
+        });
+        ws.editor.active_tab = Some(0);
+
+        let mut app = EditorApp::test_new_with_workspace(ws, &ctx);
+        app.start_global_close_guard(GlobalCloseKind::QuitAll, &ctx);
+
+        assert!(matches!(app.pending_global_close, Some(GlobalCloseKind::QuitAll)));
+        let ws_after = app.root_ws.as_ref().expect("root workspace should exist");
+        let flow = ws_after
+            .pending_close_flow
+            .as_ref()
+            .expect("pending close flow should be created");
+        assert_eq!(flow.mode, PendingCloseMode::WorkspaceClose);
+        assert_eq!(flow.queue.len(), 1);
+        assert_eq!(flow.queue[0], dirty_path);
     }
 }

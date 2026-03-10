@@ -179,6 +179,10 @@ pub struct WorkspaceState {
     pub slash_autocomplete: SlashAutocomplete,
     /// Pending unsaved close guard flow, if any.
     pub pending_close_flow: Option<PendingCloseFlow>,
+    /// Whether the last workspace-level unsaved close guard run (WorkspaceClose mode)
+    /// was cancelled by the user. Used by root close orchestration to decide whether
+    /// to proceed with Quit/Close Project/window close.
+    pub last_unsaved_close_cancelled: bool,
 }
 
 impl Drop for WorkspaceState {

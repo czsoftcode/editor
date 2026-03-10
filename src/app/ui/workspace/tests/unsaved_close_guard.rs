@@ -24,8 +24,7 @@ fn unsaved_close_guard_modal_actions() {
     let mut flow = make_flow(vec![path1.clone(), path2.clone()]);
 
     // Discard should advance to the next item without error.
-    let outcome =
-        apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Discard, Ok(()));
+    let outcome = apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Discard, Ok(()));
     assert_eq!(flow.current_index, 1);
     assert!(flow.inline_error.is_none());
     assert_eq!(outcome, UnsavedCloseOutcome::Continue);
@@ -46,11 +45,8 @@ fn unsaved_close_guard_save_fail() {
     let err_msg = "save failed".to_string();
 
     // Save decision with an error should keep the same item and set inline error.
-    let outcome = apply_unsaved_close_decision(
-        &mut flow,
-        UnsavedGuardDecision::Save,
-        Err(err_msg.clone()),
-    );
+    let outcome =
+        apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Save, Err(err_msg.clone()));
 
     assert_eq!(flow.current_index, 0);
     assert_eq!(flow.queue.len(), 1);
@@ -69,15 +65,13 @@ fn unsaved_close_guard_tab_triggers() {
     let mut flow = make_flow(vec![path1.clone(), path2.clone()]);
 
     // First item: successful save advances the queue.
-    let outcome_1 =
-        apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Save, Ok(()));
+    let outcome_1 = apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Save, Ok(()));
     assert_eq!(flow.current_index, 1);
     assert!(flow.inline_error.is_none());
     assert_eq!(outcome_1, UnsavedCloseOutcome::Continue);
 
     // Second item: Discard finishes the flow.
-    let outcome_2 =
-        apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Discard, Ok(()));
+    let outcome_2 = apply_unsaved_close_decision(&mut flow, UnsavedGuardDecision::Discard, Ok(()));
     assert_eq!(flow.current_index, 1);
     assert!(flow.inline_error.is_none());
     assert_eq!(outcome_2, UnsavedCloseOutcome::Finished);

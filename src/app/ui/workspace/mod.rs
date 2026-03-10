@@ -46,11 +46,15 @@ fn save_mode_status_key(save_mode: &SaveMode) -> &'static str {
     }
 }
 
+fn status_bar_runtime_mode_key(runtime_mode: &SaveMode) -> &'static str {
+    save_mode_status_key(runtime_mode)
+}
+
 fn status_bar_save_mode_key_for_runtime(
     runtime_mode: &SaveMode,
     _settings_draft_mode: Option<&SaveMode>,
 ) -> &'static str {
-    save_mode_status_key(runtime_mode)
+    status_bar_runtime_mode_key(runtime_mode)
 }
 
 fn consume_close_tab_shortcut(ctx: &egui::Context) -> bool {

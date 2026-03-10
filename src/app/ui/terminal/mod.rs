@@ -26,4 +26,3 @@ fn shorten_project_path(project_root: &std::path::Path) -> String {
         format!(".../{}/{}", parts[parts.len() - 2], parts[parts.len() - 1])
     }
 }
-

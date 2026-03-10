@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
-use crate::app::cli::AiState;
 use crate::app::build_runner::BuildError;
+use crate::app::cli::AiState;
 use crate::app::lsp::LspClient;
 use crate::app::types::{FocusedPanel, ProjectProfiles, Toast};
 use crate::app::ui::dialogs::WizardState;
@@ -214,7 +214,6 @@ impl WorkspaceState {
         terminal.request_graceful_exit();
         self.retired_terminals.push(terminal);
     }
-
 }
 
 /// Builds a stable queue of dirty tab paths for the unsaved close guard.
@@ -284,11 +283,7 @@ mod tests {
         let b = PathBuf::from("/project/b.txt");
         let c = PathBuf::from("/project/c.txt");
 
-        let tabs = vec![
-            (b.clone(), true),
-            (a.clone(), true),
-            (c.clone(), false),
-        ];
+        let tabs = vec![(b.clone(), true), (a.clone(), true), (c.clone(), false)];
 
         let queue = build_dirty_close_queue_for_mode(DirtyCloseQueueMode::SingleTab(&a), &tabs);
         assert_eq!(queue, vec![a]);
@@ -300,11 +295,7 @@ mod tests {
         let b = PathBuf::from("/project/b.txt");
         let c = PathBuf::from("/project/c.txt");
 
-        let tabs = vec![
-            (b.clone(), true),
-            (a.clone(), true),
-            (c.clone(), false),
-        ];
+        let tabs = vec![(b.clone(), true), (a.clone(), true), (c.clone(), false)];
 
         let queue = build_dirty_close_queue(Some(&b), &tabs);
         assert_eq!(queue.first(), Some(&b));

@@ -66,11 +66,7 @@ impl FmValue {
             FmValue::Integer(n) => n.to_string(),
             FmValue::Float(f) => {
                 let s = f.to_string();
-                if s.contains('.') {
-                    s
-                } else {
-                    format!("{s}.0")
-                }
+                if s.contains('.') { s } else { format!("{s}.0") }
             }
             FmValue::Boolean(b) => b.to_string(),
             FmValue::Null => "".to_string(),
@@ -793,10 +789,7 @@ fn parse_key_value(line: &str) -> Option<(String, &str)> {
     // Find the first `: ` or a trailing `:`
     if let Some(pos) = line.find(": ") {
         let key = line[..pos].trim();
-        if key.is_empty()
-            || (key.contains(' ') && !key.starts_with('"'))
-            || key.contains(':')
-        {
+        if key.is_empty() || (key.contains(' ') && !key.starts_with('"')) || key.contains(':') {
             return None;
         }
         let val = &line[pos + 2..];
@@ -1004,10 +997,7 @@ Body content here.
             doc.get("status"),
             Some(&FmValue::String("executing".to_string()))
         );
-        assert_eq!(
-            doc.get("progress.total_phases"),
-            Some(&FmValue::Integer(5))
-        );
+        assert_eq!(doc.get("progress.total_phases"), Some(&FmValue::Integer(5)));
         assert_eq!(
             doc.get("progress.completed_plans"),
             Some(&FmValue::Integer(4))
@@ -1147,14 +1137,8 @@ Body content here.
     fn tolerant_skips_malformed_lines() {
         let input = "---\ngood: value\n::: bad line\nanother: ok\n---\n";
         let doc = FmDocument::parse(input);
-        assert_eq!(
-            doc.get("good"),
-            Some(&FmValue::String("value".to_string()))
-        );
-        assert_eq!(
-            doc.get("another"),
-            Some(&FmValue::String("ok".to_string()))
-        );
+        assert_eq!(doc.get("good"), Some(&FmValue::String("value".to_string())));
+        assert_eq!(doc.get("another"), Some(&FmValue::String("ok".to_string())));
         assert!(!doc.warnings.is_empty());
     }
 
@@ -1233,9 +1217,7 @@ Body content here.
         let doc = FmDocument::parse(input);
         assert_eq!(
             doc.get("activity"),
-            Some(&FmValue::String(
-                "2026-03-07 — Completed phase".to_string()
-            ))
+            Some(&FmValue::String("2026-03-07 — Completed phase".to_string()))
         );
     }
 

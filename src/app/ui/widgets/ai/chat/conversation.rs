@@ -49,11 +49,7 @@ pub fn ui_conversation(
                         .small()
                         .strong(),
                 );
-                ui.label(
-                    egui::RichText::new(&timestamp)
-                        .color(weak_color)
-                        .small(),
-                );
+                ui.label(egui::RichText::new(&timestamp).color(weak_color).small());
             });
 
             egui::Frame::new()
@@ -129,11 +125,7 @@ pub fn ui_conversation(
                             .small()
                             .strong(),
                     );
-                    ui.label(
-                        egui::RichText::new(&timestamp)
-                            .color(weak_color)
-                            .small(),
-                    );
+                    ui.label(egui::RichText::new(&timestamp).color(weak_color).small());
                 });
 
                 let sys_bg = if ui.visuals().dark_mode {
@@ -160,18 +152,18 @@ pub fn ui_conversation(
             } else {
                 // Standard AI response rendering
                 ui.horizontal(|ui| {
-                    let role_label = if model_name.is_empty() { "AI" } else { model_name };
+                    let role_label = if model_name.is_empty() {
+                        "AI"
+                    } else {
+                        model_name
+                    };
                     ui.label(
                         egui::RichText::new(role_label)
                             .color(weak_color)
                             .small()
                             .strong(),
                     );
-                    ui.label(
-                        egui::RichText::new(&timestamp)
-                            .color(weak_color)
-                            .small(),
-                    );
+                    ui.label(egui::RichText::new(&timestamp).color(weak_color).small());
                     // Token count only for the last AI response
                     if is_last && out_tokens > 0 {
                         ui.label(
@@ -191,13 +183,7 @@ pub fn ui_conversation(
                     egui::Frame::new()
                         .inner_margin(egui::Margin::symmetric(8, 4))
                         .show(ui, |ui| {
-                            render_markdown(
-                                ui,
-                                display_content,
-                                font_size,
-                                &path_re,
-                                cache,
-                            );
+                            render_markdown(ui, display_content, font_size, &path_re, cache);
                         });
                 }
                 // Copy button after the AI message block

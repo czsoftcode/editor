@@ -267,7 +267,11 @@ mod tests {
         let old = now - (SAVE_ERROR_DEDUPE_WINDOW + std::time::Duration::from_millis(1));
         let recent = now - std::time::Duration::from_millis(5);
 
-        assert!(save_error_dedupe_decision(None, now, SAVE_ERROR_DEDUPE_WINDOW));
+        assert!(save_error_dedupe_decision(
+            None,
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
         assert!(save_error_dedupe_decision(
             Some(old),
             now,

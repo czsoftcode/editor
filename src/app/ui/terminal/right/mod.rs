@@ -270,9 +270,7 @@ pub fn render_ai_panel_content(
                 }
                 any_clicked = true;
             }
-            Some(TerminalAction::Hovered) => {
-                /* No-op: hover does not change focus */
-            }
+            Some(TerminalAction::Hovered) => { /* No-op: hover does not change focus */ }
             Some(TerminalAction::Navigate(path, line, col)) => {
                 let abs_path = if path.is_absolute() {
                     path

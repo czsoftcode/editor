@@ -8,7 +8,11 @@ use crate::app::ui::workspace::state::WorkspaceState;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
-pub fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>, i18n: &crate::i18n::I18n) {
+pub fn send_query_to_agent(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
     if ws.ai.chat.prompt.trim().is_empty() {
         return;
     }
@@ -35,7 +39,9 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared
         } else {
             Some(settings.ai_file_blacklist_patterns)
         };
-        ws.tool_executor = Some(crate::app::cli::executor::ToolExecutor::new(root, blacklist, None));
+        ws.tool_executor = Some(crate::app::cli::executor::ToolExecutor::new(
+            root, blacklist, None,
+        ));
     }
 
     // Build messages from conversation history
@@ -126,7 +132,10 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared
     });
 
     // Push empty response slot
-    ws.ai.chat.conversation.push((prompt.clone(), String::new()));
+    ws.ai
+        .chat
+        .conversation
+        .push((prompt.clone(), String::new()));
 
     // Reset state
     ws.ai.chat.prompt.clear();
@@ -167,25 +176,36 @@ pub fn send_query_to_agent(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared
 
 /// Builds an editor context string from workspace state for injection into system message.
 fn build_editor_context(ws: &WorkspaceState) -> String {
-    use crate::app::cli::types::{AiContextPayload, AiFileContext, AiBuildErrorContext, AiGitFileStatus};
+    use crate::app::cli::types::{
+        AiBuildErrorContext, AiContextPayload, AiFileContext, AiGitFileStatus,
+    };
 
     let mut payload = AiContextPayload::default();
 
     // Project name and root
-    payload.project_name = ws.root_path.file_name()
+    payload.project_name = ws
+        .root_path
+        .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
     payload.project_root = ".".to_string();
 
     // Open files
     for (i, tab) in ws.editor.tabs.iter().enumerate() {
-        let rel_path = tab.path.strip_prefix(&ws.root_path)
+        let rel_path = tab
+            .path
+            .strip_prefix(&ws.root_path)
             .unwrap_or(&tab.path)
-            .to_string_lossy().into_owned();
+            .to_string_lossy()
+            .into_owned();
         let is_active = Some(i) == ws.editor.active_tab;
         let file_ctx = AiFileContext {
             path: rel_path,
-            content: if is_active { Some(tab.content.clone()) } else { None },
+            content: if is_active {
+                Some(tab.content.clone())
+            } else {
+                None
+            },
             is_active,
         };
         payload.open_files.push(file_ctx.clone());
@@ -196,9 +216,12 @@ fn build_editor_context(ws: &WorkspaceState) -> String {
 
     // Build errors
     for err in &ws.build_errors {
-        let rel_path = err.file.strip_prefix(&ws.root_path)
+        let rel_path = err
+            .file
+            .strip_prefix(&ws.root_path)
             .unwrap_or(&err.file)
-            .to_string_lossy().into_owned();
+            .to_string_lossy()
+            .into_owned();
         payload.build_errors.push(AiBuildErrorContext {
             file: rel_path,
             line: err.line,
@@ -218,16 +241,21 @@ fn build_editor_context(ws: &WorkspaceState) -> String {
     // Git context
     payload.git_branch = ws.git_branch.clone();
     for (abs_path, status) in &ws.file_tree.git_statuses {
-        let rel = abs_path.strip_prefix(&ws.root_path)
+        let rel = abs_path
+            .strip_prefix(&ws.root_path)
             .unwrap_or(abs_path)
-            .to_string_lossy().into_owned();
+            .to_string_lossy()
+            .into_owned();
         let code = match status {
             crate::app::ui::git_status::GitVisualStatus::Modified => "M",
             crate::app::ui::git_status::GitVisualStatus::Added => "A",
             crate::app::ui::git_status::GitVisualStatus::Deleted => "D",
             crate::app::ui::git_status::GitVisualStatus::Untracked => "??",
         };
-        payload.git_status.push(AiGitFileStatus { path: rel, status: code.to_string() });
+        payload.git_status.push(AiGitFileStatus {
+            path: rel,
+            status: code.to_string(),
+        });
     }
 
     payload.to_system_message()

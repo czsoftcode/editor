@@ -175,9 +175,9 @@ fn flush_block(
     } else {
         ui.set_max_width(ui.available_width());
         egui_commonmark::CommonMarkViewer::new()
-                        .syntax_theme_dark("base16-ocean.dark")
-                        .syntax_theme_light("base16-ocean.light")
-                        .show(ui, cache, &text);
+            .syntax_theme_dark("base16-ocean.dark")
+            .syntax_theme_light("base16-ocean.light")
+            .show(ui, cache, &text);
     }
     block.clear();
 }

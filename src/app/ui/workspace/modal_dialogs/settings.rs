@@ -162,10 +162,9 @@ pub(super) fn save_settings_draft(
             }
         }
         if save_mode_was_changed && saved_successfully {
-            ws.toasts
-                .push(crate::app::types::Toast::info(i18n.get(save_mode_toast_key(
-                    &draft.save_mode,
-                ))));
+            ws.toasts.push(crate::app::types::Toast::info(
+                i18n.get(save_mode_toast_key(&draft.save_mode)),
+            ));
         }
         ws.wizard.path = draft.default_project_path.clone();
         let lang = draft.lang.clone();

@@ -372,7 +372,11 @@ impl Editor {
                                 SaveStatusTone::Neutral => secondary_color,
                             };
                             let text = egui::RichText::new(i18n.get(status.key)).color(color);
-                            ui.label(if status.is_primary { text.strong() } else { text });
+                            ui.label(if status.is_primary {
+                                text.strong()
+                            } else {
+                                text
+                            });
                         }
                     });
                 });

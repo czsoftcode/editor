@@ -129,7 +129,6 @@ pub struct Settings {
     pub custom_agents: Vec<CustomAgent>,
 
     // --- AI provider settings (migrated from plugin config) ---
-
     /// Ollama base URL (e.g. "http://localhost:11434").
     #[serde(default = "default_ollama_base_url")]
     pub ollama_base_url: String,
@@ -172,9 +171,15 @@ pub struct Settings {
     pub ollama_seed: i64,
 }
 
-fn default_top_p() -> f64 { 0.9 }
-fn default_top_k() -> u64 { 40 }
-fn default_repeat_penalty() -> f64 { 1.1 }
+fn default_top_p() -> f64 {
+    0.9
+}
+fn default_top_k() -> u64 {
+    40
+}
+fn default_repeat_penalty() -> f64 {
+    1.1
+}
 
 impl Default for Settings {
     fn default() -> Self {
@@ -700,5 +705,4 @@ auto_show_ai_diff = false
         assert!(s.ollama_api_key.is_empty());
         assert!(s.ai_default_model.is_empty());
     }
-
 }

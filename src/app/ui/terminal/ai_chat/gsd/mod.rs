@@ -1,5 +1,5 @@
-pub mod frontmatter;
 pub mod config;
+pub mod frontmatter;
 pub mod paths;
 pub mod state;
 
@@ -14,10 +14,22 @@ struct GsdSubcommand {
 }
 
 const GSD_SUBCOMMANDS: &[GsdSubcommand] = &[
-    GsdSubcommand { name: "state", description: "Show or update project state" },
-    GsdSubcommand { name: "progress", description: "Show progress bar and phase summary" },
-    GsdSubcommand { name: "config", description: "Get or set GSD configuration" },
-    GsdSubcommand { name: "help", description: "Show GSD subcommands" },
+    GsdSubcommand {
+        name: "state",
+        description: "Show or update project state",
+    },
+    GsdSubcommand {
+        name: "progress",
+        description: "Show progress bar and phase summary",
+    },
+    GsdSubcommand {
+        name: "config",
+        description: "Get or set GSD configuration",
+    },
+    GsdSubcommand {
+        name: "help",
+        description: "Show GSD subcommands",
+    },
 ];
 
 /// Main GSD dispatch — called from slash.rs with everything after `/gsd `.
@@ -39,7 +51,8 @@ pub fn cmd_gsd(ws: &mut WorkspaceState, args: &str) -> SlashResult {
         "progress" => state::cmd_progress(ws),
         "config" => config::cmd_config(ws, sub_args),
         _ => SlashResult::Immediate(format!(
-            "Unknown GSD command: `{}`. Type `/gsd help` for available commands.", sub
+            "Unknown GSD command: `{}`. Type `/gsd help` for available commands.",
+            sub
         )),
     }
 }
@@ -68,7 +81,9 @@ fn check_planning_dir(root: &Path) -> Option<SlashResult> {
 }
 
 fn cmd_gsd_help() -> SlashResult {
-    let mut table = String::from("## GSD Commands\n\n| Subcommand | Description |\n|------------|-------------|\n");
+    let mut table = String::from(
+        "## GSD Commands\n\n| Subcommand | Description |\n|------------|-------------|\n",
+    );
     for cmd in GSD_SUBCOMMANDS {
         table.push_str(&format!("| /gsd {} | {} |\n", cmd.name, cmd.description));
     }
@@ -85,9 +100,18 @@ mod tests {
         let result = cmd_gsd_help();
         match result {
             SlashResult::Immediate(text) => {
-                assert!(text.contains("state"), "Help should list 'state' subcommand");
-                assert!(text.contains("progress"), "Help should list 'progress' subcommand");
-                assert!(text.contains("config"), "Help should list 'config' subcommand");
+                assert!(
+                    text.contains("state"),
+                    "Help should list 'state' subcommand"
+                );
+                assert!(
+                    text.contains("progress"),
+                    "Help should list 'progress' subcommand"
+                );
+                assert!(
+                    text.contains("config"),
+                    "Help should list 'config' subcommand"
+                );
                 assert!(text.contains("help"), "Help should list 'help' subcommand");
             }
             _ => panic!("Expected Immediate result from gsd help"),
@@ -98,10 +122,16 @@ mod tests {
     fn test_check_planning_dir_missing() {
         let tmp = tempfile::tempdir().unwrap();
         let result = check_planning_dir(tmp.path());
-        assert!(result.is_some(), "Should return error when .planning/ missing");
+        assert!(
+            result.is_some(),
+            "Should return error when .planning/ missing"
+        );
         match result.unwrap() {
             SlashResult::Immediate(text) => {
-                assert!(text.contains(".planning"), "Should mention .planning directory");
+                assert!(
+                    text.contains(".planning"),
+                    "Should mention .planning directory"
+                );
             }
             _ => panic!("Expected Immediate result"),
         }
@@ -112,7 +142,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(tmp.path().join(".planning")).unwrap();
         let result = check_planning_dir(tmp.path());
-        assert!(result.is_none(), "Should return None when .planning/ exists");
+        assert!(
+            result.is_none(),
+            "Should return None when .planning/ exists"
+        );
     }
 
     #[test]

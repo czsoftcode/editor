@@ -14,7 +14,12 @@ pub struct SlashAutocomplete {
 
 impl Default for SlashAutocomplete {
     fn default() -> Self {
-        Self { active: false, selected: 0, dismissed: false, prev_text: String::new() }
+        Self {
+            active: false,
+            selected: 0,
+            dismissed: false,
+            prev_text: String::new(),
+        }
     }
 }
 
@@ -30,7 +35,16 @@ pub fn ui_input(
     let mut send = false;
     let mut refocus = false;
 
-    let (enter_pressed, shift, ctrl, j_pressed, up_pressed, down_pressed, tab_pressed, escape_pressed) = ui.input(|i| {
+    let (
+        enter_pressed,
+        shift,
+        ctrl,
+        j_pressed,
+        up_pressed,
+        down_pressed,
+        tab_pressed,
+        escape_pressed,
+    ) = ui.input(|i| {
         (
             i.key_pressed(egui::Key::Enter),
             i.modifiers.shift,

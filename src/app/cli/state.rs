@@ -162,8 +162,14 @@ mod tests {
     #[test]
     fn chat_state_default_has_streaming_fields() {
         let cs = ChatState::default();
-        assert!(cs.streaming_buffer.is_empty(), "streaming_buffer should be empty by default");
+        assert!(
+            cs.streaming_buffer.is_empty(),
+            "streaming_buffer should be empty by default"
+        );
         assert!(cs.auto_scroll, "auto_scroll should be true by default");
-        assert!(cs.stream_rx.is_none(), "stream_rx should be None by default");
+        assert!(
+            cs.stream_rx.is_none(),
+            "stream_rx should be None by default"
+        );
     }
 }

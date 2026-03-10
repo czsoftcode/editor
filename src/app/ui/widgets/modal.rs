@@ -75,22 +75,15 @@ impl StandardModal {
             .order(egui::Order::Middle)
             .fixed_pos(screen.min)
             .show(ctx, |ui| {
-                let (_, resp) = ui.allocate_exact_size(
-                    screen.size(),
-                    egui::Sense::click(),
-                );
-                ui.painter().rect_filled(
-                    screen,
-                    0.0,
-                    egui::Color32::from_black_alpha(120),
-                );
+                let (_, resp) = ui.allocate_exact_size(screen.size(), egui::Sense::click());
+                ui.painter()
+                    .rect_filled(screen, 0.0, egui::Color32::from_black_alpha(120));
                 resp
             });
 
         // Sledujeme, zda byl modal otevřený v minulém frame.
         let was_open_key = self.id.with("_was_open");
-        let was_open_prev_frame =
-            ctx.data(|d| d.get_temp::<bool>(was_open_key).unwrap_or(false));
+        let was_open_prev_frame = ctx.data(|d| d.get_temp::<bool>(was_open_key).unwrap_or(false));
         ctx.data_mut(|d| d.insert_temp(was_open_key, true));
 
         // 2. Window na Order::Foreground (nad backdropem)

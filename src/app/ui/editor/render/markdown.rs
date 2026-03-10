@@ -123,8 +123,8 @@ impl Editor {
                 editor_scroll_pct = scroll_pct;
                 editor_max_scroll = max_scroll;
 
-                let (handle_rect, handle_response) =
-                    ui.allocate_exact_size(egui::vec2(available.x, handle_size), egui::Sense::drag());
+                let (handle_rect, handle_response) = ui
+                    .allocate_exact_size(egui::vec2(available.x, handle_size), egui::Sense::drag());
                 let handle_color = if handle_response.hovered() || handle_response.dragged() {
                     ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
                     egui::Color32::from_rgb(100, 140, 200)
@@ -316,7 +316,9 @@ impl Editor {
             ui.label(egui::RichText::new("Editor").strong());
             ui.separator();
 
-            let frame = egui::Frame::new().fill(bg).inner_margin(egui::Margin::same(8));
+            let frame = egui::Frame::new()
+                .fill(bg)
+                .inner_margin(egui::Margin::same(8));
 
             frame.show(ui, |ui| {
                 if !is_readonly {
@@ -360,7 +362,11 @@ impl Editor {
                         };
 
                         let line_count = content_to_edit.lines().count().max(1)
-                            + if content_to_edit.ends_with('\n') { 1 } else { 0 };
+                            + if content_to_edit.ends_with('\n') {
+                                1
+                            } else {
+                                0
+                            };
                         let gutter_width = Self::gutter_width(ui, line_count);
 
                         ui.horizontal_top(|ui| {
@@ -378,7 +384,12 @@ impl Editor {
                                 .layouter(&mut layouter)
                                 .show(ui);
 
-                            Self::paint_line_numbers(ui, &response, gutter_rect, diagnostics_for_file);
+                            Self::paint_line_numbers(
+                                ui,
+                                &response,
+                                gutter_rect,
+                                diagnostics_for_file,
+                            );
                             Self::paint_squiggles(ui, &response, diagnostics_for_file);
 
                             if dialog_open {
@@ -400,8 +411,8 @@ impl Editor {
                     });
 
                 self.tabs[idx].scroll_offset = scroll_output.state.offset.y;
-                editor_max_scroll = (scroll_output.content_size.y - scroll_output.inner_rect.height())
-                    .max(0.0);
+                editor_max_scroll =
+                    (scroll_output.content_size.y - scroll_output.inner_rect.height()).max(0.0);
                 if editor_max_scroll > 0.0 {
                     editor_scroll_pct = self.tabs[idx].scroll_offset / editor_max_scroll;
                 }
@@ -438,7 +449,10 @@ impl Editor {
                 if let Some(body) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Body) {
                     body.size = font_size;
                 }
-                if let Some(heading) = ui.style_mut().text_styles.get_mut(&egui::TextStyle::Heading)
+                if let Some(heading) = ui
+                    .style_mut()
+                    .text_styles
+                    .get_mut(&egui::TextStyle::Heading)
                 {
                     heading.size = font_size * 1.4;
                 }

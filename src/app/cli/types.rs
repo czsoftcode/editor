@@ -177,7 +177,10 @@ impl AiContextPayload {
             let mut section = String::from("\n## Build Errors");
             for e in &self.build_errors {
                 let prefix = if e.is_warning { "warning" } else { "error" };
-                section.push_str(&format!("\n- {}:{}:{}: {}", e.file, e.line, prefix, e.message));
+                section.push_str(&format!(
+                    "\n- {}:{}:{}: {}",
+                    e.file, e.line, prefix, e.message
+                ));
             }
             parts.push(section);
         }
@@ -316,7 +319,9 @@ mod tests {
     fn context_payload_has_lsp_diagnostics_field() {
         let mut payload = AiContextPayload::default();
         assert!(payload.lsp_diagnostics.is_empty());
-        payload.lsp_diagnostics.push("warning: unused variable".to_string());
+        payload
+            .lsp_diagnostics
+            .push("warning: unused variable".to_string());
         assert_eq!(payload.lsp_diagnostics.len(), 1);
     }
 

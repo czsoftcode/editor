@@ -29,10 +29,7 @@ impl AuditLogger {
     /// Logs a security event (path traversal blocks, rate limit hits, etc.).
     pub fn log_security_event(&self, event_type: &str, details: &str) {
         let timestamp = Self::format_timestamp();
-        let line = format!(
-            "[{}] [SECURITY:{}] {}\n",
-            timestamp, event_type, details
-        );
+        let line = format!("[{}] [SECURITY:{}] {}\n", timestamp, event_type, details);
         self.append_line(&line);
     }
 
@@ -58,14 +55,14 @@ impl AuditLogger {
         {
             Ok(mut file) => {
                 if let Err(e) = file.write_all(line.as_bytes()) {
-                    eprintln!("[AuditLogger] Failed to write to {:?}: {}", self.log_path, e);
+                    eprintln!(
+                        "[AuditLogger] Failed to write to {:?}: {}",
+                        self.log_path, e
+                    );
                 }
             }
             Err(e) => {
-                eprintln!(
-                    "[AuditLogger] Failed to open {:?}: {}",
-                    self.log_path, e
-                );
+                eprintln!("[AuditLogger] Failed to open {:?}: {}", self.log_path, e);
             }
         }
     }

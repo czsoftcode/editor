@@ -225,17 +225,23 @@ impl AiProvider for OllamaProvider {
                         }
                         other => format!("{other}"),
                     };
-                    eprintln!("[Ollama] Tools request failed for model '{}': {}", config.model, err_detail);
+                    eprintln!(
+                        "[Ollama] Tools request failed for model '{}': {}",
+                        config.model, err_detail
+                    );
                     eprintln!("[Ollama] Falling back to streaming with text-based tools");
 
                     // Build text description of tools for the system message
                     let tools_text = tools_to_system_prompt_text(&tools);
                     let mut fallback_msgs = msgs.clone();
                     // Prepend tools description as system message
-                    fallback_msgs.insert(0, serde_json::json!({
-                        "role": "system",
-                        "content": tools_text,
-                    }));
+                    fallback_msgs.insert(
+                        0,
+                        serde_json::json!({
+                            "role": "system",
+                            "content": tools_text,
+                        }),
+                    );
 
                     let mut fallback_body = serde_json::json!({
                         "model": config.model,
@@ -250,11 +256,15 @@ impl AiProvider for OllamaProvider {
                     let fallback_req = make_req(&agent, &url, &config.api_key);
                     match fallback_req.send_json(&fallback_body) {
                         Ok(r) => {
-                            eprintln!("[Ollama] Fallback streaming request succeeded for model '{}'", config.model);
+                            eprintln!(
+                                "[Ollama] Fallback streaming request succeeded for model '{}'",
+                                config.model
+                            );
                             (r, false)
                         }
                         Err(e2) => {
-                            let _ = tx.send(StreamEvent::Error(format!("Ollama request failed: {e2}")));
+                            let _ =
+                                tx.send(StreamEvent::Error(format!("Ollama request failed: {e2}")));
                             return;
                         }
                     }
@@ -305,7 +315,11 @@ impl AiProvider for OllamaProvider {
                             name,
                             TOOL_CALL_COUNTER.fetch_add(1, Ordering::Relaxed)
                         );
-                        let _ = tx.send(StreamEvent::ToolCall { id, name, arguments });
+                        let _ = tx.send(StreamEvent::ToolCall {
+                            id,
+                            name,
+                            arguments,
+                        });
                     }
                 }
 
@@ -341,14 +355,20 @@ impl AiProvider for OllamaProvider {
                 // If model returned content but NO tool calls at all, the model
                 // silently ignores the tools API. Retry with text-based tools.
                 if !has_structured_calls && !has_raw_calls && !content.is_empty() {
-                    eprintln!("[Ollama] Model '{}' ignored tools API — retrying with text-based tools in system prompt", config.model);
+                    eprintln!(
+                        "[Ollama] Model '{}' ignored tools API — retrying with text-based tools in system prompt",
+                        config.model
+                    );
 
                     let tools_text = tools_to_system_prompt_text(&tools);
                     let mut retry_msgs = msgs.clone();
-                    retry_msgs.insert(0, serde_json::json!({
-                        "role": "system",
-                        "content": tools_text,
-                    }));
+                    retry_msgs.insert(
+                        0,
+                        serde_json::json!({
+                            "role": "system",
+                            "content": tools_text,
+                        }),
+                    );
 
                     let retry_body = serde_json::json!({
                         "model": config.model,
@@ -364,11 +384,14 @@ impl AiProvider for OllamaProvider {
                     match retry_req.send_json(&retry_body) {
                         Ok(retry_resp) => {
                             if let Ok(retry_text) = retry_resp.into_string() {
-                                if let Ok(retry_parsed) = serde_json::from_str::<Value>(&retry_text) {
-                                    let retry_content = retry_parsed["message"]["content"].as_str().unwrap_or("");
+                                if let Ok(retry_parsed) = serde_json::from_str::<Value>(&retry_text)
+                                {
+                                    let retry_content =
+                                        retry_parsed["message"]["content"].as_str().unwrap_or("");
                                     if !retry_content.is_empty() {
                                         let (rt, ra) = strip_thinking_tags(retry_content);
-                                        let (retry_calls, retry_clean) = parse_raw_tool_calls_from_content(&ra);
+                                        let (retry_calls, retry_clean) =
+                                            parse_raw_tool_calls_from_content(&ra);
 
                                         if let Some(thought) = rt {
                                             let _ = tx.send(StreamEvent::Thinking(thought));
@@ -463,10 +486,8 @@ impl AiProvider for OllamaProvider {
                         || full_content.contains("<function_calls>");
 
                     if has_thinking || has_raw_tools {
-                        let (thinking, after_think) =
-                            strip_thinking_tags(&full_content);
-                        let (raw_calls, clean) =
-                            parse_raw_tool_calls_from_content(&after_think);
+                        let (thinking, after_think) = strip_thinking_tags(&full_content);
+                        let (raw_calls, clean) = parse_raw_tool_calls_from_content(&after_think);
 
                         // Send a "replace" signal: clear streamed tokens, re-emit clean
                         // We use a special empty token followed by clean content
@@ -550,17 +571,18 @@ pub fn parse_show_response(json: &str) -> Result<ModelInfo, String> {
     let details = &parsed["details"];
     let family = details["family"].as_str().unwrap_or("").to_string();
     let parameter_size = details["parameter_size"].as_str().unwrap_or("").to_string();
-    let quantization_level = details["quantization_level"].as_str().unwrap_or("").to_string();
+    let quantization_level = details["quantization_level"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
     let parameters = parsed["parameters"].as_str().unwrap_or("").to_string();
 
     // Try to find context_length from model_info keys (e.g. "llama.context_length")
-    let context_length = parsed["model_info"]
-        .as_object()
-        .and_then(|obj| {
-            obj.iter()
-                .find(|(k, _)| k.ends_with(".context_length"))
-                .and_then(|(_, v)| v.as_u64())
-        });
+    let context_length = parsed["model_info"].as_object().and_then(|obj| {
+        obj.iter()
+            .find(|(k, _)| k.ends_with(".context_length"))
+            .and_then(|(_, v)| v.as_u64())
+    });
 
     Ok(ModelInfo {
         family,
@@ -612,7 +634,11 @@ pub fn parse_ndjson_line(line: &str) -> Option<StreamEvent> {
                 name,
                 TOOL_CALL_COUNTER.fetch_add(1, Ordering::Relaxed)
             );
-            return Some(StreamEvent::ToolCall { id, name, arguments });
+            return Some(StreamEvent::ToolCall {
+                id,
+                name,
+                arguments,
+            });
         }
     }
 
@@ -791,17 +817,16 @@ fn parse_raw_tool_calls_from_content(content: &str) -> (Vec<RawToolCall>, String
     while let Some(start) = clean.find("<function>") {
         let tag_end = start + "<function>".len();
 
-        let (block_end, inner) =
-            if let Some(close_rel) = clean[tag_end..].find("</function>") {
-                let close_pos = tag_end + close_rel;
-                (close_pos + "</function>".len(), &clean[tag_end..close_pos])
-            } else {
-                let line_end = clean[tag_end..]
-                    .find('\n')
-                    .map(|i| tag_end + i)
-                    .unwrap_or(clean.len());
-                (line_end, &clean[tag_end..line_end])
-            };
+        let (block_end, inner) = if let Some(close_rel) = clean[tag_end..].find("</function>") {
+            let close_pos = tag_end + close_rel;
+            (close_pos + "</function>".len(), &clean[tag_end..close_pos])
+        } else {
+            let line_end = clean[tag_end..]
+                .find('\n')
+                .map(|i| tag_end + i)
+                .unwrap_or(clean.len());
+            (line_end, &clean[tag_end..line_end])
+        };
 
         let inner = inner.trim();
         if let Some(parsed) = parse_function_tag_call(inner) {
@@ -824,19 +849,18 @@ fn parse_raw_tool_calls_from_content(content: &str) -> (Vec<RawToolCall>, String
     while let Some(start) = clean.find("<tool_call>") {
         let tag_end = start + "<tool_call>".len();
 
-        let (block_end, inner) =
-            if let Some(close_rel) = clean[tag_end..].find("</tool_call>") {
-                let close_pos = tag_end + close_rel;
-                let mut end = close_pos + "</tool_call>".len();
-                // Skip optional <|eot_id|> after closing tag
-                if clean[end..].starts_with("<|eot_id|>") {
-                    end += "<|eot_id|>".len();
-                }
-                (end, &clean[tag_end..close_pos])
-            } else {
-                // No closing tag — take to end of content
-                (clean.len(), &clean[tag_end..])
-            };
+        let (block_end, inner) = if let Some(close_rel) = clean[tag_end..].find("</tool_call>") {
+            let close_pos = tag_end + close_rel;
+            let mut end = close_pos + "</tool_call>".len();
+            // Skip optional <|eot_id|> after closing tag
+            if clean[end..].starts_with("<|eot_id|>") {
+                end += "<|eot_id|>".len();
+            }
+            (end, &clean[tag_end..close_pos])
+        } else {
+            // No closing tag — take to end of content
+            (clean.len(), &clean[tag_end..])
+        };
 
         let inner = inner.trim();
         if let Some(parsed) = parse_tool_call_tag(inner) {
@@ -858,17 +882,16 @@ fn parse_raw_tool_calls_from_content(content: &str) -> (Vec<RawToolCall>, String
     while let Some(start) = clean.find("<action>") {
         let tag_end = start + "<action>".len();
 
-        let (block_end, inner) =
-            if let Some(close_rel) = clean[tag_end..].find("</action>") {
-                let close_pos = tag_end + close_rel;
-                (close_pos + "</action>".len(), &clean[tag_end..close_pos])
-            } else {
-                let line_end = clean[tag_end..]
-                    .find('\n')
-                    .map(|i| tag_end + i)
-                    .unwrap_or(clean.len());
-                (line_end, &clean[tag_end..line_end])
-            };
+        let (block_end, inner) = if let Some(close_rel) = clean[tag_end..].find("</action>") {
+            let close_pos = tag_end + close_rel;
+            (close_pos + "</action>".len(), &clean[tag_end..close_pos])
+        } else {
+            let line_end = clean[tag_end..]
+                .find('\n')
+                .map(|i| tag_end + i)
+                .unwrap_or(clean.len());
+            (line_end, &clean[tag_end..line_end])
+        };
 
         let inner = inner.trim();
         if let Some(parsed) = parse_action_tag_call(inner) {
@@ -948,13 +971,16 @@ fn parse_raw_tool_calls_from_content(content: &str) -> (Vec<RawToolCall>, String
     while let Some(start) = clean.find("<function_calls>") {
         let tag_end = start + "<function_calls>".len();
 
-        let (block_end, inner) =
-            if let Some(close_rel) = clean[tag_end..].find("</function_calls>") {
-                let close_pos = tag_end + close_rel;
-                (close_pos + "</function_calls>".len(), &clean[tag_end..close_pos])
-            } else {
-                (clean.len(), &clean[tag_end..])
-            };
+        let (block_end, inner) = if let Some(close_rel) = clean[tag_end..].find("</function_calls>")
+        {
+            let close_pos = tag_end + close_rel;
+            (
+                close_pos + "</function_calls>".len(),
+                &clean[tag_end..close_pos],
+            )
+        } else {
+            (clean.len(), &clean[tag_end..])
+        };
 
         // Parse <invoke name="tool_name"> ... </invoke> blocks
         let inner_owned = inner.to_string();
@@ -1155,7 +1181,10 @@ fn parse_action_tag_call(inner: &str) -> Option<RawToolCall> {
 
     // Extract function name and params from the JSON wrapper
     let func_name = json_val["function"].as_str()?;
-    let params = json_val.get("params").cloned().unwrap_or(Value::Object(Default::default()));
+    let params = json_val
+        .get("params")
+        .cloned()
+        .unwrap_or(Value::Object(Default::default()));
 
     Some(RawToolCall {
         name: func_name.to_string(),
@@ -1267,7 +1296,10 @@ pub fn validate_ollama_url(url: &str) -> Option<String> {
 }
 
 /// Spawn a background thread to check Ollama availability and return status.
-pub fn spawn_ollama_check(base_url: String, api_key: Option<String>) -> mpsc::Receiver<OllamaStatus> {
+pub fn spawn_ollama_check(
+    base_url: String,
+    api_key: Option<String>,
+) -> mpsc::Receiver<OllamaStatus> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let agent = ureq::AgentBuilder::new()
@@ -1276,7 +1308,9 @@ pub fn spawn_ollama_check(base_url: String, api_key: Option<String>) -> mpsc::Re
             .build();
         let url = format!("{base_url}/api/tags");
         let req = if let Some(ref key) = api_key {
-            agent.get(&url).set("Authorization", &format!("Bearer {key}"))
+            agent
+                .get(&url)
+                .set("Authorization", &format!("Bearer {key}"))
         } else {
             agent.get(&url)
         };
@@ -1395,7 +1429,8 @@ mod tests {
 
     #[test]
     fn parse_ndjson_token() {
-        let line = r#"{"model":"llama3","message":{"role":"assistant","content":"Hello"},"done":false}"#;
+        let line =
+            r#"{"model":"llama3","message":{"role":"assistant","content":"Hello"},"done":false}"#;
         let event = parse_ndjson_line(line).unwrap();
         if let StreamEvent::Token(t) = event {
             assert_eq!(t, "Hello");
@@ -1430,13 +1465,21 @@ mod tests {
 
     #[test]
     fn ollama_provider_new_and_name() {
-        let provider = OllamaProvider::new("http://localhost:11434".to_string(), "llama3".to_string(), None);
+        let provider = OllamaProvider::new(
+            "http://localhost:11434".to_string(),
+            "llama3".to_string(),
+            None,
+        );
         assert_eq!(provider.name(), "ollama");
     }
 
     #[test]
     fn ollama_provider_capabilities() {
-        let provider = OllamaProvider::new("http://localhost:11434".to_string(), "llama3".to_string(), None);
+        let provider = OllamaProvider::new(
+            "http://localhost:11434".to_string(),
+            "llama3".to_string(),
+            None,
+        );
         let caps = provider.capabilities();
         assert!(caps.supports_streaming);
         assert!(caps.supports_tools);
@@ -1527,7 +1570,12 @@ mod tests {
     fn parse_ndjson_tool_call() {
         let line = r#"{"model":"llama3","message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"read_project_file","arguments":{"path":"src/main.rs"}}}]},"done":false}"#;
         let event = parse_ndjson_line(line).unwrap();
-        if let StreamEvent::ToolCall { id, name, arguments } = event {
+        if let StreamEvent::ToolCall {
+            id,
+            name,
+            arguments,
+        } = event
+        {
             assert!(id.starts_with("tc_read_project_file_"));
             assert_eq!(name, "read_project_file");
             assert_eq!(arguments["path"], "src/main.rs");
@@ -1730,7 +1778,8 @@ mod tests {
     #[test]
     fn parse_raw_tool_calls_bare_json_code_link() {
         // cogito v2.1 markdown-link format
-        let content = r#"[json {"name": "semantic_search", "arguments": {"query": "main entry"}} ](code)"#;
+        let content =
+            r#"[json {"name": "semantic_search", "arguments": {"query": "main entry"}} ](code)"#;
         let (calls, clean) = parse_raw_tool_calls_from_content(content);
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].name, "semantic_search");
@@ -1750,7 +1799,8 @@ mod tests {
 
     #[test]
     fn parse_raw_tool_calls_bare_json_function_params_format() {
-        let content = r#"[json {"function": "read_project_file", "params": {"path": "src/main.rs"}} ](code)"#;
+        let content =
+            r#"[json {"function": "read_project_file", "params": {"path": "src/main.rs"}} ](code)"#;
         let (calls, clean) = parse_raw_tool_calls_from_content(content);
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].name, "read_project_file");

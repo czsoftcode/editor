@@ -7,6 +7,7 @@ use eframe::egui;
 use super::super::super::build_runner::run_build_check;
 use super::super::super::types::{AppAction, AppShared, Toast};
 use super::handle_manual_save_action;
+use super::request_close_active_tab;
 use super::state::{FilePicker, WorkspaceState};
 
 mod edit;
@@ -86,7 +87,7 @@ pub(super) fn process_menu_actions(
         handle_manual_save_action(ws, shared, i18n);
     }
     if actions.close_file {
-        ws.editor.clear();
+        request_close_active_tab(ws);
     }
     if actions.toggle_left {
         ws.show_left_panel = !ws.show_left_panel;

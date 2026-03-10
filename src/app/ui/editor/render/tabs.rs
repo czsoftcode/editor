@@ -261,7 +261,8 @@ mod tests {
 
     #[test]
     fn tab_save_mode_indicator_uses_active_mode_symbol() {
-        let auto_label = tab_label_with_mode_indicator("main.rs", false, false, true, &SaveMode::Automatic);
+        let auto_label =
+            tab_label_with_mode_indicator("main.rs", false, false, true, &SaveMode::Automatic);
         assert!(auto_label.contains("·A"));
     }
 }

@@ -1,6 +1,6 @@
-use crate::settings::SaveMode;
 use crate::app::ui::editor::render::tabs::tab_label_with_mode_indicator_for_tests;
 use crate::i18n::{I18n, SUPPORTED_LANGS};
+use crate::settings::SaveMode;
 
 use super::super::status_bar_runtime_mode_key;
 use super::super::status_bar_save_mode_key_for_runtime;

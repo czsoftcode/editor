@@ -221,8 +221,11 @@ impl ToolExecutor {
             }
             ApprovalDecision::Always => {
                 self.auto_approved.insert(tool_name.to_string());
-                self.audit
-                    .log_tool_call(tool_name, "user_always_approved", &format!("args={}", args));
+                self.audit.log_tool_call(
+                    tool_name,
+                    "user_always_approved",
+                    &format!("args={}", args),
+                );
                 self.execute_approved(tool_name, args)
             }
         }
@@ -319,9 +322,7 @@ impl ToolExecutor {
             } else {
                 0
             };
-            let end = line_end
-                .map(|e| e.min(total_lines))
-                .unwrap_or(total_lines);
+            let end = line_end.map(|e| e.min(total_lines)).unwrap_or(total_lines);
             lines[start..end].join("\n")
         } else {
             content
@@ -361,8 +362,10 @@ impl ToolExecutor {
         match self.sandbox.validate_path(path_str) {
             Ok(_) => {}
             Err(e) => {
-                self.audit
-                    .log_security_event("PATH_TRAVERSAL", &format!("write path={}: {}", path_str, e));
+                self.audit.log_security_event(
+                    "PATH_TRAVERSAL",
+                    &format!("write path={}: {}", path_str, e),
+                );
                 return ToolResult::Error(e);
             }
         }
@@ -414,7 +417,11 @@ impl ToolExecutor {
         }
 
         match std::fs::write(&full_path, content) {
-            Ok(_) => ToolResult::Success(format!("File '{}' created ({} bytes)", path_str, content.len())),
+            Ok(_) => ToolResult::Success(format!(
+                "File '{}' created ({} bytes)",
+                path_str,
+                content.len()
+            )),
             Err(e) => ToolResult::Error(format!("Failed to write '{}': {}", path_str, e)),
         }
     }
@@ -444,8 +451,10 @@ impl ToolExecutor {
         let full_path = match self.sandbox.validate_path(path_str) {
             Ok(p) => p,
             Err(e) => {
-                self.audit
-                    .log_security_event("PATH_TRAVERSAL", &format!("replace path={}: {}", path_str, e));
+                self.audit.log_security_event(
+                    "PATH_TRAVERSAL",
+                    &format!("replace path={}: {}", path_str, e),
+                );
                 return ToolResult::Error(e);
             }
         };
@@ -742,10 +751,7 @@ impl ToolExecutor {
     // -----------------------------------------------------------------------
 
     fn handle_ask_user(&self, args: &Value) -> ToolResult {
-        let question = args["question"]
-            .as_str()
-            .unwrap_or("?")
-            .to_string();
+        let question = args["question"].as_str().unwrap_or("?").to_string();
         let options: Vec<String> = args["options"]
             .as_array()
             .map(|arr| {
@@ -982,8 +988,16 @@ mod tests {
 
         // Create some test files
         fs::create_dir_all(root.join("src")).unwrap();
-        fs::write(root.join("src/main.rs"), "fn main() {\n    println!(\"Hello\");\n}\n").unwrap();
-        fs::write(root.join("src/lib.rs"), "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n").unwrap();
+        fs::write(
+            root.join("src/main.rs"),
+            "fn main() {\n    println!(\"Hello\");\n}\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/lib.rs"),
+            "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n",
+        )
+        .unwrap();
         fs::write(root.join(".env"), "API_KEY=secret123").unwrap();
 
         let executor = ToolExecutor::new(root, None, None);
@@ -1029,10 +1043,7 @@ mod tests {
     #[test]
     fn read_file_blacklisted() {
         let (_tmp, mut executor) = setup_test_executor();
-        let result = executor.execute(
-            "read_project_file",
-            &serde_json::json!({"path": ".env"}),
-        );
+        let result = executor.execute("read_project_file", &serde_json::json!({"path": ".env"}));
         match result {
             ToolResult::Error(msg) => {
                 assert!(msg.contains("blocked") || msg.contains("blacklisted"));
@@ -1146,10 +1157,7 @@ mod tests {
     #[test]
     fn search_project_finds_match() {
         let (_tmp, mut executor) = setup_test_executor();
-        let result = executor.execute(
-            "search_project",
-            &serde_json::json!({"query": "fn main"}),
-        );
+        let result = executor.execute("search_project", &serde_json::json!({"query": "fn main"}));
         match result {
             ToolResult::Success(content) => {
                 assert!(content.contains("fn main"));
@@ -1170,10 +1178,8 @@ mod tests {
         );
         assert!(matches!(store_result, ToolResult::Success(_)));
 
-        let retrieve_result = executor.execute(
-            "retrieve_scratch",
-            &serde_json::json!({"key": "k"}),
-        );
+        let retrieve_result =
+            executor.execute("retrieve_scratch", &serde_json::json!({"key": "k"}));
         match retrieve_result {
             ToolResult::Success(val) => assert_eq!(val, "v"),
             other => panic!("Expected Success, got {:?}", other),
@@ -1193,10 +1199,7 @@ mod tests {
         );
 
         // Retrieve
-        let result = executor.execute(
-            "retrieve_fact",
-            &serde_json::json!({"key": "project_lang"}),
-        );
+        let result = executor.execute("retrieve_fact", &serde_json::json!({"key": "project_lang"}));
         match result {
             ToolResult::Success(val) => assert_eq!(val, "Rust"),
             other => panic!("Expected Success, got {:?}", other),
@@ -1210,15 +1213,9 @@ mod tests {
         }
 
         // Delete
-        executor.execute(
-            "delete_fact",
-            &serde_json::json!({"key": "project_lang"}),
-        );
+        executor.execute("delete_fact", &serde_json::json!({"key": "project_lang"}));
 
-        let result = executor.execute(
-            "retrieve_fact",
-            &serde_json::json!({"key": "project_lang"}),
-        );
+        let result = executor.execute("retrieve_fact", &serde_json::json!({"key": "project_lang"}));
         match result {
             ToolResult::Success(val) => assert_eq!(val, ""),
             other => panic!("Expected Success, got {:?}", other),
@@ -1293,14 +1290,9 @@ mod tests {
     #[test]
     fn exec_cargo_build_needs_approval() {
         let (_tmp, mut executor) = setup_test_executor();
-        let result = executor.execute(
-            "exec",
-            &serde_json::json!({"command": "cargo build"}),
-        );
+        let result = executor.execute("exec", &serde_json::json!({"command": "cargo build"}));
         match result {
-            ToolResult::NeedsApproval {
-                is_network, ..
-            } => {
+            ToolResult::NeedsApproval { is_network, .. } => {
                 assert!(!is_network);
             }
             other => panic!("Expected NeedsApproval, got {:?}", other),
@@ -1310,10 +1302,7 @@ mod tests {
     #[test]
     fn exec_rm_rf_blocked() {
         let (_tmp, mut executor) = setup_test_executor();
-        let result = executor.execute(
-            "exec",
-            &serde_json::json!({"command": "rm -rf /"}),
-        );
+        let result = executor.execute("exec", &serde_json::json!({"command": "rm -rf /"}));
         match result {
             ToolResult::Error(msg) => {
                 assert!(msg.contains("Blocked"));
@@ -1345,10 +1334,8 @@ mod tests {
     #[test]
     fn exec_approved_runs_command() {
         let (_tmp, mut executor) = setup_test_executor();
-        let result = executor.execute_approved(
-            "exec",
-            &serde_json::json!({"command": "echo hello"}),
-        );
+        let result =
+            executor.execute_approved("exec", &serde_json::json!({"command": "echo hello"}));
         match result {
             ToolResult::Success(output) => {
                 assert!(output.contains("hello"));
@@ -1360,10 +1347,7 @@ mod tests {
     #[test]
     fn exec_approved_uses_project_root() {
         let (tmp, mut executor) = setup_test_executor();
-        let result = executor.execute_approved(
-            "exec",
-            &serde_json::json!({"command": "pwd"}),
-        );
+        let result = executor.execute_approved("exec", &serde_json::json!({"command": "pwd"}));
         match result {
             ToolResult::Success(output) => {
                 let root_str = tmp.path().to_string_lossy();
@@ -1458,7 +1442,9 @@ mod tests {
             &serde_json::json!({"path": "test.rs", "content": "x"}),
         );
         match result {
-            ToolResult::Error(msg) => assert!(msg.contains("rate limit") || msg.contains("Rate limit")),
+            ToolResult::Error(msg) => {
+                assert!(msg.contains("rate limit") || msg.contains("Rate limit"))
+            }
             other => panic!("Expected Error, got {:?}", other),
         }
     }
@@ -1469,12 +1455,11 @@ mod tests {
         for _ in 0..20 {
             let _ = executor.rate_limiter.check_exec();
         }
-        let result = executor.execute(
-            "exec",
-            &serde_json::json!({"command": "echo test"}),
-        );
+        let result = executor.execute("exec", &serde_json::json!({"command": "echo test"}));
         match result {
-            ToolResult::Error(msg) => assert!(msg.contains("rate limit") || msg.contains("Rate limit")),
+            ToolResult::Error(msg) => {
+                assert!(msg.contains("rate limit") || msg.contains("Rate limit"))
+            }
             other => panic!("Expected Error, got {:?}", other),
         }
     }
@@ -1485,7 +1470,8 @@ mod tests {
     fn test_approval_approve_executes_tool() {
         let (_tmp, mut executor) = setup_test_executor();
         let args = serde_json::json!({"path": "approved.rs", "content": "fn approved() {}"});
-        let result = executor.process_approval_response("write_file", &args, ApprovalDecision::Approve);
+        let result =
+            executor.process_approval_response("write_file", &args, ApprovalDecision::Approve);
         match result {
             ToolResult::Success(msg) => assert!(msg.contains("approved.rs")),
             other => panic!("Expected Success after approve, got {:?}", other),
@@ -1509,7 +1495,8 @@ mod tests {
         let args = serde_json::json!({"path": "always.rs", "content": "fn always() {}"});
         assert!(!executor.check_always_approved("write_file"));
 
-        let result = executor.process_approval_response("write_file", &args, ApprovalDecision::Always);
+        let result =
+            executor.process_approval_response("write_file", &args, ApprovalDecision::Always);
         match result {
             ToolResult::Success(_) => {}
             other => panic!("Expected Success after always, got {:?}", other),
@@ -1531,7 +1518,8 @@ mod tests {
         let (_tmp, mut executor) = setup_test_executor();
         // Try to approve an unknown tool — should get error from execute_approved
         let args = serde_json::json!({});
-        let result = executor.process_approval_response("unknown_tool", &args, ApprovalDecision::Approve);
+        let result =
+            executor.process_approval_response("unknown_tool", &args, ApprovalDecision::Approve);
         match result {
             ToolResult::Error(msg) => assert!(msg.contains("unknown") || msg.contains("Unknown")),
             other => panic!("Expected Error for unknown tool, got {:?}", other),
@@ -1549,7 +1537,10 @@ mod tests {
         );
 
         assert_eq!(assistant.role, "assistant");
-        assert_eq!(assistant.tool_call_name.as_deref(), Some("read_project_file"));
+        assert_eq!(
+            assistant.tool_call_name.as_deref(),
+            Some("read_project_file")
+        );
         assert_eq!(assistant.tool_call_id.as_deref(), Some("tc_1"));
         assert!(assistant.tool_call_arguments.is_some());
 
@@ -1576,7 +1567,10 @@ mod tests {
     #[test]
     fn test_reset_scratch() {
         let (_tmp, mut executor) = setup_test_executor();
-        executor.execute("store_scratch", &serde_json::json!({"key": "k", "value": "v"}));
+        executor.execute(
+            "store_scratch",
+            &serde_json::json!({"key": "k", "value": "v"}),
+        );
         executor.reset_scratch();
         let result = executor.execute("retrieve_scratch", &serde_json::json!({"key": "k"}));
         match result {

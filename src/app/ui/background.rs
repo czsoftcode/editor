@@ -20,9 +20,9 @@ where
 use super::super::types::{AppShared, Toast, should_emit_save_error_toast};
 use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
+use crate::app::cli::ollama::spawn_model_info_fetch;
 use crate::app::cli::provider::StreamEvent;
 use crate::app::cli::state::OllamaConnectionStatus;
-use crate::app::cli::ollama::spawn_model_info_fetch;
 use crate::app::cli::{OllamaStatus, spawn_ollama_check};
 use crate::settings::SaveMode;
 use crate::watcher::{FileEvent, FsChange};
@@ -233,7 +233,10 @@ pub(super) fn process_background_events(
         && ws.ai.ollama.check_rx.is_none()
         && !ws.ai.chat.loading
     {
-        ws.ai.ollama.check_rx = Some(spawn_ollama_check(ws.ai.ollama.base_url.clone(), ws.ai.ollama.api_key.clone()));
+        ws.ai.ollama.check_rx = Some(spawn_ollama_check(
+            ws.ai.ollama.base_url.clone(),
+            ws.ai.ollama.api_key.clone(),
+        ));
     }
 
     // --- 4b2. Model info fetch ---
@@ -308,7 +311,8 @@ pub(super) fn process_background_events(
                 StreamEvent::Error(msg) => {
                     let model = &ws.ai.ollama.selected_model;
                     if !ws.ai.chat.streaming_buffer.is_empty() {
-                        ws.ai.chat
+                        ws.ai
+                            .chat
                             .streaming_buffer
                             .push_str(&format!("\n\n*[error ({model}): {msg}]*"));
                     } else {
@@ -330,7 +334,11 @@ pub(super) fn process_background_events(
                     ws.ai.chat.streaming_buffer = clean;
                     tokens_this_frame += 1;
                 }
-                StreamEvent::ToolCall { id, name, arguments } => {
+                StreamEvent::ToolCall {
+                    id,
+                    name,
+                    arguments,
+                } => {
                     tool_call_handled = true;
                     // Process tool call through executor
                     if let Some(ref mut executor) = ws.tool_executor {
@@ -345,10 +353,7 @@ pub(super) fn process_background_events(
                                 // Append compact tool indicator to conversation display
                                 if let Some(last) = ws.ai.chat.conversation.last_mut() {
                                     let size = output.len();
-                                    last.1.push_str(&format!(
-                                        "\n\n> **{}** ({} B)",
-                                        name, size
-                                    ));
+                                    last.1.push_str(&format!("\n\n> **{}** ({} B)", name, size));
                                 }
                                 // Resume AI with tool result
                                 resume_after_tool_call(ws, asst_msg, tool_msg);
@@ -382,10 +387,7 @@ pub(super) fn process_background_events(
                                         );
                                     if let Some(last) = ws.ai.chat.conversation.last_mut() {
                                         let size = output.len();
-                                        last.1.push_str(&format!(
-                                            "\n\n> **{}** ({} B)",
-                                            tn, size
-                                        ));
+                                        last.1.push_str(&format!("\n\n> **{}** ({} B)", tn, size));
                                     }
                                     resume_after_tool_call(ws, asst_msg, tool_msg);
                                 } else {
@@ -407,16 +409,18 @@ pub(super) fn process_background_events(
                                     // Don't drop stream_rx — approval is pending
                                 }
                             }
-                            crate::app::cli::executor::ToolResult::AskUser { question, options } => {
+                            crate::app::cli::executor::ToolResult::AskUser {
+                                question,
+                                options,
+                            } => {
                                 let (tx, rx) = std::sync::mpsc::channel();
-                                ws.pending_tool_ask = Some(
-                                    crate::app::ui::workspace::state::PendingToolAsk {
+                                ws.pending_tool_ask =
+                                    Some(crate::app::ui::workspace::state::PendingToolAsk {
                                         question,
                                         options,
                                         response_tx: tx,
                                         input_buffer: String::new(),
-                                    },
-                                );
+                                    });
                                 ws.tool_ask_rx = Some(rx);
                             }
                             crate::app::cli::executor::ToolResult::Completion {
@@ -507,8 +511,15 @@ pub(super) fn process_background_events(
                         );
                     if let Some(last) = ws.ai.chat.conversation.last_mut() {
                         let label = if approved { "schvaleno" } else { "zamitnuto" };
-                        last.1.push_str(&format!("\n\n`{}` ({}) => {}", pending.tool_name, label,
-                            if output.len() > 200 { format!("{}...", &output[..200]) } else { output }
+                        last.1.push_str(&format!(
+                            "\n\n`{}` ({}) => {}",
+                            pending.tool_name,
+                            label,
+                            if output.len() > 200 {
+                                format!("{}...", &output[..200])
+                            } else {
+                                output
+                            }
                         ));
                     }
                     resume_after_tool_call(ws, asst_msg, tool_msg);
@@ -573,7 +584,11 @@ pub(super) fn process_background_events(
             // Update the last conversation entry that has the "Building..." placeholder
             for entry in ws.ai.chat.conversation.iter_mut().rev() {
                 if entry.1.contains("Building...") {
-                    entry.1 = format!("{}{}", crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER, summary);
+                    entry.1 = format!(
+                        "{}{}",
+                        crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER,
+                        summary
+                    );
                     break;
                 }
             }
@@ -590,7 +605,11 @@ pub(super) fn process_background_events(
         // Update the last conversation entry that has the "Loading git status..." placeholder
         for entry in ws.ai.chat.conversation.iter_mut().rev() {
             if entry.1.contains("Loading git status...") {
-                entry.1 = format!("{}{}", crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER, result);
+                entry.1 = format!(
+                    "{}{}",
+                    crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER,
+                    result
+                );
                 break;
             }
         }
@@ -803,20 +822,33 @@ fn format_slash_build_summary(errors: &[crate::app::build_runner::BuildError]) -
         return "Build OK (0 errors, 0 warnings)".to_string();
     }
 
-    let mut out = format!("**Build complete** ({} errors, {} warnings)\n\n", error_count, warning_count);
+    let mut out = format!(
+        "**Build complete** ({} errors, {} warnings)\n\n",
+        error_count, warning_count
+    );
 
     // List errors first, then warnings
     for err in errors.iter().filter(|e| !e.is_warning) {
-        let file = err.file.file_name()
+        let file = err
+            .file
+            .file_name()
             .map(|f| f.to_string_lossy().into_owned())
             .unwrap_or_else(|| err.file.to_string_lossy().into_owned());
-        out.push_str(&format!("- **error** `{}:{}` {}\n", file, err.line, err.message));
+        out.push_str(&format!(
+            "- **error** `{}:{}` {}\n",
+            file, err.line, err.message
+        ));
     }
     for err in errors.iter().filter(|e| e.is_warning) {
-        let file = err.file.file_name()
+        let file = err
+            .file
+            .file_name()
             .map(|f| f.to_string_lossy().into_owned())
             .unwrap_or_else(|| err.file.to_string_lossy().into_owned());
-        out.push_str(&format!("- **warning** `{}:{}` {}\n", file, err.line, err.message));
+        out.push_str(&format!(
+            "- **warning** `{}:{}` {}\n",
+            file, err.line, err.message
+        ));
     }
 
     out

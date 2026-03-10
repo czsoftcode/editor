@@ -20,7 +20,15 @@ impl AiChatWidget {
         history_index: &mut Option<usize>,
         autocomplete: &mut input::SlashAutocomplete,
     ) -> (bool, egui::Response) {
-        input::ui_input(ui, text, font_size, hint, history, history_index, autocomplete)
+        input::ui_input(
+            ui,
+            text,
+            font_size,
+            hint,
+            history,
+            history_index,
+            autocomplete,
+        )
     }
 
     /// Renders AI conversation history in a terminal-like style.
@@ -35,7 +43,17 @@ impl AiChatWidget {
         thinking_history: &[Option<String>],
         i18n: &crate::i18n::I18n,
     ) {
-        conversation::ui_conversation(ui, conversation, font_size, cache, model_name, out_tokens, is_streaming, thinking_history, i18n)
+        conversation::ui_conversation(
+            ui,
+            conversation,
+            font_size,
+            cache,
+            model_name,
+            out_tokens,
+            is_streaming,
+            thinking_history,
+            i18n,
+        )
     }
 
     /// Renders the real-time "thinking" monologue.

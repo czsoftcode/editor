@@ -12,8 +12,8 @@ use std::time::Instant;
 
 use eframe::egui;
 
-use crate::highlighter::Highlighter;
 use crate::app::ui::widgets::tab_bar::TabBarAction;
+use crate::highlighter::Highlighter;
 
 const AUTOSAVE_DELAY_MS: u128 = 500;
 /// Hover debounce: wait this long after mouse stops before sending request.

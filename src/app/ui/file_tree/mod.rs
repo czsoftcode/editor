@@ -89,11 +89,7 @@ impl FileTree {
         self.root = Some(root);
     }
 
-    pub fn ui(
-        &mut self,
-        ui: &mut eframe::egui::Ui,
-        i18n: &crate::i18n::I18n,
-    ) -> FileTreeResult {
+    pub fn ui(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) -> FileTreeResult {
         let mut result = FileTreeResult::default();
 
         if self.needs_reload {

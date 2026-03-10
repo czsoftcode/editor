@@ -26,14 +26,38 @@ struct SlashCommand {
 }
 
 const COMMANDS: &[SlashCommand] = &[
-    SlashCommand { name: "help", description: "Show available commands" },
-    SlashCommand { name: "clear", description: "Clear conversation" },
-    SlashCommand { name: "new", description: "New conversation" },
-    SlashCommand { name: "model", description: "List or switch AI model" },
-    SlashCommand { name: "git", description: "Show git diff summary" },
-    SlashCommand { name: "build", description: "Run cargo build" },
-    SlashCommand { name: "settings", description: "Open settings" },
-    SlashCommand { name: "gsd", description: "GSD project management (/gsd help for subcommands)" },
+    SlashCommand {
+        name: "help",
+        description: "Show available commands",
+    },
+    SlashCommand {
+        name: "clear",
+        description: "Clear conversation",
+    },
+    SlashCommand {
+        name: "new",
+        description: "New conversation",
+    },
+    SlashCommand {
+        name: "model",
+        description: "List or switch AI model",
+    },
+    SlashCommand {
+        name: "git",
+        description: "Show git diff summary",
+    },
+    SlashCommand {
+        name: "build",
+        description: "Run cargo build",
+    },
+    SlashCommand {
+        name: "settings",
+        description: "Open settings",
+    },
+    SlashCommand {
+        name: "gsd",
+        description: "GSD project management (/gsd help for subcommands)",
+    },
 ];
 
 /// Returns matching commands for autocomplete. Each item is (name, description).
@@ -83,17 +107,17 @@ pub fn dispatch(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
 
     match result {
         SlashResult::Immediate(response) => {
-            ws.ai.chat.conversation.push((
-                prompt,
-                format!("{}{}", SYSTEM_MSG_MARKER, response),
-            ));
+            ws.ai
+                .chat
+                .conversation
+                .push((prompt, format!("{}{}", SYSTEM_MSG_MARKER, response)));
             ws.ai.chat.prompt.clear();
         }
         SlashResult::Async { placeholder } => {
-            ws.ai.chat.conversation.push((
-                prompt,
-                format!("{}{}", SYSTEM_MSG_MARKER, placeholder),
-            ));
+            ws.ai
+                .chat
+                .conversation
+                .push((prompt, format!("{}{}", SYSTEM_MSG_MARKER, placeholder)));
             ws.ai.chat.prompt.clear();
         }
         SlashResult::Silent => {
@@ -144,8 +168,12 @@ fn levenshtein(a: &str, b: &str) -> usize {
     let a_len = a.len();
     let b_len = b.len();
 
-    if a_len == 0 { return b_len; }
-    if b_len == 0 { return a_len; }
+    if a_len == 0 {
+        return b_len;
+    }
+    if b_len == 0 {
+        return a_len;
+    }
 
     let mut prev: Vec<usize> = (0..=b_len).collect();
     let mut curr = vec![0; b_len + 1];
@@ -154,9 +182,7 @@ fn levenshtein(a: &str, b: &str) -> usize {
         curr[0] = i + 1;
         for (j, cb) in b.chars().enumerate() {
             let cost = if ca == cb { 0 } else { 1 };
-            curr[j + 1] = (prev[j] + cost)
-                .min(prev[j + 1] + 1)
-                .min(curr[j] + 1);
+            curr[j + 1] = (prev[j] + cost).min(prev[j + 1] + 1).min(curr[j] + 1);
         }
         std::mem::swap(&mut prev, &mut curr);
     }
@@ -229,7 +255,9 @@ fn cmd_model(ws: &mut WorkspaceState, args: &str) -> SlashResult {
     if args.is_empty() {
         // List all models
         if ws.ai.ollama.models.is_empty() {
-            return SlashResult::Immediate("No models available. Check Ollama connection.".to_string());
+            return SlashResult::Immediate(
+                "No models available. Check Ollama connection.".to_string(),
+            );
         }
         let mut out = String::from("## Models\n\n");
         for model in &ws.ai.ollama.models {
@@ -290,7 +318,11 @@ fn cmd_git(ws: &mut WorkspaceState) -> SlashResult {
                 if stdout.trim().is_empty() {
                     format!("**Branch:** `{}`\n\nNo uncommitted changes.", branch_str)
                 } else {
-                    format!("**Branch:** `{}`\n\n```\n{}\n```", branch_str, stdout.trim())
+                    format!(
+                        "**Branch:** `{}`\n\n```\n{}\n```",
+                        branch_str,
+                        stdout.trim()
+                    )
                 }
             }
             Err(e) => format!("Git error: {}", e),
@@ -298,14 +330,18 @@ fn cmd_git(ws: &mut WorkspaceState) -> SlashResult {
         let _ = tx.send(result);
     });
     ws.slash_git_rx = Some(rx);
-    SlashResult::Async { placeholder: "Loading git status...".to_string() }
+    SlashResult::Async {
+        placeholder: "Loading git status...".to_string(),
+    }
 }
 
 fn cmd_build(ws: &mut WorkspaceState) -> SlashResult {
     let rx = crate::app::build_runner::run_build_check(ws.root_path.clone());
     ws.slash_build_rx = Some(rx);
     ws.slash_build_gen = ws.slash_conversation_gen;
-    SlashResult::Async { placeholder: "Building...".to_string() }
+    SlashResult::Async {
+        placeholder: "Building...".to_string(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -381,7 +417,9 @@ mod tests {
             file_tree: crate::app::ui::file_tree::FileTree::new(),
             editor: crate::app::ui::editor::Editor::new(),
             watcher: crate::watcher::FileWatcher::new(),
-            project_watcher: crate::watcher::ProjectWatcher::new(&std::path::PathBuf::from("/tmp/test")),
+            project_watcher: crate::watcher::ProjectWatcher::new(&std::path::PathBuf::from(
+                "/tmp/test",
+            )),
             claude_tabs: Vec::new(),
             claude_active_tab: 0,
             next_claude_tab_id: 1,
@@ -411,8 +449,16 @@ mod tests {
             toasts: Vec::new(),
             folder_pick_rx: None,
             command_palette: None,
-            project_index: std::sync::Arc::new(crate::app::ui::workspace::index::ProjectIndex::new(std::path::PathBuf::from("/tmp/test"))),
-            semantic_index: std::sync::Arc::new(std::sync::Mutex::new(crate::app::ui::workspace::semantic_index::SemanticIndex::new(std::path::PathBuf::from("/tmp/test")))),
+            project_index: std::sync::Arc::new(
+                crate::app::ui::workspace::index::ProjectIndex::new(std::path::PathBuf::from(
+                    "/tmp/test",
+                )),
+            ),
+            semantic_index: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::app::ui::workspace::semantic_index::SemanticIndex::new(
+                    std::path::PathBuf::from("/tmp/test"),
+                ),
+            )),
             file_picker: None,
             project_search: crate::app::ui::workspace::state::types::ProjectSearch::default(),
             lsp_client: None,
@@ -439,12 +485,15 @@ mod tests {
             settings_conflict: None,
             ai: AiState::default(),
             git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            local_history: crate::app::local_history::LocalHistory::new(&std::path::PathBuf::from("/tmp/test")),
+            local_history: crate::app::local_history::LocalHistory::new(&std::path::PathBuf::from(
+                "/tmp/test",
+            )),
             background_io_rx: None,
             applied_settings_version: 0,
             confirm_discard_changes: None,
             last_keystroke_time: None,
             pending_close_flow: None,
+            last_unsaved_close_cancelled: false,
             tool_executor: None,
             pending_tool_approval: None,
             pending_tool_ask: None,
@@ -465,14 +514,21 @@ mod tests {
     #[test]
     fn test_cmd_model_list() {
         let mut ws = make_test_ws_with_models(
-            vec!["llama3.1".to_string(), "deepseek-r1".to_string(), "codellama".to_string()],
+            vec![
+                "llama3.1".to_string(),
+                "deepseek-r1".to_string(),
+                "codellama".to_string(),
+            ],
             "llama3.1",
         );
         let result = cmd_model(&mut ws, "");
         match result {
             SlashResult::Immediate(text) => {
                 assert!(text.contains("## Models"), "Should have heading");
-                assert!(text.contains("**llama3.1** (active)"), "Active model should be marked");
+                assert!(
+                    text.contains("**llama3.1** (active)"),
+                    "Active model should be marked"
+                );
                 assert!(text.contains("* deepseek-r1"), "Other models listed");
                 assert!(text.contains("* codellama"), "Other models listed");
             }
@@ -517,7 +573,10 @@ mod tests {
         match result2 {
             SlashResult::Immediate(text) => {
                 assert!(text.contains("not found"), "Should report not found");
-                assert!(text.contains("Available models:"), "Should list available models");
+                assert!(
+                    text.contains("Available models:"),
+                    "Should list available models"
+                );
             }
             _ => panic!("Expected Immediate result from /model unknown"),
         }

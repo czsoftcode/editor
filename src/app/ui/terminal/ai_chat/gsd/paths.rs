@@ -59,7 +59,10 @@ mod tests {
     #[test]
     fn test_planning_dir() {
         let root = Path::new("/home/user/project");
-        assert_eq!(planning_dir(root), PathBuf::from("/home/user/project/.planning"));
+        assert_eq!(
+            planning_dir(root),
+            PathBuf::from("/home/user/project/.planning")
+        );
     }
 
     #[test]
@@ -74,13 +77,19 @@ mod tests {
     #[test]
     fn test_state_path() {
         let root = Path::new("/home/user/project");
-        assert_eq!(state_path(root), PathBuf::from("/home/user/project/.planning/STATE.md"));
+        assert_eq!(
+            state_path(root),
+            PathBuf::from("/home/user/project/.planning/STATE.md")
+        );
     }
 
     #[test]
     fn test_roadmap_path() {
         let root = Path::new("/home/user/project");
-        assert_eq!(roadmap_path(root), PathBuf::from("/home/user/project/.planning/ROADMAP.md"));
+        assert_eq!(
+            roadmap_path(root),
+            PathBuf::from("/home/user/project/.planning/ROADMAP.md")
+        );
     }
 
     #[test]

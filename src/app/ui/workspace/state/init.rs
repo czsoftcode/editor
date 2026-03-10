@@ -1,12 +1,12 @@
 use eframe::egui;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use super::{ProjectSearch, WorkspaceState};
-use crate::app::cli::state::{AiState, AiSettings, ChatState, OllamaConnectionStatus, OllamaState};
+use crate::app::cli::state::{AiSettings, AiState, ChatState, OllamaConnectionStatus, OllamaState};
 use crate::app::project_config::load_profiles;
 use crate::app::types::{FocusedPanel, PersistentState};
 use crate::app::ui::background::{fetch_git_branch, fetch_git_status};
@@ -90,9 +90,10 @@ pub fn init_workspace(
                 reasoning_depth,
             ),
         )],
-        system_prompt: panel_state.ai_system_prompt.clone().unwrap_or_else(|| {
-            i18n.get("cli-chat-default-prompt")
-        }),
+        system_prompt: panel_state
+            .ai_system_prompt
+            .clone()
+            .unwrap_or_else(|| i18n.get("cli-chat-default-prompt")),
         focus_requested: true,
         ..ChatState::default()
     };
@@ -101,9 +102,10 @@ pub fn init_workspace(
         expertise,
         reasoning_depth,
         font_scale: panel_state.ai_font_scale,
-        language: panel_state.ai_language.clone().unwrap_or_else(|| {
-            i18n.lang().to_string()
-        }),
+        language: panel_state
+            .ai_language
+            .clone()
+            .unwrap_or_else(|| i18n.lang().to_string()),
         selected_provider: selected_provider.clone(),
         show_settings: false,
         temperature: 0.7,

@@ -3,9 +3,9 @@
 
 use std::path::Path;
 
+use super::super::slash::SlashResult;
 use super::frontmatter::{FmDocument, FmValue};
 use super::paths;
-use super::super::slash::SlashResult;
 use crate::app::ui::workspace::state::WorkspaceState;
 
 /// Format a Unicode progress bar: [████████░░] 80%
@@ -44,7 +44,10 @@ pub fn format_state_display(doc: &FmDocument) -> String {
     if !milestone.is_empty() {
         let milestone_name = fm_str(doc.get("milestone_name"));
         if !milestone_name.is_empty() {
-            out.push_str(&format!("**Milestone:** {} ({})\n", milestone, milestone_name));
+            out.push_str(&format!(
+                "**Milestone:** {} ({})\n",
+                milestone, milestone_name
+            ));
         } else {
             out.push_str(&format!("**Milestone:** {}\n", milestone));
         }
@@ -54,7 +57,10 @@ pub fn format_state_display(doc: &FmDocument) -> String {
     let total_phases = fm_i64(doc.get("progress.total_phases"));
     let completed_phases = fm_i64(doc.get("progress.completed_phases"));
     if total_phases > 0 {
-        out.push_str(&format!("**Phase:** {}/{}\n", completed_phases, total_phases));
+        out.push_str(&format!(
+            "**Phase:** {}/{}\n",
+            completed_phases, total_phases
+        ));
     }
 
     // Status
@@ -109,8 +115,7 @@ fn extract_body_section(body: &str, heading: &str) -> String {
     for line in body.lines() {
         if in_section {
             // Stop at next heading (## or ###)
-            if (line.starts_with("### ") || line.starts_with("## ")) && !line.starts_with(&target)
-            {
+            if (line.starts_with("### ") || line.starts_with("## ")) && !line.starts_with(&target) {
                 break;
             }
             lines.push(line);
@@ -227,9 +232,7 @@ fn handle_state_update(root: &Path, args: &str) -> SlashResult {
     let content = match std::fs::read_to_string(&state_file) {
         Ok(c) => c,
         Err(_) => {
-            return SlashResult::Immediate(
-                "No STATE.md found. Cannot update.".to_string(),
-            );
+            return SlashResult::Immediate("No STATE.md found. Cannot update.".to_string());
         }
     };
 
@@ -262,9 +265,7 @@ fn handle_state_patch(root: &Path, args: &str) -> SlashResult {
     let content = match std::fs::read_to_string(&state_file) {
         Ok(c) => c,
         Err(_) => {
-            return SlashResult::Immediate(
-                "No STATE.md found. Cannot patch.".to_string(),
-            );
+            return SlashResult::Immediate("No STATE.md found. Cannot patch.".to_string());
         }
     };
 
@@ -295,14 +296,18 @@ fn handle_state_patch(root: &Path, args: &str) -> SlashResult {
         return SlashResult::Immediate(format!("Failed to write STATE.md: {}", e));
     }
 
-    SlashResult::Immediate(format!("Patched {} field(s):\n{}", updated_fields.len(), updated_fields.join("\n")))
+    SlashResult::Immediate(format!(
+        "Patched {} field(s):\n{}",
+        updated_fields.len(),
+        updated_fields.join("\n")
+    ))
 }
 
 /// Append a bullet item to a ### section in STATE.md body.
 pub fn append_to_section(root: &Path, section: &str, text: &str) -> Result<(), String> {
     let state_file = paths::state_path(root);
-    let content = std::fs::read_to_string(&state_file)
-        .map_err(|e| format!("Cannot read STATE.md: {}", e))?;
+    let content =
+        std::fs::read_to_string(&state_file).map_err(|e| format!("Cannot read STATE.md: {}", e))?;
 
     let mut doc = FmDocument::parse(&content);
     let target = format!("### {}", section);
@@ -508,12 +513,21 @@ Key decisions logged in PROJECT.md.
         let output = format_state_display(&doc);
 
         assert!(output.contains("## GSD State"), "Should have heading");
-        assert!(output.contains("**Milestone:** v1.2.1-dev (GSD Integration)"), "Milestone with name");
+        assert!(
+            output.contains("**Milestone:** v1.2.1-dev (GSD Integration)"),
+            "Milestone with name"
+        );
         assert!(output.contains("**Phase:** 19/23"), "Phase counts");
         assert!(output.contains("**Status:** executing"), "Status");
-        assert!(output.contains("**Last activity:** 2026-03-07"), "Last activity");
+        assert!(
+            output.contains("**Last activity:** 2026-03-07"),
+            "Last activity"
+        );
         assert!(output.contains("[████████░░] 80%"), "Progress bar");
-        assert!(output.contains("Plans: 45/49 | Phases: 19/23"), "Plan/phase counts");
+        assert!(
+            output.contains("Plans: 45/49 | Phases: 19/23"),
+            "Plan/phase counts"
+        );
         assert!(output.contains("### Velocity"), "Velocity section");
         assert!(output.contains("v1.0.2"), "Velocity content");
         assert!(output.contains("### Blockers"), "Blockers section");
@@ -527,7 +541,10 @@ Key decisions logged in PROJECT.md.
         let output = format_state_display(&doc);
 
         assert!(output.contains("**Status:** planning"));
-        assert!(output.contains("[░░░░░░░░░░] 0%"), "Zero progress when fields missing");
+        assert!(
+            output.contains("[░░░░░░░░░░] 0%"),
+            "Zero progress when fields missing"
+        );
     }
 
     #[test]
@@ -551,7 +568,8 @@ Key decisions logged in PROJECT.md.
 
     #[test]
     fn test_extract_body_section_velocity() {
-        let section = extract_body_section(SAMPLE_STATE.split("---").nth(2).unwrap_or(""), "Velocity");
+        let section =
+            extract_body_section(SAMPLE_STATE.split("---").nth(2).unwrap_or(""), "Velocity");
         assert!(section.contains("v1.0.2"));
         assert!(section.contains("v1.2.0"));
     }
@@ -568,8 +586,14 @@ Key decisions logged in PROJECT.md.
         assert_eq!(parse_value_string("false"), FmValue::Boolean(false));
         assert_eq!(parse_value_string("42"), FmValue::Integer(42));
         assert_eq!(parse_value_string("3.14"), FmValue::Float(3.14));
-        assert_eq!(parse_value_string("hello"), FmValue::String("hello".to_string()));
-        assert_eq!(parse_value_string("executing"), FmValue::String("executing".to_string()));
+        assert_eq!(
+            parse_value_string("hello"),
+            FmValue::String("hello".to_string())
+        );
+        assert_eq!(
+            parse_value_string("executing"),
+            FmValue::String("executing".to_string())
+        );
     }
 
     #[test]
@@ -591,7 +615,10 @@ Key decisions logged in PROJECT.md.
         // Verify file was updated
         let content = std::fs::read_to_string(planning.join("STATE.md")).unwrap();
         let doc = FmDocument::parse(&content);
-        assert_eq!(doc.get("status"), Some(&FmValue::String("planning".to_string())));
+        assert_eq!(
+            doc.get("status"),
+            Some(&FmValue::String("planning".to_string()))
+        );
     }
 
     #[test]
@@ -611,7 +638,10 @@ Key decisions logged in PROJECT.md.
 
         let content = std::fs::read_to_string(planning.join("STATE.md")).unwrap();
         let doc = FmDocument::parse(&content);
-        assert_eq!(doc.get("progress.completed_phases"), Some(&FmValue::Integer(20)));
+        assert_eq!(
+            doc.get("progress.completed_phases"),
+            Some(&FmValue::Integer(20))
+        );
     }
 
     #[test]
@@ -631,8 +661,14 @@ Key decisions logged in PROJECT.md.
 
         let content = std::fs::read_to_string(planning.join("STATE.md")).unwrap();
         let doc = FmDocument::parse(&content);
-        assert_eq!(doc.get("status"), Some(&FmValue::String("done".to_string())));
-        assert_eq!(doc.get("progress.completed_phases"), Some(&FmValue::Integer(23)));
+        assert_eq!(
+            doc.get("status"),
+            Some(&FmValue::String("done".to_string()))
+        );
+        assert_eq!(
+            doc.get("progress.completed_phases"),
+            Some(&FmValue::Integer(23))
+        );
     }
 
     #[test]
@@ -643,10 +679,17 @@ Key decisions logged in PROJECT.md.
         std::fs::write(planning.join("STATE.md"), SAMPLE_STATE).unwrap();
 
         let result = record_decision(tmp.path(), "[v2.0]: New architecture chosen");
-        assert!(result.is_ok(), "record_decision should succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "record_decision should succeed: {:?}",
+            result
+        );
 
         let content = std::fs::read_to_string(planning.join("STATE.md")).unwrap();
-        assert!(content.contains("- [v2.0]: New architecture chosen"), "Decision should be appended");
+        assert!(
+            content.contains("- [v2.0]: New architecture chosen"),
+            "Decision should be appended"
+        );
         // Existing decisions still present
         assert!(content.contains("- [v1.2.0]: ureq + std::thread"));
     }
@@ -698,10 +741,19 @@ Key decisions logged in PROJECT.md.
         let doc = FmDocument::parse(&content);
 
         // Changed field
-        assert_eq!(doc.get("status"), Some(&FmValue::String("done".to_string())));
+        assert_eq!(
+            doc.get("status"),
+            Some(&FmValue::String("done".to_string()))
+        );
         // Unchanged fields preserved
-        assert_eq!(doc.get("milestone"), Some(&FmValue::String("v1.2.1-dev".to_string())));
-        assert_eq!(doc.get("progress.total_phases"), Some(&FmValue::Integer(23)));
+        assert_eq!(
+            doc.get("milestone"),
+            Some(&FmValue::String("v1.2.1-dev".to_string()))
+        );
+        assert_eq!(
+            doc.get("progress.total_phases"),
+            Some(&FmValue::Integer(23))
+        );
         // Body preserved
         assert!(content.contains("### Velocity"), "Body sections preserved");
         assert!(content.contains("### Decisions"), "Body sections preserved");

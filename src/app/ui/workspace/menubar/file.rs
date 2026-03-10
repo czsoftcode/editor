@@ -1,11 +1,7 @@
 use super::MenuActions;
 use eframe::egui;
 
-pub fn render(
-    ui: &mut egui::Ui,
-    actions: &mut MenuActions,
-    i18n: &crate::i18n::I18n,
-) {
+pub fn render(ui: &mut egui::Ui, actions: &mut MenuActions, i18n: &crate::i18n::I18n) {
     ui.menu_button(i18n.get("menu-file"), |ui| {
         if ui.button(i18n.get("menu-file-open-folder")).clicked() {
             actions.open_folder = true;

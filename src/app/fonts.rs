@@ -30,10 +30,10 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
 
     #[cfg(target_os = "windows")]
     {
-        search_dirs.push(PathBuf::from(
-            std::env::var("WINDIR")
-                .unwrap_or_else(|_| r"C:\Windows".to_string()),
-        ).join("Fonts"));
+        search_dirs.push(
+            PathBuf::from(std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".to_string()))
+                .join("Fonts"),
+        );
         if let Ok(local) = std::env::var("LOCALAPPDATA") {
             search_dirs.push(PathBuf::from(local).join(r"Microsoft\Windows\Fonts"));
         }
@@ -60,10 +60,10 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
         "ubuntu",
         "roboto",
         "liberationsans",
-        "segoeui",      // Windows
-        "arial",        // Windows / macOS
-        "sfpro",        // macOS
-        "helvetica",    // macOS
+        "segoeui",   // Windows
+        "arial",     // Windows / macOS
+        "sfpro",     // macOS
+        "helvetica", // macOS
     ];
     let preferred_symbols = [
         "symbola",
@@ -192,8 +192,7 @@ pub fn setup_custom_fonts(ctx: &egui::Context) {
                     }
                 }
             }
-
-            }
+        }
     }
 
     // Apply to families: [Primary, Symbol1, Symbol2..., egui_defaults...]

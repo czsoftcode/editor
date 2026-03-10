@@ -68,7 +68,12 @@ pub fn show(
     interacted
 }
 
-pub fn handle_action(act: AiChatAction, ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>, i18n: &I18n) {
+pub fn handle_action(
+    act: AiChatAction,
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &I18n,
+) {
     match act {
         AiChatAction::Send => {
             logic::send_query_to_agent(ws, shared, i18n);

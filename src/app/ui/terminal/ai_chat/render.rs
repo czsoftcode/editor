@@ -11,7 +11,12 @@ use std::sync::{Arc, Mutex};
 // ── HEAD ─────────────────────────────────────────────────────────────────────
 
 /// Renders the chat header: Ollama status indicator, model picker, token counts.
-pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mutex<AppShared>>, i18n: &I18n) {
+pub fn render_head(
+    ui: &mut egui::Ui,
+    ws: &mut WorkspaceState,
+    _shared: &Arc<Mutex<AppShared>>,
+    i18n: &I18n,
+) {
     use crate::app::cli::state::OllamaConnectionStatus;
 
     ui.horizontal(|ui| {
@@ -28,13 +33,14 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
         let popup_id = ui.make_persistent_id("ai_chat_model_picker_popup");
         let _filter_id = egui::Id::new("ai_chat_model_filter_input");
         let btn_resp = ui.add(
-            egui::Button::new(
-                egui::RichText::new(if ws.ai.ollama.selected_model.is_empty() {
+            egui::Button::new(egui::RichText::new(
+                if ws.ai.ollama.selected_model.is_empty() {
                     i18n.get("cli-chat-placeholder-model")
                 } else {
                     ws.ai.ollama.selected_model.clone()
-                })
-            ).min_size(egui::vec2(180.0, 0.0)),
+                },
+            ))
+            .min_size(egui::vec2(180.0, 0.0)),
         );
         if btn_resp.clicked() {
             ui.memory_mut(|m| m.toggle_popup(popup_id));
@@ -46,68 +52,97 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
             if !info.family.is_empty() {
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("value", info.family.clone());
-                tip.push_str(&format!("{}\n", i18n.get_args("cli-chat-model-family", &args)));
+                tip.push_str(&format!(
+                    "{}\n",
+                    i18n.get_args("cli-chat-model-family", &args)
+                ));
             }
             if !info.parameter_size.is_empty() {
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("value", info.parameter_size.clone());
-                tip.push_str(&format!("{}\n", i18n.get_args("cli-chat-model-params", &args)));
+                tip.push_str(&format!(
+                    "{}\n",
+                    i18n.get_args("cli-chat-model-params", &args)
+                ));
             }
             if !info.quantization_level.is_empty() {
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("value", info.quantization_level.clone());
-                tip.push_str(&format!("{}\n", i18n.get_args("cli-chat-model-quant", &args)));
+                tip.push_str(&format!(
+                    "{}\n",
+                    i18n.get_args("cli-chat-model-quant", &args)
+                ));
             }
             if let Some(ctx) = info.context_length {
                 let mut args = fluent_bundle::FluentArgs::new();
                 args.set("value", ctx as i64);
-                tip.push_str(&format!("{}\n", i18n.get_args("cli-chat-model-context", &args)));
+                tip.push_str(&format!(
+                    "{}\n",
+                    i18n.get_args("cli-chat-model-context", &args)
+                ));
             }
             if !info.parameters.is_empty() {
                 tip.push_str(&format!("\n--- Parameters ---\n{}", info.parameters));
             }
-            if tip.is_empty() { None } else { Some(tip.trim_end().to_string()) }
-        });
-        egui::popup_below_widget(ui, popup_id, &btn_resp, egui::PopupCloseBehavior::CloseOnClickOutside, |ui| {
-            ui.set_min_width(220.0);
-            ui.set_max_height(350.0);
-            let filter_resp = ui.add(
-                egui::TextEdit::singleline(&mut ws.ai.ollama.model_filter)
-                    .hint_text(i18n.get("cli-chat-placeholder-filter"))
-                    .desired_width(200.0),
-            );
-            if btn_resp.clicked() {
-                filter_resp.request_focus();
+            if tip.is_empty() {
+                None
+            } else {
+                Some(tip.trim_end().to_string())
             }
-            let filter_lower = ws.ai.ollama.model_filter.to_lowercase();
-            ui.separator();
-            egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                let mut any = false;
-                for model in &ws.ai.ollama.models {
-                    if !filter_lower.is_empty() && !model.to_lowercase().contains(&filter_lower) {
-                        continue;
-                    }
-                    any = true;
-                    let selected = *model == ws.ai.ollama.selected_model;
-                    if ui.selectable_label(selected, model).clicked() {
-                        ws.ai.ollama.selected_model = model.clone();
-                        ws.ai.ollama.model_filter.clear();
-                        ui.memory_mut(|m| m.close_popup());
-                    }
-                }
-                if !any && !filter_lower.is_empty() {
-                    // Allow using the typed text as a custom model name
-                    let custom = ws.ai.ollama.model_filter.clone();
-                    if ui.selectable_label(false, format!("+ {}", custom)).clicked()
-                        || (filter_resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                    {
-                        ws.ai.ollama.selected_model = custom;
-                        ws.ai.ollama.model_filter.clear();
-                        ui.memory_mut(|m| m.close_popup());
-                    }
-                }
-            });
         });
+        egui::popup_below_widget(
+            ui,
+            popup_id,
+            &btn_resp,
+            egui::PopupCloseBehavior::CloseOnClickOutside,
+            |ui| {
+                ui.set_min_width(220.0);
+                ui.set_max_height(350.0);
+                let filter_resp = ui.add(
+                    egui::TextEdit::singleline(&mut ws.ai.ollama.model_filter)
+                        .hint_text(i18n.get("cli-chat-placeholder-filter"))
+                        .desired_width(200.0),
+                );
+                if btn_resp.clicked() {
+                    filter_resp.request_focus();
+                }
+                let filter_lower = ws.ai.ollama.model_filter.to_lowercase();
+                ui.separator();
+                egui::ScrollArea::vertical()
+                    .max_height(300.0)
+                    .show(ui, |ui| {
+                        let mut any = false;
+                        for model in &ws.ai.ollama.models {
+                            if !filter_lower.is_empty()
+                                && !model.to_lowercase().contains(&filter_lower)
+                            {
+                                continue;
+                            }
+                            any = true;
+                            let selected = *model == ws.ai.ollama.selected_model;
+                            if ui.selectable_label(selected, model).clicked() {
+                                ws.ai.ollama.selected_model = model.clone();
+                                ws.ai.ollama.model_filter.clear();
+                                ui.memory_mut(|m| m.close_popup());
+                            }
+                        }
+                        if !any && !filter_lower.is_empty() {
+                            // Allow using the typed text as a custom model name
+                            let custom = ws.ai.ollama.model_filter.clone();
+                            if ui
+                                .selectable_label(false, format!("+ {}", custom))
+                                .clicked()
+                                || (filter_resp.lost_focus()
+                                    && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                            {
+                                ws.ai.ollama.selected_model = custom;
+                                ws.ai.ollama.model_filter.clear();
+                                ui.memory_mut(|m| m.close_popup());
+                            }
+                        }
+                    });
+            },
+        );
         if let Some(tip) = model_tooltip {
             btn_resp.on_hover_text(tip);
         }
@@ -120,8 +155,8 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
             token_args.set("output", ws.ai.chat.out_tokens as i64);
             ui.label(
                 egui::RichText::new(i18n.get_args("cli-chat-token-counter", &token_args))
-                .color(weak_color)
-                .small(),
+                    .color(weak_color)
+                    .small(),
             );
             if let Some(info) = &ws.ai.ollama.model_info {
                 let mut parts = Vec::new();
@@ -140,11 +175,7 @@ pub fn render_head(ui: &mut egui::Ui, ws: &mut WorkspaceState, _shared: &Arc<Mut
                             .color(weak_color)
                             .small(),
                     );
-                    ui.label(
-                        egui::RichText::new("|")
-                            .color(weak_color)
-                            .small(),
-                    );
+                    ui.label(egui::RichText::new("|").color(weak_color).small());
                 }
             }
         });
@@ -228,7 +259,11 @@ fn render_chat_content(
 
     let info_bar_h = 30.0;
     let sep_h = 14.0;
-    let settings_h = if ws.ai.settings.show_settings { 280.0 } else { 0.0 };
+    let settings_h = if ws.ai.settings.show_settings {
+        280.0
+    } else {
+        0.0
+    };
     let reserved_h = prompt_h_prev + info_bar_h + sep_h + settings_h;
 
     // Maximum height before a scrollbar is needed
@@ -278,7 +313,12 @@ fn render_chat_content(
                     ui.label(egui::RichText::new(i18n.get("cli-chat-loading")).strong());
                 });
                 ui.add_space(4.0);
-                AiChatWidget::ui_monologue(ui, &ws.ai.chat.monologue, font_size, &mut ws.ai.markdown_cache);
+                AiChatWidget::ui_monologue(
+                    ui,
+                    &ws.ai.chat.monologue,
+                    font_size,
+                    &mut ws.ai.markdown_cache,
+                );
             }
         });
 
@@ -317,8 +357,7 @@ fn render_chat_content(
         ui.add_space(4.0);
         ui.scope(|ui| {
             let sep_color = ui.visuals().widgets.noninteractive.bg_stroke.color;
-            ui.visuals_mut().widgets.noninteractive.bg_stroke =
-                egui::Stroke::new(1.0, sep_color);
+            ui.visuals_mut().widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, sep_color);
             ui.separator();
         });
 
@@ -382,7 +421,12 @@ fn render_chat_content(
                     // Stop/Send toggle button
                     if loading {
                         let stop_color = ui.visuals().error_fg_color;
-                        if ui.button(egui::RichText::new(i18n.get("cli-chat-stop")).color(stop_color)).clicked() {
+                        if ui
+                            .button(
+                                egui::RichText::new(i18n.get("cli-chat-stop")).color(stop_color),
+                            )
+                            .clicked()
+                        {
                             stop_streaming(ws);
                         }
                     }
@@ -411,10 +455,22 @@ fn render_chat_content(
             // Detect /gsd subcommand autocomplete vs top-level command autocomplete
             let (matches, is_gsd_sub) = if ws.ai.chat.prompt.starts_with("/gsd ") {
                 let gsd_rest = &ws.ai.chat.prompt[5..]; // after "/gsd "
-                (crate::app::ui::terminal::ai_chat::gsd::matching_subcommands(gsd_rest), true)
+                (
+                    crate::app::ui::terminal::ai_chat::gsd::matching_subcommands(gsd_rest),
+                    true,
+                )
             } else {
-                let filter = ws.ai.chat.prompt.strip_prefix('/').unwrap_or("").to_string();
-                (crate::app::ui::terminal::ai_chat::slash::matching_commands(&filter), false)
+                let filter = ws
+                    .ai
+                    .chat
+                    .prompt
+                    .strip_prefix('/')
+                    .unwrap_or("")
+                    .to_string();
+                (
+                    crate::app::ui::terminal::ai_chat::slash::matching_commands(&filter),
+                    false,
+                )
             };
 
             if !matches.is_empty() {
@@ -427,10 +483,7 @@ fn render_chat_content(
                 let input_rect = resp.rect;
                 let popup_width = input_rect.width().min(350.0);
                 let line_height = font_size * 1.6;
-                let popup_pos = egui::pos2(
-                    input_rect.left(),
-                    input_rect.bottom() + 4.0,
-                );
+                let popup_pos = egui::pos2(input_rect.left(), input_rect.bottom() + 4.0);
 
                 egui::Area::new(egui::Id::new("slash_autocomplete"))
                     .fixed_pos(popup_pos)
@@ -560,7 +613,10 @@ pub fn render_footer(
     let mut action = None;
 
     if ui
-        .selectable_label(ws.ai.settings.show_settings, i18n.get("cli-chat-settings-title"))
+        .selectable_label(
+            ws.ai.settings.show_settings,
+            i18n.get("cli-chat-settings-title"),
+        )
         .clicked()
     {
         ws.ai.settings.show_settings = !ws.ai.settings.show_settings;
@@ -608,10 +664,7 @@ fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool, i18n: 
             );
         } else {
             ui.label("\u{1F4C1}");
-            ui.label(
-                egui::RichText::new(ws.root_path.to_string_lossy())
-                    .color(weak_color),
-            );
+            ui.label(egui::RichText::new(ws.root_path.to_string_lossy()).color(weak_color));
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let mut token_args = fluent_bundle::FluentArgs::new();
@@ -619,7 +672,7 @@ fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool, i18n: 
             token_args.set("output", ws.ai.chat.out_tokens as i64);
             ui.label(
                 egui::RichText::new(i18n.get_args("cli-chat-token-counter", &token_args))
-                .color(weak_color),
+                    .color(weak_color),
             );
         });
     });
@@ -627,7 +680,8 @@ fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool, i18n: 
 
 /// Stops an in-progress streaming response.
 fn stop_streaming(ws: &mut WorkspaceState) {
-    ws.ai.cancellation_token
+    ws.ai
+        .cancellation_token
         .store(true, std::sync::atomic::Ordering::Relaxed);
     // Preserve partial response with interruption marker
     if !ws.ai.chat.streaming_buffer.is_empty() {

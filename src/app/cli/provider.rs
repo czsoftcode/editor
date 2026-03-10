@@ -29,9 +29,15 @@ pub struct ProviderConfig {
     pub seed: i64,
 }
 
-fn default_top_p() -> f64 { 0.9 }
-fn default_top_k() -> u64 { 40 }
-fn default_repeat_penalty() -> f64 { 1.1 }
+fn default_top_p() -> f64 {
+    0.9
+}
+fn default_top_k() -> u64 {
+    40
+}
+fn default_repeat_penalty() -> f64 {
+    1.1
+}
 
 /// Events emitted during a streaming chat response.
 #[derive(Clone, Debug)]
@@ -62,6 +68,15 @@ pub trait AiProvider: Send + Sync {
     fn available_models(&self) -> Result<Vec<String>, String>;
     fn capabilities(&self) -> ProviderCapabilities;
     fn config(&self) -> &ProviderConfig;
-    fn send_chat(&self, messages: &[AiMessage], config: &ProviderConfig) -> Result<AiMessage, String>;
-    fn stream_chat(&self, messages: Vec<AiMessage>, config: ProviderConfig, tools: Vec<AiToolDeclaration>) -> mpsc::Receiver<StreamEvent>;
+    fn send_chat(
+        &self,
+        messages: &[AiMessage],
+        config: &ProviderConfig,
+    ) -> Result<AiMessage, String>;
+    fn stream_chat(
+        &self,
+        messages: Vec<AiMessage>,
+        config: ProviderConfig,
+        tools: Vec<AiToolDeclaration>,
+    ) -> mpsc::Receiver<StreamEvent>;
 }

@@ -103,11 +103,7 @@ pub(crate) fn show_unsaved_close_guard_dialog(
             );
             ui.add_space(12.0);
 
-            ui.label(
-                egui::RichText::new(file_name)
-                    .strong()
-                    .size(14.0),
-            );
+            ui.label(egui::RichText::new(file_name).strong().size(14.0));
             ui.monospace(file_path);
 
             if let Some(err) = inline_error {

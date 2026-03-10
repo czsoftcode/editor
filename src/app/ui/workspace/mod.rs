@@ -859,12 +859,12 @@ mod tests {
     use super::manual_save_request;
     use super::manual_save_request_for_shortcut;
     use super::save_mode_status_key;
-    use super::status_bar_save_mode_key_for_runtime;
     use super::should_save_settings_draft_on_ctrl_s;
+    use super::status_bar_save_mode_key_for_runtime;
     use crate::settings::SaveMode;
 
-    mod unsaved_close_guard;
     mod save_mode;
+    mod unsaved_close_guard;
 
     #[test]
     fn ctrl_s_is_routed_to_settings_when_settings_modal_is_open() {

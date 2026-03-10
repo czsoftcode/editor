@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use serde_json::Value;
+use std::path::{Path, PathBuf};
 
 use crate::app::ui::terminal::ai_chat::slash::SlashResult;
 use crate::app::ui::workspace::state::WorkspaceState;
@@ -51,13 +51,11 @@ impl GsdConfig {
     /// Write config to disk.
     pub fn save(&self) -> Result<(), String> {
         if let Some(parent) = self.path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Cannot create directory: {e}"))?;
+            std::fs::create_dir_all(parent).map_err(|e| format!("Cannot create directory: {e}"))?;
         }
         let json = serde_json::to_string_pretty(&self.value)
             .map_err(|e| format!("JSON serialization error: {e}"))?;
-        std::fs::write(&self.path, json)
-            .map_err(|e| format!("Cannot write config: {e}"))?;
+        std::fs::write(&self.path, json).map_err(|e| format!("Cannot write config: {e}"))?;
         Ok(())
     }
 }

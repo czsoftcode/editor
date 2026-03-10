@@ -28,10 +28,14 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n:
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new(icon).size(22.0));
                     ui.label(
-                        egui::RichText::new(tr!(i18n, "cli-tool-tool-approval-heading", tool = pending.tool_name.as_str()))
-                            .strong()
-                            .size(18.0)
-                            .color(egui::Color32::YELLOW),
+                        egui::RichText::new(tr!(
+                            i18n,
+                            "cli-tool-tool-approval-heading",
+                            tool = pending.tool_name.as_str()
+                        ))
+                        .strong()
+                        .size(18.0)
+                        .color(egui::Color32::YELLOW),
                     );
                 });
                 ui.add_space(4.0);
@@ -72,9 +76,12 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n:
                 let btn_size = egui::vec2(140.0, 30.0);
                 ui.horizontal(|ui| {
                     if ui
-                        .add_sized(btn_size, egui::Button::new(
-                            egui::RichText::new(i18n.get("cli-tool-approve")).strong(),
-                        ))
+                        .add_sized(
+                            btn_size,
+                            egui::Button::new(
+                                egui::RichText::new(i18n.get("cli-tool-approve")).strong(),
+                            ),
+                        )
                         .clicked()
                         || ui.input(|i| i.key_pressed(egui::Key::Num1))
                     {
@@ -83,7 +90,10 @@ pub fn render_tool_approval_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n:
                     }
                     ui.add_space(8.0);
                     if ui
-                        .add_sized(btn_size, egui::Button::new(i18n.get("cli-tool-approve-always")))
+                        .add_sized(
+                            btn_size,
+                            egui::Button::new(i18n.get("cli-tool-approve-always")),
+                        )
                         .clicked()
                         || ui.input(|i| i.key_pressed(egui::Key::Num2))
                     {
@@ -122,7 +132,10 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &I18
     };
 
     egui::Frame::new()
-        .stroke(egui::Stroke::new(1.5, egui::Color32::from_rgb(100, 160, 255)))
+        .stroke(egui::Stroke::new(
+            1.5,
+            egui::Color32::from_rgb(100, 160, 255),
+        ))
         .inner_margin(16.0)
         .corner_radius(8.0)
         .show(ui, |ui| {
@@ -170,15 +183,19 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &I18
                         .desired_width(ui.available_width())
                         .hint_text(i18n.get("cli-tool-input-placeholder")),
                 );
-                let submitted = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                let submitted =
+                    response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
 
                 ui.add_space(8.0);
                 let mut handled = false;
                 ui.horizontal(|ui| {
                     if ui
-                        .add_sized(egui::vec2(120.0, 28.0), egui::Button::new(
-                            egui::RichText::new(i18n.get("cli-tool-send")).strong(),
-                        ))
+                        .add_sized(
+                            egui::vec2(120.0, 28.0),
+                            egui::Button::new(
+                                egui::RichText::new(i18n.get("cli-tool-send")).strong(),
+                            ),
+                        )
                         .clicked()
                         || submitted
                     {
@@ -188,7 +205,10 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &I18
                     }
                     ui.add_space(8.0);
                     if ui
-                        .add_sized(egui::vec2(100.0, 28.0), egui::Button::new(i18n.get("cli-tool-cancel")))
+                        .add_sized(
+                            egui::vec2(100.0, 28.0),
+                            egui::Button::new(i18n.get("cli-tool-cancel")),
+                        )
                         .clicked()
                         || ui.input(|i| i.key_pressed(egui::Key::Escape))
                     {
@@ -209,13 +229,16 @@ pub fn render_tool_ask_ui(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &I18
 /// Returns a unicode icon for a tool name.
 fn tool_icon(tool_name: &str) -> &'static str {
     match tool_name {
-        "read_project_file" | "list_project_files" | "search_project" | "semantic_search" => "\u{1F4C4}", // document
+        "read_project_file" | "list_project_files" | "search_project" | "semantic_search" => {
+            "\u{1F4C4}"
+        } // document
         "write_file" | "replace" => "\u{270F}\u{FE0F}", // pencil
-        "exec" => "\u{1F4BB}", // terminal/laptop
-        "ask_user" => "\u{2753}", // question mark
-        "announce_completion" => "\u{2705}", // check
-        "store_scratch" | "retrieve_scratch" | "store_fact" | "retrieve_fact" | "list_facts" | "delete_fact" => "\u{1F4DD}", // memo
-        _ => "\u{1F527}", // wrench
+        "exec" => "\u{1F4BB}",                          // terminal/laptop
+        "ask_user" => "\u{2753}",                       // question mark
+        "announce_completion" => "\u{2705}",            // check
+        "store_scratch" | "retrieve_scratch" | "store_fact" | "retrieve_fact" | "list_facts"
+        | "delete_fact" => "\u{1F4DD}", // memo
+        _ => "\u{1F527}",                               // wrench
     }
 }
 

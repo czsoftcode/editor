@@ -30,10 +30,7 @@ impl PathSandbox {
             let root_canonical = std::fs::canonicalize(&self.project_root)
                 .map_err(|e| format!("Cannot resolve project root: {}", e))?;
             if !canonical.starts_with(&root_canonical) {
-                return Err(format!(
-                    "Path '{}' is outside project root",
-                    relative
-                ));
+                return Err(format!("Path '{}' is outside project root", relative));
             }
             return Ok(canonical);
         }
@@ -67,10 +64,7 @@ impl PathSandbox {
                     let root_canonical = std::fs::canonicalize(&self.project_root)
                         .map_err(|e| format!("Cannot resolve project root: {}", e))?;
                     if !canonical.starts_with(&root_canonical) {
-                        return Err(format!(
-                            "Path '{}' resolves outside project root",
-                            relative
-                        ));
+                        return Err(format!("Path '{}' resolves outside project root", relative));
                     }
                     Ok(canonical)
                 }
@@ -85,12 +79,12 @@ impl PathSandbox {
     /// For non-existing files, canonicalize the parent directory and verify it.
     fn validate_nonexistent_path(&self, relative: &str) -> Result<PathBuf, String> {
         let joined = self.project_root.join(relative);
-        let parent = joined.parent().ok_or_else(|| {
-            format!("Cannot determine parent of '{}'", relative)
-        })?;
-        let filename = joined.file_name().ok_or_else(|| {
-            format!("Cannot determine filename of '{}'", relative)
-        })?;
+        let parent = joined
+            .parent()
+            .ok_or_else(|| format!("Cannot determine parent of '{}'", relative))?;
+        let filename = joined
+            .file_name()
+            .ok_or_else(|| format!("Cannot determine filename of '{}'", relative))?;
 
         let parent_canonical = std::fs::canonicalize(parent)
             .map_err(|_| format!("Parent directory of '{}' does not exist", relative))?;
@@ -149,18 +143,10 @@ pub enum CommandClassification {
 pub struct CommandBlacklist;
 
 const BLACKLISTED_COMMANDS: &[&str] = &[
-    "rm -rf /",
-    "sudo ",
-    "shutdown",
-    "reboot",
-    "mkfs",
-    "dd if=",
-    "format ",
+    "rm -rf /", "sudo ", "shutdown", "reboot", "mkfs", "dd if=", "format ",
 ];
 
-const NETWORK_COMMANDS: &[&str] = &[
-    "curl", "wget", "nc ", "ssh ", "scp ", "rsync", "telnet",
-];
+const NETWORK_COMMANDS: &[&str] = &["curl", "wget", "nc ", "ssh ", "scp ", "rsync", "telnet"];
 
 impl CommandBlacklist {
     /// Classifies a command string into Blocked, NetworkWarning, or NeedsApproval.
@@ -333,7 +319,11 @@ mod tests {
 
         let sandbox = PathSandbox::new(root.clone());
         let result = sandbox.validate_path("main.rs");
-        assert!(result.is_ok(), "Valid relative path should succeed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Valid relative path should succeed: {:?}",
+            result
+        );
         let canonical = result.unwrap();
         assert!(canonical.ends_with("main.rs"));
     }
@@ -355,7 +345,10 @@ mod tests {
 
         let sandbox = PathSandbox::new(root);
         let result = sandbox.validate_path("/etc/passwd");
-        assert!(result.is_err(), "Absolute path outside project should be blocked");
+        assert!(
+            result.is_err(),
+            "Absolute path outside project should be blocked"
+        );
     }
 
     #[test]
@@ -365,7 +358,11 @@ mod tests {
         // Parent dir exists, file doesn't
         let sandbox = PathSandbox::new(root);
         let result = sandbox.validate_path("new_file.rs");
-        assert!(result.is_ok(), "New file in project root should be allowed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "New file in project root should be allowed: {:?}",
+            result
+        );
     }
 
     // --- SecretsFilter tests ---
@@ -512,6 +509,9 @@ mod tests {
             rl.check_write().unwrap();
         }
         rl.reset();
-        assert!(rl.check_write().is_ok(), "After reset, write should succeed");
+        assert!(
+            rl.check_write().is_ok(),
+            "After reset, write should succeed"
+        );
     }
 }

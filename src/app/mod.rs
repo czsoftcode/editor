@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
-pub mod cli;
 mod build_runner;
+pub mod cli;
 mod fonts;
 pub mod local_history;
 pub mod lsp;
@@ -16,6 +16,9 @@ mod types;
 pub(crate) mod ui;
 pub(crate) mod validation;
 
+use crate::app::ui::workspace::state::{
+    PendingCloseFlow, PendingCloseMode, build_dirty_close_queue,
+};
 use types::*;
 use ui::dialogs::{
     PrivacyResult, PrivacyState, QuitDialogResult, WizardState, show_close_project_confirm_dialog,
@@ -24,7 +27,6 @@ use ui::dialogs::{
 use ui::workspace::{
     SecondaryWorkspace, WorkspaceState, init_workspace, render_workspace, ws_to_panel_state,
 };
-use crate::app::ui::workspace::state::{PendingCloseFlow, PendingCloseMode, build_dirty_close_queue};
 
 use crate::config;
 use crate::ipc::{self, Ipc, IpcServer};
@@ -803,9 +805,10 @@ impl eframe::App for EditorApp {
             if self.quit_confirmed {
                 // Confirmed — let it close
             } else if self.root_ws.is_some() {
-                // Open project — run unsaved close guard before close confirmation.
+                // Open project v hlavním okně:
+                // křížek má zavřít aktuální projekt (ne celou aplikaci).
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                self.start_global_close_guard(GlobalCloseKind::RootViewportClose, ctx);
+                self.start_global_close_guard(GlobalCloseKind::RootProjectClose, ctx);
             } else {
                 // Startup dialog — terminate application
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
@@ -1027,7 +1030,10 @@ mod tests {
         let mut app = EditorApp::test_new_with_workspace(ws, &ctx);
         app.start_global_close_guard(GlobalCloseKind::QuitAll, &ctx);
 
-        assert!(matches!(app.pending_global_close, Some(GlobalCloseKind::QuitAll)));
+        assert!(matches!(
+            app.pending_global_close,
+            Some(GlobalCloseKind::QuitAll)
+        ));
         let ws_after = app.root_ws.as_ref().expect("root workspace should exist");
         let flow = ws_after
             .pending_close_flow
@@ -1036,5 +1042,106 @@ mod tests {
         assert_eq!(flow.mode, PendingCloseMode::WorkspaceClose);
         assert_eq!(flow.queue.len(), 1);
         assert_eq!(flow.queue[0], dirty_path);
+    }
+
+    #[test]
+    fn root_project_close_without_dirty_tabs_opens_close_project_confirm() {
+        let ctx = egui::Context::default();
+        let ws = WorkspaceState {
+            file_tree: crate::app::ui::file_tree::FileTree::new(),
+            editor: crate::app::ui::editor::Editor::new(),
+            watcher: crate::watcher::FileWatcher::new(),
+            project_watcher: crate::watcher::ProjectWatcher::new(&PathBuf::from("/tmp/test")),
+            claude_tabs: Vec::new(),
+            claude_active_tab: 0,
+            next_claude_tab_id: 1,
+            next_terminal_id: 2,
+            build_terminal: None,
+            retired_terminals: Vec::new(),
+            focused_panel: FocusedPanel::Editor,
+            root_path: PathBuf::from("/tmp/test"),
+            show_left_panel: true,
+            show_right_panel: false,
+            show_build_terminal: false,
+            build_terminal_float: false,
+            left_panel_split: 0.5,
+            show_about: false,
+            show_support: false,
+            show_settings: false,
+            show_ai_chat: false,
+            show_semantic_indexing_modal: false,
+            selected_settings_category: None,
+            profiles: ProjectProfiles::default(),
+            build_errors: Vec::new(),
+            build_error_rx: None,
+            selected_agent_id: String::new(),
+            claude_float: false,
+            show_new_project: false,
+            wizard: WizardState::default(),
+            toasts: Vec::new(),
+            folder_pick_rx: None,
+            command_palette: None,
+            project_index: std::sync::Arc::new(
+                crate::app::ui::workspace::index::ProjectIndex::new(PathBuf::from("/tmp/test")),
+            ),
+            semantic_index: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::app::ui::workspace::semantic_index::SemanticIndex::new(PathBuf::from(
+                    "/tmp/test",
+                )),
+            )),
+            file_picker: None,
+            project_search: crate::app::ui::workspace::state::types::ProjectSearch::default(),
+            lsp_client: None,
+            lsp_binary_missing: false,
+            lsp_install_rx: None,
+            git_branch: None,
+            git_branch_rx: None,
+            git_status_rx: None,
+            git_last_refresh: std::time::Instant::now(),
+            lsp_last_retry: std::time::Instant::now(),
+            settings_draft: None,
+            settings_original: None,
+            settings_folder_pick_rx: None,
+            ai_tool_available: std::collections::HashMap::new(),
+            ai_tool_check_rx: None,
+            ai_tool_last_check: std::time::Instant::now(),
+            win_tool_available: std::collections::HashMap::new(),
+            win_tool_check_rx: None,
+            win_tool_last_check: std::time::Instant::now(),
+            external_change_conflict: None,
+            dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
+            terminal_close_requested: None,
+            ai_viewport_open: false,
+            settings_conflict: None,
+            ai: crate::app::cli::AiState::default(),
+            git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
+                "/tmp/test",
+            )),
+            background_io_rx: None,
+            applied_settings_version: 0,
+            confirm_discard_changes: None,
+            last_keystroke_time: None,
+            pending_close_flow: None,
+            last_unsaved_close_cancelled: false,
+            tool_executor: None,
+            pending_tool_approval: None,
+            pending_tool_ask: None,
+            tool_always_approved: std::collections::HashSet::new(),
+            tool_approval_rx: None,
+            tool_ask_rx: None,
+            slash_build_rx: None,
+            slash_git_rx: None,
+            slash_conversation_gen: 0,
+            slash_build_gen: 0,
+            slash_autocomplete: Default::default(),
+        };
+
+        let mut app = EditorApp::test_new_with_workspace(ws, &ctx);
+        app.start_global_close_guard(GlobalCloseKind::RootProjectClose, &ctx);
+
+        assert!(app.pending_global_close.is_none());
+        assert!(app.show_close_project_confirm);
+        assert!(!app.show_quit_confirm);
     }
 }

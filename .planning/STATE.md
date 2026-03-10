@@ -100,6 +100,7 @@ Key decisions logged in PROJECT.md Key Decisions table.
 - (v1.3.0) Přidat 4. light theme variantu
 - (v1.3.0) Opravit syntect theme mapping pro všechny varianty
 - (v1.3.0) Přidat 2. dark theme variantu
+- Upravit dolní lištu: branch oznámení více doprava, UTF více doleva (`src/app/ui/terminal/bottom/git_bar.rs`)
 
 ### Blockers/Concerns
 

@@ -30,6 +30,8 @@ use menubar::{process_menu_actions, render_menu_bar};
 use modal_dialogs::render_dialogs;
 use crate::settings::SaveMode;
 use crate::app::ui::workspace::state::{build_dirty_close_queue, PendingCloseFlow, PendingCloseMode};
+use crate::app::ui::dialogs::confirm::{UnsavedGuardDecision, show_unsaved_close_guard_dialog};
+use crate::app::ui::widgets::tab_bar::TabBarAction;
 
 fn should_save_settings_draft_on_ctrl_s(show_settings: bool) -> bool {
     show_settings
@@ -123,6 +125,154 @@ pub(crate) fn request_close_active_tab(ws: &mut WorkspaceState) {
         current_index: 0,
         inline_error: None,
     });
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UnsavedCloseOutcome {
+    Continue,
+    Finished,
+    Cancelled,
+}
+
+fn apply_unsaved_close_decision(
+    flow: &mut PendingCloseFlow,
+    decision: UnsavedGuardDecision,
+    save_result: Result<(), String>,
+) -> UnsavedCloseOutcome {
+    if flow.queue.is_empty() || flow.current_index >= flow.queue.len() {
+        flow.inline_error = None;
+        return UnsavedCloseOutcome::Cancelled;
+    }
+
+    match decision {
+        UnsavedGuardDecision::Cancel => {
+            flow.inline_error = None;
+            UnsavedCloseOutcome::Cancelled
+        }
+        UnsavedGuardDecision::Discard => {
+            flow.inline_error = None;
+            if flow.current_index + 1 < flow.queue.len() {
+                flow.current_index += 1;
+                UnsavedCloseOutcome::Continue
+            } else {
+                UnsavedCloseOutcome::Finished
+            }
+        }
+        UnsavedGuardDecision::Save => match save_result {
+            Ok(()) => {
+                flow.inline_error = None;
+                if flow.current_index + 1 < flow.queue.len() {
+                    flow.current_index += 1;
+                    UnsavedCloseOutcome::Continue
+                } else {
+                    UnsavedCloseOutcome::Finished
+                }
+            }
+            Err(msg) => {
+                flow.inline_error = Some(msg);
+                UnsavedCloseOutcome::Continue
+            }
+        },
+        UnsavedGuardDecision::Pending => UnsavedCloseOutcome::Continue,
+    }
+}
+
+fn process_unsaved_close_guard_dialog(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
+    let Some(flow) = ws.pending_close_flow.as_mut() else {
+        return;
+    };
+
+    if flow.queue.is_empty() || flow.current_index >= flow.queue.len() {
+        ws.pending_close_flow = None;
+        return;
+    }
+
+    let current_path = flow.queue[flow.current_index].clone();
+
+    // Ensure the editor is focused on the current item in the queue.
+    if ws.editor
+        .tabs
+        .iter()
+        .all(|t| t.path != current_path)
+    {
+        // Tab no longer exists; treat as discarded and advance the queue.
+        let outcome = apply_unsaved_close_decision(flow, UnsavedGuardDecision::Discard, Ok(()));
+        match outcome {
+            UnsavedCloseOutcome::Cancelled => {
+                ws.pending_close_flow = None;
+            }
+            UnsavedCloseOutcome::Continue => {
+                // Nothing else to do this frame; next item will be handled on the next call.
+            }
+            UnsavedCloseOutcome::Finished => {
+                ws.pending_close_flow = None;
+            }
+        }
+        return;
+    }
+
+    // Keep the editor focused on the tab being processed.
+    ws.editor.open_file(&current_path);
+
+    let file_name = current_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
+    let file_path = current_path.to_string_lossy().to_string();
+
+    let decision = show_unsaved_close_guard_dialog(
+        ctx,
+        i18n,
+        file_name,
+        &file_path,
+        flow.inline_error.as_deref(),
+    );
+
+    if decision == UnsavedGuardDecision::Pending {
+        return;
+    }
+
+    // Only attempt a save when the user explicitly chose Save.
+    let save_result: Result<(), String> = if matches!(decision, UnsavedGuardDecision::Save) {
+        let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
+        if let Some(err) = ws.editor.save(i18n, &internal_save) {
+            if should_emit_save_error_toast(&err) {
+                ws.toasts.push(Toast::error(err.clone()));
+            }
+            Err(err)
+        } else {
+            Ok(())
+        }
+    } else {
+        Ok(())
+    };
+
+    let outcome = apply_unsaved_close_decision(flow, decision, save_result.clone());
+
+    // Close tabs only when the decision is not Cancel and the save (if any) succeeded.
+    let should_close_tabs = match decision {
+        UnsavedGuardDecision::Discard => true,
+        UnsavedGuardDecision::Save => save_result.is_ok(),
+        UnsavedGuardDecision::Cancel | UnsavedGuardDecision::Pending => false,
+    };
+
+    if should_close_tabs {
+        ws.editor.close_tabs_for_path(&current_path);
+    }
+
+    match outcome {
+        UnsavedCloseOutcome::Continue => {
+            // Keep the flow active; next item (or same on save-fail) will be handled on the next frame.
+        }
+        UnsavedCloseOutcome::Finished | UnsavedCloseOutcome::Cancelled => {
+            ws.pending_close_flow = None;
+        }
+    }
 }
 
 pub(crate) fn render_workspace(
@@ -236,7 +386,7 @@ pub(crate) fn render_workspace(
         handle_manual_save_action(ws, shared, i18n);
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) {
-        ws.editor.clear();
+        request_close_active_tab(ws);
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::B)) {
         if let Some(t) = &mut ws.build_terminal {
@@ -266,6 +416,9 @@ pub(crate) fn render_workspace(
         || ws.show_ai_chat;
 
     let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
+    // Unsaved close guard dialog is rendered after generic dialogs so that it
+    // can safely own the decision flow for pending close operations.
+    process_unsaved_close_guard_dialog(ctx, ws, shared, i18n);
     render_semantic_indexing_modal(ctx, ws, i18n);
     ws.dep_wizard.render(ctx, i18n);
     if let Some(path) = render_file_picker(ctx, ws, i18n) {
@@ -401,6 +554,18 @@ pub(crate) fn render_workspace(
         );
         if editor_res.clicked {
             ws.focused_panel = FocusedPanel::Editor;
+        }
+
+        if let Some(action) = editor_res.tab_action {
+            match action {
+                TabBarAction::Close(idx) => {
+                    ws.editor.active_tab = Some(idx);
+                    request_close_active_tab(ws);
+                }
+                TabBarAction::Switch(_) | TabBarAction::New => {
+                    // Other actions are already handled inside the editor UI.
+                }
+            }
         }
 
         if let Some((path_str, action, _new_text)) = editor_res.diff_action
@@ -600,6 +765,8 @@ mod tests {
     use super::should_save_settings_draft_on_ctrl_s;
     use super::save_mode_status_key;
     use crate::settings::SaveMode;
+
+    mod unsaved_close_guard;
 
     #[test]
     fn ctrl_s_is_routed_to_settings_when_settings_modal_is_open() {

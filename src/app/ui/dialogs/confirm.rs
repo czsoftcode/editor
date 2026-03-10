@@ -45,6 +45,80 @@ pub(crate) fn show_quit_confirm_dialog(
     }
 }
 
+/// Decision made in the unsaved close guard dialog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UnsavedGuardDecision {
+    Save,
+    Discard,
+    Cancel,
+    /// No decision yet, dialog still open.
+    Pending,
+}
+
+/// Shows the unsaved close guard dialog for a single queue item.
+///
+/// - Always offers `Save`, `Discard`, `Cancel` with a safe default of `Cancel`.
+/// - Closing via `Esc` or window close (`X`) is treated as `Cancel`.
+pub(crate) fn show_unsaved_close_guard_dialog(
+    ctx: &egui::Context,
+    i18n: &crate::i18n::I18n,
+    file_name: &str,
+    file_path: &str,
+    inline_error: Option<&str>,
+) -> UnsavedGuardDecision {
+    let mut show_flag = true;
+    let mut decision = UnsavedGuardDecision::Pending;
+
+    let modal = StandardModal::new(i18n.get("unsaved-close-guard-title"), "unsaved_close_guard")
+        .with_size(520.0, 260.0)
+        .with_close_on_click_outside(true);
+
+    modal.show(ctx, &mut show_flag, |ui| {
+        modal.ui_body(ui, |ui| {
+            ui.add_space(8.0);
+            ui.label(
+                egui::RichText::new(i18n.get("unsaved-close-guard-message"))
+                    .size(14.0)
+                    .line_height(Some(20.0)),
+            );
+            ui.add_space(12.0);
+
+            ui.label(
+                egui::RichText::new(file_name)
+                    .strong()
+                    .size(14.0),
+            );
+            ui.monospace(file_path);
+
+            if let Some(err) = inline_error {
+                ui.add_space(8.0);
+                ui.colored_label(egui::Color32::RED, err);
+            }
+        });
+
+        modal.ui_footer_actions(ui, i18n, |f| {
+            // Order matters: first button is rightmost and acts as the primary escape hatch.
+            if f.button("unsaved-close-guard-cancel").clicked() {
+                decision = UnsavedGuardDecision::Cancel;
+            }
+            if f.button("unsaved-close-guard-discard").clicked() {
+                decision = UnsavedGuardDecision::Discard;
+            }
+            if f.button("unsaved-close-guard-save").clicked() {
+                decision = UnsavedGuardDecision::Save;
+            }
+            None::<()>
+        });
+    });
+
+    // Treat closing the window (including Esc / X / backdrop) as Cancel if no explicit choice was made.
+    if decision == UnsavedGuardDecision::Pending && !show_flag {
+        UnsavedGuardDecision::Cancel
+    } else {
+        decision
+    }
+}
+
 pub(crate) fn show_close_project_confirm_dialog(
     ctx: &egui::Context,
     modal_id: &str,

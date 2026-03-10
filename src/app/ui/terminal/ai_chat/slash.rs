@@ -444,6 +444,7 @@ mod tests {
             applied_settings_version: 0,
             confirm_discard_changes: None,
             last_keystroke_time: None,
+            pending_close_flow: None,
             tool_executor: None,
             pending_tool_approval: None,
             pending_tool_ask: None,

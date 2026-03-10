@@ -58,6 +58,28 @@ pub struct SettingsConflict {
     pub new_settings: crate::settings::Settings,
 }
 
+/// Mode of the pending unsaved close flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PendingCloseMode {
+    /// Guard flow initiated for a single active tab.
+    SingleTab,
+    /// Guard flow initiated for closing the whole workspace/project.
+    WorkspaceClose,
+}
+
+/// State for the unsaved close guard flow.
+#[derive(Debug, Clone)]
+pub struct PendingCloseFlow {
+    /// Whether the guard was triggered for a single tab or full workspace close.
+    pub mode: PendingCloseMode,
+    /// Snapshot queue of dirty tab paths to process in order.
+    pub queue: Vec<PathBuf>,
+    /// Index of the currently processed item in `queue`.
+    pub current_index: usize,
+    /// Inline error message for the current item, if saving failed.
+    pub inline_error: Option<String>,
+}
+
 pub struct WorkspaceState {
     pub file_tree: FileTree,
     pub editor: Editor,
@@ -155,6 +177,8 @@ pub struct WorkspaceState {
     // --- Slash autocomplete state (Phase 19) ---
     /// Autocomplete popup state for slash commands.
     pub slash_autocomplete: SlashAutocomplete,
+    /// Pending unsaved close guard flow, if any.
+    pub pending_close_flow: Option<PendingCloseFlow>,
 }
 
 impl Drop for WorkspaceState {
@@ -178,4 +202,63 @@ impl WorkspaceState {
         self.retired_terminals.push(terminal);
     }
 
+}
+
+/// Builds a stable queue of dirty tab paths for the unsaved close guard.
+///
+/// The queue always starts with the active tab (if it is dirty), followed by
+/// the remaining dirty tabs in a deterministic order.
+pub fn build_dirty_close_queue(
+    active_path: Option<&PathBuf>,
+    tabs: &[(PathBuf, bool)],
+) -> Vec<PathBuf> {
+    let mut dirty: Vec<PathBuf> = tabs
+        .iter()
+        .filter(|(_, modified)| *modified)
+        .map(|(path, _)| path.clone())
+        .collect();
+
+    if dirty.is_empty() {
+        return Vec::new();
+    }
+
+    // Sort to ensure deterministic order independent of input ordering.
+    dirty.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
+
+    if let Some(active) = active_path {
+        if let Some(pos) = dirty.iter().position(|p| p == active) {
+            let active_entry = dirty.remove(pos);
+            let mut ordered = Vec::with_capacity(dirty.len() + 1);
+            ordered.push(active_entry);
+            ordered.extend(dirty.into_iter());
+            return ordered;
+        }
+    }
+
+    dirty
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_dirty_close_queue;
+    use std::path::PathBuf;
+
+    #[test]
+    fn unsaved_close_guard_queue() {
+        let a = PathBuf::from("/project/a.txt");
+        let b = PathBuf::from("/project/b.txt");
+        let c = PathBuf::from("/project/c.txt");
+
+        let tabs = vec![
+            (b.clone(), true),
+            (a.clone(), true),
+            (c.clone(), false),
+        ];
+
+        let queue = build_dirty_close_queue(Some(&b), &tabs);
+        assert_eq!(queue.first(), Some(&b));
+        assert_eq!(queue.len(), 2);
+        assert!(queue.contains(&a));
+        assert!(!queue.contains(&c));
+    }
 }

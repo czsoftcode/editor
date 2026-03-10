@@ -193,7 +193,6 @@ mod tests {
     use crate::settings::{DarkVariant, LightVariant, Settings};
     use alacritty_terminal::vte::ansi::{Color, NamedColor};
     use eframe::egui::{Color32, Visuals};
-    use egui_term::TerminalTheme;
     use std::collections::HashSet;
 
     fn srgb_to_linear(v: u8) -> f32 {
@@ -308,6 +307,20 @@ mod tests {
     }
 
     #[test]
+    fn terminal_theme_dark_foreground_has_readable_contrast_for_all_dark_variants() {
+        for variant in [DarkVariant::Default, DarkVariant::Midnight] {
+            let theme = terminal_theme_for_visuals(&dark_visuals(variant.clone()));
+            let bg = theme.get_color(Color::Named(NamedColor::Background));
+            let fg = theme.get_color(Color::Named(NamedColor::Foreground));
+
+            assert!(
+                contrast_ratio(fg, bg) >= 4.5,
+                "dark mode foreground contrast too low for {variant:?}: fg={fg:?} bg={bg:?}"
+            );
+        }
+    }
+
+    #[test]
     fn terminal_theme_light_variant_background_differs_between_warm_and_cool() {
         let warm = terminal_theme_for_visuals(&light_visuals(LightVariant::WarmIvory))
             .get_color(Color::Named(NamedColor::Background));
@@ -352,24 +365,15 @@ mod tests {
     }
 
     #[test]
-    fn terminal_theme_dark_palette_matches_default_theme_for_key_colors() {
-        let dark_theme = terminal_theme_for_visuals(&Visuals::dark());
-        let default_theme = TerminalTheme::new(Box::default());
-        let sample = [
-            NamedColor::Background,
-            NamedColor::Foreground,
-            NamedColor::Red,
-            NamedColor::Green,
-            NamedColor::Yellow,
-            NamedColor::Blue,
-            NamedColor::Cyan,
-        ];
+    fn terminal_theme_dark_backgrounds_are_distinct_across_all_two_variants() {
+        let backgrounds: HashSet<Color32> = [DarkVariant::Default, DarkVariant::Midnight]
+            .into_iter()
+            .map(|variant| {
+                terminal_theme_for_visuals(&dark_visuals(variant))
+                    .get_color(Color::Named(NamedColor::Background))
+            })
+            .collect();
 
-        for named in sample {
-            assert_eq!(
-                dark_theme.get_color(Color::Named(named)),
-                default_theme.get_color(Color::Named(named))
-            );
-        }
+        assert_eq!(backgrounds.len(), 2);
     }
 }

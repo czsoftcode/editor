@@ -4,6 +4,7 @@ use crate::app::ui::dialogs::confirm::UnsavedGuardDecision;
 
 use super::super::{PendingCloseFlow, PendingCloseMode, UnsavedCloseOutcome};
 use super::super::apply_unsaved_close_decision;
+use super::super::consume_close_tab_shortcut;
 
 // Helper to construct a simple PendingCloseFlow for testing.
 fn make_flow(queue: Vec<PathBuf>) -> PendingCloseFlow {
@@ -87,3 +88,25 @@ fn unsaved_close_guard_tab_triggers() {
     assert_eq!(outcome_cancel, UnsavedCloseOutcome::Cancelled);
 }
 
+#[test]
+fn unsaved_close_guard_ctrl_w_consumes_shortcut() {
+    let ctx = eframe::egui::Context::default();
+
+    ctx.begin_pass(eframe::egui::RawInput {
+        events: vec![eframe::egui::Event::Key {
+            key: eframe::egui::Key::W,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: eframe::egui::Modifiers::CTRL,
+        }],
+        ..Default::default()
+    });
+
+    // Prvni cteni shortcutu ma uspet.
+    assert!(consume_close_tab_shortcut(&ctx));
+    // Druhe cteni v tom samem frame uz musi byt false (shortcut je spotrebovany).
+    assert!(!consume_close_tab_shortcut(&ctx));
+
+    let _ = ctx.end_pass();
+}

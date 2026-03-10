@@ -26,7 +26,7 @@ use super::widgets::command_palette::{execute_command, render_command_palette};
 use crate::app::ui::dialogs::confirm::{UnsavedGuardDecision, show_unsaved_close_guard_dialog};
 use crate::app::ui::widgets::tab_bar::TabBarAction;
 use crate::app::ui::workspace::state::{
-    PendingCloseFlow, PendingCloseMode, build_dirty_close_queue,
+    DirtyCloseQueueMode, PendingCloseFlow, PendingCloseMode, build_dirty_close_queue_for_mode,
 };
 use crate::config;
 use crate::settings::SaveMode;
@@ -110,16 +110,11 @@ pub(super) fn handle_manual_save_action(
 /// - If there are no dirty tabs, the active tab is closed immediately.
 /// - If a guard flow is already active, new close requests are ignored.
 /// - Otherwise, a new `PendingCloseFlow` is created with a stable queue of dirty tabs.
-pub(crate) fn request_close_active_tab(ws: &mut WorkspaceState) {
+fn request_close_tab_target(ws: &mut WorkspaceState, target_path: PathBuf) {
     // Re-entrancy guard: ignore new requests while a flow is in progress.
     if ws.pending_close_flow.is_some() {
         return;
     }
-
-    let active_path = match ws.editor.active_path() {
-        Some(path) => path.clone(),
-        None => return,
-    };
 
     // Snapshot dirty tabs for queue building.
     let tabs_snapshot: Vec<(PathBuf, bool)> = ws
@@ -129,11 +124,14 @@ pub(crate) fn request_close_active_tab(ws: &mut WorkspaceState) {
         .map(|t| (t.path.clone(), t.modified))
         .collect();
 
-    let queue = build_dirty_close_queue(Some(&active_path), &tabs_snapshot);
+    let queue = build_dirty_close_queue_for_mode(
+        DirtyCloseQueueMode::SingleTab(&target_path),
+        &tabs_snapshot,
+    );
 
     if queue.is_empty() {
-        // No dirty tabs at all — close immediately without guard dialog.
-        ws.editor.clear();
+        // Target tab is clean (or already gone) — close it without guard dialog.
+        ws.editor.close_tabs_for_path(&target_path);
         return;
     }
 
@@ -143,6 +141,17 @@ pub(crate) fn request_close_active_tab(ws: &mut WorkspaceState) {
         current_index: 0,
         inline_error: None,
     });
+}
+
+pub(crate) fn request_close_active_tab(ws: &mut WorkspaceState) {
+    let Some(active_path) = ws.editor.active_path().cloned() else {
+        return;
+    };
+    request_close_tab_target(ws, active_path);
+}
+
+pub(crate) fn tabbar_close_target_path(tabs: &[(PathBuf, bool)], idx: usize) -> Option<PathBuf> {
+    tabs.get(idx).map(|(path, _)| path.clone())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -580,8 +589,15 @@ pub(crate) fn render_workspace(
         if let Some(action) = editor_res.tab_action {
             match action {
                 TabBarAction::Close(idx) => {
-                    ws.editor.active_tab = Some(idx);
-                    request_close_active_tab(ws);
+                    let tabs_snapshot: Vec<(PathBuf, bool)> = ws
+                        .editor
+                        .tabs
+                        .iter()
+                        .map(|tab| (tab.path.clone(), tab.modified))
+                        .collect();
+                    if let Some(target_path) = tabbar_close_target_path(&tabs_snapshot, idx) {
+                        request_close_tab_target(ws, target_path);
+                    }
                 }
                 TabBarAction::Switch(_) | TabBarAction::New => {
                     // Other actions are already handled inside the editor UI.

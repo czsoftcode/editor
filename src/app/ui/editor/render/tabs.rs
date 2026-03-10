@@ -186,3 +186,26 @@ impl Editor {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::tab_label_with_mode_indicator;
+    use crate::settings::SaveMode;
+
+    #[test]
+    fn tab_save_mode_indicator_is_visible_for_active_tab_only() {
+        let active_label =
+            tab_label_with_mode_indicator("main.rs", false, false, true, &SaveMode::Manual);
+        let inactive_label =
+            tab_label_with_mode_indicator("lib.rs", false, false, false, &SaveMode::Manual);
+
+        assert!(active_label.contains("·M"));
+        assert!(!inactive_label.contains("·M"));
+    }
+
+    #[test]
+    fn tab_save_mode_indicator_keeps_dirty_symbol_primary() {
+        let label = tab_label_with_mode_indicator("main.rs", true, false, true, &SaveMode::Manual);
+        assert!(label.contains("● ·M"));
+    }
+}

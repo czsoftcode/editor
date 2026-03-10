@@ -77,7 +77,7 @@ impl Editor {
             .inner_margin(egui::Margin::same(8));
 
         frame.show(ui, |ui| {
-            if !is_readonly {
+            if !is_readonly && !dialog_open {
                 self.handle_smart_typing(ui, edit_id, idx);
             }
             let scroll_y = desired_scroll_y.unwrap_or(current_scroll_y);
@@ -94,7 +94,8 @@ impl Editor {
                     // This way it remains interactive (cursor, selection, shortcuts for movement),
                     // but changes are never saved back to the tab.
                     let mut temp_content;
-                    let content_to_edit = if is_readonly {
+                    let readonly_for_frame = is_readonly || dialog_open;
+                    let content_to_edit = if readonly_for_frame {
                         temp_content = tab.content.clone();
                         &mut temp_content
                     } else {
@@ -130,7 +131,7 @@ impl Editor {
                             .id(edit_id)
                             .font(egui::TextStyle::Monospace)
                             .code_editor()
-                            .interactive(true)
+                            .interactive(!dialog_open)
                             .desired_width(f32::INFINITY)
                             .layouter(&mut layouter)
                             .show(ui);
@@ -158,7 +159,7 @@ impl Editor {
                         } else if response.response.clicked() || response.response.has_focus() {
                             clicked = true;
                         }
-                        if response.response.changed() && !is_readonly {
+                        if response.response.changed() && !readonly_for_frame {
                             tab.modified = true;
                             tab.last_edit = Some(Instant::now());
                             tab.save_status = SaveStatus::Modified;

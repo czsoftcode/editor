@@ -53,6 +53,10 @@ fn consume_close_tab_shortcut(ctx: &egui::Context) -> bool {
     })
 }
 
+fn editor_input_locked(dialog_open_base: bool, pending_close_flow_active: bool) -> bool {
+    dialog_open_base || pending_close_flow_active
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ManualSaveRequest {
     SaveSettingsDraft,
@@ -433,6 +437,7 @@ pub(crate) fn render_workspace(
         || ws.show_about
         || ws.show_semantic_indexing_modal
         || ws.show_ai_chat;
+    let editor_locked = editor_input_locked(dialog_open_base, ws.pending_close_flow.is_some());
 
     let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
     // Unsaved close guard dialog is rendered after generic dialogs so that it
@@ -566,7 +571,7 @@ pub(crate) fn render_workspace(
         let settings = Arc::clone(&shared.lock().expect("lock").settings);
         let editor_res = ws.editor.ui(
             ui,
-            dialog_open_base,
+            editor_locked,
             i18n,
             ws.lsp_client.as_ref(),
             &settings,

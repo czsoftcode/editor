@@ -31,6 +31,13 @@ fn light_variant_swatch(variant: &LightVariant) -> egui::Color32 {
     }
 }
 
+pub(super) const LIGHT_VARIANT_OPTIONS: [LightVariant; 4] = [
+    LightVariant::WarmIvory,
+    LightVariant::CoolGray,
+    LightVariant::Sepia,
+    LightVariant::WarmTan,
+];
+
 fn show_light_variant_card(
     ui: &mut egui::Ui,
     draft: &mut crate::settings::Settings,
@@ -374,12 +381,7 @@ pub fn show(
                                 ui.strong(i18n.get("settings-light-variant"));
                                 ui.add_space(6.0);
                                 ui.horizontal_wrapped(|ui| {
-                                    for variant in [
-                                        LightVariant::WarmIvory,
-                                        LightVariant::CoolGray,
-                                        LightVariant::Sepia,
-                                        LightVariant::WarmTan,
-                                    ] {
+                                    for variant in LIGHT_VARIANT_OPTIONS.iter().cloned() {
                                         theme_controls_changed |=
                                             show_light_variant_card(ui, draft, i18n, variant);
                                         ui.add_space(8.0);
@@ -689,7 +691,7 @@ pub fn show(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::settings::{SaveMode, Settings};
+    use crate::settings::{LightVariant, SaveMode, Settings};
 
     #[test]
     fn save_mode_change_is_detected_against_original_snapshot() {
@@ -732,5 +734,10 @@ mod tests {
             save_mode_label_key(&SaveMode::Manual),
             "settings-save-mode-manual"
         );
+    }
+
+    #[test]
+    fn settings_light_variant_picker_includes_warmtan() {
+        assert!(LIGHT_VARIANT_OPTIONS.contains(&LightVariant::WarmTan));
     }
 }

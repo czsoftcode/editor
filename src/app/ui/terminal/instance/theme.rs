@@ -150,7 +150,7 @@ pub(crate) fn terminal_theme_for_visuals_with_focus(
 #[cfg(test)]
 mod tests {
     use super::terminal_theme_for_visuals;
-    use crate::settings::{LightVariant, Settings};
+    use crate::settings::{DarkVariant, LightVariant, Settings};
     use alacritty_terminal::vte::ansi::{Color, NamedColor};
     use eframe::egui::{Color32, Visuals};
     use egui_term::TerminalTheme;
@@ -185,6 +185,15 @@ mod tests {
         Settings {
             dark_theme: false,
             light_variant: variant,
+            ..Default::default()
+        }
+        .to_egui_visuals()
+    }
+
+    fn dark_visuals(variant: DarkVariant) -> Visuals {
+        Settings {
+            dark_theme: true,
+            dark_variant: variant,
             ..Default::default()
         }
         .to_egui_visuals()
@@ -233,13 +242,28 @@ mod tests {
 
     #[test]
     fn terminal_theme_dark_background_stays_dark() {
-        let visuals = Visuals::dark();
-        let theme = terminal_theme_for_visuals(&visuals);
-        let bg = theme.get_color(Color::Named(NamedColor::Background));
+        for variant in [DarkVariant::Default, DarkVariant::Midnight] {
+            let visuals = dark_visuals(variant.clone());
+            let theme = terminal_theme_for_visuals(&visuals);
+            let bg = theme.get_color(Color::Named(NamedColor::Background));
 
-        assert!(
-            relative_luminance(bg) < 0.2,
-            "expected dark background, got {bg:?}"
+            assert!(
+                relative_luminance(bg) < 0.2,
+                "expected dark background for {variant:?}, got {bg:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn terminal_theme_dark_variant_backgrounds_are_distinct() {
+        let default_bg = terminal_theme_for_visuals(&dark_visuals(DarkVariant::Default))
+            .get_color(Color::Named(NamedColor::Background));
+        let midnight_bg = terminal_theme_for_visuals(&dark_visuals(DarkVariant::Midnight))
+            .get_color(Color::Named(NamedColor::Background));
+
+        assert_ne!(
+            default_bg, midnight_bg,
+            "dark variants must produce different terminal background tones"
         );
     }
 
@@ -275,6 +299,7 @@ mod tests {
             LightVariant::WarmIvory,
             LightVariant::CoolGray,
             LightVariant::Sepia,
+            LightVariant::WarmTan,
         ]
         .into_iter()
         .map(|variant| {
@@ -283,7 +308,7 @@ mod tests {
         })
         .collect();
 
-        assert_eq!(backgrounds.len(), 3);
+        assert_eq!(backgrounds.len(), 4);
     }
 
     #[test]

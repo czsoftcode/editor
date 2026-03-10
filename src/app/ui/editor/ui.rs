@@ -14,6 +14,7 @@ impl Editor {
         settings: &crate::settings::Settings,
     ) -> EditorUiResult {
         let mut diff_action = None;
+        let mut result_tab_action = None;
 
         if let Some((path, old_text, new_text)) = self.pending_ai_diff.clone() {
             let font_size = Self::current_editor_font_size(ui);
@@ -49,13 +50,14 @@ impl Editor {
             return EditorUiResult {
                 clicked: false,
                 diff_action: None,
+                tab_action: None,
             };
         }
 
         // --- Tabs and bars ---
         use crate::app::ui::widgets::tab_bar::TabBarAction;
         let mut tab_action = None;
-        self.tab_bar(ui, &mut tab_action);
+        self.tab_bar(ui, &mut tab_action, settings);
 
         if let Some(action) = tab_action {
             match action {
@@ -65,7 +67,9 @@ impl Editor {
                     self.update_search();
                 }
                 TabBarAction::Close(idx) => {
-                    self.close_tab(idx);
+                    // Defer handling of tab close to the workspace so that
+                    // unsaved close guard can run through a single entry point.
+                    result_tab_action = Some(TabBarAction::Close(idx));
                 }
                 TabBarAction::New => {}
             }
@@ -189,6 +193,7 @@ impl Editor {
         EditorUiResult {
             clicked,
             diff_action,
+            tab_action: result_tab_action,
         }
     }
 

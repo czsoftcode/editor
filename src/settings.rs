@@ -287,11 +287,11 @@ fn resolve_syntect_theme_name_or_fallback(mapped_name: &'static str) -> &'static
 
 impl Settings {
     fn is_dark_mode(&self) -> bool {
-        self.dark_theme || self.dark_variant != DarkVariant::Default
+        self.dark_theme
     }
 
     fn mapped_syntect_theme_name(&self) -> &'static str {
-        if self.is_dark_mode() {
+        if self.dark_theme {
             match self.dark_variant {
                 DarkVariant::Default => "Solarized (dark)",
                 DarkVariant::Midnight => "base16-ocean.dark",
@@ -351,8 +351,8 @@ impl Settings {
     /// Returns egui Visuals for the current theme.
     /// Phase 1: basic Visuals::dark()/light(). Phase 3 will add per-variant colors.
     pub fn to_egui_visuals(&self) -> eframe::egui::Visuals {
-        // Determine dark mode by either the legacy flag or the new variant.
-        if self.dark_theme || self.dark_variant != DarkVariant::Default {
+        // Dark mode is controlled by the explicit toggle; variants only matter within dark mode.
+        if self.dark_theme {
             // Start from dark visuals
             let mut visuals = eframe::egui::Visuals::dark();
             if self.dark_variant == DarkVariant::Midnight {

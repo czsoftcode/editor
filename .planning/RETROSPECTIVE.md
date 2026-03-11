@@ -268,3 +268,61 @@
 ---
 
 *Last updated: 2026-03-06 after v1.2.0*
+
+---
+
+## Milestone: v1.2.2 — Additional Themes
+
+**Shipped:** 2026-03-11
+**Phases:** 3 | **Plans:** 5 | **Tasks:** 15
+**Timeline:** 2026-03-10 → 2026-03-11 (2 dny)
+
+### What Was Built
+
+- 4. light varianta WarmTan (picker, swatch, persistence, i18n)
+- 2. dark varianta Midnight (picker, persistence)
+- Syntect mapovani pro light/dark varianty + regresni testy
+
+### What Worked
+
+- Regresni testy drzely viditelnost a lokalizaci variant
+- Theme fingerprint okamzite aplikoval preview pri prepnuti rezimu
+
+### What Was Inefficient
+
+- Re-exekuce planu 27-02 kvuli regresi viditelnosti pickeru
+- Layout pickeru byl na zacatku nejasny (nutne UI upravy)
+
+### Patterns Established
+
+- Light/dark picker podle aktivniho rezimu
+- Centralni mapovani syntect theme na varianty
+
+### Key Lessons
+
+1. Rozlozeni pickeru musi garantovat viditelnost vsech variant (2x2 grid je citelnejsi).
+2. Dark varianty nesmi implicitne vynucovat dark rezim pri light prepnuti.
+
+### Cost Observations
+
+- Model mix: n/a
+- Sessions: n/a
+- Notable: kratky milestone, ale s jednou re-exekuci kvuli UI regresi
+
+---
+
+## Cross-Milestone Trends (aktualizovano po v1.2.2)
+
+### Process Evolution
+
+| Milestone | Phases | Plans | Gap Closure Plans | Verification Score |
+|-----------|--------|-------|-------------------|--------------------|
+| v1.2.2 | 3 | 5 | 1 (27-02 re-exekuce) | n/a |
+
+### Recurring Issues
+
+- UI layouty mohou skryt varianty, pokud nejsou grid-guarded
+
+### What Gets Better Each Time
+
+- Regresni testy u theme pickeru odchytavaji zmeny brzo

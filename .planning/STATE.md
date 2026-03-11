@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-last_updated: "2026-03-11T00:09:11.000Z"
+last_updated: "2026-03-11T00:40:29.091Z"
 last_activity: "2026-03-11 - Re-executed Phase 27 Plan 02: WarmTan picker visibility + immediate preview fix"
 progress:
   total_phases: 3
@@ -17,7 +17,7 @@ progress:
 
 ## gsd_state_version: 1.0
 
-## Current Milestone: v1.3.0 Additional Themes
+## Current Milestone: v1.2.2 Additional Themes
 
 **Goal:** Přidat 4. světlé téma (mezi sepia a hnědou, ne moc tmavé) a volitelně druhé dark téma.
 
@@ -25,7 +25,7 @@ progress:
 - 4. světlé téma: barva mezi sepia a hnědou, příjemná pro oči, ne moc tmavá
 - (Volitelně) 2. dark téma jako varianta k existujícímu
 
-**Status:** Milestone complete
+**Status:** ✅ SHIPPED 2026-03-11
 
 ---
 
@@ -34,14 +34,14 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí být minimální.
-**Current focus:** Phase 27 - 4th Light Theme
+**Current focus:** Plánování dalšího milníku
 
 ## Current Position
 
-Phase: 27 of 29 (4th Light Theme)
-Plan: 02 completed
-Status: Completed
-Last activity: 2026-03-11 - Re-executed Phase 27 Plan 02: WarmTan picker visibility + immediate preview fix
+Phase: Completed (27-29)
+Plan: All plans complete
+Status: Shipped
+Last activity: 2026-03-11 - Milestone v1.2.2 Additional Themes shipped
 
 Progress: [██████████] 100%
 
@@ -80,8 +80,8 @@ Progress: [██████████] 100%
 
 Key decisions logged in PROJECT.md Key Decisions table.
 
-- [v1.3.0]: 4th light theme bude přidáno jako `LightVariant::Stone` (mezi Sepia a Brown)
-- [v1.3.0]: Dark variant přidán jako `DarkVariant::Midnight` jako druhá dark varianta
+- [v1.2.2]: 4th light theme bude přidáno jako `LightVariant::WarmTan` (mezi Sepia a Brown)
+- [v1.2.2]: Dark variant přidán jako `DarkVariant::Midnight` jako druhá dark varianta
 - [Phase 29-syntect-theme-mapping]: Theme mapping zůstává centralizované v Settings::syntect_theme_name().
 - [Phase 29-syntect-theme-mapping]: Fallback validace používá OnceLock + ThemeSet::load_defaults().
 - [Phase 29-syntect-theme-mapping]: ThemeSet defaults obsahuje jen 3 light built-in témata; WarmTan vyžaduje navazující rozhodnutí.
@@ -99,9 +99,6 @@ Key decisions logged in PROJECT.md Key Decisions table.
 ### Pending Todos
 
 - Opravit kontrast warning textu v light mode (`modal_dialogs/settings.rs`)
-- (v1.3.0) Přidat 4. light theme variantu
-- (v1.3.0) Opravit syntect theme mapping pro všechny varianty
-- (v1.3.0) Přidat 2. dark theme variantu
 - Upravit dolní lištu: branch oznámení více doprava, UTF více doleva (`src/app/ui/terminal/bottom/git_bar.rs`)
 - V `Sestavit > Upravit` přidat online náhled změn zapisovaných do `.polycredo/profiles.toml`
 - Zprovoznit `.polycredo/trash` a přesouvat tam smazané soubory

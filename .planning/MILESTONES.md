@@ -1,5 +1,19 @@
 # Milestones
 
+## v1.2.2 Additional Themes (Shipped: 2026-03-11)
+
+**Phases completed:** 3 phases, 5 plans, 15 tasks
+
+**Key accomplishments:**
+- 4. light varianta WarmTan: picker + swatch + persistence + i18n
+- 2. dark varianta Midnight: picker + persistence + vizuální odlišení
+- Syntect mapování podle variant (light i dark), bez fallback kolizí
+- Regresní testy pro light/dark varianty a lokalizaci
+
+**Poznámka:** v1.2.2-dev (Phase 19-23) byla slepá ulička; nebrat jako základ pro další plánování.
+
+---
+
 ## v1.2.1 Save Modes + Unsaved Changes Guard (Shipped: 2026-03-10)
 
 **Phases completed:** 3 phases, 18 plans, 0 tasks
@@ -84,4 +98,3 @@
 - Warning text kontrast v light mode (nahlášeno při UAT fáze 5)
 
 ---
-

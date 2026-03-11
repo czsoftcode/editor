@@ -8,6 +8,17 @@ Multiplatformní textový editor s AI podporou napsaný v Rustu (eframe/egui). N
 
 Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí být minimální.
 
+## Current State
+
+**Shipped:** v1.2.2 Additional Themes (2026-03-11)
+- 3 fáze (27-29), 5 plánů, 15 úloh
+- 4. světlá varianta + 2. dark varianta + syntect mapování podle variant
+
+## Next Milestone Goals
+
+- (TBD) Definovat nové requirements pro další milestone
+- (TBD) Rozhodnout scope a cíle po Additional Themes
+
 ## Requirements
 
 ### Validated
@@ -58,13 +69,16 @@ Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí 
 
 (Další requirements budou definovány v další milestone)
 
-## Current Milestone: v1.3.0 Additional Themes
+## Previous Milestone: v1.2.2 Additional Themes — SHIPPED
 
 **Goal:** Přidat 4. světlé téma (mezi sepia a hnědou, ne moc tmavé) a volitelně druhé dark téma.
 
-**Target features:**
-- 4. světlé téma: barva mezi sepia a hnědou, příjemná pro oči, ne moc tmavá
-- (Volitelně) 2. dark téma jako varianta k existujícímu
+**Status:** ✅ SHIPPED 2026-03-11
+
+**Výsledky:**
+- Light varianty: 4. varianta WarmTan + UI picker + persistence + i18n
+- Dark varianty: 2. varianta Midnight + UI picker + persistence
+- Syntect mapping: explicitní mapování pro light/dark varianty
 
 ---
 
@@ -146,4 +160,4 @@ Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí 
 | i18n smoke test pro phase-specific keys | phase_26_save_ux_keys helper pro lokalizaci | ✓ 5 jazyků ověřeno |
 
 ---
-*Last updated: 2026-03-10 after v1.3.0 milestone started*
+*Last updated: 2026-03-11 after v1.2.2 milestone completion*

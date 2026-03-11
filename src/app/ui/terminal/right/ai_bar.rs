@@ -52,6 +52,5 @@ pub fn render_ai_bar(
                 terminal.send_command(&cmd);
             }
         }
-
     });
 }

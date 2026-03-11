@@ -1,7 +1,7 @@
 ---
 phase: 31
 slug: ai-terminal-runtime-migration
-plan: 04
+plan: 05
 status: passed
 updated: 2026-03-11
 verification_type: goal-backward
@@ -31,7 +31,7 @@ Důkazy proti cíli:
 |---|---|---|---|---|
 | TERM-01 | 31-01, 31-02, 31-04 | mapped to Phase 31 | `logic.rs` (`send_query_to_agent`), `cargo test ai_chat -- --nocapture` PASS | PASS |
 | TERM-02 | 31-02, 31-04 | mapped to Phase 31 | `background.rs` non-blocking polling (`try_recv`, `drain_stream_events`), `cargo check` PASS | PASS |
-| TERM-03 | 31-01, 31-02, 31-04 | mapped to Phase 31 | `slash.rs` (`dispatch`, `/gsd`), `ai_bar.rs` model picker (`selected_model` flow), `cargo test gsd -- --nocapture` PASS | PASS |
+| TERM-03 | 31-01, 31-02, 31-04, 31-05 | mapped to Phase 31 | `slash.rs` (`dispatch`, `/gsd`) + assistant-only AI bar bez provider-picker UI, `cargo test gsd -- --nocapture` PASS | PASS |
 | SAFE-01 | 31-03, 31-04 | mapped to Phase 31 | `executor.rs` (`ToolResult::NeedsApproval`, `process_approval_response`), `cargo test approval -- --nocapture` PASS (11/11) | PASS |
 | SAFE-02 | 31-03, 31-04 | mapped to Phase 31 | `security.rs` (`validate_path`, `PathSandbox`, `RateLimiter`, blacklisty), enforcement v `executor.rs`, `cargo test security -- --nocapture` PASS (28/28) | PASS |
 | SAFE-03 | 31-01, 31-03, 31-04 | mapped to Phase 31 | `audit.rs` (`ai-audit.log`), visible error surfacing v `background.rs` (`Toast::error` + stream error text), `./check.sh` PASS | PASS |
@@ -56,8 +56,8 @@ Důkazy proti cíli:
 - Truth: Prompt -> stream -> done tok je neblokující.
   - Evidence: `try_recv` polling + `drain_stream_events` v `background.rs`.
   - Result: PASS
-- Truth: Model picker je napojený na runtime stav.
-  - Evidence: `src/app/ui/terminal/right/ai_bar.rs` + `WorkspaceState::active_ai_model/set_active_ai_model`.
+- Truth: Assistant-only flow zustava funkcni bez provider-picker UI.
+  - Evidence: `src/app/ui/terminal/right/ai_bar.rs` obsahuje pouze assistant picker + Start.
   - Result: PASS
 - Truth: Slash/GSD async placeholder update respektuje generation guard.
   - Evidence: `slash.rs` (`should_apply_async_result` + testy generation guardu).
@@ -85,15 +85,26 @@ Důkazy proti cíli:
   - Evidence: `cargo check` PASS, `./check.sh` PASS.
   - Result: PASS
 
+### 31-05 gap-closure must_haves
+- Truth: Source-of-truth boundary je assistant-only bez provider-picker couplingu.
+  - Evidence: `.planning/REQUIREMENTS.md`, `.planning/ROADMAP.md`, `.planning/STATE.md`, `31-CONTEXT.md` aligned.
+  - Result: PASS
+- Truth: AI terminal runtime path nema aktivni coupling na `ws.ai.ollama.*` v cilovych call-sitech.
+  - Evidence: grep gate PASS pro `ai_bar.rs`, `logic.rs`, `background.rs`, `workspace/state/mod.rs`.
+  - Result: PASS
+- Truth: SAFE approval/security parity zustava beze zmeny.
+  - Evidence: `cargo test approval -- --nocapture` (11/11 PASS), `cargo test security -- --nocapture` (28/28 PASS), audit/path/rate-limit symboly pritomne.
+  - Result: PASS
+
 ## Executed Verification Commands (2026-03-11)
 
 ```bash
-cargo check
+RUSTC_WRAPPER= cargo check
 cargo test ai_chat -- --nocapture
 cargo test gsd -- --nocapture
-cargo test approval -- --nocapture
-cargo test security -- --nocapture
-./check.sh
+RUSTC_WRAPPER= cargo test approval -- --nocapture
+RUSTC_WRAPPER= cargo test security -- --nocapture
+RUSTC_WRAPPER= ./check.sh
 ```
 
 Výsledek: všechny příkazy **PASS**.

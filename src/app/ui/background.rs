@@ -215,7 +215,7 @@ pub(super) fn process_background_events(
                     done = true;
                 }
                 StreamEvent::Error(msg) => {
-                    let model = ws.ai.provider_display_name();
+                    let model = ws.ai.provider_display_name().to_string();
                     let retry_hint = "Use Retry to send the last prompt again.";
                     if ws.ai.chat.streaming_buffer.is_empty() {
                         ws.ai.chat.streaming_buffer =

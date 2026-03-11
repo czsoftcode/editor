@@ -3,7 +3,6 @@ pub mod executor;
 pub mod ollama;
 pub mod provider;
 pub mod runtime_provider {
-    pub use super::ollama::*;
     pub type RuntimeProvider = super::ollama::OllamaProvider;
 }
 pub mod security;

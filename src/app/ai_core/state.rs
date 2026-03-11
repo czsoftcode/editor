@@ -199,7 +199,8 @@ impl AiState {
         let url_changed = self.ollama.base_url != settings.ollama_base_url;
         if url_changed {
             self.ollama.base_url = settings.ollama_base_url.clone();
-            self.ollama.last_check = std::time::Instant::now() - std::time::Duration::from_secs(999);
+            self.ollama.last_check =
+                std::time::Instant::now() - std::time::Duration::from_secs(999);
             self.ollama.status = OllamaConnectionStatus::Checking;
         }
 

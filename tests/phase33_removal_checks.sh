@@ -14,6 +14,10 @@ check_task2() {
   ! rg -n "\\bws\\.ai\\b" src/app >/dev/null
 }
 
+check_task3() {
+  ! rg -n "cli-chat|cli-tool" locales >/dev/null
+}
+
 case "$mode" in
   task1)
     check_task1
@@ -21,9 +25,13 @@ case "$mode" in
   task2)
     check_task2
     ;;
+  task3)
+    check_task3
+    ;;
   all)
     check_task1
     check_task2
+    check_task3
     ;;
   *)
     echo "Unknown mode: $mode" >&2

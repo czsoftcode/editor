@@ -306,18 +306,23 @@ pub(super) fn process_background_events(
                 } => {
                     ws.ai.chat.in_tokens += prompt_tokens as u32;
                     ws.ai.chat.out_tokens += completion_tokens as u32;
+                    ws.ai.chat.retry_available = false;
                     done = true;
                 }
                 StreamEvent::Error(msg) => {
                     let model = &ws.ai.ollama.selected_model;
-                    if !ws.ai.chat.streaming_buffer.is_empty() {
+                    let retry_hint = "Use Retry to send the last prompt again.";
+                    if ws.ai.chat.streaming_buffer.is_empty() {
+                        ws.ai.chat.streaming_buffer =
+                            format!("*[error ({model}): {msg}]*\n\n_{retry_hint}_");
+                    } else {
                         ws.ai
                             .chat
                             .streaming_buffer
-                            .push_str(&format!("\n\n*[error ({model}): {msg}]*"));
-                    } else {
-                        ws.toasts.push(Toast::error(format!("AI ({model}): {msg}")));
+                            .push_str(&format!("\n\n*[error ({model}): {msg}]*\n\n_{retry_hint}_"));
                     }
+                    ws.toasts.push(Toast::error(format!("AI ({model}): {msg}")));
+                    ws.ai.chat.retry_available = true;
                     log_to_stderr_file(&format!("[AI error] model={model}: {msg}"));
                     done = true;
                 }
@@ -446,8 +451,12 @@ pub(super) fn process_background_events(
                                         &id, &name, &arguments, &msg, true,
                                     );
                                 if let Some(last) = ws.ai.chat.conversation.last_mut() {
-                                    last.1.push_str(&format!("\n\n`{}` chyba: {}", name, msg));
+                                    last.1.push_str(&format!(
+                                        "\n\n`{}` chyba: {}\n\n_Use Retry to send the last prompt again._",
+                                        name, msg
+                                    ));
                                 }
+                                ws.ai.chat.retry_available = true;
                                 resume_after_tool_call(ws, asst_msg, tool_msg);
                             }
                         }

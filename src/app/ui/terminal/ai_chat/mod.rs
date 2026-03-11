@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex};
 
 pub enum AiChatAction {
     Send,
+    Retry,
     NewQuery,
     SaveSettings,
     ToggleInspector,
@@ -78,6 +79,9 @@ pub fn handle_action(
         AiChatAction::Send => {
             logic::send_query_to_agent(ws, shared, i18n);
         }
+        AiChatAction::Retry => {
+            logic::retry_last_prompt(ws, shared, i18n);
+        }
         AiChatAction::NewQuery => {
             let model = {
                 let sh = shared.lock().expect("lock");
@@ -93,6 +97,7 @@ pub fn handle_action(
             ws.ai.chat.monologue.clear();
             ws.ai.chat.in_tokens = 0;
             ws.ai.chat.out_tokens = 0;
+            ws.ai.chat.retry_available = false;
             ws.ai.chat.conversation.push((
                 String::new(),
                 AiManager::get_logo(

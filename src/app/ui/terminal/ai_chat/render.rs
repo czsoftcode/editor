@@ -226,7 +226,9 @@ fn render_chat_content(
             .inner_margin(egui::Margin::symmetric(8, 2))
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                render_info_bar(ui, ws, loading, i18n);
+                if render_info_bar(ui, ws, loading, i18n) {
+                    action = Some(AiChatAction::Retry);
+                }
             });
 
         ui.add_space(4.0);
@@ -510,7 +512,8 @@ pub fn render_footer(
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
-fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool, i18n: &I18n) {
+fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool, i18n: &I18n) -> bool {
+    let mut retry_clicked = false;
     let weak_color = ui.visuals().weak_text_color();
     ui.horizontal(|ui| {
         if loading {
@@ -533,7 +536,11 @@ fn render_info_bar(ui: &mut egui::Ui, ws: &WorkspaceState, loading: bool, i18n: 
                     .color(weak_color),
             );
         });
+        if super::logic::can_retry_last_prompt(ws) && ui.button("Retry").clicked() {
+            retry_clicked = true;
+        }
     });
+    retry_clicked
 }
 
 /// Stops an in-progress streaming response.

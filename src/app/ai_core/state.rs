@@ -35,6 +35,10 @@ pub struct ChatState {
     pub auto_scroll: bool,
     /// Thinking/reasoning text per conversation entry (parallel to `conversation` vec).
     pub thinking_history: Vec<Option<String>>,
+    /// Last valid prompt that can be resent via explicit Retry action.
+    pub retry_prompt: Option<String>,
+    /// Whether Retry action should be shown after temporary runtime failure.
+    pub retry_available: bool,
 }
 
 impl Default for ChatState {
@@ -56,6 +60,8 @@ impl Default for ChatState {
             streaming_buffer: String::new(),
             auto_scroll: true,
             thinking_history: Vec::new(),
+            retry_prompt: None,
+            retry_available: false,
         }
     }
 }

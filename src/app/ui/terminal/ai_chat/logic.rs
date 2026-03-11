@@ -118,6 +118,8 @@ pub fn send_query_to_agent(
 
     // Current prompt
     let prompt = ws.ai.chat.prompt.clone();
+    ws.ai.chat.retry_prompt = Some(prompt.clone());
+    ws.ai.chat.retry_available = false;
     messages.push(AiMessage {
         role: "user".to_string(),
         content: prompt.clone(),
@@ -168,6 +170,24 @@ pub fn send_query_to_agent(
     // stream_chat() spawns its own thread and returns Receiver immediately
     let tools = get_standard_tools();
     ws.ai.chat.stream_rx = Some(provider.stream_chat(messages, config, tools));
+}
+
+pub fn can_retry_last_prompt(ws: &WorkspaceState) -> bool {
+    !ws.ai.chat.loading && ws.ai.chat.retry_available && ws.ai.chat.retry_prompt.is_some()
+}
+
+pub fn retry_last_prompt(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
+    if !can_retry_last_prompt(ws) {
+        return;
+    }
+    if let Some(prompt) = ws.ai.chat.retry_prompt.clone() {
+        ws.ai.chat.prompt = prompt;
+        send_query_to_agent(ws, shared, i18n);
+    }
 }
 
 /// Builds an editor context string from workspace state for injection into system message.

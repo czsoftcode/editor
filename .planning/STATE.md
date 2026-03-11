@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-11T10:22:11.612Z"
-last_activity: 2026-03-11 - Completed 30-03-PLAN.md
+status: in_progress
+last_updated: "2026-03-11T11:28:35.235Z"
+last_activity: 2026-03-11 - Completed 31-01-PLAN.md
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_plans: 8
+  completed_plans: 5
+  percent: 62
 ---
 
 ## gsd_state_version: 1.0
@@ -24,7 +24,7 @@ progress:
 - Zachovani AI terminal chat + streaming + model picker + slash/GSD
 - Zachovani approval/security guardu pri AI operacich
 
-**Status:** Ready to plan
+**Status:** In progress
 
 ---
 
@@ -33,16 +33,16 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
-**Current focus:** Plan phase 30 (CLI namespace removal foundation)
+**Current focus:** Phase 31 (AI terminal runtime migration)
 
 ## Current Position
 
-Phase: 30-cli-namespace-removal-foundation
-Plan: 30 completed
-Status: 30-01, 30-02, 30-03 a 30-04 completed
-Last activity: 2026-03-11 - Completed 30-03-PLAN.md
+Phase: 31-ai-terminal-runtime-migration
+Plan: 31-01 completed
+Status: 31-01 completed, 31-02 až 31-04 pending
+Last activity: 2026-03-11 - Completed 31-01-PLAN.md
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 62%
 
 ---
 
@@ -60,6 +60,8 @@ Progress: [██████████] 100%
 - [Phase 30]: CLI-01 je dokumentovan explicitnim 30-02-AUDIT.md artefaktem s build a grep PASS dukazy.
 - [Phase 30-cli-namespace-removal-foundation]: Public API app root bylo zúženo na ai_core; ostatní moduly jsou interní (pub(crate)).
 - [Phase 30-cli-namespace-removal-foundation]: Task 2 byl potvrzen samostatným audit commitem bez změny kódu kvůli atomickému task trace.
+- [Phase 31-ai-terminal-runtime-migration]: Retry flow je explicitni UI akce vazana na posledni validni prompt, aktivovana jen po runtime chybe.
+- [Phase 31-ai-terminal-runtime-migration]: Slash async stale-guard je sjednoceny jednim helperem pro /build i /git.
 
 ### Known Tech Debt
 

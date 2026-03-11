@@ -13,15 +13,15 @@
 
 ### AI Terminal Behavior
 
-- [ ] **TERM-01**: Uzivatel muze otevrit AI terminal panel a odeslat prompt.
+- [x] **TERM-01**: Uzivatel muze otevrit AI terminal panel a odeslat prompt.
 - [ ] **TERM-02**: Streaming odpovedi funguje bez zamrznuti UI.
-- [ ] **TERM-03**: Model picker a slash/GSD prikazy zustavaji funkcni.
+- [x] **TERM-03**: Model picker a slash/GSD prikazy zustavaji funkcni.
 
 ### Safety and Tooling
 
 - [ ] **SAFE-01**: Approval flow pro citlive AI operace zustava funkcni.
 - [ ] **SAFE-02**: Security filtry/rate limit/path sandbox zustavaji funkcni po migraci.
-- [ ] **SAFE-03**: Audit/error handling zustava funkcni v AI terminal workflow.
+- [x] **SAFE-03**: Audit/error handling zustava funkcni v AI terminal workflow.
 
 ### Cleanup and Stability
 
@@ -50,12 +50,12 @@
 | CLI-01 | Phase 30 | Complete |
 | CLI-02 | Phase 30 | Complete |
 | CLI-03 | Phase 30 | Complete |
-| TERM-01 | Phase 31 | Pending |
+| TERM-01 | Phase 31 | Complete |
 | TERM-02 | Phase 31 | Pending |
-| TERM-03 | Phase 31 | Pending |
+| TERM-03 | Phase 31 | Complete |
 | SAFE-01 | Phase 31 | Pending |
 | SAFE-02 | Phase 31 | Pending |
-| SAFE-03 | Phase 31 | Pending |
+| SAFE-03 | Phase 31 | Complete |
 | STAB-01 | Phase 32 | Pending |
 | STAB-02 | Phase 32 | Pending |
 

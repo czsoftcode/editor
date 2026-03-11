@@ -1,4 +1,4 @@
-use crate::app::cli::state::OllamaConnectionStatus;
+use crate::app::ai_core::state::OllamaConnectionStatus;
 use crate::app::types::AppShared;
 use crate::app::ui::workspace::state::WorkspaceState;
 use eframe::egui;

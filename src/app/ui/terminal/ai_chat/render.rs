@@ -17,7 +17,7 @@ pub fn render_head(
     _shared: &Arc<Mutex<AppShared>>,
     i18n: &I18n,
 ) {
-    use crate::app::cli::state::OllamaConnectionStatus;
+    use crate::app::ai_core::state::OllamaConnectionStatus;
 
     ui.horizontal(|ui| {
         // Ollama connection status indicator

@@ -20,10 +20,10 @@ where
 use super::super::types::{AppShared, Toast, should_emit_save_error_toast};
 use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
-use crate::app::cli::ollama::spawn_model_info_fetch;
-use crate::app::cli::provider::StreamEvent;
-use crate::app::cli::state::OllamaConnectionStatus;
-use crate::app::cli::{OllamaStatus, spawn_ollama_check};
+use crate::app::ai_core::ollama::spawn_model_info_fetch;
+use crate::app::ai_core::provider::StreamEvent;
+use crate::app::ai_core::state::OllamaConnectionStatus;
+use crate::app::ai_core::{OllamaStatus, spawn_ollama_check};
 use crate::settings::SaveMode;
 use crate::watcher::{FileEvent, FsChange};
 use std::sync::Mutex;
@@ -344,10 +344,10 @@ pub(super) fn process_background_events(
                     if let Some(ref mut executor) = ws.tool_executor {
                         let result = executor.execute(&name, &arguments);
                         match result {
-                            crate::app::cli::executor::ToolResult::Success(output) => {
+                            crate::app::ai_core::executor::ToolResult::Success(output) => {
                                 // Auto-approved tool executed — build messages and resume AI
                                 let (asst_msg, tool_msg) =
-                                    crate::app::cli::executor::ToolExecutor::build_approval_messages(
+                                    crate::app::ai_core::executor::ToolExecutor::build_approval_messages(
                                         &id, &name, &arguments, &output, false,
                                     );
                                 // Append compact tool indicator to conversation display
@@ -358,7 +358,7 @@ pub(super) fn process_background_events(
                                 // Resume AI with tool result
                                 resume_after_tool_call(ws, asst_msg, tool_msg);
                             }
-                            crate::app::cli::executor::ToolResult::NeedsApproval {
+                            crate::app::ai_core::executor::ToolResult::NeedsApproval {
                                 tool_name: tn,
                                 description,
                                 details,
@@ -370,19 +370,19 @@ pub(super) fn process_background_events(
                                     let approved_result = executor.process_approval_response(
                                         &tn,
                                         &arguments,
-                                        crate::app::cli::executor::ApprovalDecision::Always,
+                                        crate::app::ai_core::executor::ApprovalDecision::Always,
                                     );
                                     let (output, is_err) = match &approved_result {
-                                        crate::app::cli::executor::ToolResult::Success(o) => {
+                                        crate::app::ai_core::executor::ToolResult::Success(o) => {
                                             (o.clone(), false)
                                         }
-                                        crate::app::cli::executor::ToolResult::Error(e) => {
+                                        crate::app::ai_core::executor::ToolResult::Error(e) => {
                                             (e.clone(), true)
                                         }
                                         _ => (i18n.get("cli-chat-unexpected-result"), true),
                                     };
                                     let (asst_msg, tool_msg) =
-                                        crate::app::cli::executor::ToolExecutor::build_approval_messages(
+                                        crate::app::ai_core::executor::ToolExecutor::build_approval_messages(
                                             &id, &tn, &arguments, &output, is_err,
                                         );
                                     if let Some(last) = ws.ai.chat.conversation.last_mut() {
@@ -409,7 +409,7 @@ pub(super) fn process_background_events(
                                     // Don't drop stream_rx — approval is pending
                                 }
                             }
-                            crate::app::cli::executor::ToolResult::AskUser {
+                            crate::app::ai_core::executor::ToolResult::AskUser {
                                 question,
                                 options,
                             } => {
@@ -423,7 +423,7 @@ pub(super) fn process_background_events(
                                     });
                                 ws.tool_ask_rx = Some(rx);
                             }
-                            crate::app::cli::executor::ToolResult::Completion {
+                            crate::app::ai_core::executor::ToolResult::Completion {
                                 summary,
                                 files_modified: _,
                                 follow_up,
@@ -440,9 +440,9 @@ pub(super) fn process_background_events(
                                 done = true;
                                 ws.toasts.push(Toast::info(summary));
                             }
-                            crate::app::cli::executor::ToolResult::Error(msg) => {
+                            crate::app::ai_core::executor::ToolResult::Error(msg) => {
                                 let (asst_msg, tool_msg) =
-                                    crate::app::cli::executor::ToolExecutor::build_approval_messages(
+                                    crate::app::ai_core::executor::ToolExecutor::build_approval_messages(
                                         &id, &name, &arguments, &msg, true,
                                     );
                                 if let Some(last) = ws.ai.chat.conversation.last_mut() {
@@ -489,19 +489,19 @@ pub(super) fn process_background_events(
             && let Some(ref mut executor) = ws.tool_executor
         {
             let decision = if approved {
-                crate::app::cli::executor::ApprovalDecision::Approve
+                crate::app::ai_core::executor::ApprovalDecision::Approve
             } else {
-                crate::app::cli::executor::ApprovalDecision::Deny
+                crate::app::ai_core::executor::ApprovalDecision::Deny
             };
             let result =
                 executor.process_approval_response(&pending.tool_name, &pending.args, decision);
             let (output, is_err) = match &result {
-                crate::app::cli::executor::ToolResult::Success(o) => (o.clone(), false),
-                crate::app::cli::executor::ToolResult::Error(e) => (e.clone(), true),
+                crate::app::ai_core::executor::ToolResult::Success(o) => (o.clone(), false),
+                crate::app::ai_core::executor::ToolResult::Error(e) => (e.clone(), true),
                 _ => (i18n.get("cli-chat-unexpected-result"), true),
             };
             let (asst_msg, tool_msg) =
-                crate::app::cli::executor::ToolExecutor::build_approval_messages(
+                crate::app::ai_core::executor::ToolExecutor::build_approval_messages(
                     &pending.tool_call_id,
                     &pending.tool_name,
                     &pending.args,
@@ -532,7 +532,7 @@ pub(super) fn process_background_events(
         ws.tool_ask_rx = None;
         if let Some(_pending) = ask {
             // Build tool result with user's answer and resume AI
-            let tool_msg = crate::app::cli::types::AiMessage {
+            let tool_msg = crate::app::ai_core::AiMessage {
                 role: "tool".to_string(),
                 content: response.clone(),
                 monologue: Vec::new(),
@@ -543,7 +543,7 @@ pub(super) fn process_background_events(
                 tool_is_error: false,
                 tool_call_arguments: None,
             };
-            let asst_msg = crate::app::cli::types::AiMessage {
+            let asst_msg = crate::app::ai_core::AiMessage {
                 role: "assistant".to_string(),
                 content: String::new(),
                 monologue: Vec::new(),
@@ -649,13 +649,13 @@ pub(super) fn process_background_events(
 /// Replaces the current stream_rx with a new stream from stream_chat.
 fn resume_after_tool_call(
     ws: &mut WorkspaceState,
-    assistant_msg: crate::app::cli::types::AiMessage,
-    tool_result_msg: crate::app::cli::types::AiMessage,
+    assistant_msg: crate::app::ai_core::AiMessage,
+    tool_result_msg: crate::app::ai_core::AiMessage,
 ) {
-    use crate::app::cli::ollama::OllamaProvider;
-    use crate::app::cli::provider::{AiProvider, ProviderConfig};
-    use crate::app::cli::tools::get_standard_tools;
-    use crate::app::cli::types::AiMessage;
+    use crate::app::ai_core::ollama::OllamaProvider;
+    use crate::app::ai_core::provider::{AiProvider, ProviderConfig};
+    use crate::app::ai_core::tools::get_standard_tools;
+    use crate::app::ai_core::AiMessage;
 
     // Build the full message history including tool call/result
     let mut messages: Vec<AiMessage> = Vec::new();

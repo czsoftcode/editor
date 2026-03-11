@@ -5,7 +5,7 @@ pub mod logic;
 pub mod render;
 pub mod slash;
 
-use crate::app::cli::AiManager;
+use crate::app::ai_core::AiManager;
 use crate::app::types::{AppShared, FocusedPanel};
 use crate::app::ui::terminal::StandardTerminalWindow;
 use crate::app::ui::workspace::state::WorkspaceState;

@@ -300,7 +300,10 @@ pub fn build_dirty_close_queue(
 
 #[cfg(test)]
 mod tests {
-    use super::{DirtyCloseQueueMode, build_dirty_close_queue, build_dirty_close_queue_for_mode};
+    use super::{
+        DirtyCloseQueueMode, build_dirty_close_queue, build_dirty_close_queue_for_mode,
+        resolve_selected_model,
+    };
     use std::path::PathBuf;
 
     #[test]
@@ -328,5 +331,36 @@ mod tests {
         assert_eq!(queue.len(), 2);
         assert!(queue.contains(&a));
         assert!(!queue.contains(&c));
+    }
+
+    #[test]
+    fn resolve_selected_model_prefers_current_when_available() {
+        let models = vec!["llama3.1".to_string(), "qwen3:latest".to_string()];
+        assert_eq!(
+            resolve_selected_model(&models, "qwen3:latest", "llama3.1"),
+            "qwen3:latest"
+        );
+    }
+
+    #[test]
+    fn resolve_selected_model_falls_back_to_preferred_then_first() {
+        let models = vec!["llama3.1".to_string(), "qwen3:latest".to_string()];
+        assert_eq!(
+            resolve_selected_model(&models, "missing", "llama3.1"),
+            "llama3.1"
+        );
+        assert_eq!(
+            resolve_selected_model(&models, "missing", "also-missing"),
+            "llama3.1"
+        );
+    }
+
+    #[test]
+    fn resolve_selected_model_keeps_current_when_no_models_available() {
+        let models: Vec<String> = Vec::new();
+        assert_eq!(
+            resolve_selected_model(&models, "existing-model", "preferred"),
+            "existing-model"
+        );
     }
 }

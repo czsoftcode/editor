@@ -53,8 +53,7 @@
 | CLI-01 | 30 |
 | CLI-02 | 30 |
 | CLI-03 | 30 |
-| TERM-01 | 31 |
-| TERM-02 | 31 |
+| TERM-01 | 31 | 3/4 | In Progress|  |
 | TERM-03 | 31 |
 | SAFE-01 | 31 |
 | SAFE-02 | 31 |

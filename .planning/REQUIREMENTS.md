@@ -19,8 +19,8 @@
 
 ### Safety and Tooling
 
-- [ ] **SAFE-01**: Approval flow pro citlive AI operace zustava funkcni.
-- [ ] **SAFE-02**: Security filtry/rate limit/path sandbox zustavaji funkcni po migraci.
+- [x] **SAFE-01**: Approval flow pro citlive AI operace zustava funkcni.
+- [x] **SAFE-02**: Security filtry/rate limit/path sandbox zustavaji funkcni po migraci.
 - [x] **SAFE-03**: Audit/error handling zustava funkcni v AI terminal workflow.
 
 ### Cleanup and Stability
@@ -53,8 +53,8 @@
 | TERM-01 | Phase 31 | Complete |
 | TERM-02 | Phase 31 | Complete |
 | TERM-03 | Phase 31 | Complete |
-| SAFE-01 | Phase 31 | Pending |
-| SAFE-02 | Phase 31 | Pending |
+| SAFE-01 | Phase 31 | Complete |
+| SAFE-02 | Phase 31 | Complete |
 | SAFE-03 | Phase 31 | Complete |
 | STAB-01 | Phase 32 | Pending |
 | STAB-02 | Phase 32 | Pending |

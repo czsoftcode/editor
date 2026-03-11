@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
-status: in_progress
-last_updated: "2026-03-11T11:39:11Z"
-last_activity: 2026-03-11 - Completed 31-02-PLAN.md
+status: executing
+last_updated: "2026-03-11T11:48:20.839Z"
+last_activity: 2026-03-11 - Completed 31-03-PLAN.md
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 7
+  percent: 88
 ---
 
 ## gsd_state_version: 1.0
@@ -38,11 +38,11 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 31-ai-terminal-runtime-migration
-Plan: 31-02 completed
-Status: 31-01 až 31-02 completed, 31-03 až 31-04 pending
-Last activity: 2026-03-11 - Completed 31-02-PLAN.md
+Plan: 31-03 completed
+Status: 31-01 až 31-03 completed, 31-04 pending
+Last activity: 2026-03-11 - Completed 31-03-PLAN.md
 
-Progress: [████████░░] 75%
+Progress: [█████████░] 88%
 
 ---
 
@@ -64,6 +64,8 @@ Progress: [████████░░] 75%
 - [Phase 31-ai-terminal-runtime-migration]: Slash async stale-guard je sjednoceny jednim helperem pro /build i /git.
 - [Phase 31-ai-terminal-runtime-migration]: Prompt se normalizuje na vstupu (trim/slash) a prázdný model je guardovaný před startem streamu.
 - [Phase 31-ai-terminal-runtime-migration]: Model picker v ai_bar používá workspace accessory kvůli assistant-only UI gate token policy.
+- [Phase 31-ai-terminal-runtime-migration]: execute_approved musi znovu validovat sandbox/blacklist/rate-limit guardy i po schvaleni.
+- [Phase 31-ai-terminal-runtime-migration]: Audit detail payloady jsou sanitovany na jeden radek kvuli citelne forenzni stope.
 
 ### Known Tech Debt
 

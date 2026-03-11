@@ -438,6 +438,8 @@ pub(super) fn process_background_events(
                                         name, msg
                                     ));
                                 }
+                                ws.toasts
+                                    .push(Toast::error(format!("AI tool `{}`: {}", name, msg)));
                                 ws.ai.chat.retry_available = true;
                                 resume_after_tool_call(ws, asst_msg, tool_msg);
                             }

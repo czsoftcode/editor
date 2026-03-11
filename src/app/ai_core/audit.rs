@@ -22,6 +22,7 @@ impl AuditLogger {
     /// Format: `[{ISO 8601 timestamp}] [{tool_name}] [{status}] {details}`
     pub fn log_tool_call(&self, tool_name: &str, status: &str, details: &str) {
         let timestamp = Self::format_timestamp();
+        let details = Self::sanitize_details(details);
         let line = format!("[{}] [{}] [{}] {}\n", timestamp, tool_name, status, details);
         self.append_line(&line);
     }
@@ -29,6 +30,7 @@ impl AuditLogger {
     /// Logs a security event (path traversal blocks, rate limit hits, etc.).
     pub fn log_security_event(&self, event_type: &str, details: &str) {
         let timestamp = Self::format_timestamp();
+        let details = Self::sanitize_details(details);
         let line = format!("[{}] [SECURITY:{}] {}\n", timestamp, event_type, details);
         self.append_line(&line);
     }
@@ -64,6 +66,10 @@ impl AuditLogger {
                 eprintln!("[AuditLogger] Failed to open {:?}: {}", self.log_path, e);
             }
         }
+    }
+
+    fn sanitize_details(details: &str) -> String {
+        details.replace("\r\n", "\\n").replace('\n', "\\n")
     }
 
     /// Formats current time as ISO 8601 (UTC). Uses UNIX timestamp calculation

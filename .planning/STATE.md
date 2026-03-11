@@ -80,6 +80,10 @@ Progress: [██████████] 100%
 - [Phase 32-cleanup-tests-and-stabilization]: STAB-01 and STAB-02 sign-off was centralized into one evidence-first artifact with command-level PASS mapping.
 - [Phase 32-cleanup-tests-and-stabilization]: Planning traceability updates stayed limited to active v1.3 artifacts and avoided historical file rewrites.
 
+### Roadmap Evolution
+
+- Phase 33 added: odstranit veskerou zminku a funkce ai_chat ze systemu
+
 ### Known Tech Debt
 
 - Warning text kontrast v light mode (Settings modal)

@@ -64,3 +64,13 @@
 | Complete    | 2026-03-11 |
 
 Coverage: 11/11 requirements mapped.
+
+### Phase 33: odstranit veskerou zminku a funkce ai_chat ze systemu
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 32
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 33 to break down)

@@ -399,7 +399,7 @@ impl ToolExecutor {
         }
     }
 
-    fn execute_write_approved(&self, args: &Value) -> ToolResult {
+    fn execute_write_approved(&mut self, args: &Value) -> ToolResult {
         let path_str = match args["path"].as_str() {
             Some(p) => p,
             None => return ToolResult::Error("Missing 'path' argument".to_string()),
@@ -409,7 +409,35 @@ impl ToolExecutor {
             None => return ToolResult::Error("Missing 'content' argument".to_string()),
         };
 
-        let full_path = self.project_root.join(path_str);
+        if self.file_blacklist.is_blocked(path_str) {
+            self.audit
+                .log_security_event("FILE_BLOCKED", &format!("write path={}", path_str));
+            return ToolResult::Error(format!("Access to '{}' is blocked (blacklisted)", path_str));
+        }
+
+        let full_path = match self.sandbox.validate_path(path_str) {
+            Ok(p) => p,
+            Err(e) => {
+                self.audit.log_security_event(
+                    "PATH_TRAVERSAL",
+                    &format!("write path={}: {}", path_str, e),
+                );
+                return ToolResult::Error(e);
+            }
+        };
+
+        if let Err(e) = self.rate_limiter.check_write() {
+            self.audit
+                .log_security_event("RATE_LIMIT_WRITE", &format!("path={}: {}", path_str, e));
+            return ToolResult::Error(e);
+        }
+
+        if full_path.exists() {
+            return ToolResult::Error(
+                "File already exists. Use 'replace' tool to modify existing files.".to_string(),
+            );
+        }
+
         if let Some(parent) = full_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
@@ -508,7 +536,7 @@ impl ToolExecutor {
         }
     }
 
-    fn execute_replace_approved(&self, args: &Value) -> ToolResult {
+    fn execute_replace_approved(&mut self, args: &Value) -> ToolResult {
         let path_str = match args["path"].as_str() {
             Some(p) => p,
             None => return ToolResult::Error("Missing 'path' argument".to_string()),
@@ -522,9 +550,27 @@ impl ToolExecutor {
             None => return ToolResult::Error("Missing 'new_string' argument".to_string()),
         };
 
+        if self.file_blacklist.is_blocked(path_str) {
+            self.audit
+                .log_security_event("FILE_BLOCKED", &format!("replace path={}", path_str));
+            return ToolResult::Error(format!("Access to '{}' is blocked (blacklisted)", path_str));
+        }
+
         let full_path = match self.sandbox.validate_path(path_str) {
             Ok(p) => p,
-            Err(e) => return ToolResult::Error(e),
+            Err(e) => {
+                self.audit.log_security_event(
+                    "PATH_TRAVERSAL",
+                    &format!("replace path={}: {}", path_str, e),
+                );
+                return ToolResult::Error(e);
+            }
+        };
+
+        if let Err(e) = self.rate_limiter.check_write() {
+            self.audit
+                .log_security_event("RATE_LIMIT_WRITE", &format!("path={}: {}", path_str, e));
+            return ToolResult::Error(e);
         };
 
         let content = match std::fs::read_to_string(&full_path) {
@@ -826,11 +872,26 @@ impl ToolExecutor {
         }
     }
 
-    fn execute_exec_approved(&self, args: &Value) -> ToolResult {
+    fn execute_exec_approved(&mut self, args: &Value) -> ToolResult {
         let command = match args["command"].as_str() {
             Some(c) => c,
             None => return ToolResult::Error("Missing 'command' argument".to_string()),
         };
+
+        if let Err(e) = self.rate_limiter.check_exec() {
+            self.audit
+                .log_security_event("RATE_LIMIT_EXEC", &format!("cmd={}: {}", command, e));
+            return ToolResult::Error(e);
+        }
+
+        if matches!(
+            CommandBlacklist::classify(command),
+            CommandClassification::Blocked
+        ) {
+            self.audit
+                .log_security_event("COMMAND_BLOCKED", &format!("cmd={}", command));
+            return ToolResult::Error(format!("Blocked: dangerous command '{}'", command));
+        }
 
         use std::process::Command;
         use std::sync::mpsc;

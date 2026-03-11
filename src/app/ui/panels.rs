@@ -1,15 +1,14 @@
-use super::super::types::{AppShared, FocusedPanel, Toast};
+use super::super::types::{FocusedPanel, Toast};
 use super::workspace::open_file_in_ws;
 use super::workspace::state::WorkspaceState;
 use crate::config;
 use eframe::egui;
-use std::sync::{Arc, Mutex};
 
 /// Renders the left panel (file tree + plugin bar + build terminal). Returns true if the terminal was clicked.
 pub(super) fn render_left_panel(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
+    _shared: &std::sync::Arc<std::sync::Mutex<crate::app::types::AppShared>>,
     dialog_open: bool,
     i18n: &crate::i18n::I18n,
 ) -> bool {
@@ -67,10 +66,7 @@ pub(super) fn render_left_panel(
                 left_clicked = true;
             }
 
-            // 2. AI PLUGIN BAR
-            render_plugin_bar(ui, ws, shared, i18n);
-
-            // 3. RESIZE SPLITTER & TERMINAL
+            // 2. RESIZE SPLITTER & TERMINAL
             if show_terminal_in_panel {
                 // Render interactive separator (splitter)
                 let sep_rect = ui.separator().rect;
@@ -105,45 +101,6 @@ pub(super) fn render_left_panel(
             }
         });
     left_clicked
-}
-
-/// Renders the AI quick-launch bar (Start + Settings).
-fn render_plugin_bar(
-    ui: &mut egui::Ui,
-    ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
-    i18n: &crate::i18n::I18n,
-) {
-    ui.separator();
-
-    ui.horizontal(|ui| {
-        ui.label(i18n.get("cli-bar-label"));
-
-        if ui
-            .button(i18n.get("ai-btn-start"))
-            .on_hover_text(i18n.get("cli-bar-start-hover"))
-            .clicked()
-        {
-            let agents = {
-                let sh = shared.lock().expect("lock");
-                sh.registry.agents.get_all().to_vec()
-            };
-            if let Some(agent) = agents.iter().find(|a| a.id == ws.selected_agent_id) {
-                let cmd = agent.command.clone();
-                if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
-                    terminal.send_command(&cmd);
-                }
-            }
-        }
-
-        if ui
-            .button(i18n.get("cli-bar-settings"))
-            .on_hover_text(i18n.get("cli-bar-settings-hover"))
-            .clicked()
-        {
-            ws.show_settings = true;
-        }
-    });
 }
 
 /// Renders toast notifications in the bottom right corner. Removes expired toasts.

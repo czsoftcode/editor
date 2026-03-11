@@ -1,3 +1,19 @@
+## [1.3.0-dev] - 2026-03-11
+
+### Changed
+- **Phase 33 Cleanup**: Dokonceno launcher-only sjednoceni AI toku (`ai_bar -> terminal.send_command`) bez integrovaneho chat/runtime subsystemu.
+- **AI Settings UX**: V `Nastaveni > AI` zustala pouze sprava asistentu (nazev, prikaz, parametry); odstranena hint veta o vlastnich CLI nastrojich.
+
+### Removed
+- **Left Panel CLI Bar**: Z leveho panelu byl odstraneny cely CLI quick-launch bar (label + Start + Settings).
+- **AI Settings CLI/Ollama Controls**: Z AI sekce settings byly odstraneny URL/API key/model, expertise/reasoning, generation parametry a blacklist.
+
+### Fixed
+- **Phase 33 Verification Drift**: Dotazene planning artefakty a globalni historical cleanup tak, aby phase 33 UAT probehla bez nalezenych issue.
+
+### Verified
+- **UAT Phase 33**: Manualni UAT dokoncena s vysledkem `5 passed, 0 issues` (`33-UAT.md`).
+
 ## [1.2.5-dev] - 2026-03-11
 
 ### Changed

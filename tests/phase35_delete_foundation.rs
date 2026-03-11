@@ -5,7 +5,7 @@ fn phase35_delete_foundation_is_fail_closed() {
     let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
         .expect("failed to read src/app/ui/file_tree/dialogs.rs");
     assert!(
-        dialogs.contains("DeleteJobResult::Error(err.to_string())"),
+        dialogs.contains("DeleteJobResult::Error(format!(\"trash move failed: {err}\"))"),
         "delete flow must propagate foundation errors"
     );
 

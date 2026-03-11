@@ -215,7 +215,7 @@ impl ToolExecutor {
             ApprovalDecision::Deny => {
                 self.audit
                     .log_tool_call(tool_name, "user_denied", &format!("args={}", args));
-                ToolResult::Error("Tool call denied by user".to_string())
+                ToolResult::Error(format!("Tool '{}' call denied by user", tool_name))
             }
             ApprovalDecision::Always => {
                 self.auto_approved.insert(tool_name.to_string());

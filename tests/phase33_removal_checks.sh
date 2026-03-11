@@ -27,6 +27,12 @@ check_task4() {
     src/app/ui/panels.rs >/dev/null
 }
 
+check_task5() {
+  rg -n "fn send_selected_agent_command" src/app/ui/terminal/right/ai_bar.rs >/dev/null
+  rg -n "send_command" src/app/ui/terminal/right/ai_bar.rs >/dev/null
+  ! rg -n "ai_core|ai_chat|executor" src/app/ui/terminal/right/ai_bar.rs >/dev/null
+}
+
 case "$mode" in
   task1)
     check_task1
@@ -40,11 +46,15 @@ case "$mode" in
   task4)
     check_task4
     ;;
+  task5)
+    check_task5
+    ;;
   all)
     check_task1
     check_task2
     check_task3
     check_task4
+    check_task5
     ;;
   *)
     echo "Unknown mode: $mode" >&2

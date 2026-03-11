@@ -10,146 +10,23 @@ use std::sync::{Arc, Mutex};
 
 // ── HEAD ─────────────────────────────────────────────────────────────────────
 
-/// Renders the chat header: Ollama status indicator, model picker, token counts.
+/// Renders the chat header with a neutral session status and token counts.
 pub fn render_head(
     ui: &mut egui::Ui,
     ws: &mut WorkspaceState,
     _shared: &Arc<Mutex<AppShared>>,
     i18n: &I18n,
 ) {
-    use crate::app::ai_core::state::OllamaConnectionStatus;
-
     ui.horizontal(|ui| {
-        // Ollama connection status indicator
-        let status_color = match ws.ai.ollama.status {
-            OllamaConnectionStatus::Connected => egui::Color32::from_rgb(0, 180, 0),
-            OllamaConnectionStatus::Checking => ui.visuals().warn_fg_color,
-            OllamaConnectionStatus::Disconnected => ui.visuals().error_fg_color,
-        };
-        let (rect, _) = ui.allocate_exact_size(egui::vec2(10.0, 10.0), egui::Sense::hover());
-        ui.painter().circle_filled(rect.center(), 5.0, status_color);
-
-        // Model picker with type-to-filter
-        let popup_id = ui.make_persistent_id("ai_chat_model_picker_popup");
-        let _filter_id = egui::Id::new("ai_chat_model_filter_input");
-        let btn_resp = ui.add(
-            egui::Button::new(egui::RichText::new(
-                if ws.ai.ollama.selected_model.is_empty() {
-                    i18n.get("cli-chat-placeholder-model")
-                } else {
-                    ws.ai.ollama.selected_model.clone()
-                },
-            ))
-            .min_size(egui::vec2(180.0, 0.0)),
+        let weak_color = ui.visuals().weak_text_color();
+        ui.label(
+            egui::RichText::new(i18n.get("ai-label-assistant"))
+                .color(weak_color)
+                .small(),
         );
-        if btn_resp.clicked() {
-            ui.memory_mut(|m| m.toggle_popup(popup_id));
-            ws.ai.ollama.model_filter.clear();
-        }
-        // Build tooltip text for model info (shown after popup)
-        let model_tooltip = ws.ai.ollama.model_info.as_ref().and_then(|info| {
-            let mut tip = String::new();
-            if !info.family.is_empty() {
-                let mut args = fluent_bundle::FluentArgs::new();
-                args.set("value", info.family.clone());
-                tip.push_str(&format!(
-                    "{}\n",
-                    i18n.get_args("cli-chat-model-family", &args)
-                ));
-            }
-            if !info.parameter_size.is_empty() {
-                let mut args = fluent_bundle::FluentArgs::new();
-                args.set("value", info.parameter_size.clone());
-                tip.push_str(&format!(
-                    "{}\n",
-                    i18n.get_args("cli-chat-model-params", &args)
-                ));
-            }
-            if !info.quantization_level.is_empty() {
-                let mut args = fluent_bundle::FluentArgs::new();
-                args.set("value", info.quantization_level.clone());
-                tip.push_str(&format!(
-                    "{}\n",
-                    i18n.get_args("cli-chat-model-quant", &args)
-                ));
-            }
-            if let Some(ctx) = info.context_length {
-                let mut args = fluent_bundle::FluentArgs::new();
-                args.set("value", ctx as i64);
-                tip.push_str(&format!(
-                    "{}\n",
-                    i18n.get_args("cli-chat-model-context", &args)
-                ));
-            }
-            if !info.parameters.is_empty() {
-                tip.push_str(&format!("\n--- Parameters ---\n{}", info.parameters));
-            }
-            if tip.is_empty() {
-                None
-            } else {
-                Some(tip.trim_end().to_string())
-            }
-        });
-        egui::popup_below_widget(
-            ui,
-            popup_id,
-            &btn_resp,
-            egui::PopupCloseBehavior::CloseOnClickOutside,
-            |ui| {
-                ui.set_min_width(220.0);
-                ui.set_max_height(350.0);
-                let filter_resp = ui.add(
-                    egui::TextEdit::singleline(&mut ws.ai.ollama.model_filter)
-                        .hint_text(i18n.get("cli-chat-placeholder-filter"))
-                        .desired_width(200.0),
-                );
-                if btn_resp.clicked() {
-                    filter_resp.request_focus();
-                }
-                let filter_lower = ws.ai.ollama.model_filter.to_lowercase();
-                ui.separator();
-                egui::ScrollArea::vertical()
-                    .max_height(300.0)
-                    .show(ui, |ui| {
-                        let mut any = false;
-                        for model in &ws.ai.ollama.models {
-                            if !filter_lower.is_empty()
-                                && !model.to_lowercase().contains(&filter_lower)
-                            {
-                                continue;
-                            }
-                            any = true;
-                            let selected = *model == ws.ai.ollama.selected_model;
-                            if ui.selectable_label(selected, model).clicked() {
-                                ws.ai.ollama.selected_model = model.clone();
-                                ws.ai.ollama.model_filter.clear();
-                                ui.memory_mut(|m| m.close_popup());
-                            }
-                        }
-                        if !any && !filter_lower.is_empty() {
-                            // Allow using the typed text as a custom model name
-                            let custom = ws.ai.ollama.model_filter.clone();
-                            if ui
-                                .selectable_label(false, format!("+ {}", custom))
-                                .clicked()
-                                || (filter_resp.lost_focus()
-                                    && ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                            {
-                                ws.ai.ollama.selected_model = custom;
-                                ws.ai.ollama.model_filter.clear();
-                                ui.memory_mut(|m| m.close_popup());
-                            }
-                        }
-                    });
-            },
-        );
-        if let Some(tip) = model_tooltip {
-            btn_resp.on_hover_text(tip);
-        }
+        ui.separator();
 
-        // Model info + token counter on the right
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let weak_color = ui.visuals().weak_text_color();
             let mut token_args = fluent_bundle::FluentArgs::new();
             token_args.set("input", ws.ai.chat.in_tokens as i64);
             token_args.set("output", ws.ai.chat.out_tokens as i64);
@@ -158,26 +35,6 @@ pub fn render_head(
                     .color(weak_color)
                     .small(),
             );
-            if let Some(info) = &ws.ai.ollama.model_info {
-                let mut parts = Vec::new();
-                if !info.parameter_size.is_empty() {
-                    parts.push(info.parameter_size.clone());
-                }
-                if !info.quantization_level.is_empty() {
-                    parts.push(info.quantization_level.clone());
-                }
-                if let Some(ctx) = info.context_length {
-                    parts.push(format!("ctx:{ctx}"));
-                }
-                if !parts.is_empty() {
-                    ui.label(
-                        egui::RichText::new(parts.join(" | "))
-                            .color(weak_color)
-                            .small(),
-                    );
-                    ui.label(egui::RichText::new("|").color(weak_color).small());
-                }
-            }
         });
     });
 }
@@ -286,12 +143,13 @@ fn render_chat_content(
             ui.spacing_mut().item_spacing.y = 8.0;
 
             if !ws.ai.chat.conversation.is_empty() {
+                let assistant_label = i18n.get("ai-label-assistant");
                 AiChatWidget::ui_conversation(
                     ui,
                     &ws.ai.chat.conversation,
                     font_size,
                     &mut ws.ai.markdown_cache,
-                    &ws.ai.ollama.selected_model,
+                    &assistant_label,
                     ws.ai.chat.out_tokens,
                     ws.ai.chat.loading,
                     &ws.ai.chat.thinking_history,

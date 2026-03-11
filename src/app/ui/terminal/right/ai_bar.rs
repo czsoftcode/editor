@@ -1,4 +1,3 @@
-use crate::app::ai_core::state::OllamaConnectionStatus;
 use crate::app::types::AppShared;
 use crate::app::ui::workspace::state::WorkspaceState;
 use eframe::egui;
@@ -12,39 +11,6 @@ pub fn render_ai_bar(
     i18n: &crate::i18n::I18n,
 ) {
     ui.horizontal(|ui| {
-        // --- Ollama status icon ---
-        let (color, tooltip) = match ws.ai.ollama.status {
-            OllamaConnectionStatus::Connected => {
-                (egui::Color32::from_rgb(0, 180, 0), "Ollama: connected")
-            }
-            OllamaConnectionStatus::Disconnected => {
-                (egui::Color32::from_rgb(220, 50, 50), "Ollama: disconnected")
-            }
-            OllamaConnectionStatus::Checking => (egui::Color32::GRAY, "Ollama: checking..."),
-        };
-        let (rect, response) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
-        ui.painter().circle_filled(rect.center(), 5.0, color);
-        response.on_hover_text(tooltip);
-
-        ui.add_space(4.0);
-
-        // --- Ollama model ComboBox ---
-        if ws.ai.ollama.models.is_empty() {
-            let resp = ui.add_enabled(false, egui::Button::new("No models available"));
-            resp.on_disabled_hover_text("Run 'ollama pull <model>' to download a model");
-        } else {
-            egui::ComboBox::from_id_salt("ollama_model_picker")
-                .selected_text(&ws.ai.ollama.selected_model)
-                .width(160.0)
-                .show_ui(ui, |ui| {
-                    for model in &ws.ai.ollama.models {
-                        ui.selectable_value(&mut ws.ai.ollama.selected_model, model.clone(), model);
-                    }
-                });
-        }
-
-        ui.separator();
-
         // --- Agent picker ---
         let agents = {
             let sh = shared.lock().expect("lock");

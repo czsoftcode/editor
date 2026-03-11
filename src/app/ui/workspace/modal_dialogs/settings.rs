@@ -38,6 +38,23 @@ pub(super) const LIGHT_VARIANT_OPTIONS: [LightVariant; 4] = [
     LightVariant::WarmTan,
 ];
 
+fn dark_variant_label_key(variant: &DarkVariant) -> &'static str {
+    match variant {
+        DarkVariant::Default => "settings-dark-variant-default",
+        DarkVariant::Midnight => "settings-dark-variant-midnight",
+    }
+}
+
+fn dark_variant_swatch(variant: &DarkVariant) -> egui::Color32 {
+    match variant {
+        DarkVariant::Default => egui::Color32::from_rgb(0, 43, 54),
+        DarkVariant::Midnight => egui::Color32::from_rgb(43, 48, 59),
+    }
+}
+
+pub(super) const DARK_VARIANT_OPTIONS: [DarkVariant; 2] =
+    [DarkVariant::Default, DarkVariant::Midnight];
+
 fn show_light_variant_card(
     ui: &mut egui::Ui,
     draft: &mut crate::settings::Settings,
@@ -86,6 +103,51 @@ fn show_light_variant_card(
     let response = ui.interact(card.response.rect, card_id, egui::Sense::click());
     if response.clicked() && draft.light_variant != variant {
         draft.light_variant = variant;
+        return true;
+    }
+    false
+}
+
+fn show_dark_variant_card(
+    ui: &mut egui::Ui,
+    draft: &mut crate::settings::Settings,
+    i18n: &I18n,
+    variant: DarkVariant,
+) -> bool {
+    let is_selected = draft.dark_variant == variant;
+    let border_color = if is_selected {
+        ui.visuals().selection.stroke.color
+    } else {
+        ui.visuals().widgets.noninteractive.bg_stroke.color
+    };
+
+    let card = egui::Frame::new()
+        .fill(ui.visuals().faint_bg_color)
+        .stroke(egui::Stroke::new(
+            if is_selected { 2.0 } else { 1.0 },
+            border_color,
+        ))
+        .corner_radius(8.0)
+        .inner_margin(egui::Margin::same(8))
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                ui.set_width(110.0);
+                ui.strong(i18n.get(dark_variant_label_key(&variant)));
+                ui.add_space(6.0);
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(80.0, 28.0), egui::Sense::hover());
+                ui.painter()
+                    .rect_filled(rect, 6.0, dark_variant_swatch(&variant));
+            });
+        });
+
+    let card_id = ui.id().with((
+        "settings-dark-variant-card",
+        dark_variant_label_key(&variant),
+    ));
+    let response = ui.interact(card.response.rect, card_id, egui::Sense::click());
+    if response.clicked() && draft.dark_variant != variant {
+        draft.dark_variant = variant;
         return true;
     }
     false
@@ -381,9 +443,19 @@ pub fn show(
                             });
                             ui.add_space(16.0);
 
-                            ui.strong(i18n.get("settings-light-variant"));
-                            ui.add_space(6.0);
-                            ui.add_enabled_ui(!draft.dark_theme, |ui| {
+                            if draft.dark_theme {
+                                ui.strong(i18n.get("settings-dark-variant"));
+                                ui.add_space(6.0);
+                                ui.horizontal_wrapped(|ui| {
+                                    for variant in DARK_VARIANT_OPTIONS.iter().cloned() {
+                                        theme_controls_changed |=
+                                            show_dark_variant_card(ui, draft, i18n, variant);
+                                        ui.add_space(8.0);
+                                    }
+                                });
+                            } else {
+                                ui.strong(i18n.get("settings-light-variant"));
+                                ui.add_space(6.0);
                                 ui.horizontal_wrapped(|ui| {
                                     for variant in LIGHT_VARIANT_OPTIONS.iter().cloned() {
                                         theme_controls_changed |=
@@ -391,7 +463,7 @@ pub fn show(
                                         ui.add_space(8.0);
                                     }
                                 });
-                            });
+                            }
                             ui.add_space(16.0);
 
                             let theme_after = theme_fingerprint(draft);
@@ -747,11 +819,27 @@ mod tests {
     }
 
     #[test]
+    fn settings_dark_variant_picker_includes_default_and_midnight() {
+        assert!(DARK_VARIANT_OPTIONS.contains(&DarkVariant::Default));
+        assert!(DARK_VARIANT_OPTIONS.contains(&DarkVariant::Midnight));
+    }
+
+    #[test]
     fn settings_light_variant_label_warmtan_localized() {
         for &lang in SUPPORTED_LANGS {
             let i18n = I18n::new(lang);
             let label = i18n.get(light_variant_label_key(&LightVariant::WarmTan));
             assert_ne!(label, "settings-light-variant-warm-tan");
+            assert!(!label.is_empty());
+        }
+    }
+
+    #[test]
+    fn settings_dark_variant_label_midnight_localized() {
+        for &lang in SUPPORTED_LANGS {
+            let i18n = I18n::new(lang);
+            let label = i18n.get(dark_variant_label_key(&DarkVariant::Midnight));
+            assert_ne!(label, "settings-dark-variant-midnight");
             assert!(!label.is_empty());
         }
     }

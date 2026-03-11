@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: planning
-last_updated: "2026-03-11T12:58:27.875Z"
-last_activity: 2026-03-11 - Completed 31-05-PLAN.md
+last_updated: "2026-03-11T13:57:09Z"
+last_activity: 2026-03-11 - Completed 31-06-PLAN.md
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 10
+  completed_plans: 10
   percent: 100
 ---
 
@@ -38,9 +38,9 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 31-ai-terminal-runtime-migration
-Plan: 31-05 completed
-Status: 31-01 az 31-05 completed, phase 31 complete
-Last activity: 2026-03-11 - Completed 31-05-PLAN.md
+Plan: 31-06 completed
+Status: 31-01 az 31-06 completed, phase 31 complete
+Last activity: 2026-03-11 - Completed 31-06-PLAN.md
 
 Progress: [██████████] 100%
 
@@ -72,6 +72,8 @@ Progress: [██████████] 100%
 - [Phase 31-ai-terminal-runtime-migration]: Model/provider picker controls were removed from AI bar to keep assistant-only boundary explicit.
 - [Phase 31-ai-terminal-runtime-migration]: Provider sync/poll and connection access were centralized behind AiState helpers to avoid direct UI/runtime coupling.
 - [Phase 31-ai-terminal-runtime-migration]: SAFE approval/security contract remained unchanged and was re-verified by approval/security test suites.
+- [Phase 31-ai-terminal-runtime-migration]: ARCH-01 reference byla odstranena remove variantou z phase 31 artefaktu bez rozsirovani REQUIREMENTS.
+- [Phase 31-ai-terminal-runtime-migration]: Konfliktni Task 3 verifikace byla uzavrena konzistentnim remove-only checkem bez ARCH-01 v 31-VERIFICATION.
 
 ### Known Tech Debt
 

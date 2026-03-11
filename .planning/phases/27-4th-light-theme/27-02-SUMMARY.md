@@ -17,7 +17,7 @@ affects: [settings, theme picker, localization]
 # Tech tracking
 tech-stack:
   added: []
-  patterns: [theme_fingerprint zahrnuje dark_theme, disabled light picker v dark režimu]
+  patterns: [theme_fingerprint zahrnuje dark_theme, picker podle aktivniho rezimu]
 
 key-files:
   created: []
@@ -25,7 +25,7 @@ key-files:
     - src/app/ui/workspace/modal_dialogs/settings.rs
 
 key-decisions:
-  - "Light variant picker zůstává vždy viditelný; v dark režimu je pouze disabled."
+  - "Picker je zobrazen jen pro aktivní režim: light v light, dark v dark."
 
 patterns-established:
   - "Theme preview porovnává i dark_theme, aby se přepnutí aplikovalo okamžitě."

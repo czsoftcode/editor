@@ -1,53 +1,28 @@
 use std::fs;
 use std::path::Path;
 
-fn read(rel: &str) -> String {
-    fs::read_to_string(Path::new(rel)).unwrap_or_else(|err| panic!("failed to read {rel}: {err}"))
-}
-
 #[test]
-fn phase32_runtime_stability_prompt_and_retry_regression_markers_exist() {
-    let logic = read("src/app/ui/terminal/ai_chat/logic.rs");
-    assert!(logic.contains("normalize_prompt_input("));
-    assert!(logic.contains("ws.ai.chat.retry_prompt = Some(prompt.clone());"));
+fn phase32_runtime_stability_chat_runtime_is_removed_in_phase33() {
+    let removed = [
+        "src/app/ui/terminal/ai_chat/logic.rs",
+        "src/app/ui/terminal/ai_chat/slash.rs",
+        "src/app/ai_core/executor.rs",
+    ];
+    for rel in removed {
+        assert!(
+            !Path::new(rel).exists(),
+            "phase 33 must keep removed runtime file absent: {rel}"
+        );
+    }
 
-    let background = read("src/app/ui/background.rs");
-    assert!(background.contains("drain_stream_events(rx, &ws.ai.chat.streaming_buffer)"));
-    assert!(background.contains("ws.ai.chat.retry_available = true;"));
-    assert!(background.contains("Use Retry to send the last prompt again."));
-}
-
-#[test]
-fn phase32_runtime_stability_slash_stale_guard_and_approval_paths_are_explicit() {
-    let slash = read("src/app/ui/terminal/ai_chat/slash.rs");
-    assert!(slash.contains("pub fn should_apply_async_result("));
-
-    let background = read("src/app/ui/background.rs");
-    assert!(background.contains("ApprovalDecision::Approve"));
-    assert!(background.contains("ApprovalDecision::Deny"));
-    assert!(background.contains("should_apply_async_result("));
-}
-
-#[test]
-fn phase32_runtime_stability_approval_denial_must_emit_error_toast_for_visibility() {
-    let background = read("src/app/ui/background.rs");
+    let background = fs::read_to_string("src/app/ui/background.rs")
+        .unwrap_or_else(|err| panic!("failed to read src/app/ui/background.rs: {err}"));
     assert!(
-        background.contains("if !approved && is_err {"),
-        "approval denial branch must be handled explicitly",
+        !background.contains("ApprovalDecision::Approve"),
+        "background runtime must not contain approval flow after chat removal",
     );
     assert!(
-        background.contains("ws.toasts.push(Toast::error(format!("),
-        "approval denial branch must emit error toast",
+        !background.contains("should_apply_async_result("),
+        "background runtime must not contain slash stale guards after chat removal",
     );
-    assert!(
-        background.contains("AI tool `{}`: {}"),
-        "approval denial toast must contain tool name and message",
-    );
-    assert!(
-        background.contains("pending.tool_name, output"),
-        "approval denial branch must emit toast error with tool name and message",
-    );
-
-    let executor = read("src/app/ai_core/executor.rs");
-    assert!(executor.contains("pub fn process_approval_response("));
 }

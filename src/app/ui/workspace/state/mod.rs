@@ -169,7 +169,6 @@ impl WorkspaceState {
             self.profiles = crate::app::project_config::load_profiles(&self.root_path);
         }
     }
-
 }
 
 /// Builds a stable queue of dirty tab paths for the unsaved close guard.

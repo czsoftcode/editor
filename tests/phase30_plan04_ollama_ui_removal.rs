@@ -3,6 +3,9 @@ use std::path::Path;
 
 const UI_FILES: &[&str] = &[
     "src/app/ui/terminal/right/ai_bar.rs",
+    "src/app/ui/terminal/right/mod.rs",
+];
+const REMOVED_UI_FILES: &[&str] = &[
     "src/app/ui/terminal/ai_chat/render.rs",
     "src/app/ui/terminal/ai_chat/mod.rs",
 ];
@@ -27,5 +30,14 @@ fn terminal_ui_is_assistant_only_without_ollama_controls() {
                 path.display()
             );
         }
+    }
+
+    for rel in REMOVED_UI_FILES {
+        let path = Path::new(rel);
+        assert!(
+            !path.exists(),
+            "phase 33 must keep removed UI file absent: {}",
+            path.display()
+        );
     }
 }

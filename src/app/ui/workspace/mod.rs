@@ -541,8 +541,7 @@ pub(crate) fn render_workspace(
                     let config = crate::app::ui::terminal::right::PanelDisplayConfig {
                         dialog_open: false,
                         focused: ws.focused_panel,
-                        font_size: config::EDITOR_FONT_SIZE * ws.ai_panel.font_scale as f32
-                            / 100.0,
+                        font_size: config::EDITOR_FONT_SIZE * ws.ai_panel.font_scale as f32 / 100.0,
                         is_float: false,
                         is_viewport: true,
                     };
@@ -698,15 +697,12 @@ pub(crate) fn render_workspace(
     // Reset focus to editor only when the user explicitly clicks outside all panels.
     // Do NOT reset just because the mouse drifted away from the terminal area —
     // that would make keyboard input impossible after clicking the terminal.
-    let any_panel_interacted = ai_clicked
-        || left_clicked
-        || ai_viewport_clicked
-        || bottom_clicked
-        || dialogs_interacted;
+    let any_panel_interacted =
+        ai_clicked || left_clicked || ai_viewport_clicked || bottom_clicked || dialogs_interacted;
     let guard_active = ws.pending_close_flow.is_some();
     if !any_panel_interacted && !guard_active {
-        let in_terminal = ws.focused_panel == FocusedPanel::Claude
-            || ws.focused_panel == FocusedPanel::Build;
+        let in_terminal =
+            ws.focused_panel == FocusedPanel::Claude || ws.focused_panel == FocusedPanel::Build;
         let explicit_click_elsewhere = ctx.input(|i| i.pointer.any_click());
         if in_terminal && explicit_click_elsewhere {
             ws.focused_panel = FocusedPanel::Editor;

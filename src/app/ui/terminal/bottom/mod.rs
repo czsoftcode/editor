@@ -44,7 +44,7 @@ pub fn render_bottom_panel(
             |ui, ws_arg, _body_h| {
                 // BODY: Terminal + Errors
                 let font_size =
-                    config::EDITOR_FONT_SIZE * ws_arg.ai.settings.font_scale as f32 / 100.0;
+                    config::EDITOR_FONT_SIZE * ws_arg.ai_panel.font_scale as f32 / 100.0;
                 if let Some(terminal) = &mut ws_arg.build_terminal {
                     let is_focused = ws_arg.focused_panel == FocusedPanel::Build && !dialog_open;
                     let action = terminal.ui(ui, is_focused, font_size, i18n);

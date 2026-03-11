@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 31-ai-terminal-runtime-migration
 source: 31-01-SUMMARY.md, 31-02-SUMMARY.md, 31-03-SUMMARY.md, 31-04-SUMMARY.md
 started: 2026-03-11T13:19:18+01:00
-updated: 2026-03-11T13:23:32+01:00
+updated: 2026-03-11T13:25:38+01:00
 ---
 
 ## Current Test
@@ -58,7 +58,18 @@ skipped: 5
   reason: "User reported: co dela ollama model v AI terminalu??? tam nema co delat, Ollama jde dopryc s celym PolyCredo CLI neboli ai_chat, zzustava POUZE AI terminal, kde je ai_bar a nic vic!!! Uprav to"
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Requirements/scope drift: phase 31 plans + state explicitně drží model picker/Ollama runtime vazby, takže kód to konzistentně zachovává."
+  artifacts:
+    - path: ".planning/phases/31-ai-terminal-runtime-migration/31-02-PLAN.md"
+      issue: "TERM-03 task požaduje model picker continuity"
+    - path: "src/app/ui/terminal/right/ai_bar.rs"
+      issue: "AI bar renderuje model combobox"
+    - path: "src/app/ui/terminal/ai_chat/logic.rs"
+      issue: "runtime chat path je navázaný na OllamaProvider"
+    - path: "src/app/ui/background.rs"
+      issue: "background loop stále polluje/syncuje Ollama modely"
+  missing:
+    - "Sjednotit source-of-truth: explicitně odstranit model picker/Ollama vazby z phase 31 fix planů"
+    - "Odstranit UI i runtime coupling na ws.ai.ollama.* v AI terminal toku"
+    - "Zachovat jen externí assistant flow + approval/security kontrakt"
+  debug_session: ".planning/debug/31-ollama-in-ai-terminal.md"

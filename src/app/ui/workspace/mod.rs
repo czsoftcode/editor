@@ -442,8 +442,7 @@ pub(crate) fn render_workspace(
         }
 
         // Focused: Podmíněný repaint — pouze pokud běží aktivní operace na pozadí.
-        let has_active_work = ws.ai.chat.loading
-            || ws.build_error_rx.is_some()
+        let has_active_work = ws.build_error_rx.is_some()
             || ws.git_status_rx.is_some()
             || ws.git_branch_rx.is_some()
             || ws
@@ -472,12 +471,6 @@ pub(crate) fn render_workspace(
         ws.show_right_panel = true;
         ws.focused_panel = FocusedPanel::Claude;
     }
-    if ctx.input(|i| i.modifiers.ctrl && i.modifiers.alt && i.key_pressed(egui::Key::G)) {
-        ws.show_ai_chat = true;
-        ws.ai.chat.focus_requested = true;
-        ws.focused_panel = FocusedPanel::AiChat;
-    }
-
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
         handle_manual_save_action(ws, shared, i18n);
     }
@@ -508,8 +501,7 @@ pub(crate) fn render_workspace(
         || ws.show_settings
         || ws.show_new_project
         || ws.show_about
-        || ws.show_semantic_indexing_modal
-        || ws.show_ai_chat;
+        || ws.show_semantic_indexing_modal;
     let editor_locked = editor_input_locked(dialog_open_base, ws.pending_close_flow.is_some());
 
     let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
@@ -526,13 +518,7 @@ pub(crate) fn render_workspace(
     if let Some(cmd_id) = render_command_palette(ctx, ws, shared, i18n) {
         let mut actions = MenuActions::default();
         if let Some(plugin_res) = execute_command(cmd_id, &mut actions, shared) {
-            if plugin_res == "OPEN_AI_CHAT_MODAL" {
-                ws.show_ai_chat = true;
-                ws.ai.chat.focus_requested = true;
-                ws.ai.chat.response = None;
-            } else {
-                ws.toasts.push(crate::app::types::Toast::info(plugin_res));
-            }
+            ws.toasts.push(crate::app::types::Toast::info(plugin_res));
         }
         if let Some(path) = process_menu_actions(ctx, ws, shared, actions, i18n) {
             open_here_path = Some(path);
@@ -555,7 +541,7 @@ pub(crate) fn render_workspace(
                     let config = crate::app::ui::terminal::right::PanelDisplayConfig {
                         dialog_open: false,
                         focused: ws.focused_panel,
-                        font_size: config::EDITOR_FONT_SIZE * ws.ai.settings.font_scale as f32
+                        font_size: config::EDITOR_FONT_SIZE * ws.ai_panel.font_scale as f32
                             / 100.0,
                         is_float: false,
                         is_viewport: true,
@@ -637,7 +623,6 @@ pub(crate) fn render_workspace(
             });
         });
     // --- 4. PANELS (Side & Bottom) ---
-    let ai_chat_clicked = crate::app::ui::terminal::ai_chat::show(ctx, ws, shared, i18n);
     let bottom_clicked =
         crate::app::ui::terminal::bottom::render_bottom_panel(ctx, ws, dialog_open_base, i18n);
     let ai_clicked = render_ai_panel(ctx, ws, shared, dialog_open_base, i18n);
@@ -713,18 +698,15 @@ pub(crate) fn render_workspace(
     // Reset focus to editor only when the user explicitly clicks outside all panels.
     // Do NOT reset just because the mouse drifted away from the terminal area —
     // that would make keyboard input impossible after clicking the terminal.
-    let any_panel_interacted = ai_chat_clicked
-        || ai_clicked
+    let any_panel_interacted = ai_clicked
         || left_clicked
         || ai_viewport_clicked
-        || ws.show_ai_chat
         || bottom_clicked
         || dialogs_interacted;
     let guard_active = ws.pending_close_flow.is_some();
     if !any_panel_interacted && !guard_active {
         let in_terminal = ws.focused_panel == FocusedPanel::Claude
-            || ws.focused_panel == FocusedPanel::Build
-            || ws.focused_panel == FocusedPanel::AiChat;
+            || ws.focused_panel == FocusedPanel::Build;
         let explicit_click_elsewhere = ctx.input(|i| i.pointer.any_click());
         if in_terminal && explicit_click_elsewhere {
             ws.focused_panel = FocusedPanel::Editor;

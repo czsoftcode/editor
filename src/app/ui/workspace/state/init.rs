@@ -6,9 +6,7 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use super::{ProjectSearch, WorkspaceState};
-use crate::app::ai_core::state::{
-    AiSettings, AiState, ChatState, OllamaConnectionStatus, OllamaState,
-};
+use crate::app::ai_prefs::AiPanelState;
 use crate::app::project_config::load_profiles;
 use crate::app::types::{FocusedPanel, PersistentState};
 use crate::app::ui::background::{fetch_git_branch, fetch_git_status};
@@ -61,88 +59,7 @@ pub fn init_workspace(
         );
     }
 
-    let i18n = crate::i18n::I18n::new(&settings.lang);
     let profiles = load_profiles(&root_path);
-
-    let selected_provider = panel_state
-        .ai_selected_provider
-        .clone()
-        .unwrap_or_else(|| "ollama".to_string());
-
-    let expertise = panel_state.ai_expertise.unwrap_or(settings.ai_expertise);
-    let reasoning_depth = panel_state
-        .ai_reasoning_depth
-        .unwrap_or(settings.ai_reasoning_depth);
-
-    let model_name = if !settings.ai_default_model.is_empty() {
-        settings.ai_default_model.clone()
-    } else {
-        "llama3.1".to_string()
-    };
-
-    let chat = ChatState {
-        conversation: vec![(
-            String::new(),
-            crate::app::ai_core::AiManager::get_logo(
-                crate::config::CLI_VERSION,
-                &model_name,
-                expertise,
-                reasoning_depth,
-            ),
-        )],
-        system_prompt: panel_state
-            .ai_system_prompt
-            .clone()
-            .unwrap_or_else(|| i18n.get("cli-chat-default-prompt")),
-        focus_requested: true,
-        ..ChatState::default()
-    };
-
-    let ai_settings = AiSettings {
-        expertise,
-        reasoning_depth,
-        font_scale: panel_state.ai_font_scale,
-        language: panel_state
-            .ai_language
-            .clone()
-            .unwrap_or_else(|| i18n.lang().to_string()),
-        selected_provider: selected_provider.clone(),
-        show_settings: false,
-        temperature: 0.7,
-        num_ctx: 4096,
-        top_p: settings.ollama_top_p,
-        top_k: settings.ollama_top_k,
-        repeat_penalty: settings.ollama_repeat_penalty,
-        seed: settings.ollama_seed,
-    };
-
-    let ollama = OllamaState {
-        status: OllamaConnectionStatus::Checking,
-        selected_model: panel_state
-            .ollama_selected_model
-            .clone()
-            .unwrap_or_default(),
-        last_check: std::time::Instant::now()
-            - std::time::Duration::from_secs(crate::config::OLLAMA_CHECK_INTERVAL_SECS),
-        base_url: if !settings.ollama_base_url.is_empty() {
-            settings.ollama_base_url.clone()
-        } else {
-            crate::config::OLLAMA_DEFAULT_URL.to_string()
-        },
-        api_key: if !settings.ollama_api_key.is_empty() {
-            Some(settings.ollama_api_key.clone())
-        } else {
-            None
-        },
-        ..OllamaState::default()
-    };
-
-    let ai = AiState {
-        chat,
-        ollama,
-        settings: ai_settings,
-        ..AiState::default()
-    };
 
     WorkspaceState {
         file_tree,
@@ -165,7 +82,6 @@ pub fn init_workspace(
         show_about: false,
         show_support: false,
         show_settings: false,
-        show_ai_chat: false,
         show_semantic_indexing_modal: true,
         selected_settings_category: None,
         profiles,
@@ -208,7 +124,9 @@ pub fn init_workspace(
         terminal_close_requested: None,
         ai_viewport_open: false,
         settings_conflict: None,
-        ai,
+        ai_panel: AiPanelState {
+            font_scale: panel_state.ai_font_scale,
+        },
         git_cancel,
         local_history: crate::app::local_history::LocalHistory::new(&root_path),
         background_io_rx: None,
@@ -217,18 +135,6 @@ pub fn init_workspace(
         last_keystroke_time: None,
         pending_close_flow: None,
         last_unsaved_close_cancelled: false,
-        tool_executor: None,
-        pending_tool_approval: None,
-        pending_tool_ask: None,
-        tool_always_approved: std::collections::HashSet::new(),
-        tool_approval_rx: None,
-        tool_ask_rx: None,
-        slash_build_rx: None,
-        slash_git_rx: None,
-        slash_conversation_gen: 0,
-        slash_build_gen: 0,
-        slash_git_gen: 0,
-        slash_autocomplete: Default::default(),
     }
 }
 

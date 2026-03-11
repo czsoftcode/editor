@@ -1,4 +1,4 @@
-use crate::app::ai_core::{AiExpertiseRole, AiReasoningDepth};
+use crate::app::ai_prefs::{AiExpertiseRole, AiReasoningDepth};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use syntect::highlighting::ThemeSet;

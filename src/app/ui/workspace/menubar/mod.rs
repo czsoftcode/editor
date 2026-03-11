@@ -111,19 +111,15 @@ pub(super) fn process_menu_actions(
         ws.show_settings = true;
     }
     if let Some(agent_id) = actions.run_agent {
-        if agent_id == "ai_chat" {
-            ws.show_ai_chat = true;
-        } else {
-            let agents = {
-                let sh = shared.lock().expect("lock");
-                sh.registry.agents.get_all().to_vec()
-            };
-            if let Some(agent) = agents.iter().find(|a| a.id == agent_id) {
-                let cmd = agent.command.clone();
-                let active = ws.claude_active_tab;
-                if let Some(terminal) = ws.claude_tabs.get_mut(active) {
-                    terminal.send_command(&cmd);
-                }
+        let agents = {
+            let sh = shared.lock().expect("lock");
+            sh.registry.agents.get_all().to_vec()
+        };
+        if let Some(agent) = agents.iter().find(|a| a.id == agent_id) {
+            let cmd = agent.command.clone();
+            let active = ws.claude_active_tab;
+            if let Some(terminal) = ws.claude_tabs.get_mut(active) {
+                terminal.send_command(&cmd);
             }
         }
     }

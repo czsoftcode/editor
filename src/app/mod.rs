@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
-pub mod ai_core;
+pub mod ai_prefs;
 mod build_runner;
 mod fonts;
 pub(crate) mod local_history;
@@ -933,7 +933,6 @@ mod tests {
             show_about: false,
             show_support: false,
             show_settings: false,
-            show_ai_chat: false,
             show_semantic_indexing_modal: false,
             selected_settings_category: None,
             profiles: ProjectProfiles::default(),
@@ -978,7 +977,7 @@ mod tests {
             terminal_close_requested: None,
             ai_viewport_open: false,
             settings_conflict: None,
-            ai: crate::app::ai_core::AiState::default(),
+            ai_panel: crate::app::ai_prefs::AiPanelState::default(),
             git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
                 "/tmp/test",
@@ -989,18 +988,6 @@ mod tests {
             last_keystroke_time: None,
             pending_close_flow: None,
             last_unsaved_close_cancelled: false,
-            tool_executor: None,
-            pending_tool_approval: None,
-            pending_tool_ask: None,
-            tool_always_approved: std::collections::HashSet::new(),
-            tool_approval_rx: None,
-            tool_ask_rx: None,
-            slash_build_rx: None,
-            slash_git_rx: None,
-            slash_conversation_gen: 0,
-            slash_build_gen: 0,
-            slash_git_gen: 0,
-            slash_autocomplete: Default::default(),
         };
 
         let dirty_path = ws.root_path.join("dirty.txt");
@@ -1069,7 +1056,6 @@ mod tests {
             show_about: false,
             show_support: false,
             show_settings: false,
-            show_ai_chat: false,
             show_semantic_indexing_modal: false,
             selected_settings_category: None,
             profiles: ProjectProfiles::default(),
@@ -1114,7 +1100,7 @@ mod tests {
             terminal_close_requested: None,
             ai_viewport_open: false,
             settings_conflict: None,
-            ai: crate::app::ai_core::AiState::default(),
+            ai_panel: crate::app::ai_prefs::AiPanelState::default(),
             git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
                 "/tmp/test",
@@ -1125,18 +1111,6 @@ mod tests {
             last_keystroke_time: None,
             pending_close_flow: None,
             last_unsaved_close_cancelled: false,
-            tool_executor: None,
-            pending_tool_approval: None,
-            pending_tool_ask: None,
-            tool_always_approved: std::collections::HashSet::new(),
-            tool_approval_rx: None,
-            tool_ask_rx: None,
-            slash_build_rx: None,
-            slash_git_rx: None,
-            slash_conversation_gen: 0,
-            slash_build_gen: 0,
-            slash_git_gen: 0,
-            slash_autocomplete: Default::default(),
         };
 
         let mut app = EditorApp::test_new_with_workspace(ws, &ctx);

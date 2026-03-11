@@ -65,16 +65,12 @@ pub fn ws_to_panel_state(ws: &WorkspaceState) -> PersistentState {
         show_right_panel: ws.show_right_panel,
         show_build_terminal: ws.show_build_terminal,
         claude_float: ws.claude_float,
-        ai_font_scale: ws.ai.settings.font_scale,
-        ai_selected_provider: Some(ws.ai.settings.selected_provider.clone()),
-        ai_system_prompt: Some(ws.ai.chat.system_prompt.clone()),
-        ai_language: Some(ws.ai.settings.language.clone()),
-        ai_expertise: Some(ws.ai.settings.expertise),
-        ai_reasoning_depth: Some(ws.ai.settings.reasoning_depth),
-        ollama_selected_model: if ws.ai.ollama.selected_model.is_empty() {
-            None
-        } else {
-            Some(ws.ai.ollama.selected_model.clone())
-        },
+        ai_font_scale: ws.ai_panel.font_scale,
+        ai_selected_provider: None,
+        ai_system_prompt: None,
+        ai_language: None,
+        ai_expertise: None,
+        ai_reasoning_depth: None,
+        ollama_selected_model: None,
     }
 }

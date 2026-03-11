@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex, mpsc};
 
-use crate::app::ai_core::AiState;
+use crate::app::ai_prefs::AiPanelState;
 use crate::app::build_runner::BuildError;
 use crate::app::lsp::LspClient;
 use crate::app::types::{FocusedPanel, ProjectProfiles, Toast};
@@ -16,7 +16,6 @@ use crate::app::ui::editor::Editor;
 use crate::app::ui::file_tree::FileTree;
 use crate::app::ui::git_status::GitVisualStatus;
 use crate::app::ui::terminal::Terminal;
-use crate::app::ui::widgets::ai::chat::input::SlashAutocomplete;
 use crate::app::ui::widgets::command_palette::CommandPaletteState;
 use crate::watcher::{FileWatcher, ProjectWatcher};
 
@@ -25,33 +24,6 @@ pub use self::init::init_workspace;
 pub use self::types::{
     FilePicker, FolderPickResult, FsChangeResult, ProjectSearch, SearchResult, SecondaryWorkspace,
 };
-
-use std::collections::HashSet;
-
-/// Pending native tool approval request (shown in chat UI).
-pub struct PendingToolApproval {
-    pub tool_call_id: String,
-    pub tool_name: String,
-    pub description: String,
-    /// Diff preview or command text.
-    pub details: String,
-    pub is_network: bool,
-    pub is_new_file: bool,
-    /// Original args for execute_approved.
-    pub args: serde_json::Value,
-    /// Send approval decision: true = approve, false = deny.
-    pub response_tx: mpsc::Sender<bool>,
-}
-
-/// Pending ask_user request from the AI tool executor.
-pub struct PendingToolAsk {
-    pub question: String,
-    pub options: Vec<String>,
-    /// Send user's text response.
-    pub response_tx: mpsc::Sender<String>,
-    /// Input buffer for free-text field.
-    pub input_buffer: String,
-}
 
 #[derive(Clone)]
 pub struct SettingsConflict {
@@ -110,7 +82,6 @@ pub struct WorkspaceState {
     pub show_about: bool,
     pub show_support: bool,
     pub show_settings: bool,
-    pub show_ai_chat: bool,
     pub show_semantic_indexing_modal: bool,
     pub selected_settings_category: Option<String>,
     pub profiles: ProjectProfiles,
@@ -149,7 +120,7 @@ pub struct WorkspaceState {
     pub terminal_close_requested: Option<usize>,
     pub ai_viewport_open: bool,
     pub settings_conflict: Option<SettingsConflict>,
-    pub ai: AiState,
+    pub ai_panel: AiPanelState,
     pub git_cancel: Arc<AtomicBool>,
     pub local_history: crate::app::local_history::LocalHistory,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
@@ -158,36 +129,6 @@ pub struct WorkspaceState {
     pub confirm_discard_changes: Option<String>,
     /// Last time the user pressed a key. Used for repaint capping during active typing.
     pub last_keystroke_time: Option<std::time::Instant>,
-
-    // --- Native tool execution state (Phase 16) ---
-    /// Native tool executor for AI tool calls (lazily initialized on first AI chat).
-    pub tool_executor: Option<crate::app::ai_core::executor::ToolExecutor>,
-    /// Pending native tool approval request.
-    pub pending_tool_approval: Option<PendingToolApproval>,
-    /// Pending native ask_user request from tool executor.
-    pub pending_tool_ask: Option<PendingToolAsk>,
-    /// Tool names that user chose "Always approve" for (runtime only).
-    pub tool_always_approved: HashSet<String>,
-    /// Receiver for native tool approval responses from the UI.
-    pub tool_approval_rx: Option<mpsc::Receiver<bool>>,
-    /// Receiver for native ask_user responses from the UI.
-    pub tool_ask_rx: Option<mpsc::Receiver<String>>,
-
-    // --- Slash command async state (Phase 19) ---
-    /// Receiver for slash /build async result.
-    pub slash_build_rx: Option<mpsc::Receiver<Vec<crate::app::build_runner::BuildError>>>,
-    /// Receiver for slash /git async result.
-    pub slash_git_rx: Option<mpsc::Receiver<String>>,
-    /// Generation counter for conversation — incremented on /clear and /new to detect stale async results.
-    pub slash_conversation_gen: u64,
-    /// Generation at which the slash build was started (to detect if conversation was cleared).
-    pub slash_build_gen: u64,
-    /// Generation at which the slash git command was started (to detect stale async updates).
-    pub slash_git_gen: u64,
-
-    // --- Slash autocomplete state (Phase 19) ---
-    /// Autocomplete popup state for slash commands.
-    pub slash_autocomplete: SlashAutocomplete,
     /// Pending unsaved close guard flow, if any.
     pub pending_close_flow: Option<PendingCloseFlow>,
     /// Whether the last workspace-level unsaved close guard run (WorkspaceClose mode)
@@ -229,25 +170,6 @@ impl WorkspaceState {
         }
     }
 
-    pub fn ai_provider_is_connected(&self) -> bool {
-        self.ai.provider_is_connected()
-    }
-
-    pub fn ai_provider_connection_parts(&self) -> (String, String, Option<String>) {
-        self.ai.provider_connection_parts()
-    }
-
-    pub fn active_ai_model(&self) -> &str {
-        self.ai.provider_model()
-    }
-
-    pub fn available_ai_models(&self) -> &[String] {
-        self.ai.provider_models()
-    }
-
-    pub fn set_active_ai_model(&mut self, model: String) {
-        self.ai.set_provider_model(model);
-    }
 }
 
 /// Builds a stable queue of dirty tab paths for the unsaved close guard.

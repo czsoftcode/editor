@@ -82,7 +82,6 @@ pub(super) fn render_dialogs(
         // If confirmed, close common modals
         ws.show_settings = false;
         ws.show_new_project = false;
-        ws.show_ai_chat = false;
     }
 
     any_interacted

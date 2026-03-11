@@ -124,14 +124,16 @@ fn render_plugin_bar(
             .on_hover_text(i18n.get("cli-bar-start-hover"))
             .clicked()
         {
-            ws.show_ai_chat = true;
-            ws.ai.chat.focus_requested = true;
-            crate::app::ui::terminal::ai_chat::handle_action(
-                crate::app::ui::terminal::ai_chat::AiChatAction::NewQuery,
-                ws,
-                shared,
-                i18n,
-            );
+            let agents = {
+                let sh = shared.lock().expect("lock");
+                sh.registry.agents.get_all().to_vec()
+            };
+            if let Some(agent) = agents.iter().find(|a| a.id == ws.selected_agent_id) {
+                let cmd = agent.command.clone();
+                if let Some(terminal) = ws.claude_tabs.get_mut(ws.claude_active_tab) {
+                    terminal.send_command(&cmd);
+                }
+            }
         }
 
         if ui

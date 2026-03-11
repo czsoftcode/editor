@@ -51,14 +51,13 @@ pub(crate) struct ProjectProfiles {
 // Helper types
 // ---------------------------------------------------------------------------
 
-use crate::app::ai_core::{AiExpertiseRole, AiReasoningDepth};
+use crate::app::ai_prefs::{AiExpertiseRole, AiReasoningDepth};
 
 #[derive(PartialEq, Clone, Copy)]
 pub(crate) enum FocusedPanel {
     Build,
     Claude,
     Editor,
-    AiChat,
     Files,
 }
 

@@ -31,7 +31,7 @@ pub fn render_ai_panel(
     let config = PanelDisplayConfig {
         dialog_open,
         focused: ws.focused_panel,
-        font_size: config::EDITOR_FONT_SIZE * ws.ai.settings.font_scale as f32 / 100.0,
+        font_size: config::EDITOR_FONT_SIZE * ws.ai_panel.font_scale as f32 / 100.0,
         is_float: ws.claude_float,
         is_viewport: false,
     };

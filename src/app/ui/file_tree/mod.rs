@@ -6,6 +6,7 @@ pub mod render;
 use crate::app::ui::git_status::GitVisualStatus;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 
 pub use self::node::FileNode;
 
@@ -14,6 +15,11 @@ pub struct FileTreeResult {
     pub selected: Option<PathBuf>,
     pub created_file: Option<PathBuf>,
     pub deleted: Option<PathBuf>,
+}
+
+pub(crate) enum DeleteJobResult {
+    Deleted(PathBuf),
+    Error(String),
 }
 
 pub struct FileTree {
@@ -31,6 +37,7 @@ pub struct FileTree {
     pub(crate) pending_deleted: Option<PathBuf>,
     pub(crate) expand_to: Option<PathBuf>,
     pub(crate) pending_error: Option<String>,
+    pub(crate) delete_rx: Option<mpsc::Receiver<DeleteJobResult>>,
     /// File statuses from git porcelain (absolute path -> semantic status)
     pub(crate) git_statuses: HashMap<PathBuf, GitVisualStatus>,
 }
@@ -58,6 +65,7 @@ impl FileTree {
             pending_deleted: None,
             expand_to: None,
             pending_error: None,
+            delete_rx: None,
             git_statuses: HashMap::new(),
         }
     }
@@ -91,6 +99,21 @@ impl FileTree {
 
     pub fn ui(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) -> FileTreeResult {
         let mut result = FileTreeResult::default();
+
+        if let Some(rx) = &self.delete_rx
+            && let Ok(job) = rx.try_recv()
+        {
+            match job {
+                DeleteJobResult::Deleted(path) => {
+                    self.pending_deleted = Some(path);
+                    self.needs_reload = true;
+                }
+                DeleteJobResult::Error(err) => {
+                    self.pending_error = Some(err);
+                }
+            }
+            self.delete_rx = None;
+        }
 
         if self.needs_reload {
             self.needs_reload = false;

@@ -12,6 +12,7 @@ mod project_config;
 pub(crate) mod project_templates;
 pub(crate) mod registry;
 mod startup;
+pub(crate) mod trash;
 mod types;
 pub(crate) mod ui;
 pub(crate) mod validation;

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 const POLYCREDO_DIR: &str = ".polycredo";
 const PROFILES_FILE: &str = "profiles.toml";
+const TRASH_DIR: &str = "trash";
 
 pub(crate) fn project_config_dir(project_root: &Path) -> PathBuf {
     project_root.join(POLYCREDO_DIR)
@@ -10,6 +11,10 @@ pub(crate) fn project_config_dir(project_root: &Path) -> PathBuf {
 
 pub(crate) fn profiles_path(project_root: &Path) -> PathBuf {
     project_config_dir(project_root).join(PROFILES_FILE)
+}
+
+pub(crate) fn trash_dir_path(project_root: &Path) -> PathBuf {
+    project_config_dir(project_root).join(TRASH_DIR)
 }
 
 pub(crate) fn load_profiles(project_root: &Path) -> ProjectProfiles {

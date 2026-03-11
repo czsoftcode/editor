@@ -1,4 +1,6 @@
-use crate::app::ui::file_tree::FileTree;
+use crate::app::trash::move_path_to_trash;
+use crate::app::ui::background::spawn_task;
+use crate::app::ui::file_tree::{DeleteJobResult, FileTree};
 use crate::app::ui::widgets::modal::{ModalResult, show_modal};
 use crate::app::validation::is_safe_filename;
 
@@ -178,23 +180,12 @@ impl FileTree {
         match result {
             ModalResult::Confirmed(()) => {
                 if let Some(path) = self.delete_confirm.take() {
-                    let del_result = if path.is_dir() {
-                        std::fs::remove_dir_all(&path)
-                    } else {
-                        std::fs::remove_file(&path)
-                    };
-                    match del_result {
-                        Ok(()) => {
-                            self.pending_deleted = Some(path);
-                            self.needs_reload = true;
-                        }
-                        Err(e) => {
-                            let mut err_args = fluent_bundle::FluentArgs::new();
-                            err_args.set("reason", e.to_string());
-                            self.pending_error =
-                                Some(i18n.get_args("file-tree-delete-error", &err_args));
-                        }
-                    }
+                    let root = self.root_path.clone();
+                    self.delete_rx =
+                        Some(spawn_task(move || match move_path_to_trash(&root, &path) {
+                            Ok(outcome) => DeleteJobResult::Deleted(outcome.moved_from),
+                            Err(err) => DeleteJobResult::Error(err.to_string()),
+                        }));
                 }
             }
             ModalResult::Cancelled => {

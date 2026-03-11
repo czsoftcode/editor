@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-11T09:53:37Z"
-last_activity: "2026-03-11 - Completed 30-01-PLAN.md"
+last_updated: "2026-03-11T10:05:49Z"
+last_activity: 2026-03-11 - Completed 30-04-PLAN.md
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 25
+  completed_plans: 2
+  percent: 50
 ---
 
 ## gsd_state_version: 1.0
@@ -39,10 +39,10 @@ See: .planning/PROJECT.md
 
 Phase: 30-cli-namespace-removal-foundation
 Plan: 30-02 next
-Status: 30-01 completed
-Last activity: 2026-03-11 - Completed 30-01-PLAN.md
+Status: 30-01 and 30-04 completed
+Last activity: 2026-03-11 - Completed 30-04-PLAN.md
 
-Progress: [██--------] 25%
+Progress: [█████-----] 50%
 
 ---
 
@@ -54,6 +54,8 @@ Progress: [██--------] 25%
 - [v1.3.0]: Cleanup bude rozdelen do fazi 30-32 kvuli kontrolovane migraci.
 - [Phase 30]: Public root export switched from app::cli to app::ai_core with internal cli visibility retained for staged migration.
 - [Phase 30]: Foundation migration scope locked to settings/types/workspace-state; runtime AI terminal migration deferred to next plans.
+- [Phase 30-cli-namespace-removal-foundation]: AI terminal head/right bar byl uzamcen do assistant-only UX bez provider model/status prvku.
+- [Phase 30-cli-namespace-removal-foundation]: CLI-02 audit scope byl docisten i o ai_chat/slash.rs, protoze je soucasti overovaneho subsetu.
 
 ### Known Tech Debt
 

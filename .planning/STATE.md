@@ -82,7 +82,7 @@ Progress: [██████████] 100%
 
 ### Roadmap Evolution
 
-- Phase 33 added: odstranit veskerou zminku a funkce ai_chat ze systemu
+- Phase 33 added: odstranit veskerou zminku a funkce polycredo cli ze systemu
 
 ### Known Tech Debt
 

@@ -65,7 +65,7 @@
 
 Coverage: 11/11 requirements mapped.
 
-### Phase 33: odstranit veskerou zminku a funkce ai_chat ze systemu
+### Phase 33: odstranit veskerou zminku a funkce polycredo cli ze systemu
 
 **Goal:** [To be planned]
 **Requirements**: TBD

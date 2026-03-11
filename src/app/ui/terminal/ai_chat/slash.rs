@@ -67,6 +67,11 @@ pub fn matching_commands(filter: &str) -> Vec<(&'static str, &'static str)> {
         .collect()
 }
 
+/// Returns true when async slash result belongs to current conversation generation.
+pub fn should_apply_async_result(current_generation: u64, started_generation: u64) -> bool {
+    current_generation == started_generation
+}
+
 /// Main entry point for slash command dispatch.
 /// Called from `logic.rs` when prompt starts with `/`.
 pub fn dispatch(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
@@ -272,6 +277,7 @@ fn cmd_git(ws: &mut WorkspaceState) -> SlashResult {
         let _ = tx.send(result);
     });
     ws.slash_git_rx = Some(rx);
+    ws.slash_git_gen = ws.slash_conversation_gen;
     SlashResult::Async {
         placeholder: "Loading git status...".to_string(),
     }

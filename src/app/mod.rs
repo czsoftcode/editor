@@ -999,6 +999,7 @@ mod tests {
             slash_git_rx: None,
             slash_conversation_gen: 0,
             slash_build_gen: 0,
+            slash_git_gen: 0,
             slash_autocomplete: Default::default(),
         };
 
@@ -1134,6 +1135,7 @@ mod tests {
             slash_git_rx: None,
             slash_conversation_gen: 0,
             slash_build_gen: 0,
+            slash_git_gen: 0,
             slash_autocomplete: Default::default(),
         };
 

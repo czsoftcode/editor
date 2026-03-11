@@ -576,7 +576,10 @@ pub(super) fn process_background_events(
         && let Ok(errors) = rx.try_recv()
     {
         // Only update if conversation wasn't cleared since build started
-        if ws.slash_conversation_gen == ws.slash_build_gen {
+        if crate::app::ui::terminal::ai_chat::slash::should_apply_async_result(
+            ws.slash_conversation_gen,
+            ws.slash_build_gen,
+        ) {
             let summary = format_slash_build_summary(&errors);
             // Update the last conversation entry that has the "Building..." placeholder
             for entry in ws.ai.chat.conversation.iter_mut().rev() {
@@ -599,15 +602,20 @@ pub(super) fn process_background_events(
     if let Some(rx) = &ws.slash_git_rx
         && let Ok(result) = rx.try_recv()
     {
-        // Update the last conversation entry that has the "Loading git status..." placeholder
-        for entry in ws.ai.chat.conversation.iter_mut().rev() {
-            if entry.1.contains("Loading git status...") {
-                entry.1 = format!(
-                    "{}{}",
-                    crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER,
-                    result
-                );
-                break;
+        if crate::app::ui::terminal::ai_chat::slash::should_apply_async_result(
+            ws.slash_conversation_gen,
+            ws.slash_git_gen,
+        ) {
+            // Update the last conversation entry that has the "Loading git status..." placeholder
+            for entry in ws.ai.chat.conversation.iter_mut().rev() {
+                if entry.1.contains("Loading git status...") {
+                    entry.1 = format!(
+                        "{}{}",
+                        crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER,
+                        result
+                    );
+                    break;
+                }
             }
         }
         ws.slash_git_rx = None;

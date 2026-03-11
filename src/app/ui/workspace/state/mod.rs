@@ -182,6 +182,8 @@ pub struct WorkspaceState {
     pub slash_conversation_gen: u64,
     /// Generation at which the slash build was started (to detect if conversation was cleared).
     pub slash_build_gen: u64,
+    /// Generation at which the slash git command was started (to detect stale async updates).
+    pub slash_git_gen: u64,
 
     // --- Slash autocomplete state (Phase 19) ---
     /// Autocomplete popup state for slash commands.

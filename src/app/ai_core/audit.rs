@@ -213,4 +213,21 @@ mod tests {
             content
         );
     }
+
+    #[test]
+    fn audit_logger_sanitizes_multiline_details() {
+        let tmp = tempfile::tempdir().unwrap();
+        let logger = AuditLogger::new(tmp.path().to_path_buf());
+
+        logger.log_tool_call("exec", "approved_error", "line1\nline2\r\nline3");
+
+        let content = fs::read_to_string(tmp.path().join(".polycredo/ai-audit.log")).unwrap();
+        let lines: Vec<&str> = content.lines().collect();
+        assert_eq!(lines.len(), 1, "Audit entry must stay on a single line");
+        assert!(
+            lines[0].contains("line1\\nline2\\nline3"),
+            "Multiline details should be escaped in audit log: {}",
+            lines[0]
+        );
+    }
 }

@@ -114,6 +114,7 @@ Key decisions logged in PROJECT.md Key Decisions table.
 | #  | Description | Date | Commit | Directory |
 |----|-------------|------|--------|-----------|
 | ... | (pokračování z historie) | | | |
+| 9 | GitHub Actions Windows build: localtime + warningy | 2026-03-11 | f3ba79e | .planning/quick/9-github-action-windows-build-fix-localtim |
 
 ---
 

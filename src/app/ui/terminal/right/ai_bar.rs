@@ -3,6 +3,13 @@ use crate::app::ui::workspace::state::WorkspaceState;
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 
+fn send_selected_agent_command(ws: &mut WorkspaceState, command: &str) {
+    let active = ws.claude_active_tab;
+    if let Some(terminal) = ws.claude_tabs.get_mut(active) {
+        terminal.send_command(command);
+    }
+}
+
 pub fn render_ai_bar(
     ui: &mut egui::Ui,
     ws: &mut WorkspaceState,
@@ -47,10 +54,7 @@ pub fn render_ai_bar(
             && let Some(agent) = selected_agent
         {
             let cmd = agent.command.clone();
-            let active = ws.claude_active_tab;
-            if let Some(terminal) = ws.claude_tabs.get_mut(active) {
-                terminal.send_command(&cmd);
-            }
+            send_selected_agent_command(ws, &cmd);
         }
     });
 }

@@ -5,7 +5,6 @@ use std::sync::{Arc, Mutex};
 
 pub mod ai_core;
 mod build_runner;
-pub(crate) mod cli;
 mod fonts;
 pub mod local_history;
 pub mod lsp;

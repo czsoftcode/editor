@@ -46,16 +46,7 @@ impl Editor {
         i18n: &crate::i18n::I18n,
         is_internal_save: &std::sync::Arc<std::sync::atomic::AtomicBool>,
     ) -> Option<String> {
-        let should_save = self.active().is_some_and(|t| {
-            !t.deleted
-                && t.modified
-                && t.last_edit
-                    .is_some_and(|e| e.elapsed().as_millis() >= AUTOSAVE_DELAY_MS)
-                // Prevent infinite retry loops on save error:
-                // Only try to autosave if there was a NEW edit since the last attempt.
-                && (t.last_autosave_attempt.is_none()
-                    || t.last_edit.unwrap() > t.last_autosave_attempt.unwrap())
-        });
+        let should_save = self.should_autosave();
         if should_save {
             // Mark attempt time *before* saving (or right now)
             if let Some(tab) = self.active_mut() {
@@ -66,6 +57,20 @@ impl Editor {
         } else {
             None
         }
+    }
+
+    /// Vrací true, pokud má aktivní tab projít autosave právě teď.
+    pub fn should_autosave(&self) -> bool {
+        self.active().is_some_and(|t| {
+            !t.deleted
+                && t.modified
+                && t.last_edit
+                    .is_some_and(|e| e.elapsed().as_millis() >= AUTOSAVE_DELAY_MS)
+                // Prevent infinite retry loops on save error:
+                // Only try to autosave if there was a NEW edit since the last attempt.
+                && (t.last_autosave_attempt.is_none()
+                    || t.last_edit.unwrap() > t.last_autosave_attempt.unwrap())
+        })
     }
 
     /// Saves the active tab. Returns an error message if writing fails, otherwise None.

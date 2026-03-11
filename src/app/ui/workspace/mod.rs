@@ -115,6 +115,8 @@ pub(super) fn handle_manual_save_action(
                 && should_emit_save_error_toast(&err)
             {
                 ws.toasts.push(Toast::error(err));
+            } else {
+                ws.refresh_profiles_if_active_path();
             }
         }
         ManualSaveRequest::ShowAlreadySavedInfo => {
@@ -261,102 +263,111 @@ fn process_unsaved_close_guard_dialog(
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
 ) {
-    let Some(flow) = ws.pending_close_flow.as_mut() else {
-        return;
-    };
+    let mut should_refresh_profiles = false;
 
-    if flow.queue.is_empty() || flow.current_index >= flow.queue.len() {
-        // An empty or exhausted queue means the guard flow is effectively done.
-        // Treat this as a cancelled flow from the workspace perspective.
-        ws.last_unsaved_close_cancelled = true;
-        ws.pending_close_flow = None;
-        return;
-    }
+    {
+        let Some(flow) = ws.pending_close_flow.as_mut() else {
+            return;
+        };
 
-    let current_path = flow.queue[flow.current_index].clone();
-
-    // Ensure the editor is focused on the current item in the queue.
-    if ws.editor.tabs.iter().all(|t| t.path != current_path) {
-        // Tab no longer exists; treat as discarded and advance the queue.
-        let outcome = apply_unsaved_close_decision(flow, UnsavedGuardDecision::Discard, Ok(()));
-        match outcome {
-            UnsavedCloseOutcome::Cancelled => {
-                ws.last_unsaved_close_cancelled = true;
-                ws.pending_close_flow = None;
-            }
-            UnsavedCloseOutcome::Continue => {
-                // Nothing else to do this frame; next item will be handled on the next call.
-            }
-            UnsavedCloseOutcome::Finished => {
-                ws.last_unsaved_close_cancelled = false;
-                ws.pending_close_flow = None;
-            }
+        if flow.queue.is_empty() || flow.current_index >= flow.queue.len() {
+            // An empty or exhausted queue means the guard flow is effectively done.
+            // Treat this as a cancelled flow from the workspace perspective.
+            ws.last_unsaved_close_cancelled = true;
+            ws.pending_close_flow = None;
+            return;
         }
-        return;
-    }
 
-    // Keep queue alignment without requesting editor focus while modal is active.
-    open_guard_queue_item_without_focus(&mut ws.editor, &current_path);
+        let current_path = flow.queue[flow.current_index].clone();
 
-    let file_name = current_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or_default();
-    let file_path = current_path.to_string_lossy().to_string();
+        // Ensure the editor is focused on the current item in the queue.
+        if ws.editor.tabs.iter().all(|t| t.path != current_path) {
+            // Tab no longer exists; treat as discarded and advance the queue.
+            let outcome = apply_unsaved_close_decision(flow, UnsavedGuardDecision::Discard, Ok(()));
+            match outcome {
+                UnsavedCloseOutcome::Cancelled => {
+                    ws.last_unsaved_close_cancelled = true;
+                    ws.pending_close_flow = None;
+                }
+                UnsavedCloseOutcome::Continue => {
+                    // Nothing else to do this frame; next item will be handled on the next call.
+                }
+                UnsavedCloseOutcome::Finished => {
+                    ws.last_unsaved_close_cancelled = false;
+                    ws.pending_close_flow = None;
+                }
+            }
+            return;
+        }
 
-    let decision = show_unsaved_close_guard_dialog(
-        ctx,
-        i18n,
-        file_name,
-        &file_path,
-        flow.inline_error.as_deref(),
-    );
+        // Keep queue alignment without requesting editor focus while modal is active.
+        open_guard_queue_item_without_focus(&mut ws.editor, &current_path);
 
-    if decision == UnsavedGuardDecision::Pending {
-        return;
-    }
+        let file_name = current_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        let file_path = current_path.to_string_lossy().to_string();
 
-    let mut precomputed_outcome = None;
-    // Only attempt a save when the user explicitly chose Save.
-    let save_result: Result<(), String> = if matches!(decision, UnsavedGuardDecision::Save) {
-        let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
-        if let Some(err) = ws.editor.save(i18n, &internal_save) {
-            let mut args = fluent_bundle::FluentArgs::new();
-            args.set("name", file_name);
-            args.set("reason", err.as_str());
-            let message = i18n.get_args("unsaved_close_guard_save_failed", &args);
-            precomputed_outcome = Some(process_guard_save_failure_feedback(
-                flow,
-                &mut ws.toasts,
-                &message,
-                should_emit_save_error_toast(&message),
-            ));
-            Err(message.clone())
+        let decision = show_unsaved_close_guard_dialog(
+            ctx,
+            i18n,
+            file_name,
+            &file_path,
+            flow.inline_error.as_deref(),
+        );
+
+        if decision == UnsavedGuardDecision::Pending {
+            return;
+        }
+
+        let mut precomputed_outcome = None;
+        // Only attempt a save when the user explicitly chose Save.
+        let save_result: Result<(), String> = if matches!(decision, UnsavedGuardDecision::Save) {
+            let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
+            if let Some(err) = ws.editor.save(i18n, &internal_save) {
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("name", file_name);
+                args.set("reason", err.as_str());
+                let message = i18n.get_args("unsaved_close_guard_save_failed", &args);
+                precomputed_outcome = Some(process_guard_save_failure_feedback(
+                    flow,
+                    &mut ws.toasts,
+                    &message,
+                    should_emit_save_error_toast(&message),
+                ));
+                Err(message.clone())
+            } else {
+                should_refresh_profiles = true;
+                Ok(())
+            }
         } else {
             Ok(())
+        };
+
+        let outcome = precomputed_outcome
+            .unwrap_or_else(|| apply_unsaved_close_decision(flow, decision, save_result.clone()));
+
+        // Close tabs only when the decision allows it and the save (if any) succeeded.
+        let should_close_tabs = should_close_tabs_after_guard_decision(decision, &save_result);
+
+        if should_close_tabs {
+            ws.editor.close_tabs_for_path(&current_path);
         }
-    } else {
-        Ok(())
-    };
 
-    let outcome = precomputed_outcome
-        .unwrap_or_else(|| apply_unsaved_close_decision(flow, decision, save_result.clone()));
-
-    // Close tabs only when the decision allows it and the save (if any) succeeded.
-    let should_close_tabs = should_close_tabs_after_guard_decision(decision, &save_result);
-
-    if should_close_tabs {
-        ws.editor.close_tabs_for_path(&current_path);
+        match outcome {
+            UnsavedCloseOutcome::Continue => {
+                // Keep the flow active; next item (or same on save-fail) will be handled on the next frame.
+            }
+            UnsavedCloseOutcome::Finished | UnsavedCloseOutcome::Cancelled => {
+                ws.last_unsaved_close_cancelled = matches!(outcome, UnsavedCloseOutcome::Cancelled);
+                ws.pending_close_flow = None;
+            }
+        }
     }
 
-    match outcome {
-        UnsavedCloseOutcome::Continue => {
-            // Keep the flow active; next item (or same on save-fail) will be handled on the next frame.
-        }
-        UnsavedCloseOutcome::Finished | UnsavedCloseOutcome::Cancelled => {
-            ws.last_unsaved_close_cancelled = matches!(outcome, UnsavedCloseOutcome::Cancelled);
-            ws.pending_close_flow = None;
-        }
+    if should_refresh_profiles {
+        ws.refresh_profiles_if_active_path();
     }
 }
 

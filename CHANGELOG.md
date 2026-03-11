@@ -1,3 +1,10 @@
+## [1.2.4-dev] - 2026-03-11
+
+### Fixed
+- **Windows Build**: Opraveno volani `localtime` v AI chatu (Windows pouziva `localtime_s`).
+- **Warnings**: Odstraneny warningy `unused variable` ve fontech a terminal dialogu.
+- **Build Profiles**: Zmeny v `.polycredo/profiles.toml` se po ulozeni okamzite projevi v comboboxu Spustit.
+
 ## [1.2.3-dev] - 2026-03-11
 
 ### Fixed

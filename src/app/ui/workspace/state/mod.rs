@@ -214,6 +214,18 @@ impl WorkspaceState {
         terminal.request_graceful_exit();
         self.retired_terminals.push(terminal);
     }
+
+    /// Pokud je aktivní soubor profiles.toml, načte znovu profily do build baru.
+    pub fn refresh_profiles_if_active_path(&mut self) {
+        let profiles_path = crate::app::project_config::profiles_path(&self.root_path);
+        if self
+            .editor
+            .active_path()
+            .is_some_and(|path| *path == profiles_path)
+        {
+            self.profiles = crate::app::project_config::load_profiles(&self.root_path);
+        }
+    }
 }
 
 /// Builds a stable queue of dirty tab paths for the unsaved close guard.

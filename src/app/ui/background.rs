@@ -615,11 +615,14 @@ pub(super) fn process_background_events(
 
     let save_mode = { shared.lock().expect("lock").settings.save_mode.clone() };
     if should_run_autosave(save_mode) && ws.external_change_conflict.is_none() {
+        let should_autosave = ws.editor.should_autosave();
         let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
         if let Some(err) = ws.editor.try_autosave(i18n, &internal_save)
             && should_emit_save_error_toast(&err)
         {
             ws.toasts.push(Toast::error(err));
+        } else if should_autosave {
+            ws.refresh_profiles_if_active_path();
         }
     }
 

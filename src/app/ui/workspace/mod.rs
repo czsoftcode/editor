@@ -415,7 +415,7 @@ pub(crate) fn render_workspace(
     let is_minimized = ctx.input(|i| i.viewport().minimized.unwrap_or(false));
 
     if !is_focused || is_minimized {
-        // Unfocused or minimized: VERY slow repaint (2s fallback)
+        // Unfocused or minimized: VERY slow repaint (2s interval)
         ctx.request_repaint_after(std::time::Duration::from_secs(2));
     } else {
         // --- TYPING FPS CAP ---

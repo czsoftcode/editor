@@ -152,7 +152,8 @@ pub(super) fn render_toasts(
     ws: &mut WorkspaceState,
     _i18n: &crate::i18n::I18n,
 ) {
-    ws.toasts.retain(|t: &Toast| !t.is_expired());
+    ws.toasts
+        .retain(|t| !t.is_expired());
     if ws.toasts.is_empty() {
         return;
     }

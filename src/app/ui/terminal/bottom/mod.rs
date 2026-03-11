@@ -126,7 +126,7 @@ pub fn render_bottom_content(
         ui.separator();
 
         // 2. The Terminal
-        let font_size = config::EDITOR_FONT_SIZE * ws.ai.settings.font_scale as f32 / 100.0;
+        let font_size = config::EDITOR_FONT_SIZE * ws.ai_panel.font_scale as f32 / 100.0;
         if let Some(terminal) = &mut ws.build_terminal {
             let is_focused = ws.focused_panel == FocusedPanel::Build && !dialog_open;
             let action = terminal.ui(ui, is_focused, font_size, i18n);

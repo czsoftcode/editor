@@ -172,4 +172,11 @@ mod tests {
             "stream_rx should be None by default"
         );
     }
+
+    #[test]
+    fn chat_state_default_has_retry_state() {
+        let cs = ChatState::default();
+        assert!(cs.retry_prompt.is_none());
+        assert!(!cs.retry_available);
+    }
 }

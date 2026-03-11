@@ -32,9 +32,9 @@ Poznamka: Evidence-first sign-off je veden v `.planning/phases/32-cleanup-tests-
 
 ### Launcher-only Removal (Phase 33)
 
-- [ ] **R33-A**: Jediny aktivni AI tok v aplikaci je `ai_bar -> terminal.send_command`.
-- [ ] **R33-B**: `src/app/ai_core/*` a `src/app/ui/terminal/ai_chat/*` jsou odstranene a bez aktivnich referenci.
-- [ ] **R33-C**: Legacy AI chat entrypointy jsou odstranene bez fallback UX/toastu/deprecated vetvi.
+- [x] **R33-A**: Jediny aktivni AI tok v aplikaci je `ai_bar -> terminal.send_command`.
+- [x] **R33-B**: `src/app/ai_core/*` a `src/app/ui/terminal/ai_chat/*` jsou odstranene a bez aktivnich referenci.
+- [x] **R33-C**: Legacy AI chat entrypointy jsou odstranene bez fallback UX/toastu/deprecated vetvi.
 - [ ] **R33-D**: Zminky `PolyCredo CLI|ai_core|ai_chat|app::cli` jsou vycistene v aktivnim i historickem planning scope podle planu phase 33.
 
 ## v2 Requirements
@@ -67,9 +67,9 @@ Poznamka: Evidence-first sign-off je veden v `.planning/phases/32-cleanup-tests-
 | SAFE-03 | Phase 31 | Complete |
 | STAB-01 | Phase 32 | Complete |
 | STAB-02 | Phase 32 | Complete |
-| R33-A | Phase 33 | Pending |
-| R33-B | Phase 33 | Pending |
-| R33-C | Phase 33 | Pending |
+| R33-A | Phase 33 | Complete |
+| R33-B | Phase 33 | Complete |
+| R33-C | Phase 33 | Complete |
 | R33-D | Phase 33 | Pending |
 
 **Coverage:**

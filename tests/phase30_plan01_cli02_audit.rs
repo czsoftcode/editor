@@ -1,5 +1,4 @@
-const AUDIT_PATH: &str =
-    ".planning/phases/30-cli-namespace-removal-foundation/30-01-AUDIT.md";
+const AUDIT_PATH: &str = ".planning/phases/30-cli-namespace-removal-foundation/30-01-AUDIT.md";
 
 #[test]
 fn cli02_foundation_audit_artifact_exists_and_is_passed() {

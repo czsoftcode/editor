@@ -91,8 +91,9 @@ fn show_light_variant_card(
     false
 }
 
-fn theme_fingerprint(settings: &crate::settings::Settings) -> (DarkVariant, LightVariant) {
+fn theme_fingerprint(settings: &crate::settings::Settings) -> (bool, DarkVariant, LightVariant) {
     (
+        settings.dark_theme,
         settings.dark_variant.clone(),
         settings.light_variant.clone(),
     )
@@ -380,9 +381,9 @@ pub fn show(
                             });
                             ui.add_space(16.0);
 
-                            if !draft.dark_theme {
-                                ui.strong(i18n.get("settings-light-variant"));
-                                ui.add_space(6.0);
+                            ui.strong(i18n.get("settings-light-variant"));
+                            ui.add_space(6.0);
+                            ui.add_enabled_ui(!draft.dark_theme, |ui| {
                                 ui.horizontal_wrapped(|ui| {
                                     for variant in LIGHT_VARIANT_OPTIONS.iter().cloned() {
                                         theme_controls_changed |=
@@ -390,8 +391,8 @@ pub fn show(
                                         ui.add_space(8.0);
                                     }
                                 });
-                                ui.add_space(16.0);
-                            }
+                            });
+                            ui.add_space(16.0);
 
                             let theme_after = theme_fingerprint(draft);
                             if theme_controls_changed && theme_before != theme_after {

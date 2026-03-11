@@ -51,22 +51,22 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TRASH-01 | Phase TBD | Pending |
-| TRASH-02 | Phase TBD | Pending |
-| TRASH-03 | Phase TBD | Pending |
-| TRASH-04 | Phase TBD | Pending |
-| RESTORE-01 | Phase TBD | Pending |
-| RESTORE-02 | Phase TBD | Pending |
-| RESTORE-03 | Phase TBD | Pending |
-| TRASHUI-01 | Phase TBD | Pending |
-| RELIAB-01 | Phase TBD | Pending |
-| RELIAB-02 | Phase TBD | Pending |
-| RELIAB-03 | Phase TBD | Pending |
+| TRASH-01 | Phase 36 | Pending |
+| TRASH-02 | Phase 36 | Pending |
+| TRASH-03 | Phase 35 | Pending |
+| TRASH-04 | Phase 36 | Pending |
+| RESTORE-01 | Phase 37 | Pending |
+| RESTORE-02 | Phase 37 | Pending |
+| RESTORE-03 | Phase 37 | Pending |
+| TRASHUI-01 | Phase 37 | Pending |
+| RELIAB-01 | Phase 35 | Pending |
+| RELIAB-02 | Phase 36 | Pending |
+| RELIAB-03 | Phase 38 | Pending |
 
 **Coverage:**
 - v1 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11 ⚠️
+- Mapped to phases: 11
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-11*

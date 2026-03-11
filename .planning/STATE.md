@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.3.1
 milestone_name: safe-trash-delete
 status: planning
-last_updated: "2026-03-11T21:45:00.000Z"
-last_activity: 2026-03-11 - Milestone v1.3.1 started (requirements definition)
+last_updated: "2026-03-11T22:05:00.000Z"
+last_activity: 2026-03-11 - Milestone v1.3.1 roadmap created (Phase 35-38)
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,7 +24,7 @@ progress:
 - Presmerovani delete operaci na move-to-trash tok
 - Definice obnovy a cleanup pravidel bez blokace UI
 
-**Status:** defining requirements
+**Status:** roadmap ready
 
 ---
 
@@ -33,14 +33,14 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
-**Current focus:** Milestone v1.3.1 requirements and roadmap initialization
+**Current focus:** Phase 35 planning (Trash Foundation + Async Safety)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 35 (planning)
 Plan: -
-Status: Defining requirements
-Last activity: 2026-03-11 - Milestone v1.3.1 started
+Status: Roadmap approved, ready for phase discussion/planning
+Last activity: 2026-03-11 - Roadmap for phases 35-38 initialized
 
 Progress: [░░░░░░░░░░] 0%
 

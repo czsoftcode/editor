@@ -416,6 +416,12 @@ pub(super) fn process_background_events(
                 crate::app::ai_core::executor::ToolResult::Error(e) => (e.clone(), true),
                 _ => (i18n.get("cli-chat-unexpected-result"), true),
             };
+            if !approved && is_err {
+                ws.toasts.push(Toast::error(format!(
+                    "AI tool `{}`: {}",
+                    pending.tool_name, output
+                )));
+            }
             let (asst_msg, tool_msg) =
                 crate::app::ai_core::executor::ToolExecutor::build_approval_messages(
                     &pending.tool_call_id,

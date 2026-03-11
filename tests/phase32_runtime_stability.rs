@@ -6,7 +6,7 @@ fn read(rel: &str) -> String {
 }
 
 #[test]
-fn prompt_and_retry_regression_markers_exist() {
+fn phase32_runtime_stability_prompt_and_retry_regression_markers_exist() {
     let logic = read("src/app/ui/terminal/ai_chat/logic.rs");
     assert!(logic.contains("normalize_prompt_input("));
     assert!(logic.contains("ws.ai.chat.retry_prompt = Some(prompt.clone());"));
@@ -18,7 +18,7 @@ fn prompt_and_retry_regression_markers_exist() {
 }
 
 #[test]
-fn slash_stale_guard_and_approval_paths_are_explicit() {
+fn phase32_runtime_stability_slash_stale_guard_and_approval_paths_are_explicit() {
     let slash = read("src/app/ui/terminal/ai_chat/slash.rs");
     assert!(slash.contains("pub fn should_apply_async_result("));
 
@@ -29,10 +29,22 @@ fn slash_stale_guard_and_approval_paths_are_explicit() {
 }
 
 #[test]
-fn approval_denial_must_emit_error_toast_for_visibility() {
+fn phase32_runtime_stability_approval_denial_must_emit_error_toast_for_visibility() {
     let background = read("src/app/ui/background.rs");
     assert!(
-        background.contains("ws.toasts.push(Toast::error(format!(\"AI tool `{}`: {}\", pending.tool_name, output)));"),
+        background.contains("if !approved && is_err {"),
+        "approval denial branch must be handled explicitly",
+    );
+    assert!(
+        background.contains("ws.toasts.push(Toast::error(format!("),
+        "approval denial branch must emit error toast",
+    );
+    assert!(
+        background.contains("AI tool `{}`: {}"),
+        "approval denial toast must contain tool name and message",
+    );
+    assert!(
+        background.contains("pending.tool_name, output"),
         "approval denial branch must emit toast error with tool name and message",
     );
 

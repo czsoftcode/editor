@@ -102,7 +102,6 @@ Key decisions logged in PROJECT.md Key Decisions table.
 - Upravit dolní lištu: branch oznámení více doprava, UTF více doleva (`src/app/ui/terminal/bottom/git_bar.rs`)
 - V `Sestavit > Upravit` přidat online náhled změn zapisovaných do `.polycredo/profiles.toml`
 - Zprovoznit `.polycredo/trash` a přesouvat tam smazané soubory
-- Upravit `.github/workflows/dev-release.yml`, aby macOS build dával DMG místo tar.gz
 
 ### Blockers/Concerns
 

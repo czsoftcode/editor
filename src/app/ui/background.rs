@@ -20,10 +20,7 @@ where
 use super::super::types::{AppShared, Toast, should_emit_save_error_toast};
 use super::git_status::{GitVisualStatus, parse_porcelain_status};
 use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
-use crate::app::ai_core::ollama::spawn_model_info_fetch;
 use crate::app::ai_core::provider::StreamEvent;
-use crate::app::ai_core::state::OllamaConnectionStatus;
-use crate::app::ai_core::{OllamaStatus, spawn_ollama_check};
 use crate::settings::SaveMode;
 use crate::watcher::{FileEvent, FsChange};
 use std::sync::Mutex;
@@ -177,89 +174,15 @@ pub(super) fn process_background_events(
             Some(crate::app::ui::workspace::state::actions::spawn_win_tool_check());
     }
 
-    // --- 4b-sync. Sync Ollama config from Settings ---
+    // --- 4b-sync. Sync AI provider config from Settings ---
     {
         let sh = shared.lock().expect("lock");
-        let url_changed = ws.ai.ollama.base_url != sh.settings.ollama_base_url;
-        if url_changed {
-            ws.ai.ollama.base_url = sh.settings.ollama_base_url.clone();
-            ws.ai.ollama.last_check =
-                std::time::Instant::now() - std::time::Duration::from_secs(999);
-            ws.ai.ollama.status = OllamaConnectionStatus::Checking;
-        }
-        // Always sync API key (user may change key without changing URL)
-        let new_key = if sh.settings.ollama_api_key.is_empty() {
-            None
-        } else {
-            Some(sh.settings.ollama_api_key.clone())
-        };
-        ws.ai.ollama.api_key = new_key;
-        if !sh.settings.ai_default_model.is_empty() && ws.ai.ollama.selected_model.is_empty() {
-            ws.ai.ollama.selected_model = sh.settings.ai_default_model.clone();
-        }
-        ws.ai.settings.expertise = sh.settings.ai_expertise;
-        ws.ai.settings.reasoning_depth = sh.settings.ai_reasoning_depth;
-        ws.ai.settings.top_p = sh.settings.ollama_top_p;
-        ws.ai.settings.top_k = sh.settings.ollama_top_k;
-        ws.ai.settings.repeat_penalty = sh.settings.ollama_repeat_penalty;
-        ws.ai.settings.seed = sh.settings.ollama_seed;
+        ws.ai.sync_provider_settings(&sh.settings);
     }
 
-    // --- 4b. Ollama polling ---
-    if let Some(rx) = &ws.ai.ollama.check_rx
-        && let Ok(status) = rx.try_recv()
-    {
-        match status {
-            OllamaStatus::Available(models) => {
-                ws.ai.ollama.status = OllamaConnectionStatus::Connected;
-                // Only auto-select if no model is chosen yet — don't
-                // overwrite a custom/cloud model that isn't in the local list
-                if ws.ai.ollama.selected_model.is_empty()
-                    && let Some(first) = models.first()
-                {
-                    ws.ai.ollama.selected_model = first.clone();
-                }
-                ws.ai.ollama.models = models;
-            }
-            OllamaStatus::Unavailable => {
-                ws.ai.ollama.status = OllamaConnectionStatus::Disconnected;
-                ws.ai.ollama.models.clear();
-            }
-        }
-        ws.ai.ollama.check_rx = None;
-        ws.ai.ollama.last_check = std::time::Instant::now();
-    }
-    if ws.ai.ollama.last_check.elapsed().as_secs() >= crate::config::OLLAMA_CHECK_INTERVAL_SECS
-        && ws.ai.ollama.check_rx.is_none()
-        && !ws.ai.chat.loading
-    {
-        ws.ai.ollama.check_rx = Some(spawn_ollama_check(
-            ws.ai.ollama.base_url.clone(),
-            ws.ai.ollama.api_key.clone(),
-        ));
-    }
-
-    // --- 4b2. Model info fetch ---
-    // Fetch model info when selected model changes
-    if !ws.ai.ollama.selected_model.is_empty()
-        && ws.ai.ollama.selected_model != ws.ai.ollama.model_info_for
-        && ws.ai.ollama.model_info_rx.is_none()
-    {
-        ws.ai.ollama.model_info_for = ws.ai.ollama.selected_model.clone();
-        ws.ai.ollama.model_info = None;
-        ws.ai.ollama.model_info_rx = Some(spawn_model_info_fetch(
-            ws.ai.ollama.base_url.clone(),
-            ws.ai.ollama.selected_model.clone(),
-            ws.ai.ollama.api_key.clone(),
-        ));
-    }
-    // Poll model info result
-    if let Some(rx) = &ws.ai.ollama.model_info_rx
-        && let Ok(result) = rx.try_recv()
-    {
-        ws.ai.ollama.model_info = result.ok();
-        ws.ai.ollama.model_info_rx = None;
-    }
+    // --- 4b. Provider polling ---
+    ws.ai.poll_provider_connection();
+    ws.ai.poll_provider_model_info();
 
     // --- 4c. Chat streaming ---
     let has_stream = ws.ai.chat.stream_rx.is_some();
@@ -292,7 +215,7 @@ pub(super) fn process_background_events(
                     done = true;
                 }
                 StreamEvent::Error(msg) => {
-                    let model = &ws.ai.ollama.selected_model;
+                    let model = ws.ai.provider_display_name();
                     let retry_hint = "Use Retry to send the last prompt again.";
                     if ws.ai.chat.streaming_buffer.is_empty() {
                         ws.ai.chat.streaming_buffer =
@@ -646,7 +569,7 @@ pub(super) fn process_background_events(
     }
 }
 
-/// Resumes AI streaming after a tool call by sending the tool result back to Ollama.
+/// Resumes AI streaming after a tool call by sending the tool result back to provider.
 /// Replaces the current stream_rx with a new stream from stream_chat.
 fn resume_after_tool_call(
     ws: &mut WorkspaceState,
@@ -654,8 +577,8 @@ fn resume_after_tool_call(
     tool_result_msg: crate::app::ai_core::AiMessage,
 ) {
     use crate::app::ai_core::AiMessage;
-    use crate::app::ai_core::ollama::OllamaProvider;
     use crate::app::ai_core::provider::{AiProvider, ProviderConfig};
+    use crate::app::ai_core::runtime_provider::RuntimeProvider;
     use crate::app::ai_core::tools::get_standard_tools;
 
     // Build the full message history including tool call/result
@@ -707,17 +630,14 @@ fn resume_after_tool_call(
     messages.push(tool_result_msg);
 
     // Start new stream
-    let provider = OllamaProvider::new(
-        ws.ai.ollama.base_url.clone(),
-        ws.ai.ollama.selected_model.clone(),
-        ws.ai.ollama.api_key.clone(),
-    );
+    let (base_url, model, api_key) = ws.ai.provider_connection_parts();
+    let provider = RuntimeProvider::new(base_url.clone(), model.clone(), api_key.clone());
     let config = ProviderConfig {
-        base_url: ws.ai.ollama.base_url.clone(),
-        model: ws.ai.ollama.selected_model.clone(),
+        base_url,
+        model,
         temperature: ws.ai.settings.temperature,
         num_ctx: ws.ai.settings.num_ctx,
-        api_key: ws.ai.ollama.api_key.clone(),
+        api_key,
         top_p: ws.ai.settings.top_p,
         top_k: ws.ai.settings.top_k,
         repeat_penalty: ws.ai.settings.repeat_penalty,

@@ -230,27 +230,23 @@ impl WorkspaceState {
     }
 
     pub fn ai_provider_is_connected(&self) -> bool {
-        self.ai.ollama.status == crate::app::ai_core::state::OllamaConnectionStatus::Connected
+        self.ai.provider_is_connected()
     }
 
     pub fn ai_provider_connection_parts(&self) -> (String, String, Option<String>) {
-        (
-            self.ai.ollama.base_url.clone(),
-            self.ai.ollama.selected_model.clone(),
-            self.ai.ollama.api_key.clone(),
-        )
+        self.ai.provider_connection_parts()
     }
 
     pub fn active_ai_model(&self) -> &str {
-        &self.ai.ollama.selected_model
+        self.ai.provider_model()
     }
 
     pub fn available_ai_models(&self) -> &[String] {
-        &self.ai.ollama.models
+        self.ai.provider_models()
     }
 
     pub fn set_active_ai_model(&mut self, model: String) {
-        self.ai.ollama.selected_model = model;
+        self.ai.set_provider_model(model);
     }
 }
 

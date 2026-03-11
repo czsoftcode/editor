@@ -1,6 +1,6 @@
 use crate::app::ai_core::AiMessage;
 use crate::app::ai_core::provider::{AiProvider, ProviderConfig};
-use crate::app::ai_core::runtime_provider::OllamaProvider;
+use crate::app::ai_core::runtime_provider::RuntimeProvider;
 use crate::app::ai_core::tools::get_standard_tools;
 use crate::app::types::{AppShared, Toast};
 use crate::app::ui::workspace::state::WorkspaceState;
@@ -158,7 +158,7 @@ pub fn send_query_to_agent(
         ws.toasts.push(Toast::error(msg));
         return;
     }
-    let provider = OllamaProvider::new(base_url.clone(), model.clone(), api_key.clone());
+    let provider = RuntimeProvider::new(base_url.clone(), model.clone(), api_key.clone());
 
     let config = ProviderConfig {
         base_url,

@@ -1,8 +1,9 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, mpsc};
 
-use super::ollama::ModelInfo;
+use super::ollama::{ModelInfo, spawn_model_info_fetch};
 use super::{AiExpertiseRole, AiReasoningDepth, OllamaStatus};
+use crate::app::ai_core::spawn_ollama_check;
 
 /// Connection status of the Ollama provider.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -157,6 +158,122 @@ impl Default for AiState {
             inspector_open: false,
             cancellation_token: Arc::new(AtomicBool::new(false)),
             markdown_cache: egui_commonmark::CommonMarkCache::default(),
+        }
+    }
+}
+
+impl AiState {
+    pub fn provider_is_connected(&self) -> bool {
+        self.ollama.status == OllamaConnectionStatus::Connected
+    }
+
+    pub fn provider_connection_parts(&self) -> (String, String, Option<String>) {
+        (
+            self.ollama.base_url.clone(),
+            self.ollama.selected_model.clone(),
+            self.ollama.api_key.clone(),
+        )
+    }
+
+    pub fn provider_display_name(&self) -> &str {
+        if self.ollama.selected_model.is_empty() {
+            "provider"
+        } else {
+            &self.ollama.selected_model
+        }
+    }
+
+    pub fn provider_model(&self) -> &str {
+        &self.ollama.selected_model
+    }
+
+    pub fn provider_models(&self) -> &[String] {
+        &self.ollama.models
+    }
+
+    pub fn set_provider_model(&mut self, model: String) {
+        self.ollama.selected_model = model;
+    }
+
+    pub fn sync_provider_settings(&mut self, settings: &crate::settings::Settings) {
+        let url_changed = self.ollama.base_url != settings.ollama_base_url;
+        if url_changed {
+            self.ollama.base_url = settings.ollama_base_url.clone();
+            self.ollama.last_check = std::time::Instant::now() - std::time::Duration::from_secs(999);
+            self.ollama.status = OllamaConnectionStatus::Checking;
+        }
+
+        self.ollama.api_key = if settings.ollama_api_key.is_empty() {
+            None
+        } else {
+            Some(settings.ollama_api_key.clone())
+        };
+
+        if !settings.ai_default_model.is_empty() && self.ollama.selected_model.is_empty() {
+            self.ollama.selected_model = settings.ai_default_model.clone();
+        }
+
+        self.settings.expertise = settings.ai_expertise;
+        self.settings.reasoning_depth = settings.ai_reasoning_depth;
+        self.settings.top_p = settings.ollama_top_p;
+        self.settings.top_k = settings.ollama_top_k;
+        self.settings.repeat_penalty = settings.ollama_repeat_penalty;
+        self.settings.seed = settings.ollama_seed;
+    }
+
+    pub fn poll_provider_connection(&mut self) {
+        if let Some(rx) = &self.ollama.check_rx
+            && let Ok(status) = rx.try_recv()
+        {
+            match status {
+                OllamaStatus::Available(models) => {
+                    self.ollama.status = OllamaConnectionStatus::Connected;
+                    if self.ollama.selected_model.is_empty()
+                        && let Some(first) = models.first()
+                    {
+                        self.ollama.selected_model = first.clone();
+                    }
+                    self.ollama.models = models;
+                }
+                OllamaStatus::Unavailable => {
+                    self.ollama.status = OllamaConnectionStatus::Disconnected;
+                    self.ollama.models.clear();
+                }
+            }
+            self.ollama.check_rx = None;
+            self.ollama.last_check = std::time::Instant::now();
+        }
+
+        if self.ollama.last_check.elapsed().as_secs() >= crate::config::OLLAMA_CHECK_INTERVAL_SECS
+            && self.ollama.check_rx.is_none()
+            && !self.chat.loading
+        {
+            self.ollama.check_rx = Some(spawn_ollama_check(
+                self.ollama.base_url.clone(),
+                self.ollama.api_key.clone(),
+            ));
+        }
+    }
+
+    pub fn poll_provider_model_info(&mut self) {
+        if !self.ollama.selected_model.is_empty()
+            && self.ollama.selected_model != self.ollama.model_info_for
+            && self.ollama.model_info_rx.is_none()
+        {
+            self.ollama.model_info_for = self.ollama.selected_model.clone();
+            self.ollama.model_info = None;
+            self.ollama.model_info_rx = Some(spawn_model_info_fetch(
+                self.ollama.base_url.clone(),
+                self.ollama.selected_model.clone(),
+                self.ollama.api_key.clone(),
+            ));
+        }
+
+        if let Some(rx) = &self.ollama.model_info_rx
+            && let Ok(result) = rx.try_recv()
+        {
+            self.ollama.model_info = result.ok();
+            self.ollama.model_info_rx = None;
         }
     }
 }

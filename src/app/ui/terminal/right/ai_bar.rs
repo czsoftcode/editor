@@ -53,45 +53,5 @@ pub fn render_ai_bar(
             }
         }
 
-        ui.separator();
-        ui.label(i18n.get("cli-chat-placeholder-model"));
-
-        let preferred_model = {
-            let sh = shared.lock().expect("lock");
-            sh.settings.ai_default_model.clone()
-        };
-        let resolved_model = crate::app::ui::workspace::state::resolve_runtime_model(
-            ws.available_ai_models(),
-            ws.active_ai_model(),
-            &preferred_model,
-        );
-        if resolved_model != ws.active_ai_model() {
-            ws.set_active_ai_model(resolved_model.clone());
-        }
-
-        let model_combo_id = format!("{combo_id}_model");
-        let selected_label = if resolved_model.is_empty() {
-            "—".to_string()
-        } else {
-            resolved_model
-        };
-
-        egui::ComboBox::from_id_salt(model_combo_id)
-            .selected_text(selected_label)
-            .width(180.0)
-            .show_ui(ui, |ui| {
-                if ws.available_ai_models().is_empty() {
-                    ui.label("No models");
-                } else {
-                    for model in ws.available_ai_models().to_vec() {
-                        if ui
-                            .selectable_label(ws.active_ai_model() == model, &model)
-                            .clicked()
-                        {
-                            ws.set_active_ai_model(model);
-                        }
-                    }
-                }
-            });
     });
 }

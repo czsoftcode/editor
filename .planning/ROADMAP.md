@@ -11,7 +11,7 @@
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 35 | 3/3 | Complete   | 2026-03-11 | 3 |
+| 35 | 3/3 | Complete    | 2026-03-11 | 3 |
 | 36 | Safe Move-to-Trash Engine | Nahradit hard delete za bezpecne move-to-trash s robustnim error handlingem | TRASH-01, TRASH-02, TRASH-04, RELIAB-02 | 4 |
 | 37 | Trash Preview + Restore MVP | Dodat nahled trash obsahu a restore workflow s conflict policy | TRASHUI-01, RESTORE-01, RESTORE-02, RESTORE-03 | 4 |
 | 38 | Watcher Stability + Verification | Stabilizovat watcher eventy po delete/restore a uzavrit quality gate | RELIAB-03 | 3 |

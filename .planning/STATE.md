@@ -1,9 +1,9 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3.1
-milestone_name: safe-trash-delete
-status: execution complete
-last_updated: "2026-03-11T23:17:00.630Z"
+milestone: v1.3
+milestone_name: milestone
+status: planning
+last_updated: "2026-03-11T23:20:19.688Z"
 last_activity: 2026-03-11 - Completed 35-03 plan execution
 progress:
   total_phases: 4
@@ -24,7 +24,7 @@ progress:
 - Presmerovani delete operaci na move-to-trash tok
 - Definice obnovy a cleanup pravidel bez blokace UI
 
-**Status:** roadmap ready
+**Status:** Ready to plan
 
 ---
 

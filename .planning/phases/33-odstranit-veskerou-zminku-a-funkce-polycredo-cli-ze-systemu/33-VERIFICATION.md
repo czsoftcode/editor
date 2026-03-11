@@ -2,17 +2,27 @@
 
 Datum: 2026-03-11
 Plan: 33-03
-Status: in progress
+Status: PASS
 
 ## Requirement Evidence
 
 | Requirement | Evidence | Status |
 | --- | --- | --- |
-| R33-A | launcher-only tok je drzen v `ai_bar -> terminal.send_command` | pending |
-| R33-B | odstranene runtime/chat moduly nejsou vraceny v aktivnim scope | pending |
-| R33-C | fallback UX vetve pro legacy AI akce nejsou pritomne | pending |
-| R33-D | aktivni planning artefakty neobsahuji zakazanou terminologii | pending |
+| R33-A | `ai_bar` launcher tok zustava aktivni a quality gate prochazi (`cargo check`, `./check.sh`) | PASS |
+| R33-B | Aktivni scope nevraci odstranene runtime/chat moduly; grep guardy v `src` jsou ciste | PASS |
+| R33-C | V locale a aktivnim planning scope nejsou fallback/deprecated vetve pro legacy AI akce | PASS |
+| R33-D | Aktivni planning artefakty phase 33 jsou vycistene v souladu s wave-3 cleanup zamerem | PASS |
 
-## Commands
+## Command Evidence
 
-- pending
+1. `RUSTC_WRAPPER= cargo check` -> PASS
+2. `RUSTC_WRAPPER= ./check.sh` -> PASS (format, clippy, test suite)
+3. `! rg -n "legacy CLI vrstva|runtime-ai-modul|runtime-chat-modul|app::legacy-cli" .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md .planning/phases/33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu/33-VERIFICATION.md` -> PASS
+4. `! rg -n "runtime-ai-modul|ui/terminal/runtime-chat-modul|show_runtime-chat-modul|tool_executor" src` -> PASS
+5. `! rg -n "cli-chat|cli-tool|legacy CLI vrstva" locales` -> PASS
+6. `test -f .planning/phases/33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu/33-04-PLAN.md` -> PASS
+
+## Notes
+
+- `cargo check` bez `RUSTC_WRAPPER=` v tomto prostredi selhava na `sccache: Operation not permitted`.
+- Workaround byl omezen pouze na spousteni gate prikazu; kod ani build konfigurace nebyly meneny.

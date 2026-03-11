@@ -2,162 +2,66 @@
 
 ## What This Is
 
-Multiplatformní textový editor s AI podporou napsaný v Rustu (eframe/egui). Nabízí syntaxové zvýraznění s light/dark mode (3 varianty světlé palety), záložky, terminálové panely, git integraci, správu projektů a AI asistenta (Claude panel).
+Multiplatformni textovy editor v Rustu (eframe/egui) s terminaly, build workflow a AI terminal panelem. Editor je local-first a ma zustat responzivni i pri delsi praci. Milestone v1.3.0 je cleanup/pivot: odstranit slepou ulicku `src/app/cli/*` a nechat jen AI terminal funkcionalitu.
 
 ## Core Value
 
-Editor nesmí zahřívat notebook v klidovém stavu — idle CPU zátěž musí být minimální.
+Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
 
-## Current State
+## Current Milestone: v1.3.0 AI Terminal Cleanup
 
-**Shipped:** v1.2.2 Additional Themes (2026-03-11)
-- 3 fáze (27-29), 5 plánů, 15 úloh
-- 4. světlá varianta + 2. dark varianta + syntect mapování podle variant
+**Goal:** Odstranit PolyCredo CLI vrstvu (`src/app/cli/*`) a zachovat jen AI terminal se stejnym uzivatelskym chovanim.
 
-## Next Milestone Goals
-
-- (TBD) Definovat nové requirements pro další milestone
-- (TBD) Rozhodnout scope a cíle po Additional Themes
+**Target features:**
+- Odebrani `src/app/cli/*` a presun/nahrazeni pouzitych casti do AI terminal modulu
+- Zachovani AI terminal UX (chat, streaming odpovedi, model picker, slash/GSD prikazy)
+- Zachovani approval + security guardu pro operace, ktere AI terminal spousti
+- Cleanup importu, typu, testu a docs bez ztrat funkcionality
 
 ## Requirements
 
 ### Validated
 
-- v1.0.2 Dark/Light Mode:
-  - LightVariant enum (WarmIvory, CoolGray, Sepia) + to_egui_visuals() + syntect_theme_name() bez bliknutí
-  - Theme-aware terminály, scrollbar, file tree git barvy — explicit light/dark palety
-  - Tři světlé varianty s live picker v Settings, canonical settings.toml persist + legacy migrace
-  - Sandbox mode jako perzistentní nastavení s okamžitým apply po Save, multi-window propagace
-  - Runtime sandbox apply: restart terminálů, remap tabů, blokace OFF při staged, sync při ON
-
-- v1.0.6 Focus Management:
-  - Terminal hover-to-focus odstraněn na všech 4 cestách (docked+float, right+bottom)
-  - dialog_open guard na všech terminal focus paths — modály a AI Chat blokují terminal focus
-  - Modal overlay backdrop (interactive Area) blokuje interakci za modalem
-  - close_on_click_outside — Settings/Plugins se zavírají pouze přes tlačítka
-  - Settings discard confirmation při neuložených změnách
-
-- v1.1.0 Sandbox Removal:
-  - Kompletní odstranění sandbox.rs modulu a datových struktur (Sandbox, SyncPlan)
-  - UI vyčištěno — settings toggle, modální dialogy, build bar label, file tree sandbox prvky
-  - Sandbox logika odstraněna z file operations, watcheru a git/build guardů
-  - Plugin systém: sandbox_root → project_root, exec_in_sandbox → exec
-  - 43+ sandbox i18n klíčů odstraněno ze všech 5 jazyků
-  - 26/26 requirements satisfied, zero compile warnings, 57 passing testů
-
-- v1.2.0 AI Chat Rewrite:
-  - AiProvider trait + OllamaProvider s NDJSON streaming, auto-detect serveru, model picker
-  - AiState konsolidace — ChatState, OllamaState, AiSettings sub-structy
-  - Hybrid CLI chat UI se streaming renderingem, markdown, dark/light mode
-  - Tool execution — read/write/exec/search/ask-user s approval workflow
-  - Security infrastruktura — PathSandbox, SecretsFilter, CommandBlacklist, RateLimiter, AuditLogger
-  - Kompletní odstranění WASM plugin systému (~6,500 LOC)
-  - Plná i18n lokalizace CLI chatu v 5 jazycích (cs, en, de, ru, sk)
-  - 20/20 requirements satisfied, 58,187 LOC Rust
-
-- v1.2.1 Save Modes + Unsaved Changes Guard:
-  - Ctrl+S ukládá aktivní tab bez změny fokusu
-  - Nastavení Auto/Manual save mode v Settings s okamžitým runtime apply
-  - Guard dialog při zavírání neuloženého tabu (Save/Discard/Cancel)
-  - Guard dialog při zavírání aplikace s neuloženými soubory
-  - Status bar indikace save režimu (Manual/Auto) a dirty stavu
-  - Tab dirty indikace (●) s vizuální prioritou před mode markerem
-  - Save error toast + inline error zpráva, tab zůstává otevřený
-  - 18 regression testů pro save UX kontrakt
+- v1.2.2 Additional Themes: WarmTan + Midnight varianty, syntect mapovani, i18n a picker layout
+- v1.2.1 Save Modes + Unsaved Changes Guard: manual/auto save, guard dialogy, regression coverage
+- v1.2.0 AI Chat Rewrite: streaming chat, provider pipeline, tool execution a security baseline
 
 ### Active
 
-(Další requirements budou definovány v další milestone)
-
-## Previous Milestone: v1.2.2 Additional Themes — SHIPPED
-
-**Goal:** Přidat 4. světlé téma (mezi sepia a hnědou, ne moc tmavé) a volitelně druhé dark téma.
-
-**Status:** ✅ SHIPPED 2026-03-11
-
-**Výsledky:**
-- Light varianty: 4. varianta WarmTan + UI picker + persistence + i18n
-- Dark varianty: 2. varianta Midnight + UI picker + persistence
-- Syntect mapping: explicitní mapování pro light/dark varianty
-
----
-
-## Previous Milestone: v1.2.1 Save Modes + Unsaved Changes Guard — SHIPPED
-
-**Goal:** Zpřehlednit a zbezpečnit ukládání v editoru přes výchozí Ctrl+S workflow, přepínání auto/manual režimu a ochranu proti ztrátě neuložené práce při zavírání tabu nebo aplikace.
-
-**Status:** ✅ SHIPPED 2026-03-10
-
-**Výsledky:**
-- 3 fáze (24-26), 18 plans, všechny dokončeny
-- Save mode runtime key kontrakt oddělen od settings draftu
-- MODE-04 regression testy v dedikovaném workspace test modulu
-- Save UX priority dirty-first vizuální kontrakt
-  - i18n smoke coverage pro 5 jazyků
+- [ ] CLI-01: Kod v `src/app/cli/*` je odstraneny a build/test prochazi bez dead importu.
+- [ ] TERM-01: AI terminal zachovava chat, streaming, model picker a slash/GSD cesty bez regresi.
+- [ ] SAFE-01: Approval a security pravidla pro AI akce zustavaji funkcni po odstraneni CLI vrstvy.
+- [ ] ARCH-01: Stavove struktury a konfigurace nejsou navazane na `app::cli` namespace.
 
 ### Out of Scope
 
-- LSP integrace — jiný projekt
-- Minimap — patří do jiné oblasti
-- OS auto-detect dark/light — experimentální v egui, záměrně vynecháno (v1.0.2 decision)
-- Vlastní theme editor — mimo rozsah
-- Animované přechody mezi tématy — nedostupné v egui
-- Centrální focus manager / FocusStack — over-engineering, dialog_open pattern stačí (v1.0.6 decision)
-- OpenAI-compatible endpoint pro Ollama — nativní API je spolehlivější pro streaming tool calling
-- Auto-execute bez approval — bezpečnostní riziko
-- RAG / vector DB — over-engineering, existující semantic search stačí
+- Pridavani novych AI provideru - cilem je cleanup, ne rozsirovani funkci.
+- Redesign AI terminal UI - zachovame stavajici UX kontrakt.
+- Velke refaktory mimo AI/CLI oblast - mimo rozsah milestone.
 
 ## Context
 
-**Shipped:** v1.2.0 AI Chat Rewrite (2026-03-06)
-- 6 fází, 19 plánů, 74 commitů (42 feat/fix)
-- 20/20 requirements satisfied
-- 133 files changed, +12,405/-9,193 lines (net +3,212)
-- 58,187 řádků Rust
+**Shipped:** v1.2.2 Additional Themes (2026-03-11), v1.2.3-dev quality gate cleanup, v1.2.4-dev windows build fix + profiles refresh.
 
-**Previous:** v1.1.0 Sandbox Removal (2026-03-06), v1.0.6 Focus Management (2026-03-05), v1.0.2 Dark/Light Mode (2026-03-05)
-
-**Tech stack:** Rust + eframe/egui, syntect, egui_term, fluent (i18n), notify, rfd, pulldown-cmark, ureq, globset
-
-**Known tech debt:**
-- Nyquist VALIDATION.md: fáze ve stavu draft
-- Warning text kontrast v light mode (nahlášeno při UAT fáze 5)
-- UI-02: záložkový indikátor nemá dedikovaný kontrast test
-- Syntax highlighting v AI chatu nefunguje (egui_commonmark code blocky černobílé)
+**Known tech debt relevant to this milestone:**
+- `src/app/cli/*` drzi cast logiky, ktera je pro produktovy smer zbytecna.
+- Importy `app::cli::*` jsou rozlezle v UI/state vrstvach a brani jednoduchemu maintenance.
+- Security/approval flow je potreba zachovat i po odstraneni CLI namespace.
 
 ## Constraints
 
-- **Tech stack**: Rust + eframe/egui — řešení musí být kompatibilní s tímto stackem
-- **Zpětná kompatibilita**: Funkčnost editoru nesmí být narušena
-- **Bez externích závislostí**: Nechceme přidávat nové heavy dependencies jen kvůli optimalizaci
+- **Tech stack**: Rust + eframe/egui - bez zavadeni noveho runtime/frameworku.
+- **Behavioral compatibility**: AI terminal se nesmi funkcne rozbit (chat/send/stream/approval).
+- **Quality gate**: Kazda faze musi projit `cargo check` a `./check.sh`.
+- **Scope discipline**: Minimalni cilene patche, bez velkych refaktoru mimo potrebu odstraneni CLI vrstvy.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| settings_version AtomicU64 jako integrační sběrnice | Jedno místo propagace změny tématu do všech viewportů | ✓ Funguje pro theme i sandbox apply |
-| ui.visuals() pro live theming v render path | Zero-lag propagace, vždy aktuální | ✓ Standard pro terminál, file tree |
-| warm_ivory_bg() heuristika přes r-b threshold | Detekce varianty bez enum přenosu do render vrstvy | ✓ Elegantní, bez coupling |
-| settings.toml jako canonical, settings.json jako legacy | Čistá migrace bez breaking change | ✓ Roundtrip testy pokrývají oba formáty |
-| Profilovat před optimalizací | Neopravovat naslepo — změřit skutečné hotspoty | — Pending (future milestone) |
-| dialog_open pattern místo FocusStack | Rozšíření existujícího vzoru stačí, FocusStack je over-engineering | ✓ Pokryto 9 requirements jednou fází |
-| Backdrop jako interactive Area (Order::Middle) | layer_painter blokoval interakci s modalem | ✓ Modal plně interaktivní |
-| close_on_click_outside builder pattern | Rozlišení info modalů (About) vs interaktivních (Settings) | ✓ Clean API, žádný breaking change |
-| Simplified Toast to message-only | Removed ToastAction/ToastActionKind — sandbox was only consumer | ✓ Cleaner API, zero sandbox coupling |
-| sandbox_root → project_root rename | Semantic clarity after sandbox removal | ✓ Plugin registry uses correct naming |
-| exec_in_sandbox → exec rename | No sandbox context needed | ✓ AI tools and WASM plugins updated |
-
-| Nativní providery místo WASM | Jednodušší, rychlejší, bez WASM runtime overhead | ✓ OllamaProvider nativně, ~6,500 LOC WASM odstraněno |
-| Ollama first, trait abstrakce | Centralizovaný design rozšiřitelný pro Claude/Gemini | ✓ AiProvider trait, extensible |
-| Postupné mazání starého kódu | Nový chat funguje paralelně, starý se odstraní až po dokončení | ✓ Paralelní provoz → čisté odstranění |
-| Hybrid CLI UI | Prompt dole jako CLI, odpovědi nahoře s vizuálním oddělením | ✓ Funguje s dark/light mode |
-| ureq + std::thread místo reqwest/tokio | Odpovídá threading modelu codebase | ✓ Jednodušší, bez async runtime |
-| Collect-then-process v background polling | Borrow checker safety pro StreamEvent zpracování | ✓ Čistý pattern |
-| Security-first tool execution | PathSandbox + approval workflow před jakýmkoli nástrojem | ✓ 28 security testů |
-| Status bar save mode z runtime, ne draft | Oddělení runtime kontraktu od settings draftu | ✓ MODE-04 baseline |
-| Dirty-first vizuální priorita v status baru | Dirty stav je primární signál, mode marker sekundární | ✓ Čitelnost zachována |
-| TDD test-first pro UI kontrakt | Red/green commits s explicitními regression testy | ✓ MODE-04 testy pokrývají edge cases |
-| i18n smoke test pro phase-specific keys | phase_26_save_ux_keys helper pro lokalizaci | ✓ 5 jazyků ověřeno |
+| Odstranit `src/app/cli/*` v milestone v1.3.0 | CLI vrstva je slepa ulicka proti smeru produktu | — Pending |
+| Zachovat jen AI terminal UX kontrakt | Uzivatelska hodnota je v terminal panelu, ne v internim namespace | — Pending |
+| Cleanup po fazich 30+ (ne jednim mega patchem) | Snadnejsi verifikace, mensi riziko regresi | — Pending |
 
 ---
-*Last updated: 2026-03-11 after v1.2.2 milestone completion*
+*Last updated: 2026-03-11 after starting milestone v1.3.0*

@@ -179,7 +179,7 @@ MANDATORY RULES:
         }
     }
 
-    /// Returns the centralized ASCII logo for all CLI agents.
+    /// Returns the centralized ASCII logo for AI terminal sessions.
     pub fn get_logo(
         version: &str,
         model: &str,
@@ -190,9 +190,9 @@ MANDATORY RULES:
             r#"    ____        __       ______              __
    / __ \____  / /_  __ / ____/_______  ____/ /___
   / /_/ / __ \/ / / / // /   / ___/ _ \/ __  / __ \
- / ____/ /_/ / / /_/ // /___/ /  /  __/ /_/ / /_/ /
+/ ____/ /_/ / / /_/ // /___/ /  /  __/ /_/ / /_/ /
 /_/    \____/_/\__, / \____/_/   \___/\__,_/\____/
-              /____/                              CLI
+              /____/                         TERMINAL
 
  Version: {}
  Model:   {}

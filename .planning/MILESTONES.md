@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.3.0 AI Terminal Cleanup (Shipped: 2026-03-11)
+
+**Phases completed:** 5 phases, 18 plans, 55 tasks
+
+**Key accomplishments:**
+- CLI namespace cleanup dokoncen: odstraneni `src/app/cli/*` a premapovani aktivnich callsite na launcher-only runtime.
+- AI terminal flow zustal funkcni v assistant-only rezimu (send/stream/slash/GSD) bez provider-picker couplingu.
+- Approval/security kontrakt byl zachovan po migraci a potvrzen regression gate sadou.
+- Stabilizace byla uzavrena pres `cargo check` + `./check.sh` a aktualizovane testy pro post-CLI architekturu.
+- Phase 33 hard-removal a no-fallback cleanup byly uzavreny s PASS verifikaci.
+- Phase 34 sjednotila traceability napric REQUIREMENTS/ROADMAP/STATE/AUDIT a uzavrela audit na 15/15.
+
+**Stats:** 120 files changed, +6016/-12713 lines, 62 commits (phase 30-34 scope)
+**Timeline:** 2026-03-11 10:34:52 -> 2026-03-11 22:20:06
+**Audit:** passed (requirements 15/15, phases 4/4, flows 5/5)
+
+---
+
 ## v1.2.2 Additional Themes (Shipped: 2026-03-11)
 
 **Phases completed:** 3 phases, 5 plans, 15 tasks

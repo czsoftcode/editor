@@ -2,66 +2,65 @@
 
 ## What This Is
 
-Multiplatformni textovy editor v Rustu (eframe/egui) s terminaly, build workflow a AI terminal panelem. Editor je local-first a ma zustat responzivni i pri delsi praci. Milestone v1.3.0 je cleanup/pivot: odstranit slepou ulicku `src/app/cli/*` a nechat jen AI terminal funkcionalitu.
+Multiplatformni textovy editor v Rustu (eframe/egui) s terminaly, build workflow a AI terminal panelem. Produkt je local-first a ma zustat responzivni i pri delsi praci.
 
 ## Core Value
 
 Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
 
-## Current Milestone: v1.3.0 AI Terminal Cleanup
+## Current State
 
-**Goal:** Odstranit PolyCredo CLI vrstvu (`src/app/cli/*`) a zachovat jen AI terminal se stejnym uzivatelskym chovanim.
-
-**Target features:**
-- Odebrani `src/app/cli/*` a presun/nahrazeni pouzitych casti do AI terminal modulu
-- Zachovani AI terminal UX (chat, streaming odpovedi, model picker, slash/GSD prikazy)
-- Zachovani approval + security guardu pro operace, ktere AI terminal spousti
-- Cleanup importu, typu, testu a docs bez ztrat funkcionality
+- **Shipped version:** v1.3.0 AI Terminal Cleanup (2026-03-11)
+- **Milestone result:** `src/app/cli/*` odstraneno, aktivni AI tok je launcher-only (`ai_bar -> terminal.send_command`)
+- **Quality status:** milestone audit `passed` (requirements 15/15, phase verification 4/4, flows 5/5)
+- **Primary artifacts:** `.planning/milestones/v1.3.0-ROADMAP.md`, `.planning/milestones/v1.3.0-REQUIREMENTS.md`, `.planning/milestones/v1.3.0-MILESTONE-AUDIT.md`
 
 ## Requirements
 
 ### Validated
 
-- v1.2.2 Additional Themes: WarmTan + Midnight varianty, syntect mapovani, i18n a picker layout
-- v1.2.1 Save Modes + Unsaved Changes Guard: manual/auto save, guard dialogy, regression coverage
-- v1.2.0 AI Chat Rewrite: streaming chat, provider pipeline, tool execution a security baseline
+- ✓ v1.3.0: CLI cleanup + AI terminal-only boundary + traceability closure (R33-A/R33-B/R33-C/R33-D)
+- ✓ v1.2.2: Additional Themes (WarmTan + Midnight varianty, syntect mapovani, i18n)
+- ✓ v1.2.1: Save Modes + Unsaved Changes Guard
+- ✓ v1.2.0: AI Chat Rewrite baseline
 
 ### Active
 
-- [ ] CLI-01: Kod v `src/app/cli/*` je odstraneny a build/test prochazi bez dead importu.
-- [ ] TERM-01: AI terminal zachovava chat, streaming, model picker a slash/GSD cesty bez regresi.
-- [ ] SAFE-01: Approval a security pravidla pro AI akce zustavaji funkcni po odstraneni CLI vrstvy.
-- [ ] ARCH-01: Stavove struktury a konfigurace nejsou navazane na `app::cli` namespace.
+- (none yet - next milestone requirements budou zalozeny pres `$gsd-new-milestone`)
 
 ### Out of Scope
 
-- Pridavani novych AI provideru - cilem je cleanup, ne rozsirovani funkci.
-- Redesign AI terminal UI - zachovame stavajici UX kontrakt.
-- Velke refaktory mimo AI/CLI oblast - mimo rozsah milestone.
+- Pridavani novych AI provideru bez jasneho produktoveho cile.
+- Velke refaktory mimo konkretni milestone scope.
+
+## Next Milestone Goals
+
+- Zalozit novy milestone scope podle aktualnich priorit produktu.
+- Definovat nove requirements a traceability mapu od nuly.
+- Udrzet quality gate standard: `cargo check` + `./check.sh` pro kazdou fazi.
 
 ## Context
 
-**Shipped:** v1.2.2 Additional Themes (2026-03-11), v1.2.3-dev quality gate cleanup, v1.2.4-dev windows build fix + profiles refresh.
-
-**Known tech debt relevant to this milestone:**
-- `src/app/cli/*` drzi cast logiky, ktera je pro produktovy smer zbytecna.
-- Importy `app::cli::*` jsou rozlezle v UI/state vrstvach a brani jednoduchemu maintenance.
-- Security/approval flow je potreba zachovat i po odstraneni CLI namespace.
-
-## Constraints
-
-- **Tech stack**: Rust + eframe/egui - bez zavadeni noveho runtime/frameworku.
-- **Behavioral compatibility**: AI terminal se nesmi funkcne rozbit (chat/send/stream/approval).
-- **Quality gate**: Kazda faze musi projit `cargo check` a `./check.sh`.
-- **Scope discipline**: Minimalni cilene patche, bez velkych refaktoru mimo potrebu odstraneni CLI vrstvy.
+**Known tech debt:**
+- Warning text kontrast v light mode (Settings modal)
+- Syntax highlighting v AI chatu (egui_commonmark code blocky)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Odstranit `src/app/cli/*` v milestone v1.3.0 | CLI vrstva je slepa ulicka proti smeru produktu | — Pending |
-| Zachovat jen AI terminal UX kontrakt | Uzivatelska hodnota je v terminal panelu, ne v internim namespace | — Pending |
-| Cleanup po fazich 30+ (ne jednim mega patchem) | Snadnejsi verifikace, mensi riziko regresi | — Pending |
+| Odstranit `src/app/cli/*` v milestone v1.3.0 | CLI vrstva byla slepa ulicka proti smeru produktu | ✓ Implemented v1.3.0 |
+| Zachovat assistant-only AI terminal boundary | Minimalizace couplingu a regresi po cleanupu | ✓ Implemented v1.3.0 |
+| Delit cleanup do fazi 30-34 | Kontrolovatelna verifikace a mensi riziko | ✓ Implemented v1.3.0 |
+
+<details>
+<summary>Archived milestone context (v1.3.0 planning snapshot)</summary>
+
+- Original milestone goal: odstranit legacy CLI vrstvu pri zachovani AI terminal behavior.
+- Closure phase: 34 (milestone gap closure and traceability rebaseline).
+- Final audit verdict: passed.
+
+</details>
 
 ---
-*Last updated: 2026-03-11 after starting milestone v1.3.0*
+*Last updated: 2026-03-11 after completing milestone v1.3.0*

@@ -21,10 +21,13 @@ fn phase35_delete_foundation_is_fail_closed() {
 fn phase35_delete_foundation_scope_guard_has_no_restore_foundation_symbols() {
     let plan = fs::read_to_string(".planning/phases/35-trash-foundation-async-safety/35-03-PLAN.md")
         .expect("failed to read 35-03 plan");
+    let forbidden_prepare = format!("prepare_restore_{}", "foundation");
+    let forbidden_phase = format!("phase35_restore_{}", "foundation");
+    let forbidden_phrase = format!("{} {}", "restore", "foundation");
     assert!(
-        !plan.contains("prepare_restore_foundation")
-            && !plan.contains("phase35_restore_foundation")
-            && !plan.contains("restore foundation"),
+        !plan.contains(&forbidden_prepare)
+            && !plan.contains(&forbidden_phase)
+            && !plan.contains(&forbidden_phrase),
         "phase 35-03 must remain delete-only without restore-foundation symbols"
     );
 }

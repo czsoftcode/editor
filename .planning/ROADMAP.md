@@ -7,8 +7,8 @@
 ## Progress
 
 - Total phases: 4
-- Completed: 3
-- In progress: 1
+- Completed: 4
+- In progress: 0
 - Pending: 0
 
 ## Phases
@@ -74,10 +74,10 @@ Coverage: 15/15 requirements mapped.
 **Goal:** Odstranit integrovany AI runtime/chat subsystem (`odstraneny runtime modul` + `ui/terminal/odstraneny chat modul`) a ponechat pouze `ai_bar` launcher tok do terminalu bez fallback UX.
 **Requirements**: R33-A, R33-B, R33-C, R33-D
 **Depends on:** Phase 32
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 33-01-PLAN.md — hard removal odstraneny runtime modul + odstraneny chat modul + compile gate
 - [x] 33-02-PLAN.md — i18n/no-fallback UI cleanup
 - [x] 33-03-PLAN.md — active planning cleanup + verification bridge
-- [ ] 33-04-PLAN.md — global/historical planning cleanup batches
+- [x] 33-04-PLAN.md — global/historical planning cleanup batches

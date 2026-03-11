@@ -59,7 +59,7 @@ Kazdy task byl commitnut atomicky:
 1. **Task 1: Batch A - milestones + root planning docs** - `2f2482c` (chore)
 2. **Task 2: Batch B - quick artifacts** - `b90e46d` (chore)
 3. **Task 3: Batch C - phase archive/history sweep** - `740830b` (chore)
-4. **Task 4: Final gate + summary** - `TBD` (docs)
+4. **Task 4: Final gate + summary** - `86a6a9c` (chore)
 
 ## Files Created/Modified
 - `.planning/phases/33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu/33-04-SUMMARY.md` - souhrn execution, batch checkpointy, finalni audit stopa.
@@ -101,8 +101,15 @@ None - no external service configuration required.
 - Phase 33 je pripraven k uzavreni: globalni planning cleanup, traceability update a quality gate jsou hotove.
 - Zadny otevreny blocker v rozsahu planu 33-04.
 
-## Self-Check
-PENDING
+## Self-Check: PASSED
+- Found files:
+  - `.planning/phases/33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu/33-04-SUMMARY.md`
+  - `.planning/phases/33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu/33-VERIFICATION.md`
+- Found commits:
+  - `2f2482c`
+  - `b90e46d`
+  - `740830b`
+  - `86a6a9c`
 
 ---
 *Phase: 33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu*

@@ -16,7 +16,7 @@
 
 ### v1.3.0 Additional Themes
 
-- [x] **Phase 27: 4th Light Theme** - Přidat 4. světlé téma (mezi Sepia a Brown) **[IN PROGRESS]** (completed 2026-03-10)
+- [x] **Phase 27: 4th Light Theme** - Přidat 4. světlé téma (mezi Sepia a Brown) (completed 2026-03-11)
 - [x] **Phase 28: Dark Variant Support** - Přidat 2. dark téma jako variantu
   - Completed: 2026-03-10
 - [x] **Phase 29: Syntect Theme Mapping** - Opravit mapování syntect témat pro všechny varianty (completed 2026-03-10)
@@ -38,9 +38,10 @@
 4. 4th light variant shows visual swatch in theme picker
 5. 4th light variant has localized label in all 5 languages (cs, en, de, ru, sk)
 
-**Plans:** 1/1 plans complete
+**Plans:** 2/2 plans complete
 
 - [x] 27-01-PLAN.md — Add WarmTan light variant (enum, colors, UI picker, i18n)
+- [x] 27-02-PLAN.md — Restore WarmTan picker visibility/persistence/localization and add regression tests
 
 ---
 
@@ -92,7 +93,7 @@ Následující fáze jsou pozastaveny (nebudou dokončeny):
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 27 | v1.3.0 | Complete    | 2026-03-10 | - |
+| 27 | v1.3.0 | 2/2        | Complete    | 2026-03-11 |
 | 28 | 0/1 | Planned    |  | - |
 | 29 | 2/2 | Complete    | 2026-03-10 | - |
 | 19-23 | v1.2.2-dev | - | Deferred | - |
@@ -113,10 +114,10 @@ Mapped: 9/9 ✓
 ## Known Issues / TODO
 
 - Legacy quick tasks table ve `STATE.md` obsahuje historické řádky mimo standard tabulku; při dalším housekeepingu sjednotit formát.
-- `./check.sh` aktuálně padá na repo-wide `cargo fmt --check` rozdílech mimo scope této roadmap inicializace.
+- `./check.sh` aktuálně padá na repo-wide `cargo fmt --check` a `cargo clippy` chybách (unused variables, clonings atd.), které jsou mimo rozsah tohoto plánu.
 - Warning text kontrast v light mode — existující tech debt z v1.0.2
 - Syntax highlighting v AI chatu nefunguje (existující tech debt)
 
 ---
 
-*Last updated: 2026-03-10*
+*Last updated: 2026-03-11*

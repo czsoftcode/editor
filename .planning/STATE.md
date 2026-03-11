@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-last_updated: "2026-03-10T23:36:28.633Z"
-last_activity: "2026-03-11 - Completed Phase 29 Plan 02: Syntect Theme Mapping"
+last_updated: "2026-03-11T00:00:52.982Z"
+last_activity: "2026-03-11 - Completed Phase 27 Plan 02: WarmTan picker regression fix"
 progress:
   total_phases: 3
   completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 5
+  completed_plans: 5
   percent: 100
 ---
 
@@ -38,10 +38,10 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 29 of 29 (Syntect Theme Mapping)
+Phase: 27 of 29 (4th Light Theme)
 Plan: 02 completed
 Status: Completed
-Last activity: 2026-03-11 - Completed Phase 29 Plan 02: Syntect Theme Mapping
+Last activity: 2026-03-11 - Completed Phase 27 Plan 02: WarmTan picker regression fix
 
 Progress: [██████████] 100%
 
@@ -87,6 +87,7 @@ Key decisions logged in PROJECT.md Key Decisions table.
 - [Phase 29-syntect-theme-mapping]: ThemeSet defaults obsahuje jen 3 light built-in témata; WarmTan vyžaduje navazující rozhodnutí.
 - [Phase 29-syntect-theme-mapping]: Dark terminal palette je odvozená z aktivního visuals.panel_fill místo statického defaultu.
 - [Phase 29-syntect-theme-mapping]: Regresní gate pro dark terminál je definovaná přes distinct variant background + foreground/background contrast >= 4.5.
+- [Phase 27-02]: Zavedení `LIGHT_VARIANT_OPTIONS` a lokalizačního testu drží WarmTan viditelný a detekuje chybějící label v Settings pickeru.
 
 ### Known Tech Debt
 
@@ -120,3 +121,5 @@ Key decisions logged in PROJECT.md Key Decisions table.
 *Last updated: 2026-03-11*
 | Phase 29-syntect-theme-mapping P01 | 9min | 3 tasks | 1 files |
 | Phase 29-syntect-theme-mapping P02 | 6 min | 2 tasks | 1 files |
+| Phase 27 P02 | 5 min | 3 tasks | 0 files |
+

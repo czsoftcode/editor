@@ -1488,6 +1488,24 @@ mod tests {
     }
 
     #[test]
+    fn test_approval_deny_error_mentions_tool_name() {
+        let (_tmp, mut executor) = setup_test_executor();
+        let args = serde_json::json!({"path": "denied.rs", "content": "fn denied() {}"});
+        let result =
+            executor.process_approval_response("write_file", &args, ApprovalDecision::Deny);
+        match result {
+            ToolResult::Error(msg) => {
+                assert!(
+                    msg.contains("write_file"),
+                    "Deny message should include tool name for resume context: {}",
+                    msg
+                );
+            }
+            other => panic!("Expected Error after deny, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn test_approval_always_adds_to_auto_approved() {
         let (_tmp, mut executor) = setup_test_executor();
         let args = serde_json::json!({"path": "always.rs", "content": "fn always() {}"});

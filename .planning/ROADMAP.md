@@ -7,8 +7,8 @@
 ## Progress
 
 - Total phases: 3
-- Completed: 0
-- In progress: 1
+- Completed: 1
+- In progress: 0
 - Pending: 2
 
 ## Phases
@@ -51,6 +51,7 @@
 | Requirement | Phase |
 |-------------|-------|
 | CLI-01 | 30 |
+| CLI-02 | 30 |
 | CLI-03 | 30 |
 | TERM-01 | 31 |
 | TERM-02 | 31 |

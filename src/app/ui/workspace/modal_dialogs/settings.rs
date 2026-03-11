@@ -1,4 +1,4 @@
-use crate::app::cli::types::{AiExpertiseRole, AiReasoningDepth};
+use crate::app::ai_core::{AiExpertiseRole, AiReasoningDepth};
 use crate::app::types::AppShared;
 use crate::app::ui::background::spawn_task;
 use crate::app::ui::widgets::modal::StandardModal;

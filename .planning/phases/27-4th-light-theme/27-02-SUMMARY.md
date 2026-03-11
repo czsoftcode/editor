@@ -26,6 +26,7 @@ key-files:
 
 key-decisions:
   - "Picker je zobrazen jen pro aktivní režim: light v light, dark v dark."
+  - "Dark režim se řídí pouze přepínačem; dark varianty se neprosazují při light režimu."
 
 patterns-established:
   - "Theme preview porovnává i dark_theme, aby se přepnutí aplikovalo okamžitě."

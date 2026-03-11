@@ -52,5 +52,41 @@ pub fn render_ai_bar(
                 terminal.send_command(&cmd);
             }
         }
+
+        ui.separator();
+        ui.label(i18n.get("cli-chat-placeholder-model"));
+
+        let preferred_model = {
+            let sh = shared.lock().expect("lock");
+            sh.settings.ai_default_model.clone()
+        };
+        let resolved_model = crate::app::ui::workspace::state::resolve_selected_model(
+            &ws.ai.ollama.models,
+            &ws.ai.ollama.selected_model,
+            &preferred_model,
+        );
+        if resolved_model != ws.ai.ollama.selected_model {
+            ws.ai.ollama.selected_model = resolved_model.clone();
+        }
+
+        let model_combo_id = format!("{combo_id}_model");
+        let selected_label = if resolved_model.is_empty() {
+            "—".to_string()
+        } else {
+            resolved_model
+        };
+
+        egui::ComboBox::from_id_salt(model_combo_id)
+            .selected_text(selected_label)
+            .width(180.0)
+            .show_ui(ui, |ui| {
+                if ws.ai.ollama.models.is_empty() {
+                    ui.label("No models");
+                } else {
+                    for model in ws.ai.ollama.models.clone() {
+                        ui.selectable_value(&mut ws.ai.ollama.selected_model, model.clone(), model);
+                    }
+                }
+            });
     });
 }

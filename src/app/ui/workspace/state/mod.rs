@@ -298,6 +298,19 @@ pub fn build_dirty_close_queue(
     build_dirty_close_queue_for_mode(DirtyCloseQueueMode::WorkspaceClose(active_path), tabs)
 }
 
+pub fn resolve_selected_model(models: &[String], current: &str, preferred: &str) -> String {
+    if models.iter().any(|m| m == current) {
+        return current.to_string();
+    }
+    if !preferred.is_empty() && models.iter().any(|m| m == preferred) {
+        return preferred.to_string();
+    }
+    if let Some(first) = models.first() {
+        return first.clone();
+    }
+    current.to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

@@ -392,4 +392,9 @@ mod tests {
     fn test_async_result_generation_guard_rejects_stale_generation() {
         assert!(!should_apply_async_result(42, 41));
     }
+
+    #[test]
+    fn test_async_result_generation_guard_rejects_future_generation() {
+        assert!(!should_apply_async_result(42, 43));
+    }
 }

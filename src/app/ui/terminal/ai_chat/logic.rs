@@ -276,3 +276,25 @@ fn build_editor_context(ws: &WorkspaceState) -> String {
 
     payload.to_system_message()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{normalize_prompt_input, validate_provider_config};
+
+    #[test]
+    fn normalize_prompt_input_trims_and_keeps_slash_commands() {
+        assert_eq!(normalize_prompt_input("   /help   "), Some("/help".to_string()));
+        assert_eq!(normalize_prompt_input("   hello world  "), Some("hello world".to_string()));
+    }
+
+    #[test]
+    fn normalize_prompt_input_rejects_whitespace_only() {
+        assert_eq!(normalize_prompt_input("   \n\t "), None);
+    }
+
+    #[test]
+    fn provider_config_requires_non_empty_model() {
+        assert!(validate_provider_config("llama3.1").is_ok());
+        assert!(validate_provider_config("   ").is_err());
+    }
+}

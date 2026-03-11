@@ -242,3 +242,21 @@ fn extract_cargo_summary(root: &std::path::Path) -> Option<String> {
         Some(lines.join("\n"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{AiExpertiseRole, AiManager, AiReasoningDepth};
+
+    #[test]
+    fn ai_runtime_logo_is_terminal_only() {
+        let logo = AiManager::get_logo(
+            "1.0.0",
+            "model-x",
+            AiExpertiseRole::default(),
+            AiReasoningDepth::default(),
+        );
+
+        assert!(logo.contains("TERMINAL"));
+        assert!(!logo.contains("CLI"));
+    }
+}

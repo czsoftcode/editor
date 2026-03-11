@@ -333,16 +333,44 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Zabalit do .tar.gz
+      - name: Zabalit do .dmg
         run: |
-          tar -czf ${{ env.APP_NAME }}-macos-${{ matrix.arch }}.tar.gz \
-            -C target/${{ matrix.target }}/release ${{ env.APP_NAME }}
+          DMG_ROOT="dmg-root-${{ matrix.arch }}"
+          APP_BUNDLE="${DMG_ROOT}/${{ env.APP_NAME }}.app"
+          mkdir -p "${APP_BUNDLE}/Contents/MacOS" "${APP_BUNDLE}/Contents/Resources"
+          cp "target/${{ matrix.target }}/release/${{ env.APP_NAME }}" "${APP_BUNDLE}/Contents/MacOS/${{ env.APP_NAME }}"
+          chmod +x "${APP_BUNDLE}/Contents/MacOS/${{ env.APP_NAME }}"
+          cat > "${APP_BUNDLE}/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>polycredo-editor</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.polycredo.Editor</string>
+            <key>CFBundleName</key>
+            <string>PolyCredo Editor</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>dev</string>
+            <key>CFBundleVersion</key>
+            <string>dev</string>
+          </dict>
+          </plist>
+          EOF
+          hdiutil create \
+            -volname "PolyCredo Editor" \
+            -srcfolder "${DMG_ROOT}" \
+            -ov -format UDZO \
+            "${{ env.APP_NAME }}-macos-${{ matrix.arch }}.dmg"
 
       - name: Upload artefakt
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}
-          path: "*.tar.gz"
+          path: "*.dmg"
 
   # ============================================================
   # VYTVOŘENÍ PRE-RELEASE
@@ -400,8 +428,8 @@ jobs:
             | Linux sandboxed | `.flatpak` |
             | Windows (NSIS) | `-setup.exe` |
             | Windows (MSI) | `.msi` |
-            | macOS Intel | `-macos-x86_64.tar.gz` |
-            | macOS Apple Silicon | `-macos-aarch64.tar.gz` |
+            | macOS Intel | `-macos-x86_64.dmg` |
+            | macOS Apple Silicon | `-macos-aarch64.dmg` |
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

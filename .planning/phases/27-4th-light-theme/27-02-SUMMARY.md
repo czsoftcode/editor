@@ -59,7 +59,7 @@ completed: 2026-03-11
 
 Each task was committed atomically:
 
-1. **Task 27-02-01/02: Viditelnost pickerů + okamžitý preview při přepnutí** - `d5f9191` (fix)
+1. **Task 27-02-01/02: Viditelnost pickerů + okamžitý preview při přepnutí** - `1236e17` (fix)
 2. **Task 27-02-03: Lokalizace WarmTan** - bez změn kódu (ověřeno testy)
 
 ## Files Created/Modified

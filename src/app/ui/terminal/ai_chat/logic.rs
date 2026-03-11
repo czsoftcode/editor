@@ -12,12 +12,13 @@ pub fn send_query_to_agent(
     shared: &Arc<Mutex<AppShared>>,
     _i18n: &crate::i18n::I18n,
 ) {
-    if ws.ai.chat.prompt.trim().is_empty() {
+    let Some(normalized_prompt) = normalize_prompt_input(&ws.ai.chat.prompt) else {
         return;
-    }
+    };
 
     // Slash command intercept — works even when provider is disconnected
-    if ws.ai.chat.prompt.starts_with('/') {
+    if normalized_prompt.starts_with('/') {
+        ws.ai.chat.prompt = normalized_prompt;
         super::slash::dispatch(ws, shared);
         return;
     }
@@ -117,7 +118,7 @@ pub fn send_query_to_agent(
     }
 
     // Current prompt
-    let prompt = ws.ai.chat.prompt.clone();
+    let prompt = normalized_prompt;
     ws.ai.chat.retry_prompt = Some(prompt.clone());
     ws.ai.chat.retry_available = false;
     messages.push(AiMessage {
@@ -153,6 +154,10 @@ pub fn send_query_to_agent(
 
     // Create provider and start streaming
     let (base_url, model, api_key) = ws.ai_provider_connection_parts();
+    if let Err(msg) = validate_provider_config(&model) {
+        ws.toasts.push(Toast::error(msg));
+        return;
+    }
     let provider = OllamaProvider::new(base_url.clone(), model.clone(), api_key.clone());
 
     let config = ProviderConfig {
@@ -275,6 +280,23 @@ fn build_editor_context(ws: &WorkspaceState) -> String {
     }
 
     payload.to_system_message()
+}
+
+fn normalize_prompt_input(prompt: &str) -> Option<String> {
+    let trimmed = prompt.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn validate_provider_config(model: &str) -> Result<(), &'static str> {
+    if model.trim().is_empty() {
+        Err("AI provider model is not configured.")
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(test)]

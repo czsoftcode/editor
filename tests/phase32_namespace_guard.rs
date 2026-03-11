@@ -5,7 +5,7 @@ const CRITICAL_RUNTIME_FILES: &[&str] = &[
     "src/app/ui/terminal/ai_chat/logic.rs",
     "src/app/ui/terminal/ai_chat/slash.rs",
     "src/app/ui/terminal/ai_chat/approval.rs",
-    "src/app/ui/background_events.rs",
+    "src/app/ui/background.rs",
     "src/app/ai_core/executor.rs",
 ];
 

@@ -22,5 +22,10 @@ fn ai_terminal_subset_uses_ai_core_instead_of_cli_namespace() {
             "legacy cli namespace found in {}",
             path.display()
         );
+        assert!(
+            !content.contains("app::cli"),
+            "legacy cli namespace found in {}",
+            path.display()
+        );
     }
 }

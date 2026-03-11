@@ -28,6 +28,7 @@ Poznamka: Approval/security kontrakt se v phase 31 nemeni; gap closure resi pouz
 
 - [x] **STAB-01**: `cargo check` a `./check.sh` prochazi po odstraneni CLI vrstvy.
 - [x] **STAB-02**: Relevantni testy jsou aktualizovany na novy namespace.
+Poznamka: Evidence-first sign-off je veden v `.planning/phases/32-cleanup-tests-and-stabilization/32-VERIFICATION.md`.
 
 ## v2 Requirements
 

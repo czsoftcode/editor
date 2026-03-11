@@ -40,6 +40,7 @@
 **Goal:** Dokoncit cleanup, testy a dokumentaci po odstraneni CLI vrstvy.
 
 **Requirements:** STAB-01, STAB-02
+**Verification evidence:** `.planning/phases/32-cleanup-tests-and-stabilization/32-VERIFICATION.md`
 
 **Success criteria:**
 - `cargo check` a `./check.sh` prochazi.

@@ -1,9 +1,21 @@
 use std::fs;
 use std::path::Path;
 
+const ACTIVE_AUDIT_PATH: &str = ".planning/phases/30-cli-namespace-removal-foundation/30-02-AUDIT.md";
+const ARCHIVED_AUDIT_PATH: &str =
+    ".planning/milestones/v1.3.0-phases/30-cli-namespace-removal-foundation/30-02-AUDIT.md";
+
+fn resolve_audit_path() -> &'static str {
+    if Path::new(ACTIVE_AUDIT_PATH).exists() {
+        ACTIVE_AUDIT_PATH
+    } else {
+        ARCHIVED_AUDIT_PATH
+    }
+}
+
 #[test]
 fn cli01_audit_artifact_exists_with_pass_markers() {
-    let path = Path::new(".planning/phases/30-cli-namespace-removal-foundation/30-02-AUDIT.md");
+    let path = Path::new(resolve_audit_path());
     assert!(path.exists(), "missing audit artifact: {}", path.display());
 
     let content = fs::read_to_string(path)

@@ -8,7 +8,7 @@
 ### CLI Removal
 
 - [ ] **CLI-01**: Kod v `src/app/cli/*` je odstraneny z repozitare.
-- [ ] **CLI-02**: Build prochazi bez importu `crate::app::cli::*`.
+- [x] **CLI-02**: Build prochazi bez importu `crate::app::cli::*`.
 - [ ] **CLI-03**: Neexistuji mrtve exporty/moduly vazane na puvodni CLI vrstvu.
 
 ### AI Terminal Behavior
@@ -48,7 +48,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CLI-01 | Phase 30 | Pending |
-| CLI-02 | Phase 30 | Pending |
+| CLI-02 | Phase 30 | Complete |
 | CLI-03 | Phase 30 | Pending |
 | TERM-01 | Phase 31 | Pending |
 | TERM-02 | Phase 31 | Pending |

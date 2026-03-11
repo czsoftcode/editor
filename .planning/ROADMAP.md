@@ -7,9 +7,9 @@
 ## Progress
 
 - Total phases: 3
-- Completed: 2
+- Completed: 3
 - In progress: 0
-- Pending: 1
+- Pending: 0
 
 ## Phases
 

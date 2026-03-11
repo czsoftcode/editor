@@ -376,4 +376,14 @@ mod tests {
         }
         assert!(!any_close, "Long word should not match any command");
     }
+
+    #[test]
+    fn test_async_result_generation_guard_accepts_same_generation() {
+        assert!(should_apply_async_result(42, 42));
+    }
+
+    #[test]
+    fn test_async_result_generation_guard_rejects_stale_generation() {
+        assert!(!should_apply_async_result(42, 41));
+    }
 }

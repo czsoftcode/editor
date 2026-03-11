@@ -3,7 +3,7 @@ status: complete
 phase: 30-cli-namespace-removal-foundation
 source: 30-01-SUMMARY.md, 30-02-SUMMARY.md, 30-03-SUMMARY.md, 30-04-SUMMARY.md
 started: 2026-03-11T11:26:35+01:00
-updated: 2026-03-11T11:31:00+01:00
+updated: 2026-03-11T11:31:15+01:00
 ---
 
 ## Current Test
@@ -13,7 +13,7 @@ updated: 2026-03-11T11:31:00+01:00
 ## Tests
 
 ### 1. Aplikace naběhne po odstranění CLI vrstvy
-expected: Spuštění editoru proběhne bez pádu a bez chyb o chybějícím .
+expected: Spuštění editoru proběhne bez pádu a bez chyb o chybějícím `app::cli`.
 result: pass
 
 ### 2. AI terminal je assistant-only (bez model/status prvků)
@@ -25,7 +25,7 @@ expected: Odeslání dotazu v AI chatu funguje standardně (odeslání, průběh
 result: pass
 
 ### 4. V terminal AI slash flow není dostupný legacy /model ovladač
-expected: Slash workflow neobsahuje starý  režim; nabídka odpovídá assistant-only chování.
+expected: Slash workflow neobsahuje starý `/model` režim; nabídka odpovídá assistant-only chování.
 result: pass
 
 ### 5. Regresní kontrola základní práce v editoru

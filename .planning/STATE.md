@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-11T11:48:20.839Z"
-last_activity: 2026-03-11 - Completed 31-03-PLAN.md
+last_updated: "2026-03-11T11:54:13.418Z"
+last_activity: 2026-03-11 - Completed 31-04-PLAN.md
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_plans: 8
+  percent: 100
 ---
 
 ## gsd_state_version: 1.0
@@ -33,16 +33,16 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
-**Current focus:** Phase 31 (AI terminal runtime migration)
+**Current focus:** Phase 32 (cleanup, tests, stabilization)
 
 ## Current Position
 
 Phase: 31-ai-terminal-runtime-migration
-Plan: 31-03 completed
-Status: 31-01 až 31-03 completed, 31-04 pending
-Last activity: 2026-03-11 - Completed 31-03-PLAN.md
+Plan: 31-04 completed
+Status: 31-01 až 31-04 completed, phase 31 complete
+Last activity: 2026-03-11 - Completed 31-04-PLAN.md
 
-Progress: [█████████░] 88%
+Progress: [██████████] 100%
 
 ---
 
@@ -66,6 +66,8 @@ Progress: [█████████░] 88%
 - [Phase 31-ai-terminal-runtime-migration]: Model picker v ai_bar používá workspace accessory kvůli assistant-only UI gate token policy.
 - [Phase 31-ai-terminal-runtime-migration]: execute_approved musi znovu validovat sandbox/blacklist/rate-limit guardy i po schvaleni.
 - [Phase 31-ai-terminal-runtime-migration]: Audit detail payloady jsou sanitovany na jeden radek kvuli citelne forenzni stope.
+- [Phase 31-ai-terminal-runtime-migration]: TERM/SAFE evidence is unified in 31-VERIFICATION.md for single-artifact audit traceability.
+- [Phase 31-ai-terminal-runtime-migration]: Final gate requires both cargo check and check.sh PASS before enabling nyquist_compliant true.
 
 ### Known Tech Debt
 

@@ -915,7 +915,8 @@ mod tests {
     #[test]
     fn drain_stream_events_synthesizes_done_after_tokens_on_disconnect() {
         let (tx, rx) = mpsc::channel();
-        tx.send(StreamEvent::Token("ahoj".to_string())).expect("send");
+        tx.send(StreamEvent::Token("ahoj".to_string()))
+            .expect("send");
         drop(tx);
 
         let events = drain_stream_events(&rx, "");

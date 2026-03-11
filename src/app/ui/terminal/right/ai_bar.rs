@@ -60,13 +60,13 @@ pub fn render_ai_bar(
             let sh = shared.lock().expect("lock");
             sh.settings.ai_default_model.clone()
         };
-        let resolved_model = crate::app::ui::workspace::state::resolve_selected_model(
-            &ws.ai.ollama.models,
-            &ws.ai.ollama.selected_model,
+        let resolved_model = crate::app::ui::workspace::state::resolve_runtime_model(
+            ws.available_ai_models(),
+            ws.active_ai_model(),
             &preferred_model,
         );
-        if resolved_model != ws.ai.ollama.selected_model {
-            ws.ai.ollama.selected_model = resolved_model.clone();
+        if resolved_model != ws.active_ai_model() {
+            ws.set_active_ai_model(resolved_model.clone());
         }
 
         let model_combo_id = format!("{combo_id}_model");
@@ -80,11 +80,16 @@ pub fn render_ai_bar(
             .selected_text(selected_label)
             .width(180.0)
             .show_ui(ui, |ui| {
-                if ws.ai.ollama.models.is_empty() {
+                if ws.available_ai_models().is_empty() {
                     ui.label("No models");
                 } else {
-                    for model in ws.ai.ollama.models.clone() {
-                        ui.selectable_value(&mut ws.ai.ollama.selected_model, model.clone(), model);
+                    for model in ws.available_ai_models().to_vec() {
+                        if ui
+                            .selectable_label(ws.active_ai_model() == model, &model)
+                            .clicked()
+                        {
+                            ws.set_active_ai_model(model);
+                        }
                     }
                 }
             });

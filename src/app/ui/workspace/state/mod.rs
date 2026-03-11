@@ -240,6 +240,18 @@ impl WorkspaceState {
             self.ai.ollama.api_key.clone(),
         )
     }
+
+    pub fn active_ai_model(&self) -> &str {
+        &self.ai.ollama.selected_model
+    }
+
+    pub fn available_ai_models(&self) -> &[String] {
+        &self.ai.ollama.models
+    }
+
+    pub fn set_active_ai_model(&mut self, model: String) {
+        self.ai.ollama.selected_model = model;
+    }
 }
 
 /// Builds a stable queue of dirty tab paths for the unsaved close guard.
@@ -298,7 +310,7 @@ pub fn build_dirty_close_queue(
     build_dirty_close_queue_for_mode(DirtyCloseQueueMode::WorkspaceClose(active_path), tabs)
 }
 
-pub fn resolve_selected_model(models: &[String], current: &str, preferred: &str) -> String {
+pub fn resolve_runtime_model(models: &[String], current: &str, preferred: &str) -> String {
     if models.iter().any(|m| m == current) {
         return current.to_string();
     }
@@ -315,7 +327,7 @@ pub fn resolve_selected_model(models: &[String], current: &str, preferred: &str)
 mod tests {
     use super::{
         DirtyCloseQueueMode, build_dirty_close_queue, build_dirty_close_queue_for_mode,
-        resolve_selected_model,
+        resolve_runtime_model,
     };
     use std::path::PathBuf;
 
@@ -347,32 +359,32 @@ mod tests {
     }
 
     #[test]
-    fn resolve_selected_model_prefers_current_when_available() {
+    fn resolve_runtime_model_prefers_current_when_available() {
         let models = vec!["llama3.1".to_string(), "qwen3:latest".to_string()];
         assert_eq!(
-            resolve_selected_model(&models, "qwen3:latest", "llama3.1"),
+            resolve_runtime_model(&models, "qwen3:latest", "llama3.1"),
             "qwen3:latest"
         );
     }
 
     #[test]
-    fn resolve_selected_model_falls_back_to_preferred_then_first() {
+    fn resolve_runtime_model_falls_back_to_preferred_then_first() {
         let models = vec!["llama3.1".to_string(), "qwen3:latest".to_string()];
         assert_eq!(
-            resolve_selected_model(&models, "missing", "llama3.1"),
+            resolve_runtime_model(&models, "missing", "llama3.1"),
             "llama3.1"
         );
         assert_eq!(
-            resolve_selected_model(&models, "missing", "also-missing"),
+            resolve_runtime_model(&models, "missing", "also-missing"),
             "llama3.1"
         );
     }
 
     #[test]
-    fn resolve_selected_model_keeps_current_when_no_models_available() {
+    fn resolve_runtime_model_keeps_current_when_no_models_available() {
         let models: Vec<String> = Vec::new();
         assert_eq!(
-            resolve_selected_model(&models, "existing-model", "preferred"),
+            resolve_runtime_model(&models, "existing-model", "preferred"),
             "existing-model"
         );
     }

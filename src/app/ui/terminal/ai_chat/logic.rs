@@ -305,8 +305,14 @@ mod tests {
 
     #[test]
     fn normalize_prompt_input_trims_and_keeps_slash_commands() {
-        assert_eq!(normalize_prompt_input("   /help   "), Some("/help".to_string()));
-        assert_eq!(normalize_prompt_input("   hello world  "), Some("hello world".to_string()));
+        assert_eq!(
+            normalize_prompt_input("   /help   "),
+            Some("/help".to_string())
+        );
+        assert_eq!(
+            normalize_prompt_input("   hello world  "),
+            Some("hello world".to_string())
+        );
     }
 
     #[test]

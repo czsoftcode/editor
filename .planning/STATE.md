@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-11T10:05:49Z"
-last_activity: 2026-03-11 - Completed 30-04-PLAN.md
+last_updated: "2026-03-11T10:14:30.830Z"
+last_activity: 2026-03-11 - Completed 30-02-PLAN.md
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 50
+  completed_plans: 3
+  percent: 75
 ---
 
 ## gsd_state_version: 1.0
@@ -38,11 +38,11 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 30-cli-namespace-removal-foundation
-Plan: 30-02 next
-Status: 30-01 and 30-04 completed
-Last activity: 2026-03-11 - Completed 30-04-PLAN.md
+Plan: 30-03 next
+Status: 30-01, 30-02 and 30-04 completed
+Last activity: 2026-03-11 - Completed 30-02-PLAN.md
 
-Progress: [█████-----] 50%
+Progress: [███████---] 75%
 
 ---
 
@@ -56,6 +56,8 @@ Progress: [█████-----] 50%
 - [Phase 30]: Foundation migration scope locked to settings/types/workspace-state; runtime AI terminal migration deferred to next plans.
 - [Phase 30-cli-namespace-removal-foundation]: AI terminal head/right bar byl uzamcen do assistant-only UX bez provider model/status prvku.
 - [Phase 30-cli-namespace-removal-foundation]: CLI-02 audit scope byl docisten i o ai_chat/slash.rs, protoze je soucasti overovaneho subsetu.
+- [Phase 30]: AiManager a runtime AI vrstva byly presunuty do app::ai_core a app::cli namespace byl odstraneny bez fallback aliasu.
+- [Phase 30]: CLI-01 je dokumentovan explicitnim 30-02-AUDIT.md artefaktem s build a grep PASS dukazy.
 
 ### Known Tech Debt
 

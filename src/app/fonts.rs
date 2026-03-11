@@ -5,6 +5,7 @@ use std::sync::Arc;
 /// Configures fonts to support a wider range of Unicode characters (emojis, icons, symbols).
 pub fn setup_custom_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
 
     let mut search_dirs = vec![];

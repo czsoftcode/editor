@@ -27,7 +27,14 @@ pub fn ui_conversation(
             .unwrap_or_default()
             .as_secs() as libc::time_t;
         let mut tm: libc::tm = unsafe { std::mem::zeroed() };
-        unsafe { libc::localtime_r(&secs, &mut tm) };
+        #[cfg(windows)]
+        unsafe {
+            libc::localtime_s(&mut tm, &secs);
+        }
+        #[cfg(not(windows))]
+        unsafe {
+            libc::localtime_r(&secs, &mut tm);
+        }
         format!("{:02}:{:02}", tm.tm_hour, tm.tm_min)
     };
 

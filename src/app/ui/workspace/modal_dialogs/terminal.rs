@@ -40,9 +40,9 @@ pub fn show(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n, _id_salt:
         }
 
         if close_confirmed {
-            if let Some(terminal) = ws.claude_tabs.get(idx) {
+            if let Some(_terminal) = ws.claude_tabs.get(idx) {
                 #[cfg(unix)]
-                terminal.kill_process_group();
+                _terminal.kill_process_group();
                 ws.claude_tabs.remove(idx);
                 if ws.claude_active_tab >= ws.claude_tabs.len() {
                     ws.claude_active_tab = ws.claude_tabs.len().saturating_sub(1);

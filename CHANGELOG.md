@@ -1,3 +1,17 @@
+## [1.2.2] - 2026-03-11
+
+### Added
+- **WarmTan Light Variant**: 4. svetla varianta s pickerem, swatch a i18n ve vsech jazycich.
+- **Midnight Dark Variant**: 2. dark varianta s pickerem a persistence.
+- **Syntect Theme Mapping**: Explicitni mapovani syntect theme pro vsechny light/dark varianty.
+
+### Changed
+- **Theme Picker Layout**: Light varianty 2x2 v mrizce, dark varianty vedle sebe; sjednoceny styl karet.
+- **Theme Mode Logic**: Dark rezim se ridi pouze prepinacem; dark varianty neprebiji light rezim.
+
+### Fixed
+- **WarmTan Visibility**: WarmTan se uz neztraci v Settings pickeru.
+
 ## [1.2.1-dev] - 2026-03-10
 
 ### Added

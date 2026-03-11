@@ -171,12 +171,13 @@ mod tests {
             LightVariant::WarmIvory,
             LightVariant::CoolGray,
             LightVariant::Sepia,
+            LightVariant::WarmTan,
         ]
         .into_iter()
         .map(|variant| git_color_for_visuals(GitVisualStatus::Modified, &light_visuals(variant)))
         .collect();
 
-        assert_eq!(colors.len(), 3);
+        assert_eq!(colors.len(), 4);
     }
 
     #[test]

@@ -1578,7 +1578,9 @@ mod tests {
             &serde_json::json!({"path": "limited.rs", "content": "fn limited() {}"}),
         );
         match result {
-            ToolResult::Error(msg) => assert!(msg.contains("rate limit") || msg.contains("Rate limit")),
+            ToolResult::Error(msg) => {
+                assert!(msg.contains("rate limit") || msg.contains("Rate limit"))
+            }
             other => panic!("Expected Error, got {:?}", other),
         }
     }

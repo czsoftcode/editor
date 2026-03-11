@@ -27,9 +27,18 @@ cargo test ai_chat -- --nocapture
 cargo test gsd -- --nocapture
 cargo test approval -- --nocapture
 cargo test security -- --nocapture
+./check.sh
 ```
+
+## Final Integration Gate
+
+| Command | Result | Date |
+|---------|--------|------|
+| `cargo check` | PASS | 2026-03-11 |
+| `./check.sh` | PASS | 2026-03-11 |
 
 ## Notes
 
 - Scope boundary validated against phase context: AI terminal-only runtime, external slash/GSD workflow, bez PolyCredo CLI fallback.
 - SAFE sekce je finalizovaná na základě approval/security test runs.
+- `./check.sh` při prvním běhu detekoval formatting drift a byl opraven přes `cargo fmt --all`; opakovaný běh je PASS.

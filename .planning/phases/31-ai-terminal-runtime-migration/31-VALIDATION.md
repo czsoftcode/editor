@@ -1,15 +1,16 @@
 ---
 phase: 31
 slug: ai-terminal-runtime-migration
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: completed
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-11
+updated: 2026-03-11
 ---
 
-# Phase 31 — Validation Strategy
+# Phase 31 — Validation Report
 
-> Per-phase validation contract for feedback sampling during execution.
+> Final validation evidence for phase acceptance gate.
 
 ---
 
@@ -19,28 +20,31 @@ created: 2026-03-11
 |----------|-------|
 | **Framework** | Rust test harness (`cargo test`) + shell smoke checks |
 | **Config file** | `Cargo.toml` |
-| **Quick run command** | `rg -n "NeedsApproval|validate_path|dispatch|send_query_to_agent" src/app/ai_core src/app/ui/terminal/ai_chat src/app/ui/background.rs` |
+| **Quick run command** | `cargo test approval -- --nocapture && cargo test security -- --nocapture` |
 | **Full suite command** | `cargo check && ./check.sh` |
-| **Estimated runtime** | ~25 seconds (quick), full suite dle prostředí |
+| **Observed runtime** | `cargo check` ~0.3s, `./check.sh` ~8s v aktuálním prostředí |
 
 ---
 
-## Sampling Rate
+## Execution Coverage
 
-- **After every task commit:** Run `rg -n "NeedsApproval|validate_path|dispatch|send_query_to_agent" src/app/ai_core src/app/ui/terminal/ai_chat src/app/ui/background.rs`
-- **After every plan wave:** Run `cargo check && ./check.sh`
-- **Before `$gsd-verify-work`:** Full suite must be green
-- **Max feedback latency:** 25 seconds
+- **31-02 TERM hardening:** `cargo test ai_chat -- --nocapture`, `cargo test gsd -- --nocapture`
+- **31-03 SAFE hardening:** `cargo test approval -- --nocapture`, `cargo test security -- --nocapture`
+- **31-04 final gate:** `cargo check`, `./check.sh`
+- **Traceability artifact:** `.planning/phases/31-ai-terminal-runtime-migration/31-VERIFICATION.md`
 
 ---
 
-## Per-Task Verification Map
+## Per-Task Verification Map (Final)
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
 | 31-03-01 | 03 | 3 | SAFE-01 | unit | `RUSTC_WRAPPER= cargo test approval -- --nocapture` | ✅ | ✅ green |
 | 31-03-02 | 03 | 3 | SAFE-02 | unit | `RUSTC_WRAPPER= cargo test security -- --nocapture` | ✅ | ✅ green |
-| 31-03-03 | 03 | 3 | SAFE-03 | build + targeted unit | `RUSTC_WRAPPER= cargo test audit_logger_sanitizes_multiline_details -- --nocapture && RUSTC_WRAPPER= cargo check` | ✅ | ✅ green |
+| 31-03-03 | 03 | 3 | SAFE-03 | build + targeted unit | `cargo test security -- --nocapture && cargo check` | ✅ | ✅ green |
+| 31-04-01 | 04 | 4 | TERM-01..03 | acceptance matrix + checks | `cargo check && cargo test ai_chat -- --nocapture && cargo test gsd -- --nocapture` | ✅ | ✅ green |
+| 31-04-02 | 04 | 4 | SAFE-01..03 | acceptance matrix + checks | `cargo test approval -- --nocapture && cargo test security -- --nocapture` | ✅ | ✅ green |
+| 31-04-03 | 04 | 4 | Final phase gate | full quality gate | `cargo check && ./check.sh` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -69,6 +73,9 @@ Existing infrastructure covers all phase requirements.
 - [x] Wave 0 covers all MISSING references
 - [x] No watch-mode flags
 - [x] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** accepted
+**Accepted on:** 2026-03-11
+**Gate commands:** `cargo check`, `./check.sh`
+**Gate result:** PASS

@@ -1,73 +1,14 @@
-# CLI / AI Chat rozhranie
-
-## Chat UI (premenované z ai-chat-*)
-cli-chat-title = AI Chat asistent
-cli-chat-label-response = Odpoveď:
-cli-chat-loading = AI premýšľa…
-cli-chat-label-prompt = Tvoj dotaz:
-cli-chat-placeholder-prompt = Napíš zadanie pre AI (napr. „Vysvetli tento kód")...
-cli-chat-btn-send = Odoslať
-cli-chat-btn-new = Nové vlákno
-cli-chat-settings-title = Nastavenia AI
-cli-chat-label-language = Jazyk:
-cli-chat-btn-reset = Resetovať
-cli-chat-label-system-prompt = Systémový prompt:
-cli-chat-default-prompt = Expert na Rust.
-
-## Hodnosť / Hĺbka
-cli-chat-label-rank = Hodnosť:
-cli-chat-label-depth = Hĺbka:
-cli-chat-rank-junior = Junior
-cli-chat-rank-senior = Senior
-cli-chat-rank-master = Master
-cli-chat-depth-fast = Rýchlo
-cli-chat-depth-balanced = Vyvážene
-cli-chat-depth-deep = Hlboko
-cli-chat-placeholder-model = Model...
-cli-chat-placeholder-filter = Filter...
-
-## Lišta pluginov (premenované z ai-plugin-bar-*)
-cli-bar-label = CLI:
+# Kľúče pre AI launcher a nastavenia
+cli-bar-label = AI:
 cli-bar-settings = ⚙
-cli-bar-start-hover = Spustiť AI chat s vybraným pluginom
-cli-bar-settings-hover = Otvoriť nastavenia vybraného AI pluginu
+cli-bar-start-hover = Spustiť vybraného asistenta v termináli
+cli-bar-settings-hover = Otvoriť nastavenia AI launchera
 
-## Schvaľovanie nástrojov
-cli-tool-approve = 1 - Vykonať
-cli-tool-approve-always = 2 - Schvaľovať vždy
-cli-tool-deny = 3/Esc - Zamietnuť
-cli-tool-ask-heading = Agent '{ $agent }' sa pýta:
-cli-tool-quick-options = Rýchle možnosti:
-cli-tool-custom-input = Alebo napíšte vlastnú:
-cli-tool-input-placeholder = Vaša odpoveď…
-cli-tool-send = Odoslať
-cli-tool-cancel = Zrušiť
-cli-tool-tool-approval-heading = AI nástroj '{ $tool }' vyžaduje schválenie
-cli-tool-network-warning = Sieťový príkaz — dáta môžu opustiť počítač
-cli-tool-new-file-hint = Nový súbor (nižšie riziko)
-
-## Tlačidlá chatu
-cli-chat-stop = Stop
-cli-chat-clear = Vymazať
-cli-chat-copy = Kopírovať
-cli-chat-inspector-title = AI Inšpektor
-
-## Nastavenia
-cli-settings-section = PolyCredo CLI
+cli-settings-section = AI
 cli-settings-top-p = Top-P
 cli-settings-top-k = Top-K
 cli-settings-repeat-penalty = Penalizácia opakovania
 cli-settings-seed = Seed
 cli-settings-seed-hint = 0 = náhodný
-cli-settings-blacklist = CLI Blacklist (zakázané súbory)
+cli-settings-blacklist = AI blacklist (zakázané súbory)
 cli-settings-blacklist-hint = Vzory súborov, ku ktorým AI nesmie pristupovať (jeden vzor na riadok)
-
-## Stav chatu a info o modeli
-cli-chat-generating = Generujem...
-cli-chat-model-family = Rodina: { $value }
-cli-chat-model-params = Parametre: { $value }
-cli-chat-model-quant = Kvantizácia: { $value }
-cli-chat-model-context = Kontext: { $value }
-cli-chat-token-counter = Vstup: { $input } | Výstup: { $output }
-cli-chat-unexpected-result = Neočakávaný výsledok
-cli-chat-ollama-disconnected = Ollama nie je pripojená.

@@ -3,9 +3,7 @@ use std::path::Path;
 
 #[test]
 fn cli01_audit_artifact_exists_with_pass_markers() {
-    let path = Path::new(
-        ".planning/phases/30-cli-namespace-removal-foundation/30-02-AUDIT.md",
-    );
+    let path = Path::new(".planning/phases/30-cli-namespace-removal-foundation/30-02-AUDIT.md");
     assert!(path.exists(), "missing audit artifact: {}", path.display());
 
     let content = fs::read_to_string(path)

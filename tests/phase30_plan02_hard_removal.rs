@@ -7,8 +7,7 @@ fn cli_tree_is_physically_removed_and_not_registered_in_app_root() {
         "src/app/cli directory must be removed"
     );
 
-    let app_mod = std::fs::read_to_string("src/app/mod.rs")
-        .expect("failed to read src/app/mod.rs");
+    let app_mod = std::fs::read_to_string("src/app/mod.rs").expect("failed to read src/app/mod.rs");
 
     assert!(
         !app_mod.contains("mod cli;"),

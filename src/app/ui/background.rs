@@ -893,12 +893,38 @@ pub(crate) fn fetch_git_status(
 
 #[cfg(test)]
 mod tests {
-    use super::should_run_autosave;
+    use super::{drain_stream_events, should_run_autosave};
+    use crate::app::ai_core::provider::StreamEvent;
     use crate::settings::SaveMode;
+    use std::sync::mpsc;
 
     #[test]
     fn should_run_autosave_only_in_automatic_mode() {
         assert!(should_run_autosave(SaveMode::Automatic));
         assert!(!should_run_autosave(SaveMode::Manual));
+    }
+
+    #[test]
+    fn drain_stream_events_synthesizes_done_after_tokens_on_disconnect() {
+        let (tx, rx) = mpsc::channel();
+        tx.send(StreamEvent::Token("ahoj".to_string())).expect("send");
+        drop(tx);
+
+        let events = drain_stream_events(&rx, "");
+
+        assert_eq!(events.len(), 2);
+        assert!(matches!(events[0], StreamEvent::Token(_)));
+        assert!(matches!(events[1], StreamEvent::Done { .. }));
+    }
+
+    #[test]
+    fn drain_stream_events_reports_error_on_empty_disconnect() {
+        let (tx, rx) = mpsc::channel::<StreamEvent>();
+        drop(tx);
+
+        let events = drain_stream_events(&rx, "");
+
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0], StreamEvent::Error(_)));
     }
 }

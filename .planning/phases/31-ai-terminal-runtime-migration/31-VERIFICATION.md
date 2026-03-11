@@ -2,7 +2,7 @@
 phase: 31
 slug: ai-terminal-runtime-migration
 plan: 05
-status: gaps_found
+status: passed
 updated: 2026-03-11
 verification_type: goal-backward
 ---
@@ -11,7 +11,7 @@ verification_type: goal-backward
 
 ## Final Status
 
-`gaps_found`
+`passed`
 
 ## Goal Verification (assistant-only bez puvodni CLI vrstvy)
 
@@ -44,7 +44,7 @@ Stav proti `.planning/REQUIREMENTS.md`:
 - `TERM-01/02/03` a `SAFE-01/02/03`: **OK** (existuji a jsou mapovane na Phase 31).
 
 Dalsi planning nesoulad nalezeny pri traceability kontrole:
-- `.planning/ROADMAP.md` v tabulce "Requirement Coverage" vynechava `TERM-02`, ale soucasne tvrdi `Coverage: 11/11 requirements mapped`.
+- `.planning/ROADMAP.md` coverage tabulka byla doplnena o `TERM-02` a souhlasi s tvrzenim `Coverage: 11/11 requirements mapped`.
 
 ## Verification Commands (2026-03-11)
 
@@ -59,11 +59,10 @@ Vysledek:
 
 ## Gap Summary
 
-- Gap 1: Requirement ID traceability mezi phase 31 artefakty a `.planning/REQUIREMENTS.md` nebyla plne sjednocena.
-- Gap 2: `ROADMAP` coverage tabulka je nekonzistentni (`TERM-02` chybi v seznamu).
+- Gap 1: Osiřele requirement reference byly odstraneny z phase 31 artefaktu remove variantou bez zmen v `.planning/REQUIREMENTS.md`.
+- Gap 2: `TERM-02` je explicitne doplnen v `ROADMAP` coverage tabulce a coverage souhrn zustava 11/11.
 
-## Actionable Next Step
+## Audit Trail
 
-1. Sjednotit source-of-truth traceability remove variantou: odstranit osiřele requirement reference z phase 31 artefaktů bez rozšiřování `.planning/REQUIREMENTS.md`.
-2. Opravit `.planning/ROADMAP.md` coverage tabulku tak, aby explicitne obsahovala `TERM-02` (a souhlasila s 11/11 tvrzenim).
-3. Po upravech znovu spustit kratkou verification kontrolu a prepnout status na `passed`.
+- Sjednocene soubory: `31-02-PLAN.md`, `31-05-PLAN.md`, `31-VERIFICATION.md`, `.planning/ROADMAP.md`.
+- Varianta uzavreni: remove-only (bez rozsireni requirement setu mimo TERM-01..03 a SAFE-01..03).

@@ -4,7 +4,8 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 mod build_runner;
-pub mod cli;
+pub mod ai_core;
+pub(crate) mod cli;
 mod fonts;
 pub mod local_history;
 pub mod lsp;

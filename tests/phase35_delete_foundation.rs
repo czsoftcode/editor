@@ -23,16 +23,16 @@ fn phase35_delete_foundation_is_fail_closed() {
         "trash move failure must be fail-closed and keep original item in place"
     );
     assert!(
-        !trash.contains("std::fs::remove_file")
-            && !trash.contains("std::fs::remove_dir_all"),
+        !trash.contains("std::fs::remove_file") && !trash.contains("std::fs::remove_dir_all"),
         "trash foundation must not fall back to hard delete"
     );
 }
 
 #[test]
 fn phase35_delete_foundation_scope_guard_has_no_restore_foundation_symbols() {
-    let plan = fs::read_to_string(".planning/phases/35-trash-foundation-async-safety/35-03-PLAN.md")
-        .expect("failed to read 35-03 plan");
+    let plan =
+        fs::read_to_string(".planning/phases/35-trash-foundation-async-safety/35-03-PLAN.md")
+            .expect("failed to read 35-03 plan");
     let forbidden_prepare = format!("prepare_restore_{}", "foundation");
     let forbidden_phase = format!("phase35_restore_{}", "foundation");
     let forbidden_phrase = format!("{} {}", "restore", "foundation");

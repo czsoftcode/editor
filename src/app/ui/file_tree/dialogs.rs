@@ -184,9 +184,7 @@ impl FileTree {
                     self.delete_rx =
                         Some(spawn_task(move || match move_path_to_trash(&root, &path) {
                             Ok(outcome) => DeleteJobResult::Deleted(outcome.moved_from),
-                            Err(err) => {
-                                DeleteJobResult::Error(format!("trash move failed: {err}"))
-                            }
+                            Err(err) => DeleteJobResult::Error(format!("trash move failed: {err}")),
                         }));
                 }
             }

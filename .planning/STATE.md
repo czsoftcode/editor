@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: in_progress
-last_updated: "2026-03-11T19:12:09.549Z"
-last_activity: 2026-03-11 - Completed 33-01 hard removal (launcher-only)
+last_updated: "2026-03-11T19:21:50.512Z"
+last_activity: 2026-03-11 - Completed 33-02 i18n/no-fallback cleanup (launcher-only)
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 16
-  completed_plans: 13
-  percent: 100
+  completed_plans: 14
+  percent: 97
 ---
 
 ## gsd_state_version: 1.0
@@ -38,11 +38,11 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu
-Plan: 01 completed
-Status: 33-01-SUMMARY.md created, ready for 33-02
-Last activity: 2026-03-11 - Completed 33-01 hard removal (launcher-only)
+Plan: 02 completed
+Status: 33-02-SUMMARY.md created, ready for 33-03
+Last activity: 2026-03-11 - Completed 33-02 i18n/no-fallback cleanup (launcher-only)
 
-Progress: [█████████░] 95%
+Progress: [██████████] 97%
 
 ---
 
@@ -81,6 +81,9 @@ Progress: [█████████░] 95%
 - [Phase 32-cleanup-tests-and-stabilization]: Planning traceability updates stayed limited to active v1.3 artifacts and avoided historical file rewrites.
 - [Phase 33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu]: AiExpertiseRole/AiReasoningDepth moved to app::ai_prefs to keep settings compatibility after ai_core hard-removal.
 - [Phase 33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu]: Historical tests were switched to assert phase33 removal state (deleted ai_core/ai_chat files) so quality gate matches launcher-only architecture.
+- [Phase 33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu]: Legacy i18n rodiny cli-chat/cli-tool byly odstraneny bez fallback textu; ponechany jen aktivne pouzivane launcher/settings klice.
+- [Phase 33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu]: No-fallback grep guard zustava v plan scope, false-positive toast.*ai byl resen neutralni lokalni vazbou bez zmeny chovani.
+- [Phase 33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu]: Ai_bar launcher dispatch byl zprehlednen explicitnim helperem send_selected_agent_command.
 
 ### Roadmap Evolution
 

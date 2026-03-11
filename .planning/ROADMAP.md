@@ -74,10 +74,10 @@ Coverage: 15/15 requirements mapped.
 **Goal:** Odstranit integrovany AI runtime/chat subsystem (`ai_core` + `ui/terminal/ai_chat`) a ponechat pouze `ai_bar` launcher tok do terminalu bez fallback UX.
 **Requirements**: R33-A, R33-B, R33-C, R33-D
 **Depends on:** Phase 32
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [x] 33-01-PLAN.md — hard removal ai_core + ai_chat + compile gate
-- [ ] 33-02-PLAN.md — i18n/no-fallback UI cleanup
+- [x] 33-02-PLAN.md — i18n/no-fallback UI cleanup
 - [ ] 33-03-PLAN.md — active planning cleanup + verification bridge
 - [ ] 33-04-PLAN.md — global/historical planning cleanup batches

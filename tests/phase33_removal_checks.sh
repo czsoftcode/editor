@@ -18,6 +18,15 @@ check_task3() {
   ! rg -n "cli-chat|cli-tool" locales >/dev/null
 }
 
+check_task4() {
+  ! rg -n "fallback|deprecated ai|removed ai chat|legacy ai chat|toast.*ai" \
+    src/app/ui/terminal/right/ai_bar.rs \
+    src/app/ui/terminal/right/mod.rs \
+    src/app/ui/workspace/mod.rs \
+    src/app/ui/workspace/menubar/mod.rs \
+    src/app/ui/panels.rs >/dev/null
+}
+
 case "$mode" in
   task1)
     check_task1
@@ -28,10 +37,14 @@ case "$mode" in
   task3)
     check_task3
     ;;
+  task4)
+    check_task4
+    ;;
   all)
     check_task1
     check_task2
     check_task3
+    check_task4
     ;;
   *)
     echo "Unknown mode: $mode" >&2

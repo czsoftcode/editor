@@ -1,3 +1,12 @@
+## [1.2.5-dev] - 2026-03-11
+
+### Changed
+- **Phase 32 Stabilizace**: Uzavrena evidence-first stabilizace po phase 31 bez novych capability.
+
+### Fixed
+- **STAB-01**: Potvrzen PASS quality gate (`cargo check` + `./check.sh`) po cleanupu CLI vrstvy.
+- **STAB-02**: Potvrzena regresni coverage pro namespace guard a assistant-only runtime toky.
+
 ## [1.2.4-dev] - 2026-03-11
 
 ### Fixed

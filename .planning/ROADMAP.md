@@ -8,8 +8,8 @@
 
 - Total phases: 3
 - Completed: 1
-- In progress: 0
-- Pending: 2
+- In progress: 1
+- Pending: 1
 
 ## Phases
 

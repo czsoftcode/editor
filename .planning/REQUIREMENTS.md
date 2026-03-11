@@ -14,7 +14,7 @@
 ### AI Terminal Behavior
 
 - [x] **TERM-01**: Uzivatel muze otevrit AI terminal panel a odeslat prompt.
-- [ ] **TERM-02**: Streaming odpovedi funguje bez zamrznuti UI.
+- [x] **TERM-02**: Streaming odpovedi funguje bez zamrznuti UI.
 - [x] **TERM-03**: Model picker a slash/GSD prikazy zustavaji funkcni.
 
 ### Safety and Tooling
@@ -51,7 +51,7 @@
 | CLI-02 | Phase 30 | Complete |
 | CLI-03 | Phase 30 | Complete |
 | TERM-01 | Phase 31 | Complete |
-| TERM-02 | Phase 31 | Pending |
+| TERM-02 | Phase 31 | Complete |
 | TERM-03 | Phase 31 | Complete |
 | SAFE-01 | Phase 31 | Pending |
 | SAFE-02 | Phase 31 | Pending |

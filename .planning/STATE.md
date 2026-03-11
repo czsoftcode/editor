@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: in_progress
-last_updated: "2026-03-11T11:28:35.235Z"
-last_activity: 2026-03-11 - Completed 31-01-PLAN.md
+last_updated: "2026-03-11T11:39:11Z"
+last_activity: 2026-03-11 - Completed 31-02-PLAN.md
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
-  percent: 62
+  completed_plans: 6
+  percent: 75
 ---
 
 ## gsd_state_version: 1.0
@@ -38,11 +38,11 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 31-ai-terminal-runtime-migration
-Plan: 31-01 completed
-Status: 31-01 completed, 31-02 až 31-04 pending
-Last activity: 2026-03-11 - Completed 31-01-PLAN.md
+Plan: 31-02 completed
+Status: 31-01 až 31-02 completed, 31-03 až 31-04 pending
+Last activity: 2026-03-11 - Completed 31-02-PLAN.md
 
-Progress: [██████░░░░] 62%
+Progress: [████████░░] 75%
 
 ---
 
@@ -62,6 +62,8 @@ Progress: [██████░░░░] 62%
 - [Phase 30-cli-namespace-removal-foundation]: Task 2 byl potvrzen samostatným audit commitem bez změny kódu kvůli atomickému task trace.
 - [Phase 31-ai-terminal-runtime-migration]: Retry flow je explicitni UI akce vazana na posledni validni prompt, aktivovana jen po runtime chybe.
 - [Phase 31-ai-terminal-runtime-migration]: Slash async stale-guard je sjednoceny jednim helperem pro /build i /git.
+- [Phase 31-ai-terminal-runtime-migration]: Prompt se normalizuje na vstupu (trim/slash) a prázdný model je guardovaný před startem streamu.
+- [Phase 31-ai-terminal-runtime-migration]: Model picker v ai_bar používá workspace accessory kvůli assistant-only UI gate token policy.
 
 ### Known Tech Debt
 

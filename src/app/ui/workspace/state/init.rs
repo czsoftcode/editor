@@ -67,12 +67,10 @@ pub fn init_workspace(
         .clone()
         .unwrap_or_else(|| "ollama".to_string());
 
-    let expertise = panel_state
-        .ai_expertise
-        .unwrap_or_else(|| settings.ai_expertise.clone());
+    let expertise = panel_state.ai_expertise.unwrap_or(settings.ai_expertise);
     let reasoning_depth = panel_state
         .ai_reasoning_depth
-        .unwrap_or_else(|| settings.ai_reasoning_depth.clone());
+        .unwrap_or(settings.ai_reasoning_depth);
 
     let model_name = if !settings.ai_default_model.is_empty() {
         settings.ai_default_model.clone()

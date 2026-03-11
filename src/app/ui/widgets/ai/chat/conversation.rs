@@ -2,6 +2,7 @@ use super::render::render_markdown;
 use crate::app::ui::terminal::ai_chat::slash::SYSTEM_MSG_MARKER;
 use eframe::egui;
 
+#[allow(clippy::too_many_arguments)]
 pub fn ui_conversation(
     ui: &mut egui::Ui,
     conversation: &[(String, String)],

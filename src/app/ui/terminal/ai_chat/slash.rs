@@ -147,10 +147,8 @@ fn fuzzy_or_passthrough(cmd_word: &str, _ws: &mut WorkspaceState, _prompt: &str)
 
     for cmd in COMMANDS {
         let dist = levenshtein(&lower, cmd.name);
-        if dist <= 2 {
-            if best_match.is_none() || dist < best_match.unwrap().1 {
-                best_match = Some((cmd.name, dist));
-            }
+        if dist <= 2 && (best_match.is_none() || dist < best_match.unwrap().1) {
+            best_match = Some((cmd.name, dist));
         }
     }
 
@@ -279,10 +277,8 @@ fn cmd_model(ws: &mut WorkspaceState, args: &str) -> SlashResult {
             let mut best: Option<(&str, usize)> = None;
             for model in &ws.ai.ollama.models {
                 let dist = levenshtein(&target.to_lowercase(), &model.to_lowercase());
-                if dist <= 3 {
-                    if best.is_none() || dist < best.unwrap().1 {
-                        best = Some((model, dist));
-                    }
+                if dist <= 3 && (best.is_none() || dist < best.unwrap().1) {
+                    best = Some((model, dist));
                 }
             }
             if let Some((suggestion, _)) = best {
@@ -389,10 +385,8 @@ mod tests {
         let mut best: Option<(&str, usize)> = None;
         for cmd in COMMANDS {
             let dist = levenshtein(lower, cmd.name);
-            if dist <= 2 {
-                if best.is_none() || dist < best.unwrap().1 {
-                    best = Some((cmd.name, dist));
-                }
+            if dist <= 2 && (best.is_none() || dist < best.unwrap().1) {
+                best = Some((cmd.name, dist));
             }
         }
         assert_eq!(best.map(|(n, _)| n), Some("help"));
@@ -402,10 +396,8 @@ mod tests {
         let mut best2: Option<(&str, usize)> = None;
         for cmd in COMMANDS {
             let dist = levenshtein(lower2, cmd.name);
-            if dist <= 2 {
-                if best2.is_none() || dist < best2.unwrap().1 {
-                    best2 = Some((cmd.name, dist));
-                }
+            if dist <= 2 && (best2.is_none() || dist < best2.unwrap().1) {
+                best2 = Some((cmd.name, dist));
             }
         }
         assert_eq!(best2.map(|(n, _)| n), Some("build"));

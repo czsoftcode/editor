@@ -214,10 +214,10 @@ pub(super) fn process_background_events(
                 ws.ai.ollama.status = OllamaConnectionStatus::Connected;
                 // Only auto-select if no model is chosen yet — don't
                 // overwrite a custom/cloud model that isn't in the local list
-                if ws.ai.ollama.selected_model.is_empty() {
-                    if let Some(first) = models.first() {
-                        ws.ai.ollama.selected_model = first.clone();
-                    }
+                if ws.ai.ollama.selected_model.is_empty()
+                    && let Some(first) = models.first()
+                {
+                    ws.ai.ollama.selected_model = first.clone();
                 }
                 ws.ai.ollama.models = models;
             }
@@ -254,11 +254,11 @@ pub(super) fn process_background_events(
         ));
     }
     // Poll model info result
-    if let Some(rx) = &ws.ai.ollama.model_info_rx {
-        if let Ok(result) = rx.try_recv() {
-            ws.ai.ollama.model_info = result.ok();
-            ws.ai.ollama.model_info_rx = None;
-        }
+    if let Some(rx) = &ws.ai.ollama.model_info_rx
+        && let Ok(result) = rx.try_recv()
+    {
+        ws.ai.ollama.model_info = result.ok();
+        ws.ai.ollama.model_info_rx = None;
     }
 
     // --- 4c. Chat streaming ---
@@ -461,16 +461,16 @@ pub(super) fn process_background_events(
         // But don't overwrite conversation after tool handler already appended results.
         if tool_call_handled {
             // Flush pre-tool text into conversation if any tokens were buffered
-            if tokens_this_frame > 0 {
-                if let Some(last) = ws.ai.chat.conversation.last_mut() {
-                    last.1 = ws.ai.chat.streaming_buffer.clone();
-                }
-            }
-            // Don't clear loading/stream — resume_after_tool_call started a new stream
-        } else if tokens_this_frame > 0 || done {
-            if let Some(last) = ws.ai.chat.conversation.last_mut() {
+            if tokens_this_frame > 0
+                && let Some(last) = ws.ai.chat.conversation.last_mut()
+            {
                 last.1 = ws.ai.chat.streaming_buffer.clone();
             }
+            // Don't clear loading/stream — resume_after_tool_call started a new stream
+        } else if (tokens_this_frame > 0 || done)
+            && let Some(last) = ws.ai.chat.conversation.last_mut()
+        {
+            last.1 = ws.ai.chat.streaming_buffer.clone();
         }
         if done && !tool_call_handled {
             ws.ai.chat.streaming_buffer.clear();
@@ -480,87 +480,84 @@ pub(super) fn process_background_events(
     }
 
     // --- 4d. Tool approval/ask response processing ---
-    if let Some(rx) = &ws.tool_approval_rx {
-        if let Ok(approved) = rx.try_recv() {
-            let approval = ws.pending_tool_approval.take();
-            ws.tool_approval_rx = None;
-            if let Some(pending) = approval {
-                if let Some(ref mut executor) = ws.tool_executor {
-                    let decision = if approved {
-                        crate::app::cli::executor::ApprovalDecision::Approve
+    if let Some(rx) = &ws.tool_approval_rx
+        && let Ok(approved) = rx.try_recv()
+    {
+        let approval = ws.pending_tool_approval.take();
+        ws.tool_approval_rx = None;
+        if let Some(pending) = approval
+            && let Some(ref mut executor) = ws.tool_executor
+        {
+            let decision = if approved {
+                crate::app::cli::executor::ApprovalDecision::Approve
+            } else {
+                crate::app::cli::executor::ApprovalDecision::Deny
+            };
+            let result =
+                executor.process_approval_response(&pending.tool_name, &pending.args, decision);
+            let (output, is_err) = match &result {
+                crate::app::cli::executor::ToolResult::Success(o) => (o.clone(), false),
+                crate::app::cli::executor::ToolResult::Error(e) => (e.clone(), true),
+                _ => (i18n.get("cli-chat-unexpected-result"), true),
+            };
+            let (asst_msg, tool_msg) =
+                crate::app::cli::executor::ToolExecutor::build_approval_messages(
+                    &pending.tool_call_id,
+                    &pending.tool_name,
+                    &pending.args,
+                    &output,
+                    is_err,
+                );
+            if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                let label = if approved { "schvaleno" } else { "zamitnuto" };
+                last.1.push_str(&format!(
+                    "\n\n`{}` ({}) => {}",
+                    pending.tool_name,
+                    label,
+                    if output.len() > 200 {
+                        format!("{}...", &output[..200])
                     } else {
-                        crate::app::cli::executor::ApprovalDecision::Deny
-                    };
-                    let result = executor.process_approval_response(
-                        &pending.tool_name,
-                        &pending.args,
-                        decision,
-                    );
-                    let (output, is_err) = match &result {
-                        crate::app::cli::executor::ToolResult::Success(o) => (o.clone(), false),
-                        crate::app::cli::executor::ToolResult::Error(e) => (e.clone(), true),
-                        _ => (i18n.get("cli-chat-unexpected-result"), true),
-                    };
-                    let (asst_msg, tool_msg) =
-                        crate::app::cli::executor::ToolExecutor::build_approval_messages(
-                            &pending.tool_call_id,
-                            &pending.tool_name,
-                            &pending.args,
-                            &output,
-                            is_err,
-                        );
-                    if let Some(last) = ws.ai.chat.conversation.last_mut() {
-                        let label = if approved { "schvaleno" } else { "zamitnuto" };
-                        last.1.push_str(&format!(
-                            "\n\n`{}` ({}) => {}",
-                            pending.tool_name,
-                            label,
-                            if output.len() > 200 {
-                                format!("{}...", &output[..200])
-                            } else {
-                                output
-                            }
-                        ));
+                        output
                     }
-                    resume_after_tool_call(ws, asst_msg, tool_msg);
-                }
+                ));
             }
+            resume_after_tool_call(ws, asst_msg, tool_msg);
         }
     }
 
-    if let Some(rx) = &ws.tool_ask_rx {
-        if let Ok(response) = rx.try_recv() {
-            let ask = ws.pending_tool_ask.take();
-            ws.tool_ask_rx = None;
-            if let Some(_pending) = ask {
-                // Build tool result with user's answer and resume AI
-                let tool_msg = crate::app::cli::types::AiMessage {
-                    role: "tool".to_string(),
-                    content: response.clone(),
-                    monologue: Vec::new(),
-                    timestamp: 0,
-                    tool_call_name: None,
-                    tool_call_id: None,
-                    tool_result_for_id: None,
-                    tool_is_error: false,
-                    tool_call_arguments: None,
-                };
-                let asst_msg = crate::app::cli::types::AiMessage {
-                    role: "assistant".to_string(),
-                    content: String::new(),
-                    monologue: Vec::new(),
-                    timestamp: 0,
-                    tool_call_name: Some("ask_user".to_string()),
-                    tool_call_id: None,
-                    tool_result_for_id: None,
-                    tool_is_error: false,
-                    tool_call_arguments: None,
-                };
-                if let Some(last) = ws.ai.chat.conversation.last_mut() {
-                    last.1.push_str(&format!("\n\n**Odpoved:** {}", response));
-                }
-                resume_after_tool_call(ws, asst_msg, tool_msg);
+    if let Some(rx) = &ws.tool_ask_rx
+        && let Ok(response) = rx.try_recv()
+    {
+        let ask = ws.pending_tool_ask.take();
+        ws.tool_ask_rx = None;
+        if let Some(_pending) = ask {
+            // Build tool result with user's answer and resume AI
+            let tool_msg = crate::app::cli::types::AiMessage {
+                role: "tool".to_string(),
+                content: response.clone(),
+                monologue: Vec::new(),
+                timestamp: 0,
+                tool_call_name: None,
+                tool_call_id: None,
+                tool_result_for_id: None,
+                tool_is_error: false,
+                tool_call_arguments: None,
+            };
+            let asst_msg = crate::app::cli::types::AiMessage {
+                role: "assistant".to_string(),
+                content: String::new(),
+                monologue: Vec::new(),
+                timestamp: 0,
+                tool_call_name: Some("ask_user".to_string()),
+                tool_call_id: None,
+                tool_result_for_id: None,
+                tool_is_error: false,
+                tool_call_arguments: None,
+            };
+            if let Some(last) = ws.ai.chat.conversation.last_mut() {
+                last.1.push_str(&format!("\n\n**Odpoved:** {}", response));
             }
+            resume_after_tool_call(ws, asst_msg, tool_msg);
         }
     }
 
@@ -619,10 +616,10 @@ pub(super) fn process_background_events(
     let save_mode = { shared.lock().expect("lock").settings.save_mode.clone() };
     if should_run_autosave(save_mode) && ws.external_change_conflict.is_none() {
         let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
-        if let Some(err) = ws.editor.try_autosave(i18n, &internal_save) {
-            if should_emit_save_error_toast(&err) {
-                ws.toasts.push(Toast::error(err));
-            }
+        if let Some(err) = ws.editor.try_autosave(i18n, &internal_save)
+            && should_emit_save_error_toast(&err)
+        {
+            ws.toasts.push(Toast::error(err));
         }
     }
 

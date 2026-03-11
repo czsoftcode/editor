@@ -61,9 +61,11 @@ MANDATORY RULES:
         terminal_output: Option<String>,
         lsp_diagnostics: Vec<String>,
     ) -> AiContextPayload {
-        let mut payload = AiContextPayload::default();
-        payload.terminal_output = terminal_output;
-        payload.lsp_diagnostics = lsp_diagnostics;
+        let mut payload = AiContextPayload {
+            terminal_output,
+            lsp_diagnostics,
+            ..AiContextPayload::default()
+        };
 
         // Memory keys are no longer available from WASM plugin system.
 

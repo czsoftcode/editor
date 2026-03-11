@@ -32,6 +32,7 @@ impl AiChatWidget {
     }
 
     /// Renders AI conversation history in a terminal-like style.
+    #[allow(clippy::too_many_arguments)]
     pub fn ui_conversation(
         ui: &mut egui::Ui,
         conversation: &[(String, String)],

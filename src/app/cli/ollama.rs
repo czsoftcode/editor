@@ -72,7 +72,7 @@ impl OllamaProvider {
     }
 
     /// Apply Bearer authorization header if api_key is set.
-    fn apply_auth<'a>(&self, req: ureq::Request) -> ureq::Request {
+    fn apply_auth(&self, req: ureq::Request) -> ureq::Request {
         if let Some(ref key) = self.config.api_key {
             req.set("Authorization", &format!("Bearer {key}"))
         } else {
@@ -121,13 +121,13 @@ impl AiProvider for OllamaProvider {
         config: &ProviderConfig,
     ) -> Result<AiMessage, String> {
         let url = format!("{}/api/chat", config.base_url);
-        let msgs: Vec<Value> = messages.iter().map(|m| serialize_message(m)).collect();
+        let msgs: Vec<Value> = messages.iter().map(serialize_message).collect();
 
         let body = serde_json::json!({
             "model": config.model,
             "messages": msgs,
             "stream": false,
-            "options": build_options(&config)
+            "options": build_options(config)
         });
 
         let req = self.apply_auth(self.agent.post(&url));
@@ -172,7 +172,7 @@ impl AiProvider for OllamaProvider {
 
         std::thread::spawn(move || {
             let url = format!("{}/api/chat", config.base_url);
-            let msgs: Vec<Value> = messages.iter().map(|m| serialize_message(m)).collect();
+            let msgs: Vec<Value> = messages.iter().map(serialize_message).collect();
 
             let has_tools = !tools.is_empty();
 
@@ -383,38 +383,37 @@ impl AiProvider for OllamaProvider {
                     let retry_req = make_req(&agent, &url, &config.api_key);
                     match retry_req.send_json(&retry_body) {
                         Ok(retry_resp) => {
-                            if let Ok(retry_text) = retry_resp.into_string() {
-                                if let Ok(retry_parsed) = serde_json::from_str::<Value>(&retry_text)
-                                {
-                                    let retry_content =
-                                        retry_parsed["message"]["content"].as_str().unwrap_or("");
-                                    if !retry_content.is_empty() {
-                                        let (rt, ra) = strip_thinking_tags(retry_content);
-                                        let (retry_calls, retry_clean) =
-                                            parse_raw_tool_calls_from_content(&ra);
+                            if let Ok(retry_text) = retry_resp.into_string()
+                                && let Ok(retry_parsed) = serde_json::from_str::<Value>(&retry_text)
+                            {
+                                let retry_content =
+                                    retry_parsed["message"]["content"].as_str().unwrap_or("");
+                                if !retry_content.is_empty() {
+                                    let (rt, ra) = strip_thinking_tags(retry_content);
+                                    let (retry_calls, retry_clean) =
+                                        parse_raw_tool_calls_from_content(&ra);
 
-                                        if let Some(thought) = rt {
-                                            let _ = tx.send(StreamEvent::Thinking(thought));
-                                        }
-                                        for rc in &retry_calls {
-                                            let id = format!(
-                                                "tc_{}_{}",
-                                                rc.name,
-                                                TOOL_CALL_COUNTER.fetch_add(1, Ordering::Relaxed)
-                                            );
-                                            let _ = tx.send(StreamEvent::ToolCall {
-                                                id,
-                                                name: rc.name.clone(),
-                                                arguments: rc.arguments.clone(),
-                                            });
-                                        }
-                                        if !retry_clean.is_empty() && !retry_calls.is_empty() {
-                                            let _ = tx.send(StreamEvent::Token(retry_clean));
-                                        } else if retry_calls.is_empty() {
-                                            // Still no tool calls — emit original content
-                                            if !clean.is_empty() {
-                                                let _ = tx.send(StreamEvent::Token(clean));
-                                            }
+                                    if let Some(thought) = rt {
+                                        let _ = tx.send(StreamEvent::Thinking(thought));
+                                    }
+                                    for rc in &retry_calls {
+                                        let id = format!(
+                                            "tc_{}_{}",
+                                            rc.name,
+                                            TOOL_CALL_COUNTER.fetch_add(1, Ordering::Relaxed)
+                                        );
+                                        let _ = tx.send(StreamEvent::ToolCall {
+                                            id,
+                                            name: rc.name.clone(),
+                                            arguments: rc.arguments.clone(),
+                                        });
+                                    }
+                                    if !retry_clean.is_empty() && !retry_calls.is_empty() {
+                                        let _ = tx.send(StreamEvent::Token(retry_clean));
+                                    } else if retry_calls.is_empty() {
+                                        // Still no tool calls — emit original content
+                                        if !clean.is_empty() {
+                                            let _ = tx.send(StreamEvent::Token(clean));
                                         }
                                     }
                                 }
@@ -622,24 +621,24 @@ pub fn parse_ndjson_line(line: &str) -> Option<StreamEvent> {
     }
 
     // Check for tool_calls before content (streaming tool support)
-    if let Some(tool_calls) = parsed["message"]["tool_calls"].as_array() {
-        if let Some(tc) = tool_calls.first() {
-            let name = tc["function"]["name"]
-                .as_str()
-                .unwrap_or("unknown")
-                .to_string();
-            let arguments = tc["function"]["arguments"].clone();
-            let id = format!(
-                "tc_{}_{}",
-                name,
-                TOOL_CALL_COUNTER.fetch_add(1, Ordering::Relaxed)
-            );
-            return Some(StreamEvent::ToolCall {
-                id,
-                name,
-                arguments,
-            });
-        }
+    if let Some(tool_calls) = parsed["message"]["tool_calls"].as_array()
+        && let Some(tc) = tool_calls.first()
+    {
+        let name = tc["function"]["name"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
+        let arguments = tc["function"]["arguments"].clone();
+        let id = format!(
+            "tc_{}_{}",
+            name,
+            TOOL_CALL_COUNTER.fetch_add(1, Ordering::Relaxed)
+        );
+        return Some(StreamEvent::ToolCall {
+            id,
+            name,
+            arguments,
+        });
     }
 
     let done = parsed["done"].as_bool().unwrap_or(false);

@@ -36,16 +36,15 @@ impl AuditLogger {
     /// Appends a line to the audit log file. Creates `.polycredo/` if missing.
     /// On error, prints a warning to stderr — never panics.
     fn append_line(&self, line: &str) {
-        if let Some(parent) = self.log_path.parent() {
-            if !parent.exists() {
-                if let Err(e) = fs::create_dir_all(parent) {
-                    eprintln!(
-                        "[AuditLogger] Failed to create directory {:?}: {}",
-                        parent, e
-                    );
-                    return;
-                }
-            }
+        if let Some(parent) = self.log_path.parent()
+            && !parent.exists()
+            && let Err(e) = fs::create_dir_all(parent)
+        {
+            eprintln!(
+                "[AuditLogger] Failed to create directory {:?}: {}",
+                parent, e
+            );
+            return;
         }
 
         match OpenOptions::new()
@@ -124,7 +123,7 @@ impl AuditLogger {
     }
 
     fn is_leap(year: u64) -> bool {
-        (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+        year.is_multiple_of(4) && !year.is_multiple_of(100) || year.is_multiple_of(400)
     }
 }
 

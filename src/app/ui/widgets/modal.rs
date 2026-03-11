@@ -106,10 +106,8 @@ impl StandardModal {
             });
 
         // 3. Kliknutí na backdrop → zavřít modal (přeskočíme první frame)
-        if self.close_on_click_outside && was_open_prev_frame {
-            if backdrop_resp.inner.clicked() {
-                *show_flag = false;
-            }
+        if self.close_on_click_outside && was_open_prev_frame && backdrop_resp.inner.clicked() {
+            *show_flag = false;
         }
         let _ = window_response;
 

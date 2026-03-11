@@ -186,38 +186,38 @@ impl AiContextPayload {
         }
 
         // Active File excerpt (+-50 lines around cursor)
-        if let Some(ref active) = self.active_file {
-            if let Some(ref content) = active.content {
-                let lines: Vec<&str> = content.lines().collect();
-                let cursor = self.cursor_line.unwrap_or(1);
-                let start = cursor.saturating_sub(50).max(1);
-                let end = (cursor + 50).min(lines.len());
-                if start <= end && !lines.is_empty() {
-                    let excerpt: Vec<&str> = lines[(start - 1)..end].to_vec();
-                    parts.push(format!(
-                        "\n## Active File ({}, lines {}-{})\n```\n{}\n```",
-                        active.path,
-                        start,
-                        end,
-                        excerpt.join("\n")
-                    ));
-                }
+        if let Some(ref active) = self.active_file
+            && let Some(ref content) = active.content
+        {
+            let lines: Vec<&str> = content.lines().collect();
+            let cursor = self.cursor_line.unwrap_or(1);
+            let start = cursor.saturating_sub(50).max(1);
+            let end = (cursor + 50).min(lines.len());
+            if start <= end && !lines.is_empty() {
+                let excerpt: Vec<&str> = lines[(start - 1)..end].to_vec();
+                parts.push(format!(
+                    "\n## Active File ({}, lines {}-{})\n```\n{}\n```",
+                    active.path,
+                    start,
+                    end,
+                    excerpt.join("\n")
+                ));
             }
         }
 
         // Terminal Output
-        if let Some(ref terminal) = self.terminal_output {
-            if !terminal.is_empty() {
-                // Take last 50 lines
-                let lines: Vec<&str> = terminal.lines().collect();
-                let start = lines.len().saturating_sub(50);
-                let excerpt = &lines[start..];
-                parts.push(format!(
-                    "\n## Terminal Output (last {} lines)\n```\n{}\n```",
-                    excerpt.len(),
-                    excerpt.join("\n")
-                ));
-            }
+        if let Some(ref terminal) = self.terminal_output
+            && !terminal.is_empty()
+        {
+            // Take last 50 lines
+            let lines: Vec<&str> = terminal.lines().collect();
+            let start = lines.len().saturating_sub(50);
+            let excerpt = &lines[start..];
+            parts.push(format!(
+                "\n## Terminal Output (last {} lines)\n```\n{}\n```",
+                excerpt.len(),
+                excerpt.join("\n")
+            ));
         }
 
         // LSP Diagnostics
@@ -230,10 +230,10 @@ impl AiContextPayload {
         }
 
         // Cargo.toml summary
-        if let Some(ref cargo) = self.cargo_toml_summary {
-            if !cargo.is_empty() {
-                parts.push(format!("\n## Cargo.toml Summary\n```toml\n{cargo}\n```"));
-            }
+        if let Some(ref cargo) = self.cargo_toml_summary
+            && !cargo.is_empty()
+        {
+            parts.push(format!("\n## Cargo.toml Summary\n```toml\n{cargo}\n```"));
         }
 
         parts.join("\n")

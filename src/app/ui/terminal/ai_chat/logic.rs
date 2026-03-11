@@ -180,15 +180,15 @@ fn build_editor_context(ws: &WorkspaceState) -> String {
         AiBuildErrorContext, AiContextPayload, AiFileContext, AiGitFileStatus,
     };
 
-    let mut payload = AiContextPayload::default();
-
-    // Project name and root
-    payload.project_name = ws
-        .root_path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    payload.project_root = ".".to_string();
+    let mut payload = AiContextPayload {
+        project_name: ws
+            .root_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        project_root: ".".to_string(),
+        ..AiContextPayload::default()
+    };
 
     // Open files
     for (i, tab) in ws.editor.tabs.iter().enumerate() {

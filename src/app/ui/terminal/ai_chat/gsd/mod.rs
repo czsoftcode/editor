@@ -39,10 +39,11 @@ pub fn cmd_gsd(ws: &mut WorkspaceState, args: &str) -> SlashResult {
     let sub_args = parts.get(1).unwrap_or(&"").trim();
 
     // Guard: check .planning/ exists (except for help)
-    if sub != "help" && !sub.is_empty() {
-        if let Some(err) = check_planning_dir(&ws.root_path) {
-            return err;
-        }
+    if sub != "help"
+        && !sub.is_empty()
+        && let Some(err) = check_planning_dir(&ws.root_path)
+    {
+        return err;
     }
 
     match sub.as_str() {

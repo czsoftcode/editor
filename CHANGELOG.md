@@ -1,4 +1,11 @@
-## [1.2.2] - 2026-03-11
+## [1.2.3-dev] - 2026-03-11
+
+### Fixed
+- **Quality Gate**: Opraveny vsechny chyby z `./check.sh` (fmt + clippy + testy).
+- **GSD Utils**: Upravene pomocne funkce a parsery podle aktualnich clippy pravidel.
+- **AI Chat UI**: Cisteni kolabujicich if-bloku a drobne refaktory bez zmen chovani.
+
+## [1.2.2-dev] - 2026-03-11
 
 ### Added
 - **WarmTan Light Variant**: 4. svetla varianta s pickerem, swatch a i18n ve vsech jazycich.

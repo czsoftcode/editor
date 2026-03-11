@@ -111,10 +111,10 @@ pub(super) fn handle_manual_save_action(
         }
         ManualSaveRequest::SaveEditorFile => {
             let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
-            if let Some(err) = ws.editor.save(i18n, &internal_save) {
-                if should_emit_save_error_toast(&err) {
-                    ws.toasts.push(Toast::error(err));
-                }
+            if let Some(err) = ws.editor.save(i18n, &internal_save)
+                && should_emit_save_error_toast(&err)
+            {
+                ws.toasts.push(Toast::error(err));
             }
         }
         ManualSaveRequest::ShowAlreadySavedInfo => {

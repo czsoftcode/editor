@@ -684,10 +684,10 @@ fn stop_streaming(ws: &mut WorkspaceState) {
         .cancellation_token
         .store(true, std::sync::atomic::Ordering::Relaxed);
     // Preserve partial response with interruption marker
-    if !ws.ai.chat.streaming_buffer.is_empty() {
-        if let Some(last) = ws.ai.chat.conversation.last_mut() {
-            last.1 = format!("{}\n\n*[preruseno]*", ws.ai.chat.streaming_buffer);
-        }
+    if !ws.ai.chat.streaming_buffer.is_empty()
+        && let Some(last) = ws.ai.chat.conversation.last_mut()
+    {
+        last.1 = format!("{}\n\n*[preruseno]*", ws.ai.chat.streaming_buffer);
     }
     ws.ai.chat.streaming_buffer.clear();
     ws.ai.chat.loading = false;

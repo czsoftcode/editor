@@ -1,6 +1,7 @@
 use eframe::egui;
 
 /// State for slash command autocomplete popup.
+#[derive(Default)]
 pub struct SlashAutocomplete {
     /// Whether the popup is currently visible.
     pub active: bool,
@@ -10,17 +11,6 @@ pub struct SlashAutocomplete {
     pub dismissed: bool,
     /// Previous frame's text — used to detect changes and reset dismissed state.
     pub prev_text: String,
-}
-
-impl Default for SlashAutocomplete {
-    fn default() -> Self {
-        Self {
-            active: false,
-            selected: 0,
-            dismissed: false,
-            prev_text: String::new(),
-        }
-    }
 }
 
 pub fn ui_input(

@@ -487,7 +487,7 @@ impl EditorApp {
     }
 
     #[cfg(test)]
-    pub(crate) fn test_new_with_workspace(ws: WorkspaceState, ctx: &egui::Context) -> Self {
+    pub(crate) fn test_new_with_workspace(ws: WorkspaceState, _ctx: &egui::Context) -> Self {
         use std::sync::mpsc;
 
         let panel_state = PersistentState::default();

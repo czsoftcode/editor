@@ -230,11 +230,11 @@ pub(super) fn save_settings_draft(
         let original_settings = ws.settings_original.clone();
         let save_mode_was_changed = save_mode_changed(original_settings.as_ref(), &draft);
         let mut saved_successfully = true;
-        if should_persist_settings_change(original_settings.as_ref(), &draft) {
-            if let Err(err) = draft.try_save() {
-                saved_successfully = false;
-                ws.toasts.push(crate::app::types::Toast::error(err));
-            }
+        if should_persist_settings_change(original_settings.as_ref(), &draft)
+            && let Err(err) = draft.try_save()
+        {
+            saved_successfully = false;
+            ws.toasts.push(crate::app::types::Toast::error(err));
         }
         if save_mode_was_changed && saved_successfully {
             ws.toasts.push(crate::app::types::Toast::info(
@@ -614,14 +614,16 @@ pub fn show(
                             ui.horizontal(|ui| {
                                 ui.label(i18n.get("cli-settings-seed"));
                                 let mut seed_str = draft.ollama_seed.to_string();
-                                if ui.add(
-                                    egui::TextEdit::singleline(&mut seed_str)
-                                        .desired_width(100.0)
-                                        .hint_text(i18n.get("cli-settings-seed-hint")),
-                                ).changed() {
-                                    if let Ok(v) = seed_str.parse::<i64>() {
-                                        draft.ollama_seed = v;
-                                    }
+                                if ui
+                                    .add(
+                                        egui::TextEdit::singleline(&mut seed_str)
+                                            .desired_width(100.0)
+                                            .hint_text(i18n.get("cli-settings-seed-hint")),
+                                    )
+                                    .changed()
+                                    && let Ok(v) = seed_str.parse::<i64>()
+                                {
+                                    draft.ollama_seed = v;
                                 }
                                 ui.label(
                                     egui::RichText::new(i18n.get("cli-settings-seed-hint"))

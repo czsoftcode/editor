@@ -163,10 +163,8 @@ impl ToolExecutor {
             .log_tool_call(tool_name, status, &format!("args={}", args));
 
         // Scrub secrets from success output
-        if is_auto {
-            if let ToolResult::Success(ref output) = result {
-                return ToolResult::Success(SecretsFilter::scrub(output));
-            }
+        if is_auto && let ToolResult::Success(ref output) = result {
+            return ToolResult::Success(SecretsFilter::scrub(output));
         }
 
         result
@@ -570,12 +568,12 @@ impl ToolExecutor {
             })
             .filter_map(|e| e.ok())
         {
-            if entry.file_type().is_file() {
-                if let Ok(rel) = entry.path().strip_prefix(&self.project_root) {
-                    let rel_str = rel.to_string_lossy().into_owned();
-                    if !self.file_blacklist.is_blocked(&rel_str) {
-                        files.push(rel_str);
-                    }
+            if entry.file_type().is_file()
+                && let Ok(rel) = entry.path().strip_prefix(&self.project_root)
+            {
+                let rel_str = rel.to_string_lossy().into_owned();
+                if !self.file_blacklist.is_blocked(&rel_str) {
+                    files.push(rel_str);
                 }
             }
         }
@@ -739,10 +737,10 @@ impl ToolExecutor {
         if let Some(parent) = self.facts_path.parent() {
             let _ = std::fs::create_dir_all(parent);
         }
-        if let Ok(json) = serde_json::to_string_pretty(&self.facts) {
-            if let Err(e) = std::fs::write(&self.facts_path, json) {
-                eprintln!("[ToolExecutor] Failed to save facts: {}", e);
-            }
+        if let Ok(json) = serde_json::to_string_pretty(&self.facts)
+            && let Err(e) = std::fs::write(&self.facts_path, json)
+        {
+            eprintln!("[ToolExecutor] Failed to save facts: {}", e);
         }
     }
 
@@ -1433,7 +1431,7 @@ mod tests {
     fn write_rate_limit_enforced() {
         let (_tmp, mut executor) = setup_test_executor();
         // Exhaust rate limit (50 writes)
-        for i in 0..50 {
+        for _ in 0..50 {
             let _ = executor.rate_limiter.check_write();
         }
         // Next write should fail

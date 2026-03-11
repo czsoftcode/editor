@@ -41,7 +41,7 @@ impl GsdConfig {
                 current[*part] = val;
                 return;
             }
-            if !current.get(*part).map_or(false, |v| v.is_object()) {
+            if !current.get(*part).is_some_and(|v| v.is_object()) {
                 current[*part] = Value::Object(serde_json::Map::new());
             }
             current = &mut current[*part];
@@ -71,10 +71,10 @@ fn parse_value_str(s: &str) -> Value {
     if let Ok(n) = s.parse::<i64>() {
         return Value::Number(serde_json::Number::from(n));
     }
-    if let Ok(f) = s.parse::<f64>() {
-        if let Some(n) = serde_json::Number::from_f64(f) {
-            return Value::Number(n);
-        }
+    if let Ok(f) = s.parse::<f64>()
+        && let Some(n) = serde_json::Number::from_f64(f)
+    {
+        return Value::Number(n);
     }
     Value::String(s.to_string())
 }
@@ -94,7 +94,7 @@ fn format_value(v: &Value) -> String {
 pub fn cmd_config(ws: &mut WorkspaceState, args: &str) -> SlashResult {
     let root = &ws.root_path;
     let parts: Vec<&str> = args.splitn(3, char::is_whitespace).collect();
-    let sub = parts.first().map(|s| *s).unwrap_or("");
+    let sub = parts.first().copied().unwrap_or("");
 
     match sub {
         "" => {
@@ -232,7 +232,10 @@ mod tests {
         assert_eq!(parse_value_str("true"), json!(true));
         assert_eq!(parse_value_str("false"), json!(false));
         assert_eq!(parse_value_str("42"), json!(42));
-        assert_eq!(parse_value_str("3.14"), json!(3.14));
+        assert_eq!(
+            parse_value_str("3.141592653589793"),
+            json!(std::f64::consts::PI)
+        );
         assert_eq!(parse_value_str("hello"), json!("hello"));
     }
 }

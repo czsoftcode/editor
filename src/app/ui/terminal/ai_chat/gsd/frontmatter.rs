@@ -642,7 +642,7 @@ fn parse_list_block(
     start: usize,
     base_indent: usize,
     raw_lines: &mut Vec<String>,
-    warnings: &mut Vec<String>,
+    _warnings: &mut Vec<String>,
 ) -> (usize, FmValue) {
     let mut items: Vec<FmValue> = Vec::new();
     let mut i = start;
@@ -794,8 +794,8 @@ fn parse_key_value(line: &str) -> Option<(String, &str)> {
         }
         let val = &line[pos + 2..];
         Some((key.to_string(), val))
-    } else if line.ends_with(':') {
-        let key = line[..line.len() - 1].trim();
+    } else if let Some(key) = line.strip_suffix(':') {
+        let key = key.trim();
         if key.is_empty() || key.contains(':') {
             return None;
         }
@@ -811,12 +811,7 @@ fn serialize_node(out: &mut String, key: &str, value: &FmValue, indent: usize) {
     match value {
         FmValue::Map(pairs) if indent == 0 || !pairs.is_empty() => {
             // For top-level maps or non-empty maps, serialize as nested block
-            if matches!(value, FmValue::Map(p) if !p.is_empty()) && indent == 0 {
-                out.push_str(&format!("{}{}:\n", prefix, key));
-                for (k, v) in pairs {
-                    serialize_node(out, k, v, indent + 2);
-                }
-            } else if matches!(value, FmValue::Map(p) if !p.is_empty()) {
+            if !pairs.is_empty() {
                 out.push_str(&format!("{}{}:\n", prefix, key));
                 for (k, v) in pairs {
                     serialize_node(out, k, v, indent + 2);
@@ -882,9 +877,9 @@ mod tests {
 
     #[test]
     fn parse_float_value() {
-        let input = "---\npi: 3.14\n---\n";
+        let input = "---\npi: 3.141592653589793\n---\n";
         let doc = FmDocument::parse(input);
-        assert_eq!(doc.get("pi"), Some(&FmValue::Float(3.14)));
+        assert_eq!(doc.get("pi"), Some(&FmValue::Float(std::f64::consts::PI)));
     }
 
     #[test]

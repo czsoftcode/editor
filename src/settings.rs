@@ -816,10 +816,12 @@ default_project_path = "/home/test"
 
     #[test]
     fn settings_serde_roundtrip_with_ai_fields() {
-        let mut s = Settings::default();
-        s.ollama_base_url = "http://example.com:11434".to_string();
-        s.ollama_api_key = "test-key".to_string();
-        s.ai_default_model = "llama3.2".to_string();
+        let s = Settings {
+            ollama_base_url: "http://example.com:11434".to_string(),
+            ollama_api_key: "test-key".to_string(),
+            ai_default_model: "llama3.2".to_string(),
+            ..Settings::default()
+        };
 
         let toml_str = toml::to_string(&s).unwrap();
         let restored: Settings = toml::from_str(&toml_str).unwrap();

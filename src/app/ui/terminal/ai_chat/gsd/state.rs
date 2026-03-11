@@ -28,7 +28,7 @@ fn fm_i64(val: Option<&FmValue>) -> i64 {
 }
 
 /// Extract a string from FmValue.
-fn fm_str<'a>(val: Option<&'a FmValue>) -> &'a str {
+fn fm_str(val: Option<&FmValue>) -> &str {
     match val {
         Some(FmValue::String(s)) => s.as_str(),
         _ => "",
@@ -125,10 +125,10 @@ fn extract_body_section(body: &str, heading: &str) -> String {
     }
 
     // Trim leading/trailing empty lines
-    while lines.first().map_or(false, |l| l.trim().is_empty()) {
+    while lines.first().is_some_and(|l| l.trim().is_empty()) {
         lines.remove(0);
     }
-    while lines.last().map_or(false, |l| l.trim().is_empty()) {
+    while lines.last().is_some_and(|l| l.trim().is_empty()) {
         lines.pop();
     }
 
@@ -158,10 +158,10 @@ pub fn cmd_state(ws: &mut WorkspaceState, args: &str) -> SlashResult {
                     .to_string(),
             ),
         }
-    } else if args.starts_with("update ") {
-        handle_state_update(root, &args["update ".len()..])
-    } else if args.starts_with("patch ") {
-        handle_state_patch(root, &args["patch ".len()..])
+    } else if let Some(stripped) = args.strip_prefix("update ") {
+        handle_state_update(root, stripped)
+    } else if let Some(stripped) = args.strip_prefix("patch ") {
+        handle_state_patch(root, stripped)
     } else {
         SlashResult::Immediate(format!(
             "Unknown state subcommand: `{}`. Use `/gsd state`, `/gsd state update <field> <value>`, or `/gsd state patch <key=val> ...`.",
@@ -585,7 +585,10 @@ Key decisions logged in PROJECT.md.
         assert_eq!(parse_value_string("true"), FmValue::Boolean(true));
         assert_eq!(parse_value_string("false"), FmValue::Boolean(false));
         assert_eq!(parse_value_string("42"), FmValue::Integer(42));
-        assert_eq!(parse_value_string("3.14"), FmValue::Float(3.14));
+        assert_eq!(
+            parse_value_string("3.141592653589793"),
+            FmValue::Float(std::f64::consts::PI)
+        );
         assert_eq!(
             parse_value_string("hello"),
             FmValue::String("hello".to_string())

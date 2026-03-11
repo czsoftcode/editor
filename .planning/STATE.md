@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3.1
 milestone_name: safe-trash-delete
-status: planning
-last_updated: "2026-03-11T22:18:00.000Z"
-last_activity: 2026-03-11 - Phase 35 context gathered
+status: execution complete
+last_updated: "2026-03-11T23:17:00.630Z"
+last_activity: 2026-03-11 - Completed 35-03 plan execution
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 3
+  percent: 100
 ---
 
 ## gsd_state_version: 1.0
@@ -33,16 +33,16 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
-**Current focus:** Phase 35 planning (Trash Foundation + Async Safety)
+**Current focus:** Phase 36 planning (Safe Move-to-Trash Engine)
 
 ## Current Position
 
-Phase: 35 (planning)
-Plan: -
-Status: Roadmap approved, ready for phase discussion/planning
-Last activity: 2026-03-11 - Phase 35 context gathered
+Phase: 35 (completed)
+Plan: 03 (completed)
+Status: Phase 35 complete, ready for phase 36 planning
+Last activity: 2026-03-11 - Completed 35-03 plan execution
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ---
 
@@ -93,6 +93,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 34]: Cross-phase drift v phase 31 byl resen prepisem evidence na command-level a aktivni launcher-only cesty.
 - [Phase 34-milestone-gap-closure-and-traceability-rebaseline]: Task 3 byl realizovan jako TDD gate: failing traceability test nasledovany explicitnim final_gate markerem.
 - [Phase 34-milestone-gap-closure-and-traceability-rebaseline]: Milestone audit byl prepnut na passed az po fast/full gate chain s 15/15 coverage.
+- [Phase 35]: Phase 35 zustava strictne delete-path only; restore-zaklad symboly jsou explicitne zakazane.
+- [Phase 35]: Delete-path chyby se mapuji na kontextovy format trash move failed: {err} pred toast surfacingem.
 
 ### Roadmap Evolution
 

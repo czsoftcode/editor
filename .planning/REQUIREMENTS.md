@@ -9,7 +9,7 @@
 
 - [ ] **TRASH-01**: Uzivatel muze smazat soubor bez hard delete; operace presune soubor do `.polycredo/trash`.
 - [ ] **TRASH-02**: Uzivatel muze smazat adresar bez hard delete; operace presune adresar do `.polycredo/trash`.
-- [ ] **TRASH-03**: Aplikace automaticky vytvori `.polycredo/trash`, pokud neexistuje.
+- [x] **TRASH-03**: Aplikace automaticky vytvori `.polycredo/trash`, pokud neexistuje.
 - [ ] **TRASH-04**: Pri selhani move-to-trash operace zustane puvodni soubor/adresar zachovan a uzivatel dostane chybu v toastu.
 
 ### RESTORE (Recovery)
@@ -24,7 +24,7 @@
 
 ### RELIAB (Reliability + UX)
 
-- [ ] **RELIAB-01**: Delete/restore operace neblokuji UI vlakno (tezke I/O bezi mimo UI vlakno).
+- [x] **RELIAB-01**: Delete/restore operace neblokuji UI vlakno (tezke I/O bezi mimo UI vlakno).
 - [ ] **RELIAB-02**: Vsechny I/O chyby v delete/restore/cleanup toku jsou propagovany do UI toastu.
 - [ ] **RELIAB-03**: Watcher/event handling po delete/restore nezpusobi event storm vedouci k viditelnemu lagovani UI.
 
@@ -53,13 +53,13 @@
 |-------------|-------|--------|
 | TRASH-01 | Phase 36 | Pending |
 | TRASH-02 | Phase 36 | Pending |
-| TRASH-03 | Phase 35 | Pending |
+| TRASH-03 | Phase 35 | Complete |
 | TRASH-04 | Phase 36 | Pending |
 | RESTORE-01 | Phase 37 | Pending |
 | RESTORE-02 | Phase 37 | Pending |
 | RESTORE-03 | Phase 37 | Pending |
 | TRASHUI-01 | Phase 37 | Pending |
-| RELIAB-01 | Phase 35 | Pending |
+| RELIAB-01 | Phase 35 | Complete |
 | RELIAB-02 | Phase 36 | Pending |
 | RELIAB-03 | Phase 38 | Pending |
 

@@ -26,8 +26,8 @@ Poznamka: Approval/security kontrakt se v phase 31 nemeni; gap closure resi pouz
 
 ### Cleanup and Stability
 
-- [ ] **STAB-01**: `cargo check` a `./check.sh` prochazi po odstraneni CLI vrstvy.
-- [ ] **STAB-02**: Relevantni testy jsou aktualizovany na novy namespace.
+- [x] **STAB-01**: `cargo check` a `./check.sh` prochazi po odstraneni CLI vrstvy.
+- [x] **STAB-02**: Relevantni testy jsou aktualizovany na novy namespace.
 
 ## v2 Requirements
 
@@ -57,8 +57,8 @@ Poznamka: Approval/security kontrakt se v phase 31 nemeni; gap closure resi pouz
 | SAFE-01 | Phase 31 | Complete |
 | SAFE-02 | Phase 31 | Complete |
 | SAFE-03 | Phase 31 | Complete |
-| STAB-01 | Phase 32 | Pending |
-| STAB-02 | Phase 32 | Pending |
+| STAB-01 | Phase 32 | Complete |
+| STAB-02 | Phase 32 | Complete |
 
 **Coverage:**
 - v1 requirements: 11 total

@@ -87,10 +87,11 @@ Plans:
 **Goal:** Uzavrit gapy z milestone auditu v1.3.0: re-baseline phase 33 verification a sjednotit cross-phase traceability pro SAFE/TERM po launcher-only removalu.
 **Requirements**: R33-A, R33-B, R33-C, R33-D
 **Depends on:** Phase 33
-**Plans:** 1/2 plans complete
-**Gap Closure:** Closes gaps from `.planning/v1.3.0-v1.3.0-MILESTONE-AUDIT.md`
+**Plans:** 2/2 plans complete
+**Status:** Closed (traceability aligned for R33-A/R33-B/R33-C/R33-D)
+**Gap Closure:** Closed; milestone audit gate can be finalized as `passed`
 
 Planned scope:
-- [ ] Revalidate phase 33 requirements with clean evidence chain
-- [ ] Synchronize REQUIREMENTS/ROADMAP/VERIFICATION statuses to remove milestone inconsistency
-- [ ] Rebaseline affected phase 31/32 verification artifacts for post-phase33 reality
+- [x] Revalidate phase 33 requirements with clean evidence chain
+- [x] Synchronize REQUIREMENTS/ROADMAP/VERIFICATION statuses to remove milestone inconsistency
+- [x] Rebaseline affected phase 31/32 verification artifacts for post-phase33 reality

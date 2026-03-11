@@ -16,30 +16,30 @@ verification_type: goal-backward
 ## Re-check Scope (po 31-06)
 
 - Planning artefakty: `31-06-PLAN.md`, `31-06-SUMMARY.md`, `31-VERIFICATION.md`, `.planning/ROADMAP.md`, `.planning/REQUIREMENTS.md`, `.planning/STATE.md`
-- Runtime kód: `ai_bar.rs`, `logic.rs`, `background.rs`, `executor.rs`, `security.rs`, `approval.rs`
+- Runtime kód: `ai_bar.rs`, `menubar/mod.rs`, `background.rs`
 
 ## Goal Re-check Verdict
 
 Verdikt: **PASS** (phase goal splnen, assistant-only AI terminal runtime bezi bez puvodni CLI coupling vrstvy).
 
 Hlavni dukazy:
-- TERM-01 send path: `send_query_to_agent` (`src/app/ui/terminal/ai_chat/logic.rs:10`)
+- TERM-01 send path: `send_selected_agent_command -> terminal.send_command` (`src/app/ui/terminal/right/ai_bar.rs:6`, `src/app/ui/terminal/right/ai_bar.rs:9`, `src/app/ui/workspace/menubar/mod.rs:122`)
 - TERM-02 non-blocking stream polling: `try_recv` + `drain_stream_events` (`src/app/ui/background.rs:40`, `src/app/ui/background.rs:778`)
 - TERM-03 assistant-only UI boundary: AI bar bez provider-picker couplingu (`src/app/ui/terminal/right/ai_bar.rs:20`)
-- SAFE-01 approval kontrakt: `NeedsApproval` + `process_approval_response` + approval UI (`src/app/ai_core/executor.rs:33`, `src/app/ai_core/executor.rs:203`, `src/app/ui/terminal/ai_chat/approval.rs:7`)
-- SAFE-02 security guardy: `validate_path` + `RateLimiter` a jejich enforcement v executoru (`src/app/ai_core/security.rs:24`, `src/app/ai_core/security.rs:244`, `src/app/ai_core/executor.rs:296`, `src/app/ai_core/executor.rs:372`)
-- SAFE-03 audit/error handling: `log_tool_call`/`log_security_event` + `Toast::error` v runtime cestach (`src/app/ai_core/executor.rs:163`, `src/app/ai_core/executor.rs:291`, `src/app/ui/background.rs:229`)
+- SAFE-01 approval kontrakt: command-level evidence `RUSTC_WRAPPER= cargo test approval -- --nocapture` (viz phase32 verifier artefakt)
+- SAFE-02 security guardy: launcher-only removal gate `bash tests/phase33_removal_checks.sh all` + full gate `RUSTC_WRAPPER= ./check.sh`
+- SAFE-03 audit/error handling: regression gate `RUSTC_WRAPPER= cargo test background::tests -- --nocapture` + `Toast::error` handling v runtime cestach (`src/app/ui/background.rs:229`)
 
 ## TERM/SAFE Coverage
 
 | Requirement | Stav | Evidence |
 |---|---|---|
-| TERM-01 | PASS | `logic.rs:10` |
+| TERM-01 | PASS | `ai_bar.rs:6`, `ai_bar.rs:9`, `menubar/mod.rs:122` |
 | TERM-02 | PASS | `background.rs:40`, `background.rs:778` |
-| TERM-03 | PASS | `ai_bar.rs:20`, `logic.rs:22` |
-| SAFE-01 | PASS | `executor.rs:33`, `executor.rs:203`, `approval.rs:7` |
-| SAFE-02 | PASS | `security.rs:24`, `security.rs:244`, `executor.rs:296`, `executor.rs:372` |
-| SAFE-03 | PASS | `executor.rs:163`, `executor.rs:291`, `background.rs:229` |
+| TERM-03 | PASS | `ai_bar.rs:20` |
+| SAFE-01 | PASS | `RUSTC_WRAPPER= cargo test approval -- --nocapture` |
+| SAFE-02 | PASS | `bash tests/phase33_removal_checks.sh all`, `RUSTC_WRAPPER= ./check.sh` |
+| SAFE-03 | PASS | `RUSTC_WRAPPER= cargo test background::tests -- --nocapture`, `background.rs:229` |
 
 ## Traceability Gap Closure Re-check
 

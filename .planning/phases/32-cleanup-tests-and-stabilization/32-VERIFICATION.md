@@ -11,6 +11,7 @@ verifier: codex
 ## Evidence-first summary
 
 Goal fáze 32 (`dokoncit cleanup, testy a dokumentaci po odstraneni CLI vrstvy`) je splněn.
+Artefakt je textově rebaselinován na post-phase33 launcher-only realitu (bez referencí na odstraněné runtime/chat moduly).
 
 - STAB-01: `RUSTC_WRAPPER= cargo check` a `RUSTC_WRAPPER= ./check.sh` proběhly s `PASS`.
 - STAB-02: cílené testy `phase32_namespace_guard`, `phase32_runtime_stability`, `slash::tests`, `approval`, `background::tests` proběhly s `PASS`.

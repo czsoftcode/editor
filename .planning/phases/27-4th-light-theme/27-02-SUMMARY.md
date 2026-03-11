@@ -9,9 +9,9 @@ requires:
   - phase: 27-01
     provides: WarmTan variant, swatch, a lokalizace pro light varianty
 provides:
-  - Light variant picker je viditelný i v dark režimu (disabled), WarmTan nezmizí
+  - Light variant picker je dostupný pouze v light režimu se 4 variantami včetně WarmTan
+  - Dark variant picker je dostupný v dark režimu se 2 variantami
   - Okamžitý preview při přepínání dark/light díky rozšířenému fingerprintu
-  - Ověřená lokalizace a persistence WarmTan přes regresní testy
 affects: [settings, theme picker, localization]
 
 # Tech tracking
@@ -29,6 +29,7 @@ key-decisions:
 
 patterns-established:
   - "Theme preview porovnává i dark_theme, aby se přepnutí aplikovalo okamžitě."
+  - "Zobrazit pouze picker odpovídající aktuálnímu režimu (light vs dark)."
 
 requirements-completed: [THEME-01, THEME-02, THEME-03, THEME-04]
 
@@ -39,7 +40,7 @@ completed: 2026-03-11
 
 # Phase 27 Plan 02: 4th Light Theme Summary
 
-**Light variant picker je viditelný i v dark režimu (disabled) a přepnutí dark/light teď spouští okamžitý preview, WarmTan zůstává lokalizovaný a persistovaný.**
+**Light variant picker je v light režimu se 4 variantami (včetně WarmTan) a dark režim nabízí 2 dark varianty; přepnutí dark/light teď spouští okamžitý preview.**
 
 ## Performance
 
@@ -50,7 +51,7 @@ completed: 2026-03-11
 - **Files modified:** 1
 
 ## Accomplishments
-- Light varianty jsou vždy viditelné v Settings (v dark režimu disabled), takže WarmTan nezmizí z pickeru.
+- V light režimu se zobrazuje picker se 4 light variantami včetně WarmTan; v dark režimu se zobrazuje picker se 2 dark variantami.
 - Theme preview nově bere v úvahu i `dark_theme`, takže přepnutí dark/light se projeví okamžitě.
 - Regresní testy pro viditelnost, přepnutí, persistence a lokalizaci WarmTan zůstávají zelené.
 
@@ -58,14 +59,14 @@ completed: 2026-03-11
 
 Each task was committed atomically:
 
-1. **Task 27-02-01/02: Viditelnost pickeru + okamžitý preview při přepnutí** - `d5f9191` (fix)
+1. **Task 27-02-01/02: Viditelnost pickerů + okamžitý preview při přepnutí** - `d5f9191` (fix)
 2. **Task 27-02-03: Lokalizace WarmTan** - bez změn kódu (ověřeno testy)
 
 ## Files Created/Modified
-- `src/app/ui/workspace/modal_dialogs/settings.rs` - light picker vždy viditelný, fingerprint zahrnuje dark_theme
+- `src/app/ui/workspace/modal_dialogs/settings.rs` - light/dark picker podle režimu, fingerprint zahrnuje dark_theme
 
 ## Decisions Made
-- Light variant picker zůstává viditelný i v dark režimu, ale je disabled, aby byl seznam variant stále patrný.
+- Picker je vždy jen pro aktivní režim: light varianty v light režimu, dark varianty v dark režimu.
 
 ## Deviations from Plan
 

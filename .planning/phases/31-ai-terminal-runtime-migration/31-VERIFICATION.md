@@ -2,7 +2,7 @@
 phase: 31
 slug: ai-terminal-runtime-migration
 plan: 05
-status: passed
+status: gaps_found
 updated: 2026-03-11
 verification_type: goal-backward
 ---
@@ -11,109 +11,59 @@ verification_type: goal-backward
 
 ## Final Status
 
-`passed`
+`gaps_found`
 
-## Goal-Backward Verdict
+## Goal Verification (assistant-only bez puvodni CLI vrstvy)
 
-**Goal fáze:** migrace provider/executor/tooling na AI terminal bez legacy CLI vrstvy.
+Verdikt k runtime cili: **PASS**.
 
-Verdikt: **PASS**.
+Dukazy:
+- Prompt entrypoint bezi pres AI terminal flow: `send_query_to_agent` v `src/app/ui/terminal/ai_chat/logic.rs`.
+- Streaming bezi pres `provider.stream_chat(...)` a je odvodnen neblokujicim pollingem (`try_recv`, `drain_stream_events`) v `src/app/ui/background.rs`.
+- Slash/GSD workflow zustava v AI terminal vrstve (`dispatch` v `ai_chat/slash.rs`, volano z `logic.rs`).
+- Approval/security zustava v `ai_core` (`ToolResult::NeedsApproval`, `process_approval_response`, `validate_path`, `RateLimiter`).
+- Legacy CLI vrstva neni v aktivni runtime ceste (`app::cli` importy nenalezeny v overovanych callsitech).
 
-Důkazy proti cíli:
-- Runtime entrypoint pro prompt běží přes AI terminal flow (`send_query_to_agent`) a stream startuje přes `provider.stream_chat(...)` bez `app::cli` závislostí.
-- Slash/GSD dispatch je centralizovaný v AI terminal modulu (`dispatch`) a navazuje na externí assistant workflow.
-- Security + approval + audit běží přes `ai_core` (`ToolExecutor`, `PathSandbox`, `RateLimiter`, `AuditLogger`).
-- `src/app/cli` v codebase neexistuje a grep nevrací importy `crate::app::cli`.
+## TERM/SAFE Cross-Check
 
-## Plan Frontmatter + REQUIREMENTS Coverage
+| Requirement | Planning artefakty | Code dukaz | Stav |
+|---|---|---|---|
+| TERM-01 | `31-01/31-02/31-04/31-05-PLAN.md` | `logic.rs` -> `send_query_to_agent` | PASS |
+| TERM-02 | `31-02/31-04/31-05-PLAN.md` | `background.rs` -> `try_recv`, `drain_stream_events` | PASS |
+| TERM-03 | `31-01/31-02/31-04/31-05-PLAN.md` | assistant-only AI bar + slash dispatch bez provider-picker UI | PASS |
+| SAFE-01 | `31-03/31-04/31-05-PLAN.md` | `executor.rs` -> `NeedsApproval`, `process_approval_response`; `approval.rs` UI | PASS |
+| SAFE-02 | `31-03/31-04/31-05-PLAN.md` | `security.rs` -> `validate_path`, `RateLimiter`; enforcement v `executor.rs` | PASS |
+| SAFE-03 | `31-01/31-03/31-04/31-05-PLAN.md` | audit log v `ai_core/audit.rs`, chybove feedbacky/`Toast::error` v `background.rs` | PASS |
 
-| Requirement | Plan frontmatter coverage | REQUIREMENTS coverage | Code/Test evidence | Result |
-|---|---|---|---|---|
-| TERM-01 | 31-01, 31-02, 31-04 | mapped to Phase 31 | `logic.rs` (`send_query_to_agent`), `cargo test ai_chat -- --nocapture` PASS | PASS |
-| TERM-02 | 31-02, 31-04 | mapped to Phase 31 | `background.rs` non-blocking polling (`try_recv`, `drain_stream_events`), `cargo check` PASS | PASS |
-| TERM-03 | 31-01, 31-02, 31-04, 31-05 | mapped to Phase 31 | `slash.rs` (`dispatch`, `/gsd`) + assistant-only AI bar bez provider-picker UI, `cargo test gsd -- --nocapture` PASS | PASS |
-| SAFE-01 | 31-03, 31-04 | mapped to Phase 31 | `executor.rs` (`ToolResult::NeedsApproval`, `process_approval_response`), `cargo test approval -- --nocapture` PASS (11/11) | PASS |
-| SAFE-02 | 31-03, 31-04 | mapped to Phase 31 | `security.rs` (`validate_path`, `PathSandbox`, `RateLimiter`, blacklisty), enforcement v `executor.rs`, `cargo test security -- --nocapture` PASS (28/28) | PASS |
-| SAFE-03 | 31-01, 31-03, 31-04 | mapped to Phase 31 | `audit.rs` (`ai-audit.log`), visible error surfacing v `background.rs` (`Toast::error` + stream error text), `./check.sh` PASS | PASS |
+## Requirement ID Consistency (plans vs REQUIREMENTS)
 
-## Must_Haves Verification (Current Codebase)
+Kontrolovane ID v phase 31 planech:
+- `TERM-01`, `TERM-02`, `TERM-03`, `SAFE-01`, `SAFE-02`, `SAFE-03`
 
-### 31-01 must_haves
-- Truth: AI terminal runtime je jediná cesta bez návratu na legacy CLI.
-  - Evidence: `src/app/cli` chybí; grep bez `crate::app::cli`; AI chat flow v `src/app/ui/terminal/ai_chat/logic.rs`.
-  - Result: PASS
-- Truth: Prompt entrypoint + panel flow zůstává funkční.
-  - Evidence: `send_query_to_agent`, `stream_chat`, `cargo test ai_chat` PASS.
-  - Result: PASS
-- Truth: Slash/GSD je external/terminal workflow bez legacy PolyCredo slash vrstvy.
-  - Evidence: `src/app/ui/terminal/ai_chat/slash.rs` (`dispatch`, `/gsd`, async guardy).
-  - Result: PASS
-- Truth: Chyby jsou viditelné.
-  - Evidence: `src/app/ui/background.rs` (`StreamEvent::Error` -> text do konverzace + `Toast::error`).
-  - Result: PASS
+Stav proti `.planning/REQUIREMENTS.md`:
+- `TERM-01/02/03` a `SAFE-01/02/03`: **OK** (existuji a jsou mapovane na Phase 31).
 
-### 31-02 must_haves
-- Truth: Prompt -> stream -> done tok je neblokující.
-  - Evidence: `try_recv` polling + `drain_stream_events` v `background.rs`.
-  - Result: PASS
-- Truth: Assistant-only flow zustava funkcni bez provider-picker UI.
-  - Evidence: `src/app/ui/terminal/right/ai_bar.rs` obsahuje pouze assistant picker + Start.
-  - Result: PASS
-- Truth: Slash/GSD async placeholder update respektuje generation guard.
-  - Evidence: `slash.rs` (`should_apply_async_result` + testy generation guardu).
-  - Result: PASS
+Dalsi planning nesoulad nalezeny pri traceability kontrole:
+- `.planning/ROADMAP.md` v tabulce "Requirement Coverage" vynechava `TERM-02`, ale soucasne tvrdi `Coverage: 11/11 requirements mapped`.
 
-### 31-03 must_haves
-- Truth: Approval flow approve/deny/resume je zachovaný.
-  - Evidence: `executor.rs` (`NeedsApproval`, `process_approval_response`) + `background.rs` approval event handling.
-  - Result: PASS
-- Truth: Security guardy nejdou obejít.
-  - Evidence: centralizované checky v `security.rs` + enforcement v `executor.rs`.
-  - Result: PASS
-- Truth: Audit + error handling jsou průkazné a viditelné.
-  - Evidence: `audit.rs` zápisy + `background.rs` user-visible error feedback.
-  - Result: PASS
-
-### 31-04 must_haves
-- Truth: Explicitní acceptance důkazy pro všechny TERM/SAFE.
-  - Evidence: tato matice + reprodukovatelné příkazy níže.
-  - Result: PASS
-- Truth: Locked boundary (AI terminal-only, bez PolyCredo CLI).
-  - Evidence: žádný `app::cli` namespace, `src/app/cli` neexistuje, runtime flow v `ai_core` + `ui/terminal/ai_chat`.
-  - Result: PASS
-- Truth: Quality gate zelený.
-  - Evidence: `cargo check` PASS, `./check.sh` PASS.
-  - Result: PASS
-
-### 31-05 gap-closure must_haves
-- Truth: Source-of-truth boundary je assistant-only bez provider-picker couplingu.
-  - Evidence: `.planning/REQUIREMENTS.md`, `.planning/ROADMAP.md`, `.planning/STATE.md`, `31-CONTEXT.md` aligned.
-  - Result: PASS
-- Truth: AI terminal runtime path nema aktivni coupling na `ws.ai.ollama.*` v cilovych call-sitech.
-  - Evidence: grep gate PASS pro `ai_bar.rs`, `logic.rs`, `background.rs`, `workspace/state/mod.rs`.
-  - Result: PASS
-- Truth: SAFE approval/security parity zustava beze zmeny.
-  - Evidence: `cargo test approval -- --nocapture` (11/11 PASS), `cargo test security -- --nocapture` (28/28 PASS), audit/path/rate-limit symboly pritomne.
-  - Result: PASS
-
-## Executed Verification Commands (2026-03-11)
+## Verification Commands (2026-03-11)
 
 ```bash
-RUSTC_WRAPPER= cargo check
-cargo test ai_chat -- --nocapture
-cargo test gsd -- --nocapture
-RUSTC_WRAPPER= cargo test approval -- --nocapture
-RUSTC_WRAPPER= cargo test security -- --nocapture
-RUSTC_WRAPPER= ./check.sh
+cargo check
+./check.sh
 ```
 
-Výsledek: všechny příkazy **PASS**.
+Vysledek:
+- `cargo check`: PASS
+- `./check.sh`: PASS (fmt, clippy, test suite)
 
-## Residual Risk Check
+## Gap Summary
 
-- Nalezeny pouze názvové relikty konstant (`config::CLI_VERSION`, `config::CLI_TIER`), ale bez návratu legacy CLI vrstvy do runtime architektury.
-- To je kosmetické pojmenování, ne funkční porušení cíle fáze 31.
+- Gap 1: Requirement ID traceability mezi phase 31 artefakty a `.planning/REQUIREMENTS.md` nebyla plne sjednocena.
+- Gap 2: `ROADMAP` coverage tabulka je nekonzistentni (`TERM-02` chybi v seznamu).
 
-## Final Decision
+## Actionable Next Step
 
-Status: `passed`
+1. Sjednotit source-of-truth traceability remove variantou: odstranit osiřele requirement reference z phase 31 artefaktů bez rozšiřování `.planning/REQUIREMENTS.md`.
+2. Opravit `.planning/ROADMAP.md` coverage tabulku tak, aby explicitne obsahovala `TERM-02` (a souhlasila s 11/11 tvrzenim).
+3. Po upravech znovu spustit kratkou verification kontrolu a prepnout status na `passed`.

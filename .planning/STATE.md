@@ -1,30 +1,30 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: milestone
-status: completed
-last_updated: "2026-03-11T21:23:40.282Z"
-last_activity: 2026-03-11 - Completed 34-02 milestone gap closure and traceability rebaseline
+milestone: v1.3.1
+milestone_name: safe-trash-delete
+status: planning
+last_updated: "2026-03-11T21:45:00.000Z"
+last_activity: 2026-03-11 - Milestone v1.3.1 started (requirements definition)
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 ## gsd_state_version: 1.0
 
-## Current Milestone: v1.3.0 AI Terminal Cleanup
+## Current Milestone: v1.3.1 Safe Trash Delete
 
-**Goal:** Odstranit puvodni CLI integrace vrstvu (`src/app/cli/*`) a ponechat pouze AI terminal bez regresi.
+**Goal:** Zmenit mazani souboru na bezpecne presouvani do `.polycredo/trash` s moznosti obnovy.
 
 **Target features:**
-- Odstraneni `src/app/cli/*` a navazanych importu
-- Zachovani AI terminal chat + streaming + slash/GSD v assistant-only rezimu
-- Zachovani approval/security guardu pri AI operacich
+- Zalozeni a sprava `.polycredo/trash` adresare
+- Presmerovani delete operaci na move-to-trash tok
+- Definice obnovy a cleanup pravidel bez blokace UI
 
-**Status:** v1.3.0 milestone complete
+**Status:** defining requirements
 
 ---
 
@@ -33,16 +33,16 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
-**Current focus:** Planning next milestone scope and requirements
+**Current focus:** Milestone v1.3.1 requirements and roadmap initialization
 
 ## Current Position
 
-Phase: (none)
-Plan: (none)
-Status: v1.3.0 archived, waiting for next milestone definition
-Last activity: 2026-03-11 - Milestone v1.3.0 archived and roadmap collapsed
+Phase: Not started (defining requirements)
+Plan: -
+Status: Defining requirements
+Last activity: 2026-03-11 - Milestone v1.3.1 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ---
 

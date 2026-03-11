@@ -8,6 +8,15 @@ Multiplatformni textovy editor v Rustu (eframe/egui) s terminaly, build workflow
 
 Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
 
+## Current Milestone: v1.3.1 Safe Trash Delete
+
+**Goal:** Zmenit mazani souboru na bezpecne presouvani do interniho kose `.polycredo/trash` s moznosti obnovy.
+
+**Target features:**
+- Zalozeni a sprava adresare `.polycredo/trash` uvnitr projektu
+- Presun smazanych souboru do trash misto hard delete
+- Minimalni operacni workflow pro obnovu/uklid trash bez blokovani UI
+
 ## Current State
 
 - **Shipped version:** v1.3.0 AI Terminal Cleanup (2026-03-11)
@@ -26,7 +35,9 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 
 ### Active
 
-- (none yet - next milestone requirements budou zalozeny pres `$gsd-new-milestone`)
+- [ ] Zavest interni trash adresar `.polycredo/trash`
+- [ ] Nahradit hard delete za move-to-trash tok
+- [ ] Definovat bezpecne chovani obnovy a cleanup pravidel
 
 ### Out of Scope
 
@@ -35,8 +46,8 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 
 ## Next Milestone Goals
 
-- Zalozit novy milestone scope podle aktualnich priorit produktu.
-- Definovat nove requirements a traceability mapu od nuly.
+- Dokoncit scope milestone v1.3.1 pro bezpecne mazani souboru.
+- Prevest scope do testovatelnych requirements + traceability mapy.
 - Udrzet quality gate standard: `cargo check` + `./check.sh` pro kazdou fazi.
 
 ## Context
@@ -63,4 +74,4 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 </details>
 
 ---
-*Last updated: 2026-03-11 after completing milestone v1.3.0*
+*Last updated: 2026-03-11 after starting milestone v1.3.1*

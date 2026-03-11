@@ -15,13 +15,14 @@
 
 - [x] **TERM-01**: Uzivatel muze otevrit AI terminal panel a odeslat prompt.
 - [x] **TERM-02**: Streaming odpovedi funguje bez zamrznuti UI.
-- [x] **TERM-03**: Model picker a slash/GSD prikazy zustavaji funkcni.
+- [x] **TERM-03**: Assistant-only slash/GSD prikazy zustavaji funkcni bez provider-picker couplingu.
 
 ### Safety and Tooling
 
 - [x] **SAFE-01**: Approval flow pro citlive AI operace zustava funkcni.
 - [x] **SAFE-02**: Security filtry/rate limit/path sandbox zustavaji funkcni po migraci.
 - [x] **SAFE-03**: Audit/error handling zustava funkcni v AI terminal workflow.
+Poznamka: Approval/security kontrakt se v phase 31 nemeni; gap closure resi pouze odstraneni provider-picker couplingu.
 
 ### Cleanup and Stability
 

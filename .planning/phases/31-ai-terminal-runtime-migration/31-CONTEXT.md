@@ -7,7 +7,7 @@
 ## Phase Boundary
 
 Odstranit vazby na puvodni PolyCredo CLI runtime vrstvu v kodu i UI a zachovat funkcni AI terminal workflow.
-Tato faze neresi nove capability; jen migraci runtime/provider/executor/tooling casti na terminal-only smer.
+Tato faze neresi nove capability; jen migraci runtime/executor/tooling casti na assistant-only terminal smer bez model picker/Ollama couplingu.
 
 </domain>
 
@@ -33,6 +33,7 @@ Tato faze neresi nove capability; jen migraci runtime/provider/executor/tooling 
 - Approval a security guardy zustavaji funkcne stejne jako dosud.
 - V phase 31 se guardy neuvolnuji ani nepritvrzuji.
 - SAFE-01/SAFE-02/SAFE-03 se maji splnit migraci bez zmeny UX kontraktu schvalovani.
+- Gap closure explicitne nemeni SAFE kontrakt; meni pouze scope boundary a runtime coupling.
 
 ### Claude's Discretion
 - Presne mapovani internich modulu a poradi migrace runtime casti (`provider`, `executor`, `tools`, `security`, `audit`).

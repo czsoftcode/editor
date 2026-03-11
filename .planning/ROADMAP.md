@@ -26,13 +26,13 @@
 
 ### Phase 31: AI Terminal Runtime Migration
 
-**Goal:** Migrovat provider/executor/tooling casti tak, aby AI terminal fungoval bez puvodni CLI vrstvy.
+**Goal:** Migrovat runtime/executor/tooling casti tak, aby AI terminal fungoval v assistant-only rezimu bez puvodni CLI vrstvy.
 
 **Requirements:** TERM-01, TERM-02, TERM-03, SAFE-01, SAFE-02, SAFE-03
 
 **Success criteria:**
 - AI terminal panel jde otevrit, odesilat dotazy a prijimat streaming odpovedi.
-- Model picker a slash/GSD workflow zustava funkcni.
+- Assistant-only prompt/stream + slash/GSD workflow zustava funkcni bez provider-picker couplingu.
 - Approval a security flow funguje stejne jako pred migraci.
 
 ### Phase 32: Cleanup, Tests, and Stabilization

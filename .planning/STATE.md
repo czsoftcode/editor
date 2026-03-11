@@ -21,7 +21,7 @@ progress:
 
 **Target features:**
 - Odstraneni `src/app/cli/*` a navazanych importu
-- Zachovani AI terminal chat + streaming + model picker + slash/GSD
+- Zachovani AI terminal chat + streaming + slash/GSD v assistant-only rezimu
 - Zachovani approval/security guardu pri AI operacich
 
 **Status:** Ready to plan
@@ -63,10 +63,11 @@ Progress: [██████████] 100%
 - [Phase 31-ai-terminal-runtime-migration]: Retry flow je explicitni UI akce vazana na posledni validni prompt, aktivovana jen po runtime chybe.
 - [Phase 31-ai-terminal-runtime-migration]: Slash async stale-guard je sjednoceny jednim helperem pro /build i /git.
 - [Phase 31-ai-terminal-runtime-migration]: Prompt se normalizuje na vstupu (trim/slash) a prázdný model je guardovaný před startem streamu.
-- [Phase 31-ai-terminal-runtime-migration]: Model picker v ai_bar používá workspace accessory kvůli assistant-only UI gate token policy.
+- [Phase 31-ai-terminal-runtime-migration]: AI bar je assistant-only bez provider-picker UI a bez vazby na provider model list.
 - [Phase 31-ai-terminal-runtime-migration]: execute_approved musi znovu validovat sandbox/blacklist/rate-limit guardy i po schvaleni.
 - [Phase 31-ai-terminal-runtime-migration]: Audit detail payloady jsou sanitovany na jeden radek kvuli citelne forenzni stope.
 - [Phase 31-ai-terminal-runtime-migration]: TERM/SAFE evidence is unified in 31-VERIFICATION.md for single-artifact audit traceability.
+- [Phase 31-ai-terminal-runtime-migration]: Gap closure boundary je assistant-only AI terminal bez provider-picker couplingu; SAFE approval/security kontrakt zustava beze zmeny.
 - [Phase 31-ai-terminal-runtime-migration]: Final gate requires both cargo check and check.sh PASS before enabling nyquist_compliant true.
 
 ### Known Tech Debt

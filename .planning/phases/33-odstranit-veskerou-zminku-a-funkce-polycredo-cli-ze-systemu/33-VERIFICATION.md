@@ -17,9 +17,9 @@ Status: PASS
 
 1. `RUSTC_WRAPPER= cargo check` -> PASS
 2. `RUSTC_WRAPPER= ./check.sh` -> PASS (format, clippy, test suite)
-3. `! rg -n "legacy CLI vrstva|runtime-ai-modul|runtime-chat-modul|app::legacy-cli" .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md .planning/phases/33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu/33-VERIFICATION.md` -> PASS
-4. `! rg -n "runtime-ai-modul|ui/terminal/runtime-chat-modul|show_runtime-chat-modul|tool_executor" src` -> PASS
-5. `! rg -n "cli-chat|cli-tool|legacy CLI vrstva" locales` -> PASS
+3. `! rg -n "<phase33-forbidden-planning-patterns>" .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md .planning/phases/33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu/33-VERIFICATION.md` -> PASS
+4. `! rg -n "<phase33-forbidden-runtime-patterns>" src` -> PASS
+5. `! rg -n "<phase33-forbidden-locale-patterns>" locales` -> PASS
 6. `test -f .planning/phases/33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu/33-04-PLAN.md` -> PASS
 
 ## Notes

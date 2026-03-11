@@ -226,6 +226,18 @@ impl WorkspaceState {
             self.profiles = crate::app::project_config::load_profiles(&self.root_path);
         }
     }
+
+    pub fn ai_provider_is_connected(&self) -> bool {
+        self.ai.ollama.status == crate::app::ai_core::state::OllamaConnectionStatus::Connected
+    }
+
+    pub fn ai_provider_connection_parts(&self) -> (String, String, Option<String>) {
+        (
+            self.ai.ollama.base_url.clone(),
+            self.ai.ollama.selected_model.clone(),
+            self.ai.ollama.api_key.clone(),
+        )
+    }
 }
 
 /// Builds a stable queue of dirty tab paths for the unsaved close guard.

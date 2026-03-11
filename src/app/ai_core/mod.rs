@@ -8,6 +8,10 @@ pub mod provider {
     pub use crate::app::cli::provider::*;
 }
 
+pub mod runtime_provider {
+    pub use crate::app::cli::ollama::*;
+}
+
 pub mod state {
     pub use crate::app::cli::state::*;
 }

@@ -652,10 +652,10 @@ fn resume_after_tool_call(
     assistant_msg: crate::app::ai_core::AiMessage,
     tool_result_msg: crate::app::ai_core::AiMessage,
 ) {
+    use crate::app::ai_core::AiMessage;
     use crate::app::ai_core::ollama::OllamaProvider;
     use crate::app::ai_core::provider::{AiProvider, ProviderConfig};
     use crate::app::ai_core::tools::get_standard_tools;
-    use crate::app::ai_core::AiMessage;
 
     // Build the full message history including tool call/result
     let mut messages: Vec<AiMessage> = Vec::new();

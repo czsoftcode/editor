@@ -1,4 +1,4 @@
-use crate::app::cli::AiManager;
+use crate::app::ai_core::AiManager;
 use crate::app::types::AppShared;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::config;
@@ -37,10 +37,6 @@ const COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         name: "new",
         description: "New conversation",
-    },
-    SlashCommand {
-        name: "model",
-        description: "List or switch AI model",
     },
     SlashCommand {
         name: "git",
@@ -95,7 +91,6 @@ pub fn dispatch(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
         "clear" => cmd_clear(ws),
         "new" => cmd_new(ws, shared),
         "settings" => cmd_settings(ws),
-        "model" => cmd_model(ws, args),
         "git" => cmd_git(ws),
         "build" => cmd_build(ws),
         "gsd" => super::gsd::cmd_gsd(ws, args),
@@ -249,55 +244,6 @@ fn cmd_settings(ws: &mut WorkspaceState) -> SlashResult {
     SlashResult::Silent
 }
 
-fn cmd_model(ws: &mut WorkspaceState, args: &str) -> SlashResult {
-    if args.is_empty() {
-        // List all models
-        if ws.ai.ollama.models.is_empty() {
-            return SlashResult::Immediate(
-                "No models available. Check Ollama connection.".to_string(),
-            );
-        }
-        let mut out = String::from("## Models\n\n");
-        for model in &ws.ai.ollama.models {
-            if *model == ws.ai.ollama.selected_model {
-                out.push_str(&format!("* **{}** (active)\n", model));
-            } else {
-                out.push_str(&format!("* {}\n", model));
-            }
-        }
-        SlashResult::Immediate(out)
-    } else {
-        // Switch model
-        let target = args.to_string();
-        if ws.ai.ollama.models.iter().any(|m| m == &target) {
-            ws.ai.ollama.selected_model = target.clone();
-            SlashResult::Immediate(format!("Switched to model: **{}**", target))
-        } else {
-            // Fuzzy suggest closest model
-            let mut best: Option<(&str, usize)> = None;
-            for model in &ws.ai.ollama.models {
-                let dist = levenshtein(&target.to_lowercase(), &model.to_lowercase());
-                if dist <= 3 && (best.is_none() || dist < best.unwrap().1) {
-                    best = Some((model, dist));
-                }
-            }
-            if let Some((suggestion, _)) = best {
-                SlashResult::Immediate(format!(
-                    "Model '{}' not found. Did you mean: **{}**?",
-                    target, suggestion
-                ))
-            } else {
-                let available: Vec<&str> = ws.ai.ollama.models.iter().map(|s| s.as_str()).collect();
-                SlashResult::Immediate(format!(
-                    "Model '{}' not found. Available models: {}",
-                    target,
-                    available.join(", ")
-                ))
-            }
-        }
-    }
-}
-
 fn cmd_git(ws: &mut WorkspaceState) -> SlashResult {
     let root = ws.root_path.clone();
     let branch = ws.git_branch.clone();
@@ -368,7 +314,6 @@ mod tests {
                 assert!(text.contains("/help"));
                 assert!(text.contains("/clear"));
                 assert!(text.contains("/new"));
-                assert!(text.contains("/model"));
                 assert!(text.contains("/git"));
                 assert!(text.contains("/build"));
                 assert!(text.contains("/settings"));
@@ -403,193 +348,10 @@ mod tests {
         assert_eq!(best2.map(|(n, _)| n), Some("build"));
     }
 
-    fn make_test_ws_with_models(models: Vec<String>, selected: &str) -> WorkspaceState {
-        use crate::app::cli::state::*;
-        let mut ws = WorkspaceState {
-            file_tree: crate::app::ui::file_tree::FileTree::new(),
-            editor: crate::app::ui::editor::Editor::new(),
-            watcher: crate::watcher::FileWatcher::new(),
-            project_watcher: crate::watcher::ProjectWatcher::new(&std::path::PathBuf::from(
-                "/tmp/test",
-            )),
-            claude_tabs: Vec::new(),
-            claude_active_tab: 0,
-            next_claude_tab_id: 1,
-            next_terminal_id: 2,
-            build_terminal: None,
-            retired_terminals: Vec::new(),
-            focused_panel: crate::app::types::FocusedPanel::Editor,
-            root_path: std::path::PathBuf::from("/tmp/test"),
-            show_left_panel: false,
-            show_right_panel: false,
-            show_build_terminal: false,
-            build_terminal_float: false,
-            left_panel_split: 0.5,
-            show_about: false,
-            show_support: false,
-            show_settings: false,
-            show_ai_chat: false,
-            show_semantic_indexing_modal: false,
-            selected_settings_category: None,
-            profiles: crate::app::types::ProjectProfiles::default(),
-            build_errors: Vec::new(),
-            build_error_rx: None,
-            selected_agent_id: String::new(),
-            claude_float: false,
-            show_new_project: false,
-            wizard: crate::app::ui::dialogs::WizardState::default(),
-            toasts: Vec::new(),
-            folder_pick_rx: None,
-            command_palette: None,
-            project_index: std::sync::Arc::new(
-                crate::app::ui::workspace::index::ProjectIndex::new(std::path::PathBuf::from(
-                    "/tmp/test",
-                )),
-            ),
-            semantic_index: std::sync::Arc::new(std::sync::Mutex::new(
-                crate::app::ui::workspace::semantic_index::SemanticIndex::new(
-                    std::path::PathBuf::from("/tmp/test"),
-                ),
-            )),
-            file_picker: None,
-            project_search: crate::app::ui::workspace::state::types::ProjectSearch::default(),
-            lsp_client: None,
-            lsp_binary_missing: false,
-            lsp_install_rx: None,
-            git_branch: None,
-            git_branch_rx: None,
-            git_status_rx: None,
-            git_last_refresh: std::time::Instant::now(),
-            lsp_last_retry: std::time::Instant::now(),
-            settings_draft: None,
-            settings_original: None,
-            settings_folder_pick_rx: None,
-            ai_tool_available: std::collections::HashMap::new(),
-            ai_tool_check_rx: None,
-            ai_tool_last_check: std::time::Instant::now(),
-            win_tool_available: std::collections::HashMap::new(),
-            win_tool_check_rx: None,
-            win_tool_last_check: std::time::Instant::now(),
-            external_change_conflict: None,
-            dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
-            terminal_close_requested: None,
-            ai_viewport_open: false,
-            settings_conflict: None,
-            ai: AiState::default(),
-            git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            local_history: crate::app::local_history::LocalHistory::new(&std::path::PathBuf::from(
-                "/tmp/test",
-            )),
-            background_io_rx: None,
-            applied_settings_version: 0,
-            confirm_discard_changes: None,
-            last_keystroke_time: None,
-            pending_close_flow: None,
-            last_unsaved_close_cancelled: false,
-            tool_executor: None,
-            pending_tool_approval: None,
-            pending_tool_ask: None,
-            tool_always_approved: std::collections::HashSet::new(),
-            tool_approval_rx: None,
-            tool_ask_rx: None,
-            slash_build_rx: None,
-            slash_git_rx: None,
-            slash_conversation_gen: 0,
-            slash_build_gen: 0,
-            slash_autocomplete: Default::default(),
-        };
-        ws.ai.ollama.models = models;
-        ws.ai.ollama.selected_model = selected.to_string();
-        ws
-    }
-
-    #[test]
-    fn test_cmd_model_list() {
-        let mut ws = make_test_ws_with_models(
-            vec![
-                "llama3.1".to_string(),
-                "deepseek-r1".to_string(),
-                "codellama".to_string(),
-            ],
-            "llama3.1",
-        );
-        let result = cmd_model(&mut ws, "");
-        match result {
-            SlashResult::Immediate(text) => {
-                assert!(text.contains("## Models"), "Should have heading");
-                assert!(
-                    text.contains("**llama3.1** (active)"),
-                    "Active model should be marked"
-                );
-                assert!(text.contains("* deepseek-r1"), "Other models listed");
-                assert!(text.contains("* codellama"), "Other models listed");
-            }
-            _ => panic!("Expected Immediate result from /model"),
-        }
-    }
-
-    #[test]
-    fn test_cmd_model_switch_valid() {
-        let mut ws = make_test_ws_with_models(
-            vec!["llama3.1".to_string(), "deepseek-r1".to_string()],
-            "llama3.1",
-        );
-        let result = cmd_model(&mut ws, "deepseek-r1");
-        match result {
-            SlashResult::Immediate(text) => {
-                assert!(text.contains("Switched to model: **deepseek-r1**"));
-                assert_eq!(ws.ai.ollama.selected_model, "deepseek-r1");
-            }
-            _ => panic!("Expected Immediate result from /model switch"),
-        }
-    }
-
-    #[test]
-    fn test_cmd_model_switch_invalid() {
-        let mut ws = make_test_ws_with_models(
-            vec!["llama3.1".to_string(), "deepseek-r1".to_string()],
-            "llama3.1",
-        );
-        // Close enough to "llama3.1" with Levenshtein <= 3
-        let result = cmd_model(&mut ws, "llama3");
-        match result {
-            SlashResult::Immediate(text) => {
-                assert!(text.contains("not found"), "Should report not found");
-                assert!(text.contains("llama3.1"), "Should suggest closest match");
-            }
-            _ => panic!("Expected Immediate result from /model invalid"),
-        }
-
-        // Totally different name
-        let result2 = cmd_model(&mut ws, "gpt-4o");
-        match result2 {
-            SlashResult::Immediate(text) => {
-                assert!(text.contains("not found"), "Should report not found");
-                assert!(
-                    text.contains("Available models:"),
-                    "Should list available models"
-                );
-            }
-            _ => panic!("Expected Immediate result from /model unknown"),
-        }
-    }
-
-    #[test]
-    fn test_cmd_model_empty_list() {
-        let mut ws = make_test_ws_with_models(Vec::new(), "");
-        let result = cmd_model(&mut ws, "");
-        match result {
-            SlashResult::Immediate(text) => {
-                assert!(text.contains("No models available"));
-            }
-            _ => panic!("Expected Immediate result from /model with no models"),
-        }
-    }
-
     #[test]
     fn test_matching_commands() {
         let all = matching_commands("");
-        assert_eq!(all.len(), 8);
+        assert_eq!(all.len(), 7);
         let filtered = matching_commands("he");
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].0, "help");

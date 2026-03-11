@@ -1,8 +1,7 @@
-use crate::app::ai_core::ollama::OllamaProvider;
-use crate::app::ai_core::provider::{AiProvider, ProviderConfig};
-use crate::app::ai_core::state::OllamaConnectionStatus;
-use crate::app::ai_core::tools::get_standard_tools;
 use crate::app::ai_core::AiMessage;
+use crate::app::ai_core::provider::{AiProvider, ProviderConfig};
+use crate::app::ai_core::runtime_provider::OllamaProvider;
+use crate::app::ai_core::tools::get_standard_tools;
 use crate::app::types::{AppShared, Toast};
 use crate::app::ui::workspace::state::WorkspaceState;
 use std::sync::atomic::AtomicBool;
@@ -11,21 +10,21 @@ use std::sync::{Arc, Mutex};
 pub fn send_query_to_agent(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
-    i18n: &crate::i18n::I18n,
+    _i18n: &crate::i18n::I18n,
 ) {
     if ws.ai.chat.prompt.trim().is_empty() {
         return;
     }
 
-    // Slash command intercept — works even when Ollama is disconnected
+    // Slash command intercept — works even when provider is disconnected
     if ws.ai.chat.prompt.starts_with('/') {
         super::slash::dispatch(ws, shared);
         return;
     }
 
-    if ws.ai.ollama.status != OllamaConnectionStatus::Connected {
+    if !ws.ai_provider_is_connected() {
         ws.toasts
-            .push(Toast::error(i18n.get("cli-chat-ollama-disconnected")));
+            .push(Toast::error("AI provider is not connected."));
         return;
     }
 
@@ -151,18 +150,15 @@ pub fn send_query_to_agent(
     ws.ai.chat.history_index = None;
 
     // Create provider and start streaming
-    let provider = OllamaProvider::new(
-        ws.ai.ollama.base_url.clone(),
-        ws.ai.ollama.selected_model.clone(),
-        ws.ai.ollama.api_key.clone(),
-    );
+    let (base_url, model, api_key) = ws.ai_provider_connection_parts();
+    let provider = OllamaProvider::new(base_url.clone(), model.clone(), api_key.clone());
 
     let config = ProviderConfig {
-        base_url: ws.ai.ollama.base_url.clone(),
-        model: ws.ai.ollama.selected_model.clone(),
+        base_url,
+        model,
         temperature: ws.ai.settings.temperature,
         num_ctx: ws.ai.settings.num_ctx,
-        api_key: ws.ai.ollama.api_key.clone(),
+        api_key,
         top_p: ws.ai.settings.top_p,
         top_k: ws.ai.settings.top_k,
         repeat_penalty: ws.ai.settings.repeat_penalty,

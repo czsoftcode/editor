@@ -6,10 +6,10 @@
 
 ## Progress
 
-- Total phases: 4
+- Total phases: 5
 - Completed: 4
 - In progress: 0
-- Pending: 0
+- Pending: 1
 
 ## Phases
 
@@ -62,10 +62,10 @@
 | SAFE-03 | 31 |
 | STAB-01 | 32 |
 | STAB-02 | 32 |
-| R33-A | 33 |
-| R33-B | 33 |
-| R33-C | 33 |
-| R33-D | 33 |
+| R33-A | 34 |
+| R33-B | 34 |
+| R33-C | 34 |
+| R33-D | 34 |
 
 Coverage: 15/15 requirements mapped.
 
@@ -81,3 +81,15 @@ Plans:
 - [x] 33-02-PLAN.md — i18n/no-fallback UI cleanup
 - [x] 33-03-PLAN.md — active planning cleanup + verification bridge
 - [x] 33-04-PLAN.md — global/historical planning cleanup batches
+
+### Phase 34: milestone gap closure and traceability rebaseline
+
+**Goal:** Uzavrit gapy z milestone auditu v1.3.0: re-baseline phase 33 verification a sjednotit cross-phase traceability pro SAFE/TERM po launcher-only removalu.
+**Requirements**: R33-A, R33-B, R33-C, R33-D
+**Depends on:** Phase 33
+**Gap Closure:** Closes gaps from `.planning/v1.3.0-v1.3.0-MILESTONE-AUDIT.md`
+
+Planned scope:
+- [ ] Revalidate phase 33 requirements with clean evidence chain
+- [ ] Synchronize REQUIREMENTS/ROADMAP/VERIFICATION statuses to remove milestone inconsistency
+- [ ] Rebaseline affected phase 31/32 verification artifacts for post-phase33 reality

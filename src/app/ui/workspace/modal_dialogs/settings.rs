@@ -75,18 +75,18 @@ fn show_light_variant_card(
             border_color,
         ))
         .corner_radius(8.0)
-        .inner_margin(egui::Margin::symmetric(10, 8))
+        .inner_margin(egui::Margin::same(8))
         .show(ui, |ui| {
-            ui.set_min_size(egui::vec2(180.0, 52.0));
-            ui.horizontal(|ui| {
-                let (swatch_rect, _) =
-                    ui.allocate_exact_size(egui::vec2(22.0, 22.0), egui::Sense::hover());
+            ui.vertical(|ui| {
+                ui.set_width(140.0);
+                ui.strong(i18n.get(light_variant_label_key(&variant)));
+                ui.add_space(6.0);
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(100.0, 30.0), egui::Sense::hover());
                 ui.painter()
-                    .rect_filled(swatch_rect, 4.0, light_variant_swatch(&variant));
-                ui.add_space(8.0);
-                ui.label(i18n.get(light_variant_label_key(&variant)));
+                    .rect_filled(rect, 6.0, light_variant_swatch(&variant));
                 if is_selected {
-                    ui.add_space(8.0);
+                    ui.add_space(6.0);
                     ui.label(
                         egui::RichText::new("✓")
                             .strong()
@@ -446,7 +446,7 @@ pub fn show(
                             if draft.dark_theme {
                                 ui.strong(i18n.get("settings-dark-variant"));
                                 ui.add_space(6.0);
-                                ui.vertical(|ui| {
+                                ui.horizontal_wrapped(|ui| {
                                     for variant in DARK_VARIANT_OPTIONS.iter().cloned() {
                                         theme_controls_changed |=
                                             show_dark_variant_card(ui, draft, i18n, variant);
@@ -456,13 +456,19 @@ pub fn show(
                             } else {
                                 ui.strong(i18n.get("settings-light-variant"));
                                 ui.add_space(6.0);
-                                ui.vertical(|ui| {
-                                    for variant in LIGHT_VARIANT_OPTIONS.iter().cloned() {
-                                        theme_controls_changed |=
-                                            show_light_variant_card(ui, draft, i18n, variant);
-                                        ui.add_space(8.0);
-                                    }
-                                });
+                                egui::Grid::new("settings_light_variant_grid")
+                                    .spacing(egui::vec2(8.0, 8.0))
+                                    .show(ui, |ui| {
+                                        for (idx, variant) in
+                                            LIGHT_VARIANT_OPTIONS.iter().cloned().enumerate()
+                                        {
+                                            theme_controls_changed |=
+                                                show_light_variant_card(ui, draft, i18n, variant);
+                                            if idx % 2 == 1 {
+                                                ui.end_row();
+                                            }
+                                        }
+                                    });
                             }
                             ui.add_space(16.0);
 

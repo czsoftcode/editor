@@ -1462,6 +1462,94 @@ mod tests {
         }
     }
 
+    #[test]
+    fn security_approved_write_blocks_path_traversal() {
+        let (tmp, mut executor) = setup_test_executor();
+        let outside = tmp.path().join("..").join("pwned.rs");
+        if outside.exists() {
+            std::fs::remove_file(&outside).unwrap();
+        }
+
+        let result = executor.execute_approved(
+            "write_file",
+            &serde_json::json!({"path": "../pwned.rs", "content": "fn pwned() {}"}),
+        );
+
+        match result {
+            ToolResult::Error(msg) => {
+                assert!(
+                    msg.contains("traversal") || msg.contains("outside"),
+                    "Expected sandbox rejection, got: {}",
+                    msg
+                );
+            }
+            other => panic!("Expected Error, got {:?}", other),
+        }
+        assert!(
+            !outside.exists(),
+            "Traversal path must not be written outside project root"
+        );
+    }
+
+    #[test]
+    fn security_approved_write_respects_file_blacklist() {
+        let (_tmp, mut executor) = setup_test_executor();
+        let result = executor.execute_approved(
+            "write_file",
+            &serde_json::json!({"path": ".env.prod", "content": "TOKEN=leak"}),
+        );
+
+        match result {
+            ToolResult::Error(msg) => assert!(msg.contains("blocked") || msg.contains("blacklist")),
+            other => panic!("Expected Error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn security_approved_write_respects_rate_limit() {
+        let (_tmp, mut executor) = setup_test_executor();
+        for _ in 0..50 {
+            executor.rate_limiter.check_write().expect("rate setup");
+        }
+
+        let result = executor.execute_approved(
+            "write_file",
+            &serde_json::json!({"path": "limited.rs", "content": "fn limited() {}"}),
+        );
+        match result {
+            ToolResult::Error(msg) => assert!(msg.contains("rate limit") || msg.contains("Rate limit")),
+            other => panic!("Expected Error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn security_approved_replace_respects_file_blacklist() {
+        let (_tmp, mut executor) = setup_test_executor();
+        let result = executor.execute_approved(
+            "replace",
+            &serde_json::json!({
+                "path": ".env",
+                "old_string": "secret123",
+                "new_string": "redacted"
+            }),
+        );
+
+        match result {
+            ToolResult::Error(msg) => assert!(msg.contains("blocked") || msg.contains("blacklist")),
+            other => panic!("Expected Error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn security_approved_exec_still_blocks_dangerous_command() {
+        let (_tmp, mut executor) = setup_test_executor();
+        let result = executor.execute_approved("exec", &serde_json::json!({"command": "sudo "}));
+        match result {
+            ToolResult::Error(msg) => assert!(msg.contains("Blocked") || msg.contains("dangerous")),
+            other => panic!("Expected Error, got {:?}", other),
+        }
+    }
+
     // --- Approval response tests (TOOL-05) ---
 
     #[test]

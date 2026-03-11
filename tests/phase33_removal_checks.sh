@@ -11,6 +11,7 @@ check_task1() {
 
 check_task2() {
   ! rg -n "show_ai_chat|tool_executor|run_agent\\s*==\\s*\"ai_chat\"|FocusedPanel::AiChat" src/app >/dev/null
+  ! rg -n "\\bws\\.ai\\b" src/app >/dev/null
 }
 
 case "$mode" in

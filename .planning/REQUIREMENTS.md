@@ -30,6 +30,13 @@ Poznamka: Approval/security kontrakt se v phase 31 nemeni; gap closure resi pouz
 - [x] **STAB-02**: Relevantni testy jsou aktualizovany na novy namespace.
 Poznamka: Evidence-first sign-off je veden v `.planning/phases/32-cleanup-tests-and-stabilization/32-VERIFICATION.md`.
 
+### Launcher-only Removal (Phase 33)
+
+- [ ] **R33-A**: Jediny aktivni AI tok v aplikaci je `ai_bar -> terminal.send_command`.
+- [ ] **R33-B**: `src/app/ai_core/*` a `src/app/ui/terminal/ai_chat/*` jsou odstranene a bez aktivnich referenci.
+- [ ] **R33-C**: Legacy AI chat entrypointy jsou odstranene bez fallback UX/toastu/deprecated vetvi.
+- [ ] **R33-D**: Zminky `PolyCredo CLI|ai_core|ai_chat|app::cli` jsou vycistene v aktivnim i historickem planning scope podle planu phase 33.
+
 ## v2 Requirements
 
 ### Future Enhancements
@@ -60,10 +67,14 @@ Poznamka: Evidence-first sign-off je veden v `.planning/phases/32-cleanup-tests-
 | SAFE-03 | Phase 31 | Complete |
 | STAB-01 | Phase 32 | Complete |
 | STAB-02 | Phase 32 | Complete |
+| R33-A | Phase 33 | Pending |
+| R33-B | Phase 33 | Pending |
+| R33-C | Phase 33 | Pending |
+| R33-D | Phase 33 | Pending |
 
 **Coverage:**
-- v1 requirements: 11 total
-- Mapped to phases: 11
+- v1 requirements: 15 total
+- Mapped to phases: 15
 - Unmapped: 0
 
 ---

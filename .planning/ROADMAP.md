@@ -61,16 +61,23 @@
 | SAFE-02 | 31 |
 | SAFE-03 | 31 |
 | STAB-01 | 32 |
-| Complete    | 2026-03-11 |
+| STAB-02 | 32 |
+| R33-A | 33 |
+| R33-B | 33 |
+| R33-C | 33 |
+| R33-D | 33 |
 
-Coverage: 11/11 requirements mapped.
+Coverage: 15/15 requirements mapped.
 
 ### Phase 33: odstranit veskerou zminku a funkce polycredo cli ze systemu
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Odstranit integrovany AI runtime/chat subsystem (`ai_core` + `ui/terminal/ai_chat`) a ponechat pouze `ai_bar` launcher tok do terminalu bez fallback UX.
+**Requirements**: R33-A, R33-B, R33-C, R33-D
 **Depends on:** Phase 32
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 33 to break down)
+- [ ] 33-01-PLAN.md — hard removal ai_core + ai_chat + compile gate
+- [ ] 33-02-PLAN.md — i18n/no-fallback UI cleanup
+- [ ] 33-03-PLAN.md — active planning cleanup + verification bridge
+- [ ] 33-04-PLAN.md — global/historical planning cleanup batches

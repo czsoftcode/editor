@@ -103,6 +103,7 @@ Key decisions logged in PROJECT.md Key Decisions table.
 - (v1.3.0) Přidat 2. dark theme variantu
 - Upravit dolní lištu: branch oznámení více doprava, UTF více doleva (`src/app/ui/terminal/bottom/git_bar.rs`)
 - V `Sestavit > Upravit` přidat online náhled změn zapisovaných do `.polycredo/profiles.toml`
+- Zprovoznit `.polycredo/trash` a přesouvat tam smazané soubory
 
 ### Blockers/Concerns
 
@@ -122,4 +123,3 @@ Key decisions logged in PROJECT.md Key Decisions table.
 | Phase 29-syntect-theme-mapping P01 | 9min | 3 tasks | 1 files |
 | Phase 29-syntect-theme-mapping P02 | 6 min | 2 tasks | 1 files |
 | Phase 27 P02 | 5 min | 3 tasks | 0 files |
-

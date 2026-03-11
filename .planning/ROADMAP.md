@@ -61,6 +61,6 @@
 | SAFE-02 | 31 |
 | SAFE-03 | 31 |
 | STAB-01 | 32 |
-| STAB-02 | 32 |
+| Complete    | 2026-03-11 |
 
 Coverage: 11/11 requirements mapped.

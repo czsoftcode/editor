@@ -1,8 +1,20 @@
-# Phase 32 Plan 02 Verification Report
+---
+phase: 32-cleanup-tests-and-stabilization
+plan: 32-02
+status: passed
+verified_at_utc: 2026-03-11T16:20:00Z
+verifier: codex
+---
 
-Datum (UTC): 2026-03-11
-Plan: 32-02
-Typ: evidence-first sign-off
+# Phase 32 Verification Report
+
+## Evidence-first summary
+
+Goal fáze 32 (`dokoncit cleanup, testy a dokumentaci po odstraneni CLI vrstvy`) je splněn.
+
+- STAB-01: `RUSTC_WRAPPER= cargo check` a `RUSTC_WRAPPER= ./check.sh` proběhly s `PASS`.
+- STAB-02: cílené testy `phase32_namespace_guard`, `phase32_runtime_stability`, `slash::tests`, `approval`, `background::tests` proběhly s `PASS`.
+- Cleanup/dokumentace: `src/app/cli` v repu neexistuje (`CLI_DIR_ABSENT`), roadmap/requirements/state/changelog obsahují navázání na phase 32 evidence.
 
 ## STAB-01 - Quality gate po cleanupu
 
@@ -15,15 +27,25 @@ Typ: evidence-first sign-off
 
 | Důkaz | Příkaz | Výsledek | Mapování |
 |---|---|---|---|
-| Namespace guard coverage | `RUSTC_WRAPPER= cargo test phase32_namespace_guard -- --nocapture` | PASS | Explicitně hlídá zákaz `app::cli` relapsu v aktivních runtime callsitech (`STAB-02`). |
+| Namespace guard coverage | `RUSTC_WRAPPER= cargo test phase32_namespace_guard -- --nocapture` | PASS | Hlídá zákaz `crate::app::cli` i `app::cli` v kritických runtime callsitech (`STAB-02`). |
 | Runtime stabilita (smoke/regression) | `RUSTC_WRAPPER= cargo test phase32_runtime_stability -- --nocapture` | PASS | Pokrývá prompt/stream/slash/approval stabilizační toky (`STAB-02`). |
-| Slash testy | `RUSTC_WRAPPER= cargo test slash::tests -- --nocapture` | PASS | Potvrzuje slash guard/recovery část (`STAB-02`). |
+| Slash testy | `RUSTC_WRAPPER= cargo test slash::tests -- --nocapture` | PASS | Potvrzuje slash stale-guard/recovery část (`STAB-02`). |
 | Approval testy | `RUSTC_WRAPPER= cargo test approval -- --nocapture` | PASS | Potvrzuje approval flow a failure visibility (`STAB-02`). |
 | Background testy | `RUSTC_WRAPPER= cargo test background::tests -- --nocapture` | PASS | Potvrzuje stabilní zpracování background eventů (`STAB-02`). |
 
-## Deferred (mimo scope)
+## Artifact cross-check (cleanup + docs)
 
-- Žádné nové capability. Mimo-scope nápady zůstávají mimo tuto phase (bez implementace).
+| Oblast | Důkaz | Výsledek |
+|---|---|---|
+| Cleanup CLI vrstvy | `src/app/cli` adresář neexistuje | PASS |
+| Roadmap traceability | `.planning/ROADMAP.md` odkazuje na `32-VERIFICATION.md` | PASS |
+| Requirements traceability | `.planning/REQUIREMENTS.md` mapuje STAB-01/02 na phase 32 + evidence poznámku | PASS |
+| State traceability | `.planning/STATE.md` obsahuje rozhodnutí o centralizovaném STAB sign-off artefaktu | PASS |
+| Release evidence | `CHANGELOG.md` obsahuje phase 32 stabilizační zápis se STAB-01/02 | PASS |
+
+## Gaps
+
+- Žádné gapy nenalezeny.
 
 ## Sign-off
 

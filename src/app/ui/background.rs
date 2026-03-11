@@ -264,31 +264,13 @@ pub(super) fn process_background_events(
     // --- 4c. Chat streaming ---
     let has_stream = ws.ai.chat.stream_rx.is_some();
     if has_stream {
-        let mut events = Vec::new();
-        if let Some(ref rx) = ws.ai.chat.stream_rx {
-            loop {
-                match rx.try_recv() {
-                    Ok(evt) => events.push(evt),
-                    Err(std::sync::mpsc::TryRecvError::Empty) => break,
-                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                        // Sender dropped — stream thread finished. If we already
-                        // have tokens/Done events this is normal completion.
-                        // Only report error if no content was received at all.
-                        if events.is_empty() && ws.ai.chat.streaming_buffer.is_empty() {
-                            events.push(StreamEvent::Error("Stream disconnected".into()));
-                        } else if !events.iter().any(|e| matches!(e, StreamEvent::Done { .. })) {
-                            // No explicit Done — synthesize one so the stream finalizes cleanly
-                            events.push(StreamEvent::Done {
-                                model: String::new(),
-                                prompt_tokens: 0,
-                                completion_tokens: 0,
-                            });
-                        }
-                        break;
-                    }
-                }
-            }
-        }
+        let events = ws
+            .ai
+            .chat
+            .stream_rx
+            .as_ref()
+            .map(|rx| drain_stream_events(rx, &ws.ai.chat.streaming_buffer))
+            .unwrap_or_default();
         // Process collected events
         let mut done = false;
         let mut tokens_this_frame = 0u32;
@@ -869,6 +851,32 @@ fn format_slash_build_summary(errors: &[crate::app::build_runner::BuildError]) -
     }
 
     out
+}
+
+fn drain_stream_events(
+    rx: &std::sync::mpsc::Receiver<StreamEvent>,
+    streaming_buffer: &str,
+) -> Vec<StreamEvent> {
+    let mut events = Vec::new();
+    loop {
+        match rx.try_recv() {
+            Ok(evt) => events.push(evt),
+            Err(std::sync::mpsc::TryRecvError::Empty) => break,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                if events.is_empty() && streaming_buffer.is_empty() {
+                    events.push(StreamEvent::Error("Stream disconnected".into()));
+                } else if !events.iter().any(|e| matches!(e, StreamEvent::Done { .. })) {
+                    events.push(StreamEvent::Done {
+                        model: String::new(),
+                        prompt_tokens: 0,
+                        completion_tokens: 0,
+                    });
+                }
+                break;
+            }
+        }
+    }
+    events
 }
 
 pub(crate) fn fetch_git_status(

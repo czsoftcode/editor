@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
-mod build_runner;
 pub mod ai_core;
+mod build_runner;
 pub(crate) mod cli;
 mod fonts;
 pub mod local_history;
@@ -979,7 +979,7 @@ mod tests {
             terminal_close_requested: None,
             ai_viewport_open: false,
             settings_conflict: None,
-            ai: crate::app::cli::AiState::default(),
+            ai: crate::app::ai_core::AiState::default(),
             git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
                 "/tmp/test",
@@ -1114,7 +1114,7 @@ mod tests {
             terminal_close_requested: None,
             ai_viewport_open: false,
             settings_conflict: None,
-            ai: crate::app::cli::AiState::default(),
+            ai: crate::app::ai_core::AiState::default(),
             git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
                 "/tmp/test",

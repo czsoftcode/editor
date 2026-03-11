@@ -8,7 +8,6 @@ pub mod tools;
 pub mod types;
 
 pub use ollama::{OllamaStatus, spawn_ollama_check};
-pub use state::AiState;
 pub use types::*;
 
 use crate::app::ui::git_status::GitVisualStatus;

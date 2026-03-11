@@ -58,6 +58,12 @@ Zaver: kazde requirement ID z planu je v REQUIREMENTS.md zohlednene.
 3. `! rg -n "\\bai_core\\b|ui/terminal/ai_chat|show_ai_chat|tool_executor|FocusedPanel::AiChat|run_agent\\s*==\\s*\"ai_chat\"" src -S` -> PASS.
 4. `! rg -n "status:\\s*gaps_found" .planning/phases/33-odstranit-veskerou-zminku-a-funkce-polycredo-cli-ze-systemu/33-VERIFICATION.md -S` -> PASS.
 
+## Rebaseline Gate (34-01)
+
+- Fast gate (`rg/send_command` + removed-module checks + no-`gaps_found` + `phase33_removal_checks`) -> PASS.
+- `RUSTC_WRAPPER= cargo check` -> PASS.
+- `RUSTC_WRAPPER= ./check.sh` -> PASS (`cargo fmt`, `cargo clippy`, `cargo test`, 122/122 unit testu + phase gate testy).
+
 ## Zaver
 
 - Finalni status: `passed`

@@ -2,88 +2,84 @@
 phase: 27-4th-light-theme
 plan: 02
 subsystem: ui
-tags: [theme, settings, tests, i18n]
+tags: [theme, settings, i18n, tests]
 
 # Dependency graph
 requires:
   - phase: 27-01
-    provides: WarmTan variant, swatches, and i18n keys
+    provides: WarmTan variant, swatch, a lokalizace pro light varianty
 provides:
-  - Deterministic WarmTan picker iteration plus swatch/label coverage
-  - Runtime & persistence verification for WarmTan plus localization guard
+  - Light variant picker je viditelný i v dark režimu (disabled), WarmTan nezmizí
+  - Okamžitý preview při přepínání dark/light díky rozšířenému fingerprintu
+  - Ověřená lokalizace a persistence WarmTan přes regresní testy
 affects: [settings, theme picker, localization]
 
 # Tech tracking
 tech-stack:
   added: []
-  patterns: [deterministic selection constants, localized regression tests]
+  patterns: [theme_fingerprint zahrnuje dark_theme, disabled light picker v dark režimu]
 
 key-files:
   created: []
   modified:
     - src/app/ui/workspace/modal_dialogs/settings.rs
-    - src/settings.rs
 
 key-decisions:
-  - "Use LIGHT_VARIANT_OPTIONS so the light picker iteration cannot silently drop WarmTan."
-  - "Guard WarmTan visuals, persistence, and localization with targeted regression tests."
+  - "Light variant picker zůstává vždy viditelný; v dark režimu je pouze disabled."
 
 patterns-established:
-  - "Test the UI-visible variant list to prevent disappearance of a built-in theme."
-  - "Manual checklist that verifies visibility, runtime apply, persistence, and localized label before closing the plan."
+  - "Theme preview porovnává i dark_theme, aby se přepnutí aplikovalo okamžitě."
 
 requirements-completed: [THEME-01, THEME-02, THEME-03, THEME-04]
 
 # Metrics
-duration: 40 min
+duration: 9 min
 completed: 2026-03-11
 ---
 
-# Phase 27 Plan 2: 4th Light Theme Summary
+# Phase 27 Plan 02: 4th Light Theme Summary
 
-**WarmTan is again selectable in Settings with deterministic UI coverage, immediate visuals, persistence, and a localized label regression guard.**
+**Light variant picker je viditelný i v dark režimu (disabled) a přepnutí dark/light teď spouští okamžitý preview, WarmTan zůstává lokalizovaný a persistovaný.**
 
 ## Performance
-- **Duration:** 40 min
-- **Started:** 2026-03-11T00:20:00Z
-- **Completed:** 2026-03-11T00:58:42Z
+
+- **Duration:** 9 min
+- **Started:** 2026-03-11T00:00:20Z
+- **Completed:** 2026-03-11T00:09:11Z
 - **Tasks:** 3
-- **Files modified:** 2
+- **Files modified:** 1
 
 ## Accomplishments
-- Light variant rendering now walks the shared `LIGHT_VARIANT_OPTIONS` array, and `settings_light_variant_picker_includes_warmtan` catches regression if WarmTan disappears.
-- Added `settings_light_variant_switch_to_warmtan` and `settings_light_variant_warmtan_roundtrip_persistence` so the warm tan visuals and settings.toml round-trip stay aligned with runtime previews.
-- `settings_light_variant_label_warmtan_localized` exercises cs/en/de/ru/sk bundles, and manually verifying Settings in light mode confirmed WarmTan is visible, selectable, persisted, and shows the localized label.
-- Automated verification: `cargo test -q settings_light_variant_picker_includes_warmtan`, `cargo test -q settings_light_variant_switch_to_warmtan`, `cargo test -q settings_light_variant_warmtan_roundtrip_persistence`, `cargo test -q settings_light_variant_label_warmtan_localized`, and `cargo check` all pass.
+- Light varianty jsou vždy viditelné v Settings (v dark režimu disabled), takže WarmTan nezmizí z pickeru.
+- Theme preview nově bere v úvahu i `dark_theme`, takže přepnutí dark/light se projeví okamžitě.
+- Regresní testy pro viditelnost, přepnutí, persistence a lokalizaci WarmTan zůstávají zelené.
 
 ## Task Commits
+
 Each task was committed atomically:
 
-1. **Task 27-02-01: Reprodukovat a zafixovat viditelnost WarmTan v Settings pickeru** - `0f78ecc` (feat)
-2. **Task 27-02-02: Opravit přepnutí a persistence WarmTan end-to-end** - `c53fb47` (test)
-3. **Task 27-02-03: Uzavřít i18n coverage a anti-regression gate pro THEME-04** - `ab5df96` (test)
-
-**Plan metadata:** `ab5df96` (docs: complete plan)
+1. **Task 27-02-01/02: Viditelnost pickeru + okamžitý preview při přepnutí** - `d5f9191` (fix)
+2. **Task 27-02-03: Lokalizace WarmTan** - bez změn kódu (ověřeno testy)
 
 ## Files Created/Modified
-- `src/app/ui/workspace/modal_dialogs/settings.rs` - Deterministic light variant loop plus picker tests.
-- `src/settings.rs` - Visuals/persistence regression tests anchored to WarmTan.
+- `src/app/ui/workspace/modal_dialogs/settings.rs` - light picker vždy viditelný, fingerprint zahrnuje dark_theme
 
 ## Decisions Made
-- `LIGHT_VARIANT_OPTIONS` keeps WarmTan part of the picker without relying on in-place array literals.
-- Targeted regression tests for WarmTan visuals, persistence, and label localization reduce the risk of silent breakage.
+- Light variant picker zůstává viditelný i v dark režimu, ale je disabled, aby byl seznam variant stále patrný.
 
 ## Deviations from Plan
+
 None - plan executed exactly as written.
 
 ## Issues Encountered
-- `./check.sh` still fails because repo-wide `cargo fmt --check` and `cargo clippy` throw pre-existing warnings (e.g., unused variables, collapsible `if` blocks, manual `is_multiple_of` logic) that are outside this plan’s scope.
+- `./check.sh` padá na repo-wide clippy warnings mimo rozsah tohoto plánu (např. unused variables a collapsible if). Kód z této změny je bez nových lintů.
 
 ## User Setup Required
+
 None - no external service configuration required.
 
 ## Next Phase Readiness
-Phase 27 is now closed; Phase 28 (Dark Variant Support) can continue with the regression guard for light themes in place and no outstanding blockers.
+Phase 27 zůstává uzavřená; regresní guardy pro WarmTan jsou platné. Žádné nové blokery.
 
 ---
 *Phase: 27-4th-light-theme*

@@ -62,7 +62,8 @@ Each task was committed atomically:
 
 1. **Task 27-02-01/02: Viditelnost pickerů + okamžitý preview při přepnutí** - `1236e17` (fix)
 2. **Follow-up: light režim neignoruje přepínač kvůli dark variant** - `05a6c9b` (fix)
-3. **Task 27-02-03: Lokalizace WarmTan** - bez změn kódu (ověřeno testy)
+3. **Follow-up: varianty ve sloupci pro jasnou viditelnost** - `2f32c37` (fix)
+4. **Task 27-02-03: Lokalizace WarmTan** - bez změn kódu (ověřeno testy)
 
 ## Files Created/Modified
 - `src/app/ui/workspace/modal_dialogs/settings.rs` - light/dark picker podle režimu, fingerprint zahrnuje dark_theme

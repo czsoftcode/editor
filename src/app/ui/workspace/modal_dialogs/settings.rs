@@ -446,7 +446,7 @@ pub fn show(
                             if draft.dark_theme {
                                 ui.strong(i18n.get("settings-dark-variant"));
                                 ui.add_space(6.0);
-                                ui.horizontal_wrapped(|ui| {
+                                ui.vertical(|ui| {
                                     for variant in DARK_VARIANT_OPTIONS.iter().cloned() {
                                         theme_controls_changed |=
                                             show_dark_variant_card(ui, draft, i18n, variant);
@@ -456,7 +456,7 @@ pub fn show(
                             } else {
                                 ui.strong(i18n.get("settings-light-variant"));
                                 ui.add_space(6.0);
-                                ui.horizontal_wrapped(|ui| {
+                                ui.vertical(|ui| {
                                     for variant in LIGHT_VARIANT_OPTIONS.iter().cloned() {
                                         theme_controls_changed |=
                                             show_light_variant_card(ui, draft, i18n, variant);

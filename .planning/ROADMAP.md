@@ -1,7 +1,7 @@
 # ROADMAP: PolyCredo Editor - Milestone v1.3.0
 
 **Milestone:** v1.3.0 AI Terminal Cleanup
-**Goal:** Odstranit PolyCredo CLI vrstvu (`src/app/cli/*`) a nechat jen AI terminal bez regresi chovani.
+**Goal:** Odstranit puvodni CLI integrace vrstvu (`src/app/cli/*`) a nechat jen AI terminal bez regresi chovani.
 **Date:** 2026-03-11
 
 ## Progress
@@ -15,13 +15,13 @@
 
 ### Phase 30: CLI Namespace Removal Foundation
 
-**Goal:** Odstranit vazby na `app::cli` namespace a pripravit cisty zaklad pro AI terminal-only architekturu.
+**Goal:** Odstranit vazby na `legacy CLI namespace` namespace a pripravit cisty zaklad pro AI terminal-only architekturu.
 
 **Requirements:** CLI-01, CLI-02, CLI-03
 
 **Success criteria:**
-- Vsechny primarni importy `crate::app::cli::*` jsou premapovane na novy modul/namespace.
-- Build prochazi bez odkazu na odstranene `app::cli` soubory.
+- Vsechny primarni importy `crate::legacy CLI namespace::*` jsou premapovane na novy modul/namespace.
+- Build prochazi bez odkazu na odstranene `legacy CLI namespace` soubory.
 - `src/app/cli/*` lze smazat bez kompilacnich chyb v zakladnim buildu.
 
 ### Phase 31: AI Terminal Runtime Migration
@@ -71,13 +71,13 @@ Coverage: 15/15 requirements mapped.
 
 ### Phase 33: odstranit veskerou zminku a funkce polycredo cli ze systemu
 
-**Goal:** Odstranit integrovany AI runtime/chat subsystem (`ai_core` + `ui/terminal/ai_chat`) a ponechat pouze `ai_bar` launcher tok do terminalu bez fallback UX.
+**Goal:** Odstranit integrovany AI runtime/chat subsystem (`odstraneny runtime modul` + `ui/terminal/odstraneny chat modul`) a ponechat pouze `ai_bar` launcher tok do terminalu bez fallback UX.
 **Requirements**: R33-A, R33-B, R33-C, R33-D
 **Depends on:** Phase 32
 **Plans:** 2/4 plans executed
 
 Plans:
-- [x] 33-01-PLAN.md — hard removal ai_core + ai_chat + compile gate
+- [x] 33-01-PLAN.md — hard removal odstraneny runtime modul + odstraneny chat modul + compile gate
 - [x] 33-02-PLAN.md — i18n/no-fallback UI cleanup
 - [ ] 33-03-PLAN.md — active planning cleanup + verification bridge
 - [ ] 33-04-PLAN.md — global/historical planning cleanup batches

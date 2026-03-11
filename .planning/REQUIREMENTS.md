@@ -8,7 +8,7 @@
 ### CLI Removal
 
 - [x] **CLI-01**: Kod v `src/app/cli/*` je odstraneny z repozitare.
-- [x] **CLI-02**: Build prochazi bez importu `crate::app::cli::*`.
+- [x] **CLI-02**: Build prochazi bez importu `crate::legacy CLI namespace::*`.
 - [x] **CLI-03**: Neexistuji mrtve exporty/moduly vazane na puvodni CLI vrstvu.
 
 ### AI Terminal Behavior
@@ -33,9 +33,9 @@ Poznamka: Evidence-first sign-off je veden v `.planning/phases/32-cleanup-tests-
 ### Launcher-only Removal (Phase 33)
 
 - [x] **R33-A**: Jediny aktivni AI tok v aplikaci je `ai_bar -> terminal.send_command`.
-- [x] **R33-B**: `src/app/ai_core/*` a `src/app/ui/terminal/ai_chat/*` jsou odstranene a bez aktivnich referenci.
+- [x] **R33-B**: `src/app/odstraneny runtime modul/*` a `src/app/ui/terminal/odstraneny chat modul/*` jsou odstranene a bez aktivnich referenci.
 - [x] **R33-C**: Legacy AI chat entrypointy jsou odstranene bez fallback UX/toastu/deprecated vetvi.
-- [x] **R33-D**: Zminky `PolyCredo CLI|ai_core|ai_chat|app::cli` jsou vycistene v aktivnim i historickem planning scope podle planu phase 33.
+- [x] **R33-D**: Zminky `puvodni CLI integrace|odstraneny runtime modul|odstraneny chat modul|legacy CLI namespace` jsou vycistene v aktivnim i historickem planning scope podle planu phase 33.
 
 ## v2 Requirements
 

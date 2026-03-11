@@ -38,9 +38,9 @@ created: 2026-03-11
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 33-01-01 | 01 | 1 | R33-B | compile+grep | `cargo check && ! rg -n "ai_core|ui/terminal/ai_chat" src/app` | ✅ | ⬜ pending |
+| 33-01-01 | 01 | 1 | R33-B | compile+grep | `cargo check && ! rg -n "runtime-ai-modul|ui/terminal/runtime-chat-modul" src/app` | ✅ | ⬜ pending |
 | 33-01-02 | 01 | 1 | R33-A | smoke | `cargo test phase33_launcher_only -- --nocapture` | ❌ W0 | ⬜ pending |
-| 33-02-01 | 02 | 2 | R33-D | audit | `! rg -n "PolyCredo CLI|ai_core|ai_chat|app::cli" .planning` | ✅ | ⬜ pending |
+| 33-02-01 | 02 | 2 | R33-D | audit | `! rg -n "legacy CLI vrstva|runtime-ai-modul|runtime-chat-modul|app::legacy-cli" .planning` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

@@ -7,7 +7,7 @@ use self::dialogs::format_delete_toast_error;
 use crate::app::ui::git_status::GitVisualStatus;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::mpsc::{self, TryRecvError};
 
 pub use self::node::FileNode;
 
@@ -44,6 +44,19 @@ pub struct FileTree {
 }
 
 impl FileTree {
+    fn queue_delete_error_once(
+        &mut self,
+        i18n: &crate::i18n::I18n,
+        raw_error: &str,
+        queued_this_tick: &mut bool,
+    ) {
+        if *queued_this_tick || self.pending_error.is_some() {
+            return;
+        }
+        self.pending_error = Some(format_delete_toast_error(i18n, raw_error));
+        *queued_this_tick = true;
+    }
+
     pub fn has_open_dialog(&self) -> bool {
         self.new_item_parent.is_some()
             || self.rename_target.is_some()
@@ -100,20 +113,32 @@ impl FileTree {
 
     pub fn ui(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) -> FileTreeResult {
         let mut result = FileTreeResult::default();
+        let mut queued_delete_error = false;
 
-        if let Some(rx) = &self.delete_rx
-            && let Ok(job) = rx.try_recv()
-        {
-            match job {
-                DeleteJobResult::Deleted(path) => {
-                    self.pending_deleted = Some(path);
-                    self.needs_reload = true;
+        if let Some(rx) = &self.delete_rx {
+            match rx.try_recv() {
+                Ok(job) => {
+                    match job {
+                        DeleteJobResult::Deleted(path) => {
+                            self.pending_deleted = Some(path);
+                            self.needs_reload = true;
+                        }
+                        DeleteJobResult::Error(err) => {
+                            self.queue_delete_error_once(i18n, &err, &mut queued_delete_error);
+                        }
+                    }
+                    self.delete_rx = None;
                 }
-                DeleteJobResult::Error(err) => {
-                    self.pending_error = Some(format_delete_toast_error(i18n, &err));
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => {
+                    self.queue_delete_error_once(
+                        i18n,
+                        "trash move failed: delete worker disconnected",
+                        &mut queued_delete_error,
+                    );
+                    self.delete_rx = None;
                 }
             }
-            self.delete_rx = None;
         }
 
         if self.needs_reload {

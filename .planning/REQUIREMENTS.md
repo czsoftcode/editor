@@ -15,7 +15,7 @@
 ### RESTORE (Recovery)
 
 - [x] **RESTORE-01**: Uzivatel muze obnovit jednu polozku z trash zpet na puvodni cestu.
-- [ ] **RESTORE-02**: Pokud cilova cesta pri restore uz existuje, aplikace pouzije nedestruktivni conflict policy (bez ticheho prepisu) a zobrazi jasnou volbu/chybu.
+- [x] **RESTORE-02**: Pokud cilova cesta pri restore uz existuje, aplikace pouzije nedestruktivni conflict policy (bez ticheho prepisu) a zobrazi jasnou volbu/chybu.
 - [ ] **RESTORE-03**: Po restore se UI (strom souboru/otevrene taby) konzistentne obnovi bez nutnosti restartu aplikace.
 
 ### TRASHUI (Trash Preview)
@@ -56,7 +56,7 @@
 | TRASH-03 | Phase 35 | Complete |
 | TRASH-04 | Phase 36 | Complete |
 | RESTORE-01 | Phase 37 | Complete |
-| RESTORE-02 | Phase 37 | Pending |
+| RESTORE-02 | Phase 37 | Complete |
 | RESTORE-03 | Phase 37 | Pending |
 | TRASHUI-01 | Phase 37 | Complete |
 | RELIAB-01 | Phase 35 | Complete |

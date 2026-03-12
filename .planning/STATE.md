@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
-status: executing
-last_updated: "2026-03-12T11:59:30.000Z"
-last_activity: 2026-03-12 - Completed 37-01 plan execution
+status: In execution
+last_updated: "2026-03-12T13:13:30.000Z"
+last_activity: 2026-03-12 - Completed 37-02 plan execution
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 10
-  completed_plans: 7
-  percent: 91
+  completed_plans: 9
+  percent: 94
 ---
 
 ## gsd_state_version: 1.0
@@ -38,11 +38,11 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 37 (in progress)
-Plan: 01 (completed)
-Status: Phase 37 pokračuje, plan 02 je připraven k exekuci
-Last activity: 2026-03-12 - Completed 37-01 plan execution
+Plan: 02 (completed)
+Status: Phase 37 pokračuje, plan 03 je připraven k exekuci
+Last activity: 2026-03-12 - Completed 37-02 plan execution
 
-Progress: [█████████░] 91%
+Progress: [█████████░] 94%
 
 ---
 
@@ -105,6 +105,8 @@ Progress: [█████████░] 91%
 - [Phase ?]: [Phase 37]: Preview bude modal pres menu/command, restore konflikt default je nedestruktivni 'obnovit jako kopii', po restore reload+highlight bez auto-open tabu.
 - [Phase 37]: Trash preview list API cte .polycredo/trash pres metadata sidecar kontrakt s explicitnim valid/missing/invalid stavem.
 - [Phase 37]: Restore kontrakt je fail-closed, bez overwrite, s jednotnym restore selhal prefixem pro toast mapovani.
+- [Phase 37]: Trash preview modal byl vyclenen do file_tree/preview.rs kvuli phase36 scope guardu bez zmeny UX kontraktu.
+- [Phase 37]: Conflict restore v UI nabizi pouze obnovit jako kopii nebo zrusit; overwrite branch neni vystavena.
 
 ### Roadmap Evolution
 

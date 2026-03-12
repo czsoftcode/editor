@@ -141,44 +141,55 @@ pub(super) fn process_background_events(
     }
 
     // --- 3. Project watcher events (directory tree) ---
-    let mut reload_requested_for_batch = false;
-    let fs_batch = ws.project_watcher.poll();
-    if fs_batch.overflowed {
-        trigger_project_watcher_reload_once(
-            &mut ws.file_tree,
-            &mut reload_requested_for_batch,
-            None,
-        );
-    } else if !fs_batch.changes.is_empty() {
-        let deduped_changes = dedupe_project_watcher_changes(&fs_batch.changes);
-        let mut need_reload = false;
-        let mut created_file: Option<PathBuf> = None;
-
-        for change in &deduped_changes {
-            ws.project_index.handle_change(change.clone());
-
-            match change {
-                FsChange::Created(path) => {
-                    need_reload = true;
-                    if path.is_file() {
-                        created_file = Some(path.clone());
-                    }
-                }
-                FsChange::Removed(path) => {
-                    need_reload = true;
-                    ws.editor.close_tabs_for_path(path);
-                }
-                FsChange::Modified(_path) => {
-                    need_reload = true;
-                }
+    if ws.project_watcher_active {
+        let mut reload_requested_for_batch = false;
+        let fs_batch = ws.project_watcher.poll();
+        if fs_batch.disconnected {
+            ws.project_watcher_active = false;
+            if !ws.project_watcher_disconnect_reported {
+                ws.project_watcher_disconnect_reported = true;
+                ws.toasts.push(Toast::error(
+                    "watcher odpojen: automaticka aktualizace stromu souboru byla zastavena"
+                        .to_string(),
+                ));
             }
-        }
-        if need_reload {
+        } else if fs_batch.overflowed {
             trigger_project_watcher_reload_once(
                 &mut ws.file_tree,
                 &mut reload_requested_for_batch,
-                created_file.as_ref(),
+                None,
             );
+        } else if !fs_batch.changes.is_empty() {
+            let deduped_changes = dedupe_project_watcher_changes(&fs_batch.changes);
+            let mut need_reload = false;
+            let mut created_file: Option<PathBuf> = None;
+
+            for change in &deduped_changes {
+                ws.project_index.handle_change(change.clone());
+
+                match change {
+                    FsChange::Created(path) => {
+                        need_reload = true;
+                        if path.is_file() {
+                            created_file = Some(path.clone());
+                        }
+                    }
+                    FsChange::Removed(path) => {
+                        need_reload = true;
+                        ws.editor.close_tabs_for_path(path);
+                    }
+                    FsChange::Modified(_path) => {
+                        need_reload = true;
+                    }
+                }
+            }
+            if need_reload {
+                trigger_project_watcher_reload_once(
+                    &mut ws.file_tree,
+                    &mut reload_requested_for_batch,
+                    created_file.as_ref(),
+                );
+            }
         }
     }
 

@@ -66,6 +66,8 @@ pub fn init_workspace(
         editor: Editor::new(),
         watcher: FileWatcher::new(),
         project_watcher,
+        project_watcher_active: true,
+        project_watcher_disconnect_reported: false,
         claude_tabs: Vec::new(),
         claude_active_tab: 0,
         next_claude_tab_id: 1,

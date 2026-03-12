@@ -66,6 +66,8 @@ pub struct WorkspaceState {
     pub editor: Editor,
     pub watcher: FileWatcher,
     pub project_watcher: ProjectWatcher,
+    pub project_watcher_active: bool,
+    pub project_watcher_disconnect_reported: bool,
     pub claude_tabs: Vec<Terminal>,
     pub claude_active_tab: usize,
     pub next_claude_tab_id: u64,

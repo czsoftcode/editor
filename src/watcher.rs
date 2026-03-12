@@ -138,6 +138,7 @@ const PROJECT_WATCHER_MAX_EVENTS: usize = 500;
 pub struct ProjectWatcherBatch {
     pub changes: Vec<FsChange>,
     pub overflowed: bool,
+    pub disconnected: bool,
 }
 
 fn build_project_watcher_batch(changes: Vec<FsChange>, max_events: usize) -> ProjectWatcherBatch {
@@ -145,6 +146,7 @@ fn build_project_watcher_batch(changes: Vec<FsChange>, max_events: usize) -> Pro
         return ProjectWatcherBatch {
             changes: Vec::new(),
             overflowed: true,
+            disconnected: false,
         };
     }
 
@@ -176,6 +178,7 @@ fn build_project_watcher_batch(changes: Vec<FsChange>, max_events: usize) -> Pro
     ProjectWatcherBatch {
         changes,
         overflowed: false,
+        disconnected: false,
     }
 }
 
@@ -246,14 +249,27 @@ impl ProjectWatcher {
 
     pub fn poll(&self) -> ProjectWatcherBatch {
         let mut raw_changes = Vec::new();
-        while let Ok(change) = self.receiver.try_recv() {
-            raw_changes.push(change);
-            if raw_changes.len() > PROJECT_WATCHER_MAX_EVENTS {
-                while self.receiver.try_recv().is_ok() {}
-                return ProjectWatcherBatch {
-                    changes: Vec::new(),
-                    overflowed: true,
-                };
+        loop {
+            match self.receiver.try_recv() {
+                Ok(change) => {
+                    raw_changes.push(change);
+                    if raw_changes.len() > PROJECT_WATCHER_MAX_EVENTS {
+                        while self.receiver.try_recv().is_ok() {}
+                        return ProjectWatcherBatch {
+                            changes: Vec::new(),
+                            overflowed: true,
+                            disconnected: false,
+                        };
+                    }
+                }
+                Err(mpsc::TryRecvError::Empty) => break,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    return ProjectWatcherBatch {
+                        changes: Vec::new(),
+                        overflowed: false,
+                        disconnected: true,
+                    };
+                }
             }
         }
 

@@ -45,3 +45,43 @@ fn phase37_open_trash_preview_from_command() {
         "command execution must route trash preview to menu actions"
     );
 }
+
+#[test]
+fn phase37_preview_filtering() {
+    let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
+        .expect("failed to read file tree dialogs");
+
+    assert!(
+        dialogs.contains("show_trash_preview_dialog"),
+        "trash preview modal function must exist"
+    );
+    assert!(
+        dialogs.contains("self.trash_preview_filter.to_ascii_lowercase()"),
+        "preview modal must filter list by normalized text query"
+    );
+    assert!(
+        dialogs.contains("file-tree-trash-preview-filter")
+            && dialogs.contains("file-tree-trash-preview-no-results"),
+        "preview modal must surface filter input and empty-state copy"
+    );
+}
+
+#[test]
+fn phase37_restore_job_result_to_pending() {
+    let file_tree_mod = fs::read_to_string("src/app/ui/file_tree/mod.rs")
+        .expect("failed to read file tree module");
+
+    assert!(
+        file_tree_mod.contains("restore_rx: Option<mpsc::Receiver<RestoreJobResult>>"),
+        "file tree must track restore background receiver"
+    );
+    assert!(
+        file_tree_mod.contains("pending_restored: Option<PathBuf>"),
+        "file tree must expose pending restored path handoff"
+    );
+    assert!(
+        file_tree_mod.contains("RestoreJobResult::Restored(path)")
+            && file_tree_mod.contains("self.pending_restored = Some(path.clone())"),
+        "restore polling must route successful result into pending_restored"
+    );
+}

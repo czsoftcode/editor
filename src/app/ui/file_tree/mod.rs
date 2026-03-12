@@ -4,6 +4,8 @@ pub mod ops;
 pub mod render;
 
 use self::dialogs::format_delete_toast_error;
+use crate::app::trash::TrashListEntry;
+use crate::app::ui::background::spawn_task;
 use crate::app::ui::git_status::GitVisualStatus;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -23,6 +25,12 @@ pub(crate) enum DeleteJobResult {
     Error(String),
 }
 
+pub(crate) enum RestoreJobResult {
+    Restored(PathBuf),
+    Conflict(PathBuf),
+    Error(String),
+}
+
 pub struct FileTree {
     pub root: Option<FileNode>,
     pub(crate) root_path: PathBuf,
@@ -36,9 +44,18 @@ pub struct FileTree {
     pub(crate) needs_reload: bool,
     pub(crate) pending_created_file: Option<PathBuf>,
     pub(crate) pending_deleted: Option<PathBuf>,
+    pub(crate) pending_restored: Option<PathBuf>,
     pub(crate) expand_to: Option<PathBuf>,
     pub(crate) pending_error: Option<String>,
     pub(crate) delete_rx: Option<mpsc::Receiver<DeleteJobResult>>,
+    pub(crate) restore_rx: Option<mpsc::Receiver<RestoreJobResult>>,
+    pub(crate) trash_preview_open: bool,
+    pub(crate) trash_preview_filter: String,
+    pub(crate) trash_preview_items: Vec<TrashListEntry>,
+    pub(crate) trash_preview_selected: Option<PathBuf>,
+    pub(crate) trash_preview_loading: bool,
+    pub(crate) trash_preview_rx: Option<mpsc::Receiver<Result<Vec<TrashListEntry>, String>>>,
+    pub(crate) restore_conflict: Option<PathBuf>,
     /// File statuses from git porcelain (absolute path -> semantic status)
     pub(crate) git_statuses: HashMap<PathBuf, GitVisualStatus>,
 }
@@ -61,6 +78,8 @@ impl FileTree {
         self.new_item_parent.is_some()
             || self.rename_target.is_some()
             || self.delete_confirm.is_some()
+            || self.trash_preview_open
+            || self.restore_conflict.is_some()
     }
 
     pub fn new() -> Self {
@@ -77,9 +96,18 @@ impl FileTree {
             needs_reload: false,
             pending_created_file: None,
             pending_deleted: None,
+            pending_restored: None,
             expand_to: None,
             pending_error: None,
             delete_rx: None,
+            restore_rx: None,
+            trash_preview_open: false,
+            trash_preview_filter: String::new(),
+            trash_preview_items: Vec::new(),
+            trash_preview_selected: None,
+            trash_preview_loading: false,
+            trash_preview_rx: None,
+            restore_conflict: None,
             git_statuses: HashMap::new(),
         }
     }
@@ -101,6 +129,19 @@ impl FileTree {
     pub fn request_reload_and_expand(&mut self, target: &Path) {
         self.needs_reload = true;
         self.expand_to = Some(target.to_path_buf());
+    }
+
+    pub fn request_open_trash_preview(&mut self) {
+        self.trash_preview_open = true;
+        self.refresh_trash_preview();
+    }
+
+    pub fn refresh_trash_preview(&mut self) {
+        let root = self.root_path.clone();
+        self.trash_preview_loading = true;
+        self.trash_preview_rx = Some(spawn_task(move || {
+            crate::app::trash::list_trash_entries(&root).map_err(|e| e.to_string())
+        }));
     }
 
     pub fn load(&mut self, path: &Path) {
@@ -141,6 +182,70 @@ impl FileTree {
             }
         }
 
+        if let Some(rx) = &self.restore_rx {
+            match rx.try_recv() {
+                Ok(job) => {
+                    match job {
+                        RestoreJobResult::Restored(path) => {
+                            self.pending_restored = Some(path.clone());
+                            self.request_reload_and_expand(&path);
+                            self.refresh_trash_preview();
+                        }
+                        RestoreJobResult::Conflict(path) => {
+                            self.restore_conflict = Some(path);
+                        }
+                        RestoreJobResult::Error(err) => {
+                            if self.pending_error.is_none() {
+                                self.pending_error = Some(err);
+                            }
+                        }
+                    }
+                    self.restore_rx = None;
+                }
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => {
+                    if self.pending_error.is_none() {
+                        self.pending_error = Some(
+                            "restore selhal: restore worker disconnected; zkuste akci znovu"
+                                .to_string(),
+                        );
+                    }
+                    self.restore_rx = None;
+                }
+            }
+        }
+
+        if let Some(rx) = &self.trash_preview_rx {
+            match rx.try_recv() {
+                Ok(list_result) => {
+                    self.trash_preview_loading = false;
+                    self.trash_preview_rx = None;
+                    match list_result {
+                        Ok(items) => {
+                            self.trash_preview_items = items;
+                        }
+                        Err(err) => {
+                            if self.pending_error.is_none() {
+                                self.pending_error = Some(format!(
+                                    "trash preview load failed: {err}"
+                                ));
+                            }
+                        }
+                    }
+                }
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => {
+                    self.trash_preview_loading = false;
+                    self.trash_preview_rx = None;
+                    if self.pending_error.is_none() {
+                        self.pending_error = Some(
+                            "trash preview load failed: preview worker disconnected".to_string(),
+                        );
+                    }
+                }
+            }
+        }
+
         if self.needs_reload {
             self.needs_reload = false;
             let path = self.root_path.clone();
@@ -150,6 +255,7 @@ impl FileTree {
         // Collecting pending results from the previous frame
         result.created_file = self.pending_created_file.take();
         result.deleted = self.pending_deleted.take();
+        let _ = self.pending_restored.take();
 
         let mut selected = None;
         let mut action = None;

@@ -33,3 +33,19 @@ fn phase36_error_toast() {
         );
     }
 }
+
+#[test]
+fn phase36_disconnected_channel_toast() {
+    let file_tree_mod = fs::read_to_string("src/app/ui/file_tree/mod.rs")
+        .expect("failed to read src/app/ui/file_tree/mod.rs");
+    assert!(
+        file_tree_mod.contains("TryRecvError::Disconnected"),
+        "delete poll loop must handle disconnected channel as explicit error path"
+    );
+    assert!(
+        file_tree_mod.contains("pending_error")
+            && file_tree_mod.contains("delete_rx = None")
+            && file_tree_mod.contains("queue_delete_error_once"),
+        "disconnected path must surface toast once and close receiver without spam"
+    );
+}

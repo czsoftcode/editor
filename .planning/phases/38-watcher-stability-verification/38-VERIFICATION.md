@@ -41,7 +41,7 @@ FAIL condition pro focused gate: libovolny phase38 hook failne nebo focused run 
 ## Manual Scenario Evidence
 
 - Scenario: Burst create/modify/remove udalosti nesmi vytvorit reload storm.
-- Stav: **PENDING**
+- Stav: **PASS (human approved)**
 - PASS signal: max jeden overflow reload pulse, bez opakovaneho toast loopu.
 - FAIL signal: opakovane reload/toast cykly nebo viditelny UI freeze.
 

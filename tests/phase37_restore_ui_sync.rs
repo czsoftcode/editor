@@ -58,3 +58,61 @@ fn phase37_restore_conflict_as_copy() {
         "copy restore target must differ from occupied original path"
     );
 }
+
+#[test]
+fn phase37_restore_triggers_reload_highlight() {
+    let file_tree_mod =
+        fs::read_to_string("src/app/ui/file_tree/mod.rs").expect("read file tree module");
+    let panels = fs::read_to_string("src/app/ui/panels.rs").expect("read panels module");
+
+    assert!(
+        file_tree_mod.contains("self.request_reload_and_expand(&path);"),
+        "restore result must trigger file-tree reload + expand path"
+    );
+    assert!(
+        file_tree_mod.contains("self.refresh_trash_preview();"),
+        "restore success must refresh preview list after handoff"
+    );
+    assert!(
+        panels.contains("if let Some(restored) = result.restored"),
+        "panel orchestration must process pending restored handoff from file tree"
+    );
+}
+
+#[test]
+fn phase37_restore_no_auto_open_tab() {
+    let panels = fs::read_to_string("src/app/ui/panels.rs").expect("read panels module");
+    let tabs = fs::read_to_string("src/app/ui/editor/tabs.rs").expect("read tabs module");
+
+    assert!(
+        panels.contains("ws.editor.sync_tabs_for_restored_path(&restored);"),
+        "restore handoff must sync existing tabs only"
+    );
+    assert!(
+        !panels.contains("open_file_in_ws(ws, restored"),
+        "restore completion must not auto-open a newly restored file"
+    );
+    assert!(
+        tabs.contains("pub fn sync_tabs_for_restored_path(&mut self, restored_path: &PathBuf)"),
+        "editor tabs module must expose explicit restore tab sync helper"
+    );
+}
+
+#[test]
+fn phase37_preview_restore_roundtrip() {
+    let file_tree_mod =
+        fs::read_to_string("src/app/ui/file_tree/mod.rs").expect("read file tree module");
+    let panels = fs::read_to_string("src/app/ui/panels.rs").expect("read panels module");
+
+    assert!(
+        file_tree_mod.contains("self.pending_restored = Some(path.clone());")
+            && file_tree_mod
+                .contains("\"restore selhal: restore worker disconnected; zkuste akci znovu\""),
+        "restore worker must map success and disconnect into pending handoff/error pipeline"
+    );
+    assert!(
+        panels.contains("if let Some(err) = ws.file_tree.take_error()")
+            && panels.contains("ws.toasts.push(Toast::error(err));"),
+        "pending restore error must surface as toast in panel pipeline"
+    );
+}

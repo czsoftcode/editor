@@ -113,6 +113,12 @@ fn is_inside_trash_dir(project_root: &Path, candidate_abs: &Path) -> bool {
     candidate_abs == trash_abs || candidate_abs.starts_with(&trash_abs)
 }
 
+fn format_fail_closed_move_error(reason: &str, err: &std::io::Error) -> TrashError {
+    TrashError::new(format!(
+        "{reason}: {err}; puvodni polozka zustava beze zmeny, zkontrolujte prava a zkuste akci znovu"
+    ))
+}
+
 pub fn move_path_to_trash(
     project_root: &Path,
     source_path: &Path,
@@ -154,9 +160,7 @@ pub fn move_path_to_trash(
         } else {
             "presun do trash selhal"
         };
-        TrashError::new(format!(
-            "{reason}: {e}; puvodni polozka zustava beze zmeny, zkontrolujte prava a zkuste akci znovu"
-        ))
+        format_fail_closed_move_error(reason, &e)
     })?;
 
     let meta = TrashEntryMeta {

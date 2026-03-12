@@ -142,14 +142,6 @@ pub struct ProjectWatcherBatch {
 }
 
 fn build_project_watcher_batch(changes: Vec<FsChange>, max_events: usize) -> ProjectWatcherBatch {
-    if changes.len() > max_events {
-        return ProjectWatcherBatch {
-            changes: Vec::new(),
-            overflowed: true,
-            disconnected: false,
-        };
-    }
-
     let mut seen: HashSet<(PathBuf, FsChangeKind)> = HashSet::new();
     let mut merged_by_path: HashMap<PathBuf, FsChangeKind> = HashMap::new();
 
@@ -159,6 +151,13 @@ fn build_project_watcher_batch(changes: Vec<FsChange>, max_events: usize) -> Pro
 
         if !seen.insert((path.clone(), kind)) {
             continue;
+        }
+        if seen.len() > max_events {
+            return ProjectWatcherBatch {
+                changes: Vec::new(),
+                overflowed: true,
+                disconnected: false,
+            };
         }
 
         merged_by_path
@@ -249,11 +248,12 @@ impl ProjectWatcher {
 
     pub fn poll(&self) -> ProjectWatcherBatch {
         let mut raw_changes = Vec::new();
+        let mut unique_seen: HashSet<(PathBuf, FsChangeKind)> = HashSet::new();
         loop {
             match self.receiver.try_recv() {
                 Ok(change) => {
-                    raw_changes.push(change);
-                    if raw_changes.len() > PROJECT_WATCHER_MAX_EVENTS {
+                    let key = (change.path().clone(), change.kind());
+                    if unique_seen.insert(key) && unique_seen.len() > PROJECT_WATCHER_MAX_EVENTS {
                         while self.receiver.try_recv().is_ok() {}
                         return ProjectWatcherBatch {
                             changes: Vec::new(),
@@ -261,6 +261,7 @@ impl ProjectWatcher {
                             disconnected: false,
                         };
                     }
+                    raw_changes.push(change);
                 }
                 Err(mpsc::TryRecvError::Empty) => break,
                 Err(mpsc::TryRecvError::Disconnected) => {

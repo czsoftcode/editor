@@ -33,14 +33,14 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
-**Current focus:** Phase 37 execution (Trash Preview + Restore MVP)
+**Current focus:** Phase 38 context discussion (Watcher Stability + Verification)
 
 ## Current Position
 
-Phase: 37 (completed)
-Plan: 04 (completed)
-Status: Phase 37 je dokončena a připravena pro verify-work gate
-Last activity: 2026-03-12 - Completed 37-04 plan execution
+Phase: 38 (context gathered)
+Plan: 00 (discussion/context)
+Status: Phase 38 ma zachyceny implementation context a je pripravena pro plan-phase
+Last activity: 2026-03-12 - Captured 38-CONTEXT with watcher event policy decisions
 
 Progress: [██████████] 100%
 
@@ -112,6 +112,7 @@ Progress: [██████████] 100%
 - [Phase 37]: Include-based restore tests annotate trash module with allow(dead_code) to satisfy strict check.sh clippy gate.
 - [Phase 37-trash-preview-restore-mvp]: TDD RED/GREEN parity guard pro phase37 i18n vynutil restore-success/error klice ve vsech locale.
 - [Phase 37-trash-preview-restore-mvp]: Finalni verification artefakt 37-VERIFICATION.md je canonical source pro requirement traceability a quality gate evidenci.
+- [Phase 38]: Watcher stabilization policy je uzamcena na path+kind dedupe, 100-150ms batch window, remove-priority merge a full-reload fallback pri overflow.
 
 ### Roadmap Evolution
 

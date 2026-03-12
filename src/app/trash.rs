@@ -51,6 +51,12 @@ pub struct TrashRestoreOutcome {
     pub original_target: PathBuf,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RestoreConflictPolicy {
+    Cancel,
+    RestoreAsCopy,
+}
+
 #[derive(Debug)]
 pub struct TrashError {
     message: String,
@@ -281,6 +287,42 @@ pub fn restore_from_trash(
     project_root: &Path,
     trash_entry_path: &Path,
 ) -> Result<TrashRestoreOutcome, TrashError> {
+    restore_from_trash_with_policy(project_root, trash_entry_path, RestoreConflictPolicy::Cancel)
+}
+
+fn resolve_restore_copy_destination(original_target: &Path) -> Result<PathBuf, TrashError> {
+    if !original_target.exists() {
+        return Ok(original_target.to_path_buf());
+    }
+    let parent = original_target
+        .parent()
+        .ok_or_else(|| TrashError::new("cilova cesta nema parent adresar"))?;
+    let stem = original_target
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| TrashError::new("cilovy nazev nema validni stem"))?;
+    let ext = original_target.extension().and_then(|s| s.to_str());
+    for attempt in 1..=1000_u32 {
+        let candidate_name = if let Some(ext) = ext {
+            format!("{stem}-restored-copy-{attempt}.{ext}")
+        } else {
+            format!("{stem}-restored-copy-{attempt}")
+        };
+        let candidate = parent.join(candidate_name);
+        if !candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    Err(TrashError::new(
+        "nelze najit volny nazev pro obnovu jako kopii po 1000 pokusech",
+    ))
+}
+
+pub fn restore_from_trash_with_policy(
+    project_root: &Path,
+    trash_entry_path: &Path,
+    conflict_policy: RestoreConflictPolicy,
+) -> Result<TrashRestoreOutcome, TrashError> {
     let restore_error = |detail: String| TrashError::new(format!("restore selhal: {detail}"));
 
     let project_abs = project_root
@@ -325,24 +367,35 @@ pub fn restore_from_trash(
             "metadata ukazuji mimo root projektu; operace byla zastavena".to_string(),
         ));
     }
-    if original_target.exists() {
-        return Err(restore_error(
-            "konflikt: cilova cesta uz existuje; pouzijte restore jako kopii".to_string(),
-        ));
-    }
-    if let Some(parent) = original_target.parent() {
+    let restore_target = if original_target.exists() {
+        match conflict_policy {
+            RestoreConflictPolicy::Cancel => {
+                return Err(restore_error(
+                    "konflikt: cilova cesta uz existuje; pouzijte restore jako kopii".to_string(),
+                ));
+            }
+            RestoreConflictPolicy::RestoreAsCopy => resolve_restore_copy_destination(
+                &original_target,
+            )
+            .map_err(|e| restore_error(e.to_string()))?,
+        }
+    } else {
+        original_target.clone()
+    };
+
+    if let Some(parent) = restore_target.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| restore_error(format!("nelze vytvorit parent adresare: {e}")))?;
     }
 
-    fs::rename(&source_abs, &original_target).map_err(|e| {
+    fs::rename(&source_abs, &restore_target).map_err(|e| {
         restore_error(format!(
             "{e}; trash polozka zustava beze zmeny, zkontrolujte prava a zkuste znovu"
         ))
     })?;
 
     if let Err(cleanup_err) = fs::remove_file(&meta_path) {
-        return match fs::rename(&original_target, &source_abs) {
+        return match fs::rename(&restore_target, &source_abs) {
             Ok(_) => Err(restore_error(format!(
                 "operace byla vracena zpet: metadata cleanup selhal ({cleanup_err}); trash polozka zustava beze zmeny"
             ))),
@@ -354,7 +407,7 @@ pub fn restore_from_trash(
 
     Ok(TrashRestoreOutcome {
         restored_from: source_abs,
-        restored_to: original_target.clone(),
+        restored_to: restore_target,
         original_target,
     })
 }

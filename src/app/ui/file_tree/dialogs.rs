@@ -1,11 +1,11 @@
-use crate::app::project_config::trash_meta_path;
-use crate::app::trash::{TrashEntryMeta, move_path_to_trash};
+use crate::app::trash::{
+    RestoreConflictPolicy, move_path_to_trash, restore_from_trash_with_policy,
+};
 use crate::app::ui::background::spawn_task;
 use crate::app::ui::file_tree::{DeleteJobResult, FileTree, RestoreJobResult};
 use crate::app::ui::widgets::modal::{ModalResult, show_modal};
 use crate::app::validation::is_safe_filename;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // phase36-delete-scope-guard-enabled: this module stays delete-flow only.
 fn map_delete_error_reason_key(engine_error: &str) -> &'static str {
@@ -280,92 +280,14 @@ impl FileTree {
 }
 
 fn restore_from_trash_as_copy(
-    project_root: &Path,
-    trash_entry_path: &Path,
+    project_root: &std::path::Path,
+    trash_entry_path: &std::path::Path,
 ) -> Result<PathBuf, String> {
-    let project_abs = project_root
-        .canonicalize()
-        .map_err(|e| format!("restore selhal: nelze kanonizovat root projektu: {e}"))?;
-    let source_abs = trash_entry_path
-        .canonicalize()
-        .map_err(|e| format!("restore selhal: nelze kanonizovat trash source: {e}"))?;
-    let source_name = source_abs
-        .file_name()
-        .ok_or_else(|| "restore selhal: trash source nema validni nazev".to_string())?;
-    if !source_abs.starts_with(project_abs.join(".polycredo").join("trash")) {
-        return Err(
-            "restore selhal: source neni uvnitr `.polycredo/trash`; operace byla zastavena"
-                .to_string(),
-        );
-    }
-
-    let meta_path = trash_meta_path(&source_abs);
-    let raw = fs::read_to_string(&meta_path)
-        .map_err(|e| format!("restore selhal: nelze nacist metadata sidecar: {e}"))?;
-    let meta: TrashEntryMeta = serde_json::from_str(&raw)
-        .map_err(|e| format!("restore selhal: metadata nejsou validni JSON: {e}"))?;
-    if meta.trash_name != source_name.to_string_lossy() {
-        return Err(
-            "restore selhal: metadata trash_name neodpovida nazvu trash polozky".to_string(),
-        );
-    }
-    if meta.original_relative_path.is_absolute()
-        || meta
-            .original_relative_path
-            .components()
-            .any(|component| matches!(component, std::path::Component::ParentDir))
-    {
-        return Err(
-            "restore selhal: metadata original_relative_path je mimo bezpecny kontrakt".to_string(),
-        );
-    }
-
-    let original_target = project_abs.join(&meta.original_relative_path);
-    let restore_target = resolve_restore_copy_target(&original_target)?;
-    if let Some(parent) = restore_target.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("restore selhal: nelze vytvorit parent adresare: {e}"))?;
-    }
-
-    fs::rename(&source_abs, &restore_target).map_err(|e| {
-        format!("restore selhal: {e}; trash polozka zustava beze zmeny, zkontrolujte prava a zkuste znovu")
-    })?;
-    if let Err(cleanup_err) = fs::remove_file(&meta_path) {
-        return match fs::rename(&restore_target, &source_abs) {
-            Ok(_) => Err(format!(
-                "restore selhal: operace byla vracena zpet, metadata cleanup selhal ({cleanup_err})"
-            )),
-            Err(rollback_err) => Err(format!(
-                "restore selhal: metadata cleanup selhal ({cleanup_err}); rollback selhal ({rollback_err})"
-            )),
-        };
-    }
-
-    Ok(restore_target)
-}
-
-fn resolve_restore_copy_target(original_target: &Path) -> Result<PathBuf, String> {
-    if !original_target.exists() {
-        return Ok(original_target.to_path_buf());
-    }
-    let parent = original_target
-        .parent()
-        .ok_or_else(|| "restore selhal: cilova cesta nema parent adresar".to_string())?;
-    let stem = original_target
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .ok_or_else(|| "restore selhal: cilovy nazev nema validni stem".to_string())?;
-    let ext = original_target.extension().and_then(|s| s.to_str());
-    for attempt in 1..=1000_u32 {
-        let candidate_name = if let Some(ext) = ext {
-            format!("{stem}-restored-copy-{attempt}.{ext}")
-        } else {
-            format!("{stem}-restored-copy-{attempt}")
-        };
-        let candidate = parent.join(candidate_name);
-        if !candidate.exists() {
-            return Ok(candidate);
-        }
-    }
-    Err("restore selhal: nelze najit volny nazev pro obnovu jako kopii".to_string())
+    let outcome = restore_from_trash_with_policy(
+        project_root,
+        trash_entry_path,
+        RestoreConflictPolicy::RestoreAsCopy,
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(outcome.restored_to)
 }

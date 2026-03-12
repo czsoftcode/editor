@@ -309,6 +309,8 @@ file-tree-trash-preview-restore = Восстановить
 file-tree-restore-conflict-title = Конфликт восстановления
 file-tree-restore-conflict-message = Целевой путь уже существует. Выберите недеструктивное восстановление.
 file-tree-restore-as-copy = Восстановить как копию
+file-tree-restore-success = Элемент восстановлен в: { $path }
+file-tree-restore-error = Не удалось восстановить: { $reason }
 
 ## Диалог внешнего конфликта
 conflict-title = Файл изменён извне

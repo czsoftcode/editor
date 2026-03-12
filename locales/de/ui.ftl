@@ -292,6 +292,8 @@ file-tree-trash-preview-restore = Wiederherstellen
 file-tree-restore-conflict-title = Wiederherstellungskonflikt
 file-tree-restore-conflict-message = Zielpfad existiert bereits. Wähle eine nicht-destruktive Wiederherstellung.
 file-tree-restore-as-copy = Als Kopie wiederherstellen
+file-tree-restore-success = Eintrag wiederhergestellt nach: { $path }
+file-tree-restore-error = Wiederherstellung fehlgeschlagen: { $reason }
 
 ## Dialog für externen Konflikt
 conflict-title = Datei extern geändert

@@ -299,6 +299,8 @@ file-tree-trash-preview-restore = Obnovit
 file-tree-restore-conflict-title = Konflikt při obnově
 file-tree-restore-conflict-message = Cílová cesta už existuje. Zvolte nedestruktivní obnovu.
 file-tree-restore-as-copy = Obnovit jako kopii
+file-tree-restore-success = Položka obnovena do: { $path }
+file-tree-restore-error = Obnova selhala: { $reason }
 
 ## Dialog externího konfliktu
 conflict-title = Soubor změněn externě

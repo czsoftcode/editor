@@ -291,6 +291,8 @@ file-tree-trash-preview-restore = Restore
 file-tree-restore-conflict-title = Restore conflict
 file-tree-restore-conflict-message = Target already exists. Choose a non-destructive restore.
 file-tree-restore-as-copy = Restore as copy
+file-tree-restore-success = Item restored to: { $path }
+file-tree-restore-error = Restore failed: { $reason }
 
 ## External conflict dialog
 conflict-title = File Changed Externally

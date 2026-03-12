@@ -108,6 +108,11 @@ fn build_unique_destination(
     ))
 }
 
+fn is_inside_trash_dir(project_root: &Path, candidate_abs: &Path) -> bool {
+    let trash_abs = trash_dir_path(project_root);
+    candidate_abs == trash_abs || candidate_abs.starts_with(&trash_abs)
+}
+
 pub fn move_path_to_trash(
     project_root: &Path,
     source_path: &Path,
@@ -127,6 +132,11 @@ pub fn move_path_to_trash(
         .strip_prefix(&project_abs)
         .map_err(|_| TrashError::new("nelze odvodit relativni cestu mazane polozky"))?
         .to_path_buf();
+    if is_inside_trash_dir(&project_abs, &source_abs) {
+        return Err(TrashError::new(
+            "nelze smazat interni `.polycredo/trash`; zkuste smazat polozku mimo trash",
+        ));
+    }
     let kind = entry_kind(&source_abs)?;
     let deleted_at = now_unix_millis()?;
 

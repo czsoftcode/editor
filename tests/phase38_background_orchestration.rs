@@ -29,3 +29,22 @@ fn phase38_overflow_triggers_single_reload() {
         "background orchestrace musi mit explicitni overflow branch",
     );
 }
+
+#[test]
+fn phase38_watcher_disconnect_handled_once() {
+    let source = fs::read_to_string("src/app/ui/background.rs")
+        .unwrap_or_else(|err| panic!("failed to read src/app/ui/background.rs: {err}"));
+
+    assert!(
+        source.contains("if fs_batch.disconnected"),
+        "background orchestrace musi mit explicitni disconnect branch",
+    );
+    assert!(
+        source.contains("project_watcher_disconnect_reported"),
+        "disconnect branch musi drzet one-shot guard proti opakovanemu toast loopu",
+    );
+    assert!(
+        source.contains("project_watcher_active = false"),
+        "po disconnectu se musi ukoncit dalsi polling odpojeneho watcheru",
+    );
+}

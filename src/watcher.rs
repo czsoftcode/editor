@@ -140,10 +140,7 @@ pub struct ProjectWatcherBatch {
     pub overflowed: bool,
 }
 
-fn build_project_watcher_batch(
-    changes: Vec<FsChange>,
-    max_events: usize,
-) -> ProjectWatcherBatch {
+fn build_project_watcher_batch(changes: Vec<FsChange>, max_events: usize) -> ProjectWatcherBatch {
     if changes.len() > max_events {
         return ProjectWatcherBatch {
             changes: Vec::new(),

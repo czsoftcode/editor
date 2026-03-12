@@ -1,11 +1,10 @@
+#[allow(dead_code)]
 #[path = "../src/watcher.rs"]
 mod watcher;
 
 use std::path::PathBuf;
 
-use watcher::{
-    FsChange, PROJECT_WATCHER_BATCH_WINDOW_MS, build_project_watcher_batch_for_tests,
-};
+use watcher::{FsChange, PROJECT_WATCHER_BATCH_WINDOW_MS, build_project_watcher_batch_for_tests};
 
 fn path(s: &str) -> PathBuf {
     PathBuf::from(s)

@@ -17,6 +17,7 @@ menu-file-quit = Quit
 ## Project menu
 menu-project-open = Open Project
 menu-project-new = New Project
+menu-project-trash-preview = Trash Preview
 menu-project-close = Close Project
 menu-project-recent = Recent Projects
 menu-project-recent-none = No recent projects
@@ -46,4 +47,3 @@ menu-view-ai-float = Floating AI Terminal
 menu-help-settings = Settings…
 menu-help-about = About
 menu-help-support = Support Development (Sponsorship)
-

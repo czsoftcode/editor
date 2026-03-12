@@ -28,6 +28,7 @@ pub(crate) struct MenuActions {
     pub quit: bool,
     pub new_project: bool,
     pub open_project: bool,
+    pub trash_preview: bool,
     pub open_recent: Option<PathBuf>,
     pub toggle_left: bool,
     pub toggle_right: bool,
@@ -146,6 +147,9 @@ pub(super) fn process_menu_actions(
     if actions.project_search {
         ws.project_search.show_input = true;
         ws.project_search.focus_requested = true;
+    }
+    if actions.trash_preview {
+        ws.file_tree.request_open_trash_preview();
     }
 
     if let Some(path) = actions.open_recent

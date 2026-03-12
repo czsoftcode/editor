@@ -17,6 +17,7 @@ menu-file-quit = Ukončit
 ## Menu Projekt
 menu-project-open = Otevřít projekt
 menu-project-new = Nový projekt
+menu-project-trash-preview = Náhled koše
 menu-project-close = Zavřít projekt
 menu-project-recent = Nedávné projekty
 menu-project-recent-none = Žádné nedávné projekty

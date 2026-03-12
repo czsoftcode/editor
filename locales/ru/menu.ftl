@@ -17,6 +17,7 @@ menu-file-quit = Выйти
 ## Меню Проект
 menu-project-open = Открыть проект
 menu-project-new = Новый проект
+menu-project-trash-preview = Просмотр корзины
 menu-project-close = Закрыть проект
 menu-project-recent = Недавние проекты
 menu-project-recent-none = Нет недавних проектов

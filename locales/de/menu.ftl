@@ -17,6 +17,7 @@ menu-file-quit = Beenden
 ## Menü Projekt
 menu-project-open = Projekt öffnen
 menu-project-new = Neues Projekt
+menu-project-trash-preview = Papierkorb-Vorschau
 menu-project-close = Projekt schließen
 menu-project-recent = Zuletzt geöffnet
 menu-project-recent-none = Keine zuletzt geöffneten Projekte

@@ -197,6 +197,12 @@ impl Registry {
                 OpenFolder,
             ),
             (
+                "project.trash_preview",
+                "command-name-trash-preview",
+                None,
+                TrashPreview,
+            ),
+            (
                 "ui.toggle_left",
                 "command-name-toggle-left",
                 None,

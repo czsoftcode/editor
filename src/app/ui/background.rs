@@ -78,12 +78,14 @@ pub(super) fn process_background_events(
     }
 
     // --- 3. Project watcher events (directory tree) ---
-    let fs_changes = ws.project_watcher.poll();
-    if !fs_changes.is_empty() {
+    let fs_batch = ws.project_watcher.poll();
+    if fs_batch.overflowed {
+        ws.file_tree.request_reload();
+    } else if !fs_batch.changes.is_empty() {
         let mut need_reload = false;
         let mut created_file: Option<PathBuf> = None;
 
-        for change in &fs_changes {
+        for change in &fs_batch.changes {
             ws.project_index.handle_change(change.clone());
 
             match change {

@@ -37,14 +37,14 @@ fn phase38_dedupe_path_kind() {
         batch
             .changes
             .iter()
-            .any(|c| matches!(c, FsChange::Created(p) if p == path("/tmp/a.txt"))),
+            .any(|c| matches!(c, FsChange::Created(p) if *p == path("/tmp/a.txt"))),
         "kolize modify+create na stejne ceste ma zanechat deterministicky Created"
     );
     assert!(
         batch
             .changes
             .iter()
-            .any(|c| matches!(c, FsChange::Modified(p) if p == path("/tmp/b.txt"))),
+            .any(|c| matches!(c, FsChange::Modified(p) if *p == path("/tmp/b.txt"))),
         "nezavisla cesta musi zustat v batchi"
     );
 }

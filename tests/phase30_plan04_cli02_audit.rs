@@ -1,4 +1,5 @@
-const ACTIVE_AUDIT_PATH: &str = ".planning/phases/30-cli-namespace-removal-foundation/30-04-AUDIT.md";
+const ACTIVE_AUDIT_PATH: &str =
+    ".planning/phases/30-cli-namespace-removal-foundation/30-04-AUDIT.md";
 const ARCHIVED_AUDIT_PATH: &str =
     ".planning/milestones/v1.3.0-phases/30-cli-namespace-removal-foundation/30-04-AUDIT.md";
 

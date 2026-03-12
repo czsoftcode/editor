@@ -1,3 +1,18 @@
+## [1.3.1-dev] - 2026-03-12
+
+### Added
+- **Safe Trash Delete MVP**: Mazani souboru/adresaru je prevedeno na fail-closed move-to-trash do `.polycredo/trash`.
+- **Trash Preview + Restore**: Preview modal s entrypointy z menu/command palette a asynchronnim restore flow.
+- **Watcher Stability Contract**: Dedupe+batch ingest, overflow fallback a one-shot disconnect handling pro delete/restore sekvence.
+
+### Changed
+- **Milestone Archival**: Milestone `v1.3.1` byl archivovan do `.planning/milestones/` vcetne phase artefaktu 35-38.
+- **Planning Baseline**: `ROADMAP.md` a `PROJECT.md` byly prepnuty do post-ship stavu po release `v1.3.1`.
+
+### Verified
+- **Audit v1.3.1**: `requirements 11/11`, `phases 4/4`, `integration 4/4`, `flows 4/4`; verdict `tech_debt` bez kritickych mezer.
+- **Gate Evidence**: Zavreno command-level PASS chainem (`cargo check` + `./check.sh`) v phase verification artefaktech.
+
 ## [1.3.0-dev] - 2026-03-11
 
 ### Changed

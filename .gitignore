@@ -4,6 +4,7 @@ target/
 .polycredo/sandbox/
 .polycredo/plugins/
 .polycredo/*.bin
+.polycredo/trash/
 .build_number
 .gemini*
 .claude*

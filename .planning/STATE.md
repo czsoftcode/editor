@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-12T10:31:37.239Z"
-last_activity: 2026-03-12 - Completed 36-03 plan execution
+status: executing
+last_updated: "2026-03-12T11:59:30.000Z"
+last_activity: 2026-03-12 - Completed 37-01 plan execution
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 10
+  completed_plans: 7
+  percent: 91
 ---
 
 ## gsd_state_version: 1.0
@@ -24,7 +24,7 @@ progress:
 - Presmerovani delete operaci na move-to-trash tok
 - Definice obnovy a cleanup pravidel bez blokace UI
 
-**Status:** Ready to plan
+**Status:** In execution
 
 ---
 
@@ -33,16 +33,16 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
-**Current focus:** Phase 36 execution (Safe Move-to-Trash Engine)
+**Current focus:** Phase 37 execution (Trash Preview + Restore MVP)
 
 ## Current Position
 
-Phase: 36 (completed)
-Plan: 03 (completed)
-Status: Phase 36 completed, ready for phase 37
-Last activity: 2026-03-12 - Completed 36-03 plan execution
+Phase: 37 (in progress)
+Plan: 01 (completed)
+Status: Phase 37 pokračuje, plan 02 je připraven k exekuci
+Last activity: 2026-03-12 - Completed 37-01 plan execution
 
-Progress: [██████████] 100%
+Progress: [█████████░] 91%
 
 ---
 
@@ -103,6 +103,8 @@ Progress: [██████████] 100%
 - [Phase 36-safe-move-to-trash-engine]: Task 1 a Task 3 byly uzavreny audit-only commity, protoze focused verify probehl bez nutnosti patchu.
 - [Phase 36-safe-move-to-trash-engine]: Verification evidence je centralizovana v 36-VERIFICATION.md s explicitnim requirement-to-hook mapovanim.
 - [Phase ?]: [Phase 37]: Preview bude modal pres menu/command, restore konflikt default je nedestruktivni 'obnovit jako kopii', po restore reload+highlight bez auto-open tabu.
+- [Phase 37]: Trash preview list API cte .polycredo/trash pres metadata sidecar kontrakt s explicitnim valid/missing/invalid stavem.
+- [Phase 37]: Restore kontrakt je fail-closed, bez overwrite, s jednotnym restore selhal prefixem pro toast mapovani.
 
 ### Roadmap Evolution
 

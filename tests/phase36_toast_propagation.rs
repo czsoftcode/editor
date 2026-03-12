@@ -49,3 +49,33 @@ fn phase36_disconnected_channel_toast() {
         "disconnected path must surface toast once and close receiver without spam"
     );
 }
+
+#[test]
+fn phase36_scope_guard_no_restore_symbols() {
+    let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
+        .expect("failed to read src/app/ui/file_tree/dialogs.rs");
+    let trash = fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
+
+    assert!(
+        dialogs.contains("phase36-delete-scope-guard-enabled"),
+        "dialogs delete flow must carry explicit phase36 delete-only scope marker"
+    );
+    assert!(
+        trash.contains("phase36-delete-scope-guard-enabled"),
+        "trash engine must carry explicit phase36 delete-only scope marker"
+    );
+
+    let forbidden = [
+        ["re", "store"].concat(),
+        ["prepare_", "restore"].concat(),
+        ["trash_", "preview"].concat(),
+        ["restore ", "conflict"].concat(),
+    ];
+
+    for term in forbidden {
+        assert!(
+            !dialogs.contains(&term) && !trash.contains(&term),
+            "phase 36 scope guard forbids restore symbol `{term}` in delete workflow files"
+        );
+    }
+}

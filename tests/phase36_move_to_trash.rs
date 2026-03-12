@@ -70,3 +70,24 @@ fn phase36_collision_suffix() {
         "collision policy must retry deterministic counter window"
     );
 }
+
+#[test]
+fn phase36_fail_closed() {
+    let trash_mod = fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
+    assert!(
+        trash_mod.contains("format_fail_closed_move_error"),
+        "fail-closed path must use dedicated move-error formatter"
+    );
+    assert!(
+        trash_mod.contains("puvodni polozka zustava beze zmeny"),
+        "move failure must explicitly preserve source item contract"
+    );
+    assert!(
+        trash_mod.contains("zkontrolujte prava a zkuste akci znovu"),
+        "fail-closed error must include actionable guidance for user"
+    );
+    assert!(
+        !trash_mod.contains("std::fs::remove_file") && !trash_mod.contains("std::fs::remove_dir_all"),
+        "failure path must never fallback to hard delete"
+    );
+}

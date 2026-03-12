@@ -1,5 +1,6 @@
 use crate::app::project_config::project_trash_dir;
 use std::fmt;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -25,6 +26,24 @@ pub struct TrashMoveOutcome {
     pub meta: TrashEntryMeta,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TrashMetadataStatus {
+    Valid,
+    Missing,
+    Invalid,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TrashListEntry {
+    pub trash_path: PathBuf,
+    pub name: String,
+    pub entry_kind: TrashEntryKind,
+    pub deleted_at: Option<u128>,
+    pub original_relative_path: Option<PathBuf>,
+    pub metadata_status: TrashMetadataStatus,
+    pub metadata_error: Option<String>,
+}
+
 #[derive(Debug)]
 pub struct TrashError {
     message: String,
@@ -45,6 +64,68 @@ impl fmt::Display for TrashError {
 }
 
 impl std::error::Error for TrashError {}
+
+fn metadata_path_for_entry(entry_path: &Path) -> Result<PathBuf, TrashError> {
+    let file_name = entry_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| TrashError::new("trash polozka nema validni nazev"))?;
+    Ok(entry_path.with_file_name(format!("{file_name}.meta.json")))
+}
+
+fn validate_metadata_contract(meta: &TrashEntryMeta, entry_path: &Path) -> Result<(), TrashError> {
+    if meta.original_relative_path.is_absolute() {
+        return Err(TrashError::new(
+            "metadata original_relative_path nesmi byt absolutni cesta",
+        ));
+    }
+    if meta
+        .original_relative_path
+        .components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return Err(TrashError::new(
+            "metadata original_relative_path nesmi obsahovat `..`",
+        ));
+    }
+
+    let expected_name = entry_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| TrashError::new("trash polozka nema validni nazev"))?;
+    if meta.trash_name != expected_name {
+        return Err(TrashError::new(
+            "metadata trash_name neodpovida nazvu trash polozky",
+        ));
+    }
+
+    let actual_kind = entry_kind(entry_path)?;
+    if meta.entry_kind != actual_kind {
+        return Err(TrashError::new(
+            "metadata entry_kind neodpovida realnemu typu trash polozky",
+        ));
+    }
+
+    Ok(())
+}
+
+fn write_metadata_sidecar(entry_path: &Path, meta: &TrashEntryMeta) -> Result<(), TrashError> {
+    let meta_path = metadata_path_for_entry(entry_path)?;
+    let raw = serde_json::to_string_pretty(meta)
+        .map_err(|e| TrashError::new(format!("nelze serializovat trash metadata: {e}")))?;
+    fs::write(meta_path, raw)
+        .map_err(|e| TrashError::new(format!("nelze zapsat trash metadata sidecar: {e}")))
+}
+
+fn read_metadata_sidecar(entry_path: &Path) -> Result<TrashEntryMeta, TrashError> {
+    let meta_path = metadata_path_for_entry(entry_path)?;
+    let raw = fs::read_to_string(&meta_path)
+        .map_err(|e| TrashError::new(format!("nelze nacist trash metadata sidecar: {e}")))?;
+    let meta: TrashEntryMeta = serde_json::from_str(&raw)
+        .map_err(|e| TrashError::new(format!("metadata nejsou validni JSON: {e}")))?;
+    validate_metadata_contract(&meta, entry_path)?;
+    Ok(meta)
+}
 
 fn now_unix_millis() -> Result<u128, TrashError> {
     SystemTime::now()
@@ -120,6 +201,80 @@ fn format_fail_closed_move_error(reason: &str, err: &std::io::Error) -> TrashErr
     ))
 }
 
+pub fn list_trash_entries(project_root: &Path) -> Result<Vec<TrashListEntry>, TrashError> {
+    let project_abs = project_root
+        .canonicalize()
+        .map_err(|e| TrashError::new(format!("nelze kanonizovat root projektu: {e}")))?;
+    let trash_root = project_trash_dir(&project_abs);
+    if !trash_root.exists() {
+        return Ok(Vec::new());
+    }
+    if !trash_root.is_dir() {
+        return Err(TrashError::new(
+            "konflikt cesty: `.polycredo/trash` existuje jako soubor",
+        ));
+    }
+
+    let mut entries = Vec::new();
+    for walk_entry in walkdir::WalkDir::new(&trash_root).min_depth(1) {
+        let walk_entry = walk_entry
+            .map_err(|e| TrashError::new(format!("nelze cist obsah trash adresare: {e}")))?;
+        let path = walk_entry.path();
+        if path.is_file() && path.extension().and_then(|x| x.to_str()) == Some("json") {
+            let file_name = path.file_name().and_then(|x| x.to_str()).unwrap_or_default();
+            if file_name.ends_with(".meta.json") {
+                continue;
+            }
+        }
+        if !path.is_file() && !path.is_dir() {
+            continue;
+        }
+
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| TrashError::new("trash polozka nema validni nazev"))?
+            .to_string();
+        let kind = entry_kind(path)?;
+
+        let (deleted_at, original_relative_path, metadata_status, metadata_error) =
+            match read_metadata_sidecar(path) {
+                Ok(meta) => (
+                    Some(meta.deleted_at),
+                    Some(meta.original_relative_path),
+                    TrashMetadataStatus::Valid,
+                    None,
+                ),
+                Err(err) => {
+                    let meta_path = metadata_path_for_entry(path)?;
+                    let status = if meta_path.exists() {
+                        TrashMetadataStatus::Invalid
+                    } else {
+                        TrashMetadataStatus::Missing
+                    };
+                    (None, None, status, Some(err.to_string()))
+                }
+            };
+
+        entries.push(TrashListEntry {
+            trash_path: path.to_path_buf(),
+            name,
+            entry_kind: kind,
+            deleted_at,
+            original_relative_path,
+            metadata_status,
+            metadata_error,
+        });
+    }
+
+    entries.sort_by(|a, b| {
+        b.deleted_at
+            .cmp(&a.deleted_at)
+            .then_with(|| a.name.cmp(&b.name))
+    });
+    Ok(entries)
+}
+
 pub fn move_path_to_trash(
     project_root: &Path,
     source_path: &Path,
@@ -170,6 +325,17 @@ pub fn move_path_to_trash(
         deleted_at,
         entry_kind: kind,
     };
+
+    if let Err(meta_err) = write_metadata_sidecar(&destination_abs, &meta) {
+        return match std::fs::rename(&destination_abs, &source_abs) {
+            Ok(_) => Err(TrashError::new(format!(
+                "presun do trash byl vracen zpet: {meta_err}; puvodni polozka zustava beze zmeny"
+            ))),
+            Err(rollback_err) => Err(TrashError::new(format!(
+                "presun do trash dokoncen, ale zapis metadata selhal ({meta_err}); navrat selhal ({rollback_err}), polozka zustala v trash bez metadata"
+            ))),
+        };
+    }
 
     Ok(TrashMoveOutcome {
         moved_from: source_abs,

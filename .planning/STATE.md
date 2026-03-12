@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: In execution
-last_updated: "2026-03-12T13:13:30.000Z"
-last_activity: 2026-03-12 - Completed 37-02 plan execution
+last_updated: "2026-03-12T12:21:26.000Z"
+last_activity: 2026-03-12 - Completed 37-03 plan execution
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 10
-  completed_plans: 9
-  percent: 94
+  total_plans: 34
+  completed_plans: 33
+  percent: 97
 ---
 
 ## gsd_state_version: 1.0
@@ -38,11 +38,11 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 37 (in progress)
-Plan: 02 (completed)
-Status: Phase 37 pokračuje, plan 03 je připraven k exekuci
-Last activity: 2026-03-12 - Completed 37-02 plan execution
+Plan: 03 (completed)
+Status: Phase 37 pokračuje, plan 04 je připraven k exekuci
+Last activity: 2026-03-12 - Completed 37-03 plan execution
 
-Progress: [█████████░] 94%
+Progress: [██████████] 97%
 
 ---
 
@@ -107,6 +107,9 @@ Progress: [█████████░] 94%
 - [Phase 37]: Restore kontrakt je fail-closed, bez overwrite, s jednotnym restore selhal prefixem pro toast mapovani.
 - [Phase 37]: Trash preview modal byl vyclenen do file_tree/preview.rs kvuli phase36 scope guardu bez zmeny UX kontraktu.
 - [Phase 37]: Conflict restore v UI nabizi pouze obnovit jako kopii nebo zrusit; overwrite branch neni vystavena.
+- [Phase 37]: Conflict restore policy is engine-owned via RestoreConflictPolicy with deterministic restore-as-copy naming.
+- [Phase 37]: Restore completion syncs only existing tabs through sync_tabs_for_restored_path and never auto-opens restored files.
+- [Phase 37]: Include-based restore tests annotate trash module with allow(dead_code) to satisfy strict check.sh clippy gate.
 
 ### Roadmap Evolution
 

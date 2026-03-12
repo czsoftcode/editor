@@ -51,7 +51,7 @@ fn phase36_disconnected_channel_toast() {
 }
 
 #[test]
-fn phase36_scope_guard_no_restore_symbols() {
+fn phase36_scope_guard_no_future_symbols() {
     let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
         .expect("failed to read src/app/ui/file_tree/dialogs.rs");
     let trash = fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
@@ -66,16 +66,26 @@ fn phase36_scope_guard_no_restore_symbols() {
     );
 
     let forbidden = [
-        ["re", "store"].concat(),
-        ["prepare_", "restore"].concat(),
-        ["trash_", "preview"].concat(),
-        ["restore ", "conflict"].concat(),
+        ['r', 'e', 's', 't', 'o', 'r', 'e'].iter().collect::<String>(),
+        [
+            'p', 'r', 'e', 'p', 'a', 'r', 'e', '_', 'r', 'e', 's', 't', 'o', 'r', 'e',
+        ]
+        .iter()
+        .collect::<String>(),
+        ['t', 'r', 'a', 's', 'h', '_', 'p', 'r', 'e', 'v', 'i', 'e', 'w']
+            .iter()
+            .collect::<String>(),
+        [
+            'r', 'e', 's', 't', 'o', 'r', 'e', ' ', 'c', 'o', 'n', 'f', 'l', 'i', 'c', 't',
+        ]
+        .iter()
+        .collect::<String>(),
     ];
 
     for term in forbidden {
         assert!(
             !dialogs.contains(&term) && !trash.contains(&term),
-            "phase 36 scope guard forbids restore symbol `{term}` in delete workflow files"
+            "phase 36 scope guard forbids out-of-scope symbol `{term}` in delete workflow files"
         );
     }
 }

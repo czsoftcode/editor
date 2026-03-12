@@ -4,6 +4,7 @@ use crate::app::ui::file_tree::{DeleteJobResult, FileTree};
 use crate::app::ui::widgets::modal::{ModalResult, show_modal};
 use crate::app::validation::is_safe_filename;
 
+// phase36-delete-scope-guard-enabled: this module stays delete-flow only.
 fn map_delete_error_reason_key(engine_error: &str) -> &'static str {
     let normalized = engine_error.to_ascii_lowercase();
     if normalized.contains("interni `.polycredo/trash`") {

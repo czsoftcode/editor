@@ -3,6 +3,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+// phase36-delete-scope-guard-enabled: this module stays delete-flow only.
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum TrashEntryKind {
     File,

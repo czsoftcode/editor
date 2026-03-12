@@ -57,6 +57,9 @@ pub(super) fn render_left_panel(
                             if let Some(deleted) = result.deleted {
                                 ws.editor.close_tabs_for_path(&deleted);
                             }
+                            if let Some(restored) = result.restored {
+                                ws.editor.sync_tabs_for_restored_path(&restored);
+                            }
                         });
                 });
             });

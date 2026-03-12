@@ -22,6 +22,7 @@ pub struct FileTreeResult {
     pub selected: Option<PathBuf>,
     pub created_file: Option<PathBuf>,
     pub deleted: Option<PathBuf>,
+    pub restored: Option<PathBuf>,
 }
 
 pub(crate) enum DeleteJobResult {
@@ -258,7 +259,7 @@ impl FileTree {
         // Collecting pending results from the previous frame
         result.created_file = self.pending_created_file.take();
         result.deleted = self.pending_deleted.take();
-        let _ = self.pending_restored.take();
+        result.restored = self.pending_restored.take();
 
         let mut selected = None;
         let mut action = None;

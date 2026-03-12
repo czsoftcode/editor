@@ -191,6 +191,19 @@ impl Editor {
         }
     }
 
+    pub fn sync_tabs_for_restored_path(&mut self, restored_path: &PathBuf) {
+        // restore tab sync: update only existing tabs, never auto-open restored files.
+        let restored_exists = restored_path.exists();
+        for tab in &mut self.tabs {
+            if tab.path == *restored_path {
+                tab.deleted = !restored_exists;
+            }
+        }
+        if restored_exists {
+            self.reload_path_from_disk(restored_path);
+        }
+    }
+
     pub fn notify_file_deleted(&mut self, path: &PathBuf) {
         for tab in &mut self.tabs {
             if tab.path == *path {

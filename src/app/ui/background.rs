@@ -73,6 +73,23 @@ fn dedupe_project_watcher_changes(changes: &[FsChange]) -> Vec<FsChange> {
     ordered
 }
 
+fn trigger_project_watcher_reload_once(
+    file_tree: &mut crate::app::ui::file_tree::FileTree,
+    reload_requested_for_batch: &mut bool,
+    created_file: Option<&PathBuf>,
+) {
+    if *reload_requested_for_batch {
+        return;
+    }
+
+    if let Some(path) = created_file {
+        file_tree.request_reload_and_expand(path);
+    } else {
+        file_tree.request_reload();
+    }
+    *reload_requested_for_batch = true;
+}
+
 /// Processes events from watchers, build results, and autosave.
 pub(super) fn process_background_events(
     ws: &mut WorkspaceState,
@@ -124,9 +141,14 @@ pub(super) fn process_background_events(
     }
 
     // --- 3. Project watcher events (directory tree) ---
+    let mut reload_requested_for_batch = false;
     let fs_batch = ws.project_watcher.poll();
     if fs_batch.overflowed {
-        ws.file_tree.request_reload();
+        trigger_project_watcher_reload_once(
+            &mut ws.file_tree,
+            &mut reload_requested_for_batch,
+            None,
+        );
     } else if !fs_batch.changes.is_empty() {
         let deduped_changes = dedupe_project_watcher_changes(&fs_batch.changes);
         let mut need_reload = false;
@@ -152,11 +174,11 @@ pub(super) fn process_background_events(
             }
         }
         if need_reload {
-            if let Some(ref path) = created_file {
-                ws.file_tree.request_reload_and_expand(path);
-            } else {
-                ws.file_tree.request_reload();
-            }
+            trigger_project_watcher_reload_once(
+                &mut ws.file_tree,
+                &mut reload_requested_for_batch,
+                created_file.as_ref(),
+            );
         }
     }
 

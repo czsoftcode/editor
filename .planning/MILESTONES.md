@@ -1,5 +1,18 @@
 # Milestones
 
+## v1.3.1 Safe Trash Delete (Shipped: 2026-03-12)
+
+**Phases completed:** 4 phases, 13 plans, 0 tasks
+
+**Key accomplishments:**
+- Delete workflow byl preveden z hard-delete na fail-closed move-to-trash tok (`.polycredo/trash`) pro soubory i adresare.
+- Trash preview modal byl nasazen s entrypointy z menu/command palette a s restore triggerem.
+- Restore konflikt policy je nedestruktivni (`obnovit jako kopii`) bez ticheho overwrite.
+- Watcher pipeline dostala dedupe+batch kontrakt, overflow fallback a disconnect handling proti event storm regresim.
+- Milestone quality gate byl uzavren PASS chainem (`cargo check` + `./check.sh`) a audit skoncil bez kritickych mezer.
+
+---
+
 ## v1.3.0 AI Terminal Cleanup (Shipped: 2026-03-11)
 
 **Phases completed:** 5 phases, 18 plans, 55 tasks

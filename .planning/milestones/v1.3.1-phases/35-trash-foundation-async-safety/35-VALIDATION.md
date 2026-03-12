@@ -19,7 +19,7 @@ created: 2026-03-11
 |----------|-------|
 | **Framework** | Rust test harness (`cargo test`) |
 | **Config file** | none |
-| **Quick run command** | `cargo test phase35 -- --nocapture` |
+| **Quick run command** | `cargo test phase35_trash_path -- --nocapture` |
 | **Full suite command** | `cargo check && ./check.sh` |
 | **Estimated runtime** | ~120 seconds |
 
@@ -27,10 +27,10 @@ created: 2026-03-11
 
 ## Sampling Rate
 
-- **After every task commit:** Run `cargo test phase35 -- --nocapture`
+- **After every task commit:** Run task-targeted verify (<30s), e.g. `cargo test phase35_trash_path -- --nocapture` or `cargo test phase35_async_delete -- --nocapture`
 - **After every plan wave:** Run `cargo check && ./check.sh`
 - **Before `$gsd-verify-work`:** Full suite must be green
-- **Max feedback latency:** 180 seconds
+- **Max feedback latency:** 30 seconds (task-level), full gate allowed at wave-end
 
 ---
 
@@ -70,7 +70,7 @@ created: 2026-03-11
 - [ ] Sampling continuity: no 3 consecutive tasks without automated verify
 - [ ] Wave 0 covers all MISSING references
 - [ ] No watch-mode flags
-- [ ] Feedback latency < 180s
+- [ ] Feedback latency < 30s for task-level checkpoints
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending

@@ -13,7 +13,7 @@
 |---|-------|------|--------------|------------------|
 | 35 | 3/3 | Complete    | 2026-03-11 | 3 |
 | 36 | 3/3 | Complete    | 2026-03-12 | 4 |
-| 37 | 3/4 | In Progress|  | 4 |
+| 37 | 4/4 | Complete   | 2026-03-12 | 4 |
 | 38 | Watcher Stability + Verification | Stabilizovat watcher eventy po delete/restore a uzavrit quality gate | RELIAB-03 | 3 |
 
 ## Phase Details

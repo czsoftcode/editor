@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: planning
-last_updated: "2026-03-12T10:02:17.517Z"
+last_updated: "2026-03-12T10:31:37.239Z"
 last_activity: 2026-03-12 - Completed 36-03 plan execution
 progress:
   total_phases: 4
@@ -102,6 +102,7 @@ Progress: [██████████] 100%
 - [Phase 36]: Scope guard evidence uses grep-safe symbol construction to keep deterministic plan checks.
 - [Phase 36-safe-move-to-trash-engine]: Task 1 a Task 3 byly uzavreny audit-only commity, protoze focused verify probehl bez nutnosti patchu.
 - [Phase 36-safe-move-to-trash-engine]: Verification evidence je centralizovana v 36-VERIFICATION.md s explicitnim requirement-to-hook mapovanim.
+- [Phase ?]: [Phase 37]: Preview bude modal pres menu/command, restore konflikt default je nedestruktivni 'obnovit jako kopii', po restore reload+highlight bez auto-open tabu.
 
 ### Roadmap Evolution
 

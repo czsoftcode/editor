@@ -287,7 +287,11 @@ pub fn restore_from_trash(
     project_root: &Path,
     trash_entry_path: &Path,
 ) -> Result<TrashRestoreOutcome, TrashError> {
-    restore_from_trash_with_policy(project_root, trash_entry_path, RestoreConflictPolicy::Cancel)
+    restore_from_trash_with_policy(
+        project_root,
+        trash_entry_path,
+        RestoreConflictPolicy::Cancel,
+    )
 }
 
 fn resolve_restore_copy_destination(original_target: &Path) -> Result<PathBuf, TrashError> {
@@ -374,10 +378,10 @@ pub fn restore_from_trash_with_policy(
                     "konflikt: cilova cesta uz existuje; pouzijte restore jako kopii".to_string(),
                 ));
             }
-            RestoreConflictPolicy::RestoreAsCopy => resolve_restore_copy_destination(
-                &original_target,
-            )
-            .map_err(|e| restore_error(e.to_string()))?,
+            RestoreConflictPolicy::RestoreAsCopy => {
+                resolve_restore_copy_destination(&original_target)
+                    .map_err(|e| restore_error(e.to_string()))?
+            }
         }
     } else {
         original_target.clone()

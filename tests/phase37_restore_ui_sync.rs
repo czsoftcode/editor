@@ -21,6 +21,7 @@ mod app {
 }
 
 #[path = "../src/app/trash.rs"]
+#[allow(dead_code)]
 mod trash;
 
 #[test]

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
-status: executing
-last_updated: "2026-03-12T14:26:34.034Z"
-last_activity: 2026-03-12 - Completed 38-02 plan execution
+status: planning
+last_updated: "2026-03-12T14:33:48.660Z"
+last_activity: 2026-03-12 - Completed 38-03 plan execution
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 12
-  percent: 100
+  completed_plans: 13
+  percent: 97
 ---
 
 ## gsd_state_version: 1.0
@@ -37,12 +37,12 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 38 (in progress)
-Plan: 02 (completed)
-Status: Plan 38-02 je dokonceny, phase pokracuje planem 38-03.
-Last activity: 2026-03-12 - Completed 38-02 plan execution
+Phase: 38 (completed)
+Plan: 03 (completed)
+Status: Plan 38-03 je dokonceny, phase 38 je uzavrena a pripravena pro verify-work.
+Last activity: 2026-03-12 - Completed 38-03 plan execution
 
-Progress: [██████████] 97%
+Progress: [██████████] 100%
 
 ---
 
@@ -119,6 +119,8 @@ Progress: [██████████] 97%
 - [Phase 38]: Project watcher batch se v background vrstve znovu normalizuje (dedupe+merge) pred apply krokem.
 - [Phase 38]: Overflow branch i bezny branch sdili one-shot helper, aby v jednom poll cyklu nevznikl reload storm.
 - [Phase 38]: Po disconnectu se project watcher polling vypne a uzivatel dostane jeden viditelny toast.
+- [Phase 38]: Overflow fallback se hodnoti podle unikatnich path+kind eventu po dedupe, ne podle syrove delky burstu.
+- [Phase 38]: Gate commandy bezi s RUSTC_WRAPPER= kvuli lokalnimu sccache permission blockeru.
 
 ### Roadmap Evolution
 

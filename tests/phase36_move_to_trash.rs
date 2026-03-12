@@ -2,7 +2,8 @@ use std::fs;
 
 #[test]
 fn phase36_block_trash_delete() {
-    let trash_mod = fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
+    let trash_mod =
+        fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
     assert!(
         trash_mod.contains("is_inside_trash_dir"),
         "trash engine must explicitly guard deletes inside `.polycredo/trash`"
@@ -19,14 +20,15 @@ fn phase36_block_trash_delete() {
 
 #[test]
 fn phase36_move_file_to_trash() {
-    let project_config =
-        fs::read_to_string("src/app/project_config.rs").expect("failed to read src/app/project_config.rs");
+    let project_config = fs::read_to_string("src/app/project_config.rs")
+        .expect("failed to read src/app/project_config.rs");
     assert!(
         project_config.contains("fn project_trash_dir"),
         "project config must expose stable project_trash_dir helper"
     );
 
-    let trash_mod = fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
+    let trash_mod =
+        fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
     assert!(
         trash_mod.contains("resolve_trash_destination"),
         "trash move contract must expose explicit destination resolver"
@@ -43,7 +45,8 @@ fn phase36_move_file_to_trash() {
 
 #[test]
 fn phase36_move_dir_to_trash() {
-    let trash_mod = fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
+    let trash_mod =
+        fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
     assert!(
         trash_mod.contains("TrashEntryKind::Directory"),
         "directory delete must be represented in trash metadata contract"
@@ -60,7 +63,8 @@ fn phase36_move_dir_to_trash() {
 
 #[test]
 fn phase36_collision_suffix() {
-    let trash_mod = fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
+    let trash_mod =
+        fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
     assert!(
         trash_mod.contains("trash-{deleted_at}-{attempt}"),
         "collision policy must use timestamp + counter naming"
@@ -73,7 +77,8 @@ fn phase36_collision_suffix() {
 
 #[test]
 fn phase36_fail_closed() {
-    let trash_mod = fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
+    let trash_mod =
+        fs::read_to_string("src/app/trash.rs").expect("failed to read src/app/trash.rs");
     assert!(
         trash_mod.contains("format_fail_closed_move_error"),
         "fail-closed path must use dedicated move-error formatter"
@@ -87,7 +92,8 @@ fn phase36_fail_closed() {
         "fail-closed error must include actionable guidance for user"
     );
     assert!(
-        !trash_mod.contains("std::fs::remove_file") && !trash_mod.contains("std::fs::remove_dir_all"),
+        !trash_mod.contains("std::fs::remove_file")
+            && !trash_mod.contains("std::fs::remove_dir_all"),
         "failure path must never fallback to hard delete"
     );
 }

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: planning
-last_updated: "2026-03-11T23:20:19.688Z"
-last_activity: 2026-03-11 - Completed 35-03 plan execution
+last_updated: "2026-03-12T09:45:33.651Z"
+last_activity: 2026-03-12 - Completed 36-01 plan execution
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 6
+  completed_plans: 4
+  percent: 93
 ---
 
 ## gsd_state_version: 1.0
@@ -24,7 +24,7 @@ progress:
 - Presmerovani delete operaci na move-to-trash tok
 - Definice obnovy a cleanup pravidel bez blokace UI
 
-**Status:** Ready to plan
+**Status:** In progress
 
 ---
 
@@ -33,16 +33,16 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
-**Current focus:** Phase 36 planning (Safe Move-to-Trash Engine)
+**Current focus:** Phase 36 execution (Safe Move-to-Trash Engine)
 
 ## Current Position
 
-Phase: 35 (completed)
-Plan: 03 (completed)
-Status: Phase 35 complete, ready for phase 36 planning
-Last activity: 2026-03-11 - Completed 35-03 plan execution
+Phase: 36 (in progress)
+Plan: 01 (completed)
+Status: Phase 36 started, 36-01 completed, ready for 36-02
+Last activity: 2026-03-12 - Completed 36-01 plan execution
 
-Progress: [██████████] 100%
+Progress: [█████████░] 93%
 
 ---
 
@@ -95,6 +95,8 @@ Progress: [██████████] 100%
 - [Phase 34-milestone-gap-closure-and-traceability-rebaseline]: Milestone audit byl prepnut na passed az po fast/full gate chain s 15/15 coverage.
 - [Phase 35]: Phase 35 zustava strictne delete-path only; restore-zaklad symboly jsou explicitne zakazane.
 - [Phase 35]: Delete-path chyby se mapuji na kontextovy format trash move failed: {err} pred toast surfacingem.
+- [Phase 36-safe-move-to-trash-engine]: Engine-level guard blocks both .polycredo/trash root and nested paths, independent of UI hiding.
+- [Phase 36-safe-move-to-trash-engine]: Move failures use a centralized fail-closed formatter with actionable next-step guidance.
 
 ### Roadmap Evolution
 
@@ -128,4 +130,4 @@ Progress: [██████████] 100%
 | 10 | cargo test vykazuje chybu, podivej se na to a oprav ji | 2026-03-11 | 6cbb8dc | .planning/quick/10-cargo-test-vykazuje-chybu-podivej-se-na- |
 
 ---
-*Last updated: 2026-03-11*
+*Last updated: 2026-03-12*

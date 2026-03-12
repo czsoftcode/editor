@@ -220,7 +220,10 @@ pub fn list_trash_entries(project_root: &Path) -> Result<Vec<TrashListEntry>, Tr
             .map_err(|e| TrashError::new(format!("nelze cist obsah trash adresare: {e}")))?;
         let path = walk_entry.path();
         if path.is_file() && path.extension().and_then(|x| x.to_str()) == Some("json") {
-            let file_name = path.file_name().and_then(|x| x.to_str()).unwrap_or_default();
+            let file_name = path
+                .file_name()
+                .and_then(|x| x.to_str())
+                .unwrap_or_default();
             if file_name.ends_with(".meta.json") {
                 continue;
             }
@@ -328,9 +331,8 @@ pub fn restore_from_trash(
         ));
     }
     if let Some(parent) = original_target.parent() {
-        fs::create_dir_all(parent).map_err(|e| {
-            restore_error(format!("nelze vytvorit parent adresare: {e}"))
-        })?;
+        fs::create_dir_all(parent)
+            .map_err(|e| restore_error(format!("nelze vytvorit parent adresare: {e}")))?;
     }
 
     fs::rename(&source_abs, &original_target).map_err(|e| {

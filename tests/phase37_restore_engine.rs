@@ -106,14 +106,20 @@ fn phase37_restore_to_original_path() {
 
     let moved = trash::move_path_to_trash(project_root, &source).expect("move to trash");
     assert!(!source.exists(), "source must be moved into trash");
-    assert!(moved.moved_to.exists(), "trash copy must exist before restore");
+    assert!(
+        moved.moved_to.exists(),
+        "trash copy must exist before restore"
+    );
 
     let restored = trash::restore_from_trash(project_root, &moved.moved_to).expect("restore entry");
     assert_eq!(restored.restored_from, moved.moved_to);
     assert_eq!(restored.restored_to, source);
     assert_eq!(restored.original_target, source);
     assert!(restored.restored_to.exists(), "restored target must exist");
-    assert!(!restored.restored_from.exists(), "trash entry must be removed after restore");
+    assert!(
+        !restored.restored_from.exists(),
+        "trash entry must be removed after restore"
+    );
     assert!(
         !metadata_path_for(&restored.restored_from).exists(),
         "metadata sidecar must be removed after successful restore"
@@ -137,7 +143,11 @@ fn phase37_restore_creates_parent_dirs() {
 
     let restored = trash::restore_from_trash(project_root, &moved.moved_to).expect("restore entry");
     assert!(
-        restored.restored_to.parent().expect("restored parent").exists(),
+        restored
+            .restored_to
+            .parent()
+            .expect("restored parent")
+            .exists(),
         "restore must recreate missing parent directories"
     );
     assert!(restored.restored_to.exists(), "restored file must exist");
@@ -154,8 +164,11 @@ fn phase37_restore_fail_closed() {
     fs::write(&source_invalid_meta, "invalid").expect("write source");
     let moved_invalid_meta =
         trash::move_path_to_trash(project_root, &source_invalid_meta).expect("move to trash");
-    fs::write(metadata_path_for(&moved_invalid_meta.moved_to), "{broken-json")
-        .expect("break metadata json");
+    fs::write(
+        metadata_path_for(&moved_invalid_meta.moved_to),
+        "{broken-json",
+    )
+    .expect("break metadata json");
 
     let invalid_meta_err = trash::restore_from_trash(project_root, &moved_invalid_meta.moved_to)
         .expect_err("invalid metadata restore must fail");
@@ -181,7 +194,9 @@ fn phase37_restore_fail_closed() {
     let missing_source_err = trash::restore_from_trash(project_root, &moved_missing.moved_to)
         .expect_err("missing source restore must fail");
     assert!(
-        missing_source_err.to_string().starts_with("restore selhal:"),
+        missing_source_err
+            .to_string()
+            .starts_with("restore selhal:"),
         "missing source error must stay in restore error contract"
     );
 

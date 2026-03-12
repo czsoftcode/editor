@@ -66,9 +66,6 @@ fn phase36_scope_guard_no_future_symbols() {
     );
 
     let forbidden = [
-        ['r', 'e', 's', 't', 'o', 'r', 'e']
-            .iter()
-            .collect::<String>(),
         [
             'p', 'r', 'e', 'p', 'a', 'r', 'e', '_', 'r', 'e', 's', 't', 'o', 'r', 'e',
         ]

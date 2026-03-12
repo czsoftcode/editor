@@ -21,6 +21,14 @@ pub(crate) fn project_trash_dir(project_root: &Path) -> PathBuf {
     trash_dir_path(project_root)
 }
 
+pub(crate) fn trash_meta_path(entry_path: &Path) -> PathBuf {
+    let file_name = entry_path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "unknown".to_string());
+    entry_path.with_file_name(format!("{file_name}.meta.json"))
+}
+
 pub(crate) fn load_profiles(project_root: &Path) -> ProjectProfiles {
     let path = profiles_path(project_root);
     if let Ok(content) = std::fs::read_to_string(&path) {

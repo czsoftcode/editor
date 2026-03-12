@@ -10,6 +10,14 @@ mod app {
         pub fn project_trash_dir(project_root: &Path) -> PathBuf {
             project_root.join(".polycredo").join("trash")
         }
+
+        pub fn trash_meta_path(entry_path: &Path) -> PathBuf {
+            let file_name = entry_path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "unknown".to_string());
+            entry_path.with_file_name(format!("{file_name}.meta.json"))
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::app::project_config::project_trash_dir;
+use crate::app::project_config::{project_trash_dir, trash_meta_path};
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -44,6 +44,13 @@ pub struct TrashListEntry {
     pub metadata_error: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TrashRestoreOutcome {
+    pub restored_from: PathBuf,
+    pub restored_to: PathBuf,
+    pub original_target: PathBuf,
+}
+
 #[derive(Debug)]
 pub struct TrashError {
     message: String,
@@ -64,14 +71,6 @@ impl fmt::Display for TrashError {
 }
 
 impl std::error::Error for TrashError {}
-
-fn metadata_path_for_entry(entry_path: &Path) -> Result<PathBuf, TrashError> {
-    let file_name = entry_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or_else(|| TrashError::new("trash polozka nema validni nazev"))?;
-    Ok(entry_path.with_file_name(format!("{file_name}.meta.json")))
-}
 
 fn validate_metadata_contract(meta: &TrashEntryMeta, entry_path: &Path) -> Result<(), TrashError> {
     if meta.original_relative_path.is_absolute() {
@@ -110,7 +109,7 @@ fn validate_metadata_contract(meta: &TrashEntryMeta, entry_path: &Path) -> Resul
 }
 
 fn write_metadata_sidecar(entry_path: &Path, meta: &TrashEntryMeta) -> Result<(), TrashError> {
-    let meta_path = metadata_path_for_entry(entry_path)?;
+    let meta_path = trash_meta_path(entry_path);
     let raw = serde_json::to_string_pretty(meta)
         .map_err(|e| TrashError::new(format!("nelze serializovat trash metadata: {e}")))?;
     fs::write(meta_path, raw)
@@ -118,7 +117,7 @@ fn write_metadata_sidecar(entry_path: &Path, meta: &TrashEntryMeta) -> Result<()
 }
 
 fn read_metadata_sidecar(entry_path: &Path) -> Result<TrashEntryMeta, TrashError> {
-    let meta_path = metadata_path_for_entry(entry_path)?;
+    let meta_path = trash_meta_path(entry_path);
     let raw = fs::read_to_string(&meta_path)
         .map_err(|e| TrashError::new(format!("nelze nacist trash metadata sidecar: {e}")))?;
     let meta: TrashEntryMeta = serde_json::from_str(&raw)
@@ -246,7 +245,7 @@ pub fn list_trash_entries(project_root: &Path) -> Result<Vec<TrashListEntry>, Tr
                     None,
                 ),
                 Err(err) => {
-                    let meta_path = metadata_path_for_entry(path)?;
+                    let meta_path = trash_meta_path(path);
                     let status = if meta_path.exists() {
                         TrashMetadataStatus::Invalid
                     } else {
@@ -273,6 +272,86 @@ pub fn list_trash_entries(project_root: &Path) -> Result<Vec<TrashListEntry>, Tr
             .then_with(|| a.name.cmp(&b.name))
     });
     Ok(entries)
+}
+
+pub fn restore_from_trash(
+    project_root: &Path,
+    trash_entry_path: &Path,
+) -> Result<TrashRestoreOutcome, TrashError> {
+    let project_abs = project_root
+        .canonicalize()
+        .map_err(|e| TrashError::new(format!("nelze kanonizovat root projektu: {e}")))?;
+    let trash_root = ensure_trash_dir(&project_abs)?;
+
+    let source_candidate = if trash_entry_path.is_absolute() {
+        trash_entry_path.to_path_buf()
+    } else {
+        trash_root.join(trash_entry_path)
+    };
+    if !source_candidate.exists() {
+        return Err(TrashError::new(
+            "restore selhal: trash source neexistuje; polozka mohla byt uz obnovena nebo odstranena",
+        ));
+    }
+    let source_abs = source_candidate
+        .canonicalize()
+        .map_err(|e| TrashError::new(format!("nelze kanonizovat trash source: {e}")))?;
+    if !source_abs.starts_with(&trash_root) {
+        return Err(TrashError::new(
+            "restore selhal: source neni uvnitr `.polycredo/trash`; operace byla zastavena",
+        ));
+    }
+    if source_abs.is_dir() {
+        return Err(TrashError::new(
+            "restore selhal: obnova adresare zatim neni v MVP podporena",
+        ));
+    }
+    let meta_path = trash_meta_path(&source_abs);
+    if !meta_path.exists() {
+        return Err(TrashError::new(
+            "restore selhal: chybi metadata sidecar, polozku nelze bezpecne mapovat na puvodni cestu",
+        ));
+    }
+
+    let meta = read_metadata_sidecar(&source_abs)?;
+    let original_target = project_abs.join(&meta.original_relative_path);
+    if !original_target.starts_with(&project_abs) {
+        return Err(TrashError::new(
+            "restore selhal: metadata ukazuji mimo root projektu; operace byla zastavena",
+        ));
+    }
+    if original_target.exists() {
+        return Err(TrashError::new(
+            "restore konflikt: cilova cesta uz existuje; pouzijte restore jako kopii",
+        ));
+    }
+    if let Some(parent) = original_target.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| TrashError::new(format!("restore selhal: nelze vytvorit parent adresare: {e}")))?;
+    }
+
+    fs::rename(&source_abs, &original_target).map_err(|e| {
+        TrashError::new(format!(
+            "restore selhal: {e}; trash polozka zustava beze zmeny, zkontrolujte prava a zkuste znovu"
+        ))
+    })?;
+
+    if let Err(cleanup_err) = fs::remove_file(&meta_path) {
+        return match fs::rename(&original_target, &source_abs) {
+            Ok(_) => Err(TrashError::new(format!(
+                "restore byl vracen zpet: metadata cleanup selhal ({cleanup_err}); trash polozka zustava beze zmeny"
+            ))),
+            Err(rollback_err) => Err(TrashError::new(format!(
+                "restore presunul data, ale cleanup metadata selhal ({cleanup_err}); rollback selhal ({rollback_err})"
+            ))),
+        };
+    }
+
+    Ok(TrashRestoreOutcome {
+        restored_from: source_abs,
+        restored_to: original_target.clone(),
+        original_target,
+    })
 }
 
 pub fn move_path_to_trash(

@@ -60,3 +60,48 @@ fn phase38_batch_window_locked() {
         "batch window musi byt fixne zamceny na 120 ms"
     );
 }
+
+#[test]
+fn phase38_remove_precedence() {
+    let batch = build_project_watcher_batch_for_tests(
+        vec![
+            FsChange::Created(path("/tmp/c.txt")),
+            FsChange::Modified(path("/tmp/c.txt")),
+            FsChange::Removed(path("/tmp/c.txt")),
+            FsChange::Created(path("/tmp/d.txt")),
+            FsChange::Removed(path("/tmp/d.txt")),
+            FsChange::Modified(path("/tmp/e.txt")),
+            FsChange::Removed(path("/tmp/e.txt")),
+        ],
+        500,
+    );
+
+    assert!(
+        batch
+            .changes
+            .iter()
+            .all(|c| !matches!(c, FsChange::Created(p) | FsChange::Modified(p) if *p == path("/tmp/c.txt"))),
+        "remove musi mit prednost pred create/modify na stejne ceste"
+    );
+    assert!(
+        batch
+            .changes
+            .iter()
+            .any(|c| matches!(c, FsChange::Removed(p) if *p == path("/tmp/c.txt"))),
+        "finalni stav kolizni cesty c.txt musi byt Removed"
+    );
+    assert!(
+        batch
+            .changes
+            .iter()
+            .any(|c| matches!(c, FsChange::Removed(p) if *p == path("/tmp/d.txt"))),
+        "create nasledovane remove musi skoncit jako Removed"
+    );
+    assert!(
+        batch
+            .changes
+            .iter()
+            .any(|c| matches!(c, FsChange::Removed(p) if *p == path("/tmp/e.txt"))),
+        "modify nasledovane remove musi skoncit jako Removed"
+    );
+}

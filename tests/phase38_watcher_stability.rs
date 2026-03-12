@@ -105,3 +105,21 @@ fn phase38_remove_precedence() {
         "modify nasledovane remove musi skoncit jako Removed"
     );
 }
+
+#[test]
+fn phase38_overflow_sets_fallback() {
+    let events: Vec<FsChange> = (0..501)
+        .map(|i| FsChange::Modified(path(&format!("/tmp/overflow-{i}.txt"))))
+        .collect();
+
+    let batch = build_project_watcher_batch_for_tests(events, 500);
+
+    assert!(
+        batch.overflowed,
+        "burst nad limitem musi nastavit overflow fallback signal"
+    );
+    assert!(
+        batch.changes.is_empty(),
+        "overflow path nesmi vracet granularni replay syrovych eventu"
+    );
+}

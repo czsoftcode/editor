@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-12T09:56:40.000Z"
-last_activity: 2026-03-12 - Completed 36-02 plan execution
+last_updated: "2026-03-12T10:00:18.058Z"
+last_activity: 2026-03-12 - Completed 36-03 plan execution
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 97
+  completed_plans: 6
+  percent: 100
 ---
 
 ## gsd_state_version: 1.0
@@ -37,12 +37,12 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 36 (in progress)
-Plan: 02 (completed)
-Status: Phase 36 in progress, 36-02 completed, ready for 36-03
-Last activity: 2026-03-12 - Completed 36-02 plan execution
+Phase: 36 (completed)
+Plan: 03 (completed)
+Status: Phase 36 completed, ready for phase 37
+Last activity: 2026-03-12 - Completed 36-03 plan execution
 
-Progress: [██████████] 97%
+Progress: [██████████] 100%
 
 ---
 
@@ -100,6 +100,8 @@ Progress: [██████████] 97%
 - [Phase 36]: Delete engine errors are normalized into localized toast reason categories before surfacing.
 - [Phase 36]: TryRecvError::Disconnected is fail-visible and closes delete_rx immediately.
 - [Phase 36]: Scope guard evidence uses grep-safe symbol construction to keep deterministic plan checks.
+- [Phase 36-safe-move-to-trash-engine]: Task 1 a Task 3 byly uzavreny audit-only commity, protoze focused verify probehl bez nutnosti patchu.
+- [Phase 36-safe-move-to-trash-engine]: Verification evidence je centralizovana v 36-VERIFICATION.md s explicitnim requirement-to-hook mapovanim.
 
 ### Roadmap Evolution
 

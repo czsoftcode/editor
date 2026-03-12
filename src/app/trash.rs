@@ -278,9 +278,11 @@ pub fn restore_from_trash(
     project_root: &Path,
     trash_entry_path: &Path,
 ) -> Result<TrashRestoreOutcome, TrashError> {
+    let restore_error = |detail: String| TrashError::new(format!("restore selhal: {detail}"));
+
     let project_abs = project_root
         .canonicalize()
-        .map_err(|e| TrashError::new(format!("nelze kanonizovat root projektu: {e}")))?;
+        .map_err(|e| restore_error(format!("nelze kanonizovat root projektu: {e}")))?;
     let trash_root = ensure_trash_dir(&project_abs)?;
 
     let source_candidate = if trash_entry_path.is_absolute() {
@@ -289,60 +291,61 @@ pub fn restore_from_trash(
         trash_root.join(trash_entry_path)
     };
     if !source_candidate.exists() {
-        return Err(TrashError::new(
-            "restore selhal: trash source neexistuje; polozka mohla byt uz obnovena nebo odstranena",
+        return Err(restore_error(
+            "trash source neexistuje; polozka mohla byt uz obnovena nebo odstranena".to_string(),
         ));
     }
     let source_abs = source_candidate
         .canonicalize()
-        .map_err(|e| TrashError::new(format!("nelze kanonizovat trash source: {e}")))?;
+        .map_err(|e| restore_error(format!("nelze kanonizovat trash source: {e}")))?;
     if !source_abs.starts_with(&trash_root) {
-        return Err(TrashError::new(
-            "restore selhal: source neni uvnitr `.polycredo/trash`; operace byla zastavena",
+        return Err(restore_error(
+            "source neni uvnitr `.polycredo/trash`; operace byla zastavena".to_string(),
         ));
     }
     if source_abs.is_dir() {
-        return Err(TrashError::new(
-            "restore selhal: obnova adresare zatim neni v MVP podporena",
+        return Err(restore_error(
+            "obnova adresare zatim neni v MVP podporena".to_string(),
         ));
     }
     let meta_path = trash_meta_path(&source_abs);
     if !meta_path.exists() {
-        return Err(TrashError::new(
-            "restore selhal: chybi metadata sidecar, polozku nelze bezpecne mapovat na puvodni cestu",
+        return Err(restore_error(
+            "chybi metadata sidecar, polozku nelze bezpecne mapovat na puvodni cestu".to_string(),
         ));
     }
 
-    let meta = read_metadata_sidecar(&source_abs)?;
+    let meta = read_metadata_sidecar(&source_abs).map_err(|e| restore_error(e.to_string()))?;
     let original_target = project_abs.join(&meta.original_relative_path);
     if !original_target.starts_with(&project_abs) {
-        return Err(TrashError::new(
-            "restore selhal: metadata ukazuji mimo root projektu; operace byla zastavena",
+        return Err(restore_error(
+            "metadata ukazuji mimo root projektu; operace byla zastavena".to_string(),
         ));
     }
     if original_target.exists() {
-        return Err(TrashError::new(
-            "restore konflikt: cilova cesta uz existuje; pouzijte restore jako kopii",
+        return Err(restore_error(
+            "konflikt: cilova cesta uz existuje; pouzijte restore jako kopii".to_string(),
         ));
     }
     if let Some(parent) = original_target.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| TrashError::new(format!("restore selhal: nelze vytvorit parent adresare: {e}")))?;
+        fs::create_dir_all(parent).map_err(|e| {
+            restore_error(format!("nelze vytvorit parent adresare: {e}"))
+        })?;
     }
 
     fs::rename(&source_abs, &original_target).map_err(|e| {
-        TrashError::new(format!(
-            "restore selhal: {e}; trash polozka zustava beze zmeny, zkontrolujte prava a zkuste znovu"
+        restore_error(format!(
+            "{e}; trash polozka zustava beze zmeny, zkontrolujte prava a zkuste znovu"
         ))
     })?;
 
     if let Err(cleanup_err) = fs::remove_file(&meta_path) {
         return match fs::rename(&original_target, &source_abs) {
-            Ok(_) => Err(TrashError::new(format!(
-                "restore byl vracen zpet: metadata cleanup selhal ({cleanup_err}); trash polozka zustava beze zmeny"
+            Ok(_) => Err(restore_error(format!(
+                "operace byla vracena zpet: metadata cleanup selhal ({cleanup_err}); trash polozka zustava beze zmeny"
             ))),
-            Err(rollback_err) => Err(TrashError::new(format!(
-                "restore presunul data, ale cleanup metadata selhal ({cleanup_err}); rollback selhal ({rollback_err})"
+            Err(rollback_err) => Err(restore_error(format!(
+                "presunul data, ale cleanup metadata selhal ({cleanup_err}); rollback selhal ({rollback_err})"
             ))),
         };
     }

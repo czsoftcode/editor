@@ -142,3 +142,68 @@ fn phase37_restore_creates_parent_dirs() {
     );
     assert!(restored.restored_to.exists(), "restored file must exist");
 }
+
+#[test]
+fn phase37_restore_fail_closed() {
+    let temp = tempdir().expect("temp dir");
+    let project_root = temp.path();
+
+    let source_invalid_meta = project_root.join("invalid").join("meta.txt");
+    fs::create_dir_all(source_invalid_meta.parent().expect("source parent"))
+        .expect("create source parent");
+    fs::write(&source_invalid_meta, "invalid").expect("write source");
+    let moved_invalid_meta =
+        trash::move_path_to_trash(project_root, &source_invalid_meta).expect("move to trash");
+    fs::write(metadata_path_for(&moved_invalid_meta.moved_to), "{broken-json")
+        .expect("break metadata json");
+
+    let invalid_meta_err = trash::restore_from_trash(project_root, &moved_invalid_meta.moved_to)
+        .expect_err("invalid metadata restore must fail");
+    assert!(
+        invalid_meta_err.to_string().starts_with("restore selhal:"),
+        "restore errors must use consistent `restore selhal:` prefix for toast mapping"
+    );
+    assert!(
+        moved_invalid_meta.moved_to.exists(),
+        "invalid metadata failure must keep source data in trash"
+    );
+    assert!(
+        !source_invalid_meta.exists(),
+        "invalid metadata failure must not materialize original target"
+    );
+
+    let source_missing = project_root.join("missing").join("source.txt");
+    fs::create_dir_all(source_missing.parent().expect("source parent")).expect("create parent");
+    fs::write(&source_missing, "missing").expect("write source");
+    let moved_missing = trash::move_path_to_trash(project_root, &source_missing).expect("move");
+    fs::remove_file(&moved_missing.moved_to).expect("remove trash source");
+
+    let missing_source_err = trash::restore_from_trash(project_root, &moved_missing.moved_to)
+        .expect_err("missing source restore must fail");
+    assert!(
+        missing_source_err.to_string().starts_with("restore selhal:"),
+        "missing source error must stay in restore error contract"
+    );
+
+    let source_io = project_root.join("io").join("source.txt");
+    fs::create_dir_all(source_io.parent().expect("source parent")).expect("create io parent");
+    fs::write(&source_io, "io").expect("write io source");
+    let moved_io = trash::move_path_to_trash(project_root, &source_io).expect("move io");
+    write_metadata(&moved_io.moved_to, 999, "blocked/target.txt");
+    fs::write(project_root.join("blocked"), "not-a-dir").expect("create blocking file");
+
+    let io_err = trash::restore_from_trash(project_root, &moved_io.moved_to)
+        .expect_err("parent creation failure must fail");
+    assert!(
+        io_err.to_string().starts_with("restore selhal:"),
+        "I/O restore failure must stay in restore error contract"
+    );
+    assert!(
+        moved_io.moved_to.exists(),
+        "I/O restore failure must keep source data in trash"
+    );
+    assert!(
+        !project_root.join("blocked").join("target.txt").exists(),
+        "I/O failure must not create destination file"
+    );
+}

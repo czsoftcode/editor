@@ -26,7 +26,7 @@
 
 - [x] **RELIAB-01**: Delete/restore operace neblokuji UI vlakno (tezke I/O bezi mimo UI vlakno).
 - [x] **RELIAB-02**: Vsechny I/O chyby v delete/restore/cleanup toku jsou propagovany do UI toastu.
-- [ ] **RELIAB-03**: Watcher/event handling po delete/restore nezpusobi event storm vedouci k viditelnemu lagovani UI.
+- [x] **RELIAB-03**: Watcher/event handling po delete/restore nezpusobi event storm vedouci k viditelnemu lagovani UI.
 
 ## v2 Requirements
 
@@ -61,7 +61,7 @@
 | TRASHUI-01 | Phase 37 | Complete |
 | RELIAB-01 | Phase 35 | Complete |
 | RELIAB-02 | Phase 36 | Complete |
-| RELIAB-03 | Phase 38 | Pending |
+| RELIAB-03 | Phase 38 | Complete |
 
 **Coverage:**
 - v1 requirements: 11 total

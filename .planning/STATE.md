@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-12T12:30:33.045Z"
-last_activity: 2026-03-12 - Completed 37-04 plan execution
+status: executing
+last_updated: "2026-03-12T14:18:31.694Z"
+last_activity: 2026-03-12 - Completed 38-01 plan execution
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 13
+  completed_plans: 11
   percent: 100
 ---
 
@@ -33,14 +33,14 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minimalni.
-**Current focus:** Phase 38 context discussion (Watcher Stability + Verification)
+**Current focus:** Phase 38 execution (Watcher Stability + Verification)
 
 ## Current Position
 
-Phase: 38 (context gathered)
-Plan: 00 (discussion/context)
-Status: Phase 38 ma zachyceny implementation context a je pripravena pro plan-phase
-Last activity: 2026-03-12 - Captured 38-CONTEXT with watcher event policy decisions
+Phase: 38 (in progress)
+Plan: 01 (completed)
+Status: Plan 38-01 je dokonceny, phase pokracuje planem 38-02.
+Last activity: 2026-03-12 - Completed 38-01 plan execution
 
 Progress: [██████████] 100%
 
@@ -113,6 +113,9 @@ Progress: [██████████] 100%
 - [Phase 37-trash-preview-restore-mvp]: TDD RED/GREEN parity guard pro phase37 i18n vynutil restore-success/error klice ve vsech locale.
 - [Phase 37-trash-preview-restore-mvp]: Finalni verification artefakt 37-VERIFICATION.md je canonical source pro requirement traceability a quality gate evidenci.
 - [Phase 38]: Watcher stabilization policy je uzamcena na path+kind dedupe, 100-150ms batch window, remove-priority merge a full-reload fallback pri overflow.
+- [Phase 38]: Batch window uzamcena na 120ms pres PROJECT_WATCHER_BATCH_WINDOW_MS.
+- [Phase 38]: Overflow fallback vraci pouze overflow signal bez granularniho replaye eventu.
+- [Phase 38]: Kolize eventu sjednoceny deterministicky s prioritou Removed.
 
 ### Roadmap Evolution
 

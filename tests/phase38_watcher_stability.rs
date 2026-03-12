@@ -122,3 +122,26 @@ fn phase38_overflow_sets_fallback() {
         "overflow path nesmi vracet granularni replay syrovych eventu"
     );
 }
+
+#[test]
+fn phase38_duplicate_burst_does_not_force_overflow() {
+    let events: Vec<FsChange> = (0..700)
+        .map(|_| FsChange::Modified(path("/tmp/same.txt")))
+        .collect();
+
+    let batch = build_project_watcher_batch_for_tests(events, 500);
+
+    assert!(
+        !batch.overflowed,
+        "duplicitni burst stejne path+kind kombinace nesmi sam o sobe aktivovat overflow fallback"
+    );
+    assert_eq!(
+        batch.changes.len(),
+        1,
+        "dedupe ma zanechat jediny vysledny event pro stejnou path+kind kombinaci"
+    );
+    assert!(
+        matches!(batch.changes.first(), Some(FsChange::Modified(p)) if *p == path("/tmp/same.txt")),
+        "vysledny event musi zachovat modified stav pro danou cestu"
+    );
+}

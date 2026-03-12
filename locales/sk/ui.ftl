@@ -117,6 +117,7 @@ command-name-close-tab = Zatvoriť aktuálnu záložku
 command-name-new-project = Nový projekt
 command-name-open-project = Otvoriť projekt (v novom okne)
 command-name-open-folder = Otvoriť priečinok (v tomto okne)
+command-name-trash-preview = Náhľad koša
 command-name-toggle-left = Prepnúť panel súborov
 command-name-toggle-right = Prepnúť AI panel
 command-name-toggle-build = Prepnúť build terminál
@@ -280,6 +281,16 @@ file-tree-delete-move-failed-reason-locked = súbor alebo priečinok sa práve p
 file-tree-delete-move-failed-reason-missing = položka už v projekte neexistuje
 file-tree-delete-move-failed-reason-internal-trash = interný adresár koša nemožno odstrániť
 file-tree-delete-move-failed-reason-generic = neočakávaná I/O chyba
+file-tree-trash-preview-title = Náhľad koša
+file-tree-trash-preview-filter = Filter:
+file-tree-trash-preview-loading = Načítavam položky koša...
+file-tree-trash-preview-no-results = Filtru nezodpovedá žiadna položka koša.
+file-tree-trash-preview-kind-file = súbor
+file-tree-trash-preview-kind-dir = priečinok
+file-tree-trash-preview-restore = Obnoviť
+file-tree-restore-conflict-title = Konflikt pri obnove
+file-tree-restore-conflict-message = Cieľová cesta už existuje. Zvoľte nedestruktívnu obnovu.
+file-tree-restore-as-copy = Obnoviť ako kópiu
 
 ## Dialóg externého konfliktu
 conflict-title = Súbor zmenený externe

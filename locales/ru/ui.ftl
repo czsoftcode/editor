@@ -131,6 +131,7 @@ command-name-close-tab = Закрыть текущую вкладку
 command-name-new-project = Новый проект
 command-name-open-project = Открыть проект (в новом окне)
 command-name-open-folder = Открыть папку (в этом окне)
+command-name-trash-preview = Просмотр корзины
 command-name-toggle-left = Переключить панель файлов
 command-name-toggle-right = Переключить ИИ-панель
 command-name-toggle-build = Переключить build-терминал
@@ -298,6 +299,16 @@ file-tree-delete-move-failed-reason-locked = файл или папка сейч
 file-tree-delete-move-failed-reason-missing = элемент больше не существует в проекте
 file-tree-delete-move-failed-reason-internal-trash = внутренний каталог корзины нельзя удалять
 file-tree-delete-move-failed-reason-generic = неожиданная ошибка ввода-вывода
+file-tree-trash-preview-title = Просмотр корзины
+file-tree-trash-preview-filter = Фильтр:
+file-tree-trash-preview-loading = Загрузка элементов корзины...
+file-tree-trash-preview-no-results = Нет элементов корзины по фильтру.
+file-tree-trash-preview-kind-file = файл
+file-tree-trash-preview-kind-dir = папка
+file-tree-trash-preview-restore = Восстановить
+file-tree-restore-conflict-title = Конфликт восстановления
+file-tree-restore-conflict-message = Целевой путь уже существует. Выберите недеструктивное восстановление.
+file-tree-restore-as-copy = Восстановить как копию
 
 ## Диалог внешнего конфликта
 conflict-title = Файл изменён извне

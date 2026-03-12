@@ -116,6 +116,7 @@ command-name-close-tab = Close Current Tab
 command-name-new-project = New Project
 command-name-open-project = Open Project (in new window)
 command-name-open-folder = Open Folder (in this window)
+command-name-trash-preview = Trash Preview
 command-name-toggle-left = Toggle File Panel
 command-name-toggle-right = Toggle AI Panel
 command-name-toggle-build = Toggle Build Terminal
@@ -280,6 +281,16 @@ file-tree-delete-move-failed-reason-locked = file or folder is currently in use
 file-tree-delete-move-failed-reason-missing = item no longer exists in the project
 file-tree-delete-move-failed-reason-internal-trash = internal trash directory cannot be deleted
 file-tree-delete-move-failed-reason-generic = unexpected I/O error
+file-tree-trash-preview-title = Trash Preview
+file-tree-trash-preview-filter = Filter:
+file-tree-trash-preview-loading = Loading trash entries...
+file-tree-trash-preview-no-results = No trash entries match the filter.
+file-tree-trash-preview-kind-file = file
+file-tree-trash-preview-kind-dir = folder
+file-tree-trash-preview-restore = Restore
+file-tree-restore-conflict-title = Restore conflict
+file-tree-restore-conflict-message = Target already exists. Choose a non-destructive restore.
+file-tree-restore-as-copy = Restore as copy
 
 ## External conflict dialog
 conflict-title = File Changed Externally

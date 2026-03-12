@@ -85,3 +85,37 @@ fn phase37_restore_job_result_to_pending() {
         "restore polling must route successful result into pending_restored"
     );
 }
+
+#[test]
+fn phase37_conflict_routes_to_modal() {
+    let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
+        .expect("failed to read file tree dialogs");
+
+    assert!(
+        dialogs.contains("RestoreJobResult::Conflict(selected_path)"),
+        "restore conflict must route into explicit conflict result"
+    );
+    assert!(
+        dialogs.contains("show_restore_conflict_dialog"),
+        "file tree must render dedicated restore conflict modal"
+    );
+    assert!(
+        dialogs.contains("restore_from_trash_as_copy"),
+        "conflict dialog must offer non-destructive restore-as-copy branch"
+    );
+}
+
+#[test]
+fn phase37_conflict_has_no_overwrite_action() {
+    let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
+        .expect("failed to read file tree dialogs");
+
+    assert!(
+        dialogs.contains("file-tree-restore-as-copy"),
+        "conflict modal must expose restore-as-copy action"
+    );
+    assert!(
+        !dialogs.contains("replace existing") && !dialogs.contains("force restore"),
+        "conflict modal must not offer overwrite path"
+    );
+}

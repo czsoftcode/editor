@@ -119,6 +119,7 @@ command-name-close-tab = Zavřít aktuální záložku
 command-name-new-project = Nový projekt
 command-name-open-project = Otevřít projekt (v novém okně)
 command-name-open-folder = Otevřít složku (v tomto okně)
+command-name-trash-preview = Náhled koše
 command-name-toggle-left = Přepnout panel souborů
 command-name-toggle-right = Přepnout AI panel
 command-name-toggle-build = Přepnout build terminál
@@ -288,6 +289,16 @@ file-tree-delete-move-failed-reason-locked = soubor nebo adresář je právě po
 file-tree-delete-move-failed-reason-missing = položka už v projektu neexistuje
 file-tree-delete-move-failed-reason-internal-trash = interní adresář koše nelze mazat
 file-tree-delete-move-failed-reason-generic = neočekávaná I/O chyba
+file-tree-trash-preview-title = Náhled koše
+file-tree-trash-preview-filter = Filtr:
+file-tree-trash-preview-loading = Načítám položky koše...
+file-tree-trash-preview-no-results = Filtru neodpovídá žádná položka koše.
+file-tree-trash-preview-kind-file = soubor
+file-tree-trash-preview-kind-dir = složka
+file-tree-trash-preview-restore = Obnovit
+file-tree-restore-conflict-title = Konflikt při obnově
+file-tree-restore-conflict-message = Cílová cesta už existuje. Zvolte nedestruktivní obnovu.
+file-tree-restore-as-copy = Obnovit jako kopii
 
 ## Dialog externího konfliktu
 conflict-title = Soubor změněn externě

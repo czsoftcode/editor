@@ -116,6 +116,7 @@ command-name-close-tab = Aktuellen Tab schließen
 command-name-new-project = Neues Projekt
 command-name-open-project = Projekt öffnen (in neuem Fenster)
 command-name-open-folder = Ordner öffnen (in diesem Fenster)
+command-name-trash-preview = Papierkorb-Vorschau
 command-name-toggle-left = Dateipanel umschalten
 command-name-toggle-right = KI-Panel umschalten
 command-name-toggle-build = Build-Terminal umschalten
@@ -281,6 +282,16 @@ file-tree-delete-move-failed-reason-locked = Datei oder Ordner wird gerade verwe
 file-tree-delete-move-failed-reason-missing = Element existiert im Projekt nicht mehr
 file-tree-delete-move-failed-reason-internal-trash = internes Papierkorbverzeichnis kann nicht gelöscht werden
 file-tree-delete-move-failed-reason-generic = unerwarteter I/O-Fehler
+file-tree-trash-preview-title = Papierkorb-Vorschau
+file-tree-trash-preview-filter = Filter:
+file-tree-trash-preview-loading = Papierkorb-Einträge werden geladen...
+file-tree-trash-preview-no-results = Keine Papierkorb-Einträge passen zum Filter.
+file-tree-trash-preview-kind-file = Datei
+file-tree-trash-preview-kind-dir = Ordner
+file-tree-trash-preview-restore = Wiederherstellen
+file-tree-restore-conflict-title = Wiederherstellungskonflikt
+file-tree-restore-conflict-message = Zielpfad existiert bereits. Wähle eine nicht-destruktive Wiederherstellung.
+file-tree-restore-as-copy = Als Kopie wiederherstellen
 
 ## Dialog für externen Konflikt
 conflict-title = Datei extern geändert

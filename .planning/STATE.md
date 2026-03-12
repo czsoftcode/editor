@@ -111,6 +111,7 @@ Progress: [██████████] 100%
 - Upravit dolni listu: branch oznameni vice doprava, UTF vice doleva (`src/app/ui/terminal/bottom/git_bar.rs`)
 - V `Sestavit > Upravit` pridat online nahled zmen zapisovanych do `.polycredo/profiles.toml`
 - Zprovoznit `.polycredo/trash` a presouvat tam smazane soubory
+- Nabidnout otevirani projektu v aktualnim okne nebo v novem
 
 ### Blockers/Concerns
 

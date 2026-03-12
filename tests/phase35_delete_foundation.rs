@@ -5,14 +5,17 @@ fn phase35_delete_foundation_is_fail_closed() {
     let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
         .expect("failed to read src/app/ui/file_tree/dialogs.rs");
     assert!(
-        dialogs.contains("DeleteJobResult::Error(format!(\"trash move failed: {err}\"))"),
+        dialogs.contains("DeleteJobResult::Error")
+            && dialogs.contains("let detail = format!(\"trash move failed: {err}\")"),
         "delete flow must propagate foundation errors"
     );
 
     let file_tree = fs::read_to_string("src/app/ui/file_tree/mod.rs")
         .expect("failed to read src/app/ui/file_tree/mod.rs");
     assert!(
-        file_tree.contains("self.pending_error = Some(err);"),
+        file_tree
+            .contains("self.pending_error = Some(format_delete_toast_error(i18n, raw_error));")
+            && file_tree.contains("queue_delete_error_once"),
         "file tree must surface async delete errors to toast pipeline"
     );
 

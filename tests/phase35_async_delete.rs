@@ -13,7 +13,9 @@ fn phase35_async_delete_uses_background_task() {
         "delete flow must route through trash move"
     );
     assert!(
-        dialogs.contains("DeleteJobResult::Error(format!(\"trash move failed: {err}\"))"),
+        dialogs.contains("DeleteJobResult::Error")
+            && dialogs.contains("trash move failed")
+            && dialogs.contains("let detail = format!(\"trash move failed: {err}\")"),
         "delete flow must surface move failure context through pending_error pipeline"
     );
     assert!(

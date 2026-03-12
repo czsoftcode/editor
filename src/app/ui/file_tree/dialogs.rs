@@ -31,7 +31,10 @@ fn map_delete_error_reason_key(engine_error: &str) -> &'static str {
 
 pub(crate) fn format_delete_toast_error(i18n: &crate::i18n::I18n, engine_error: &str) -> String {
     let mut args = fluent_bundle::FluentArgs::new();
-    args.set("reason", i18n.get(map_delete_error_reason_key(engine_error)));
+    args.set(
+        "reason",
+        i18n.get(map_delete_error_reason_key(engine_error)),
+    );
     let reason = i18n.get_args("file-tree-delete-move-failed-reason", &args);
     format!(
         "{reason} {}",

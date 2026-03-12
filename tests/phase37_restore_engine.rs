@@ -87,3 +87,50 @@ fn phase37_list_invalid_metadata() {
         "invalid metadata must be explicit state for UI"
     );
 }
+
+#[test]
+fn phase37_restore_to_original_path() {
+    let temp = tempdir().expect("temp dir");
+    let project_root = temp.path();
+    let source = project_root.join("docs").join("guide.txt");
+    fs::create_dir_all(source.parent().expect("source parent")).expect("create source parent");
+    fs::write(&source, "restore me").expect("write source file");
+
+    let moved = trash::move_path_to_trash(project_root, &source).expect("move to trash");
+    assert!(!source.exists(), "source must be moved into trash");
+    assert!(moved.moved_to.exists(), "trash copy must exist before restore");
+
+    let restored = trash::restore_from_trash(project_root, &moved.moved_to).expect("restore entry");
+    assert_eq!(restored.restored_from, moved.moved_to);
+    assert_eq!(restored.restored_to, source);
+    assert_eq!(restored.original_target, source);
+    assert!(restored.restored_to.exists(), "restored target must exist");
+    assert!(!restored.restored_from.exists(), "trash entry must be removed after restore");
+    assert!(
+        !metadata_path_for(&restored.restored_from).exists(),
+        "metadata sidecar must be removed after successful restore"
+    );
+}
+
+#[test]
+fn phase37_restore_creates_parent_dirs() {
+    let temp = tempdir().expect("temp dir");
+    let project_root = temp.path();
+    let source = project_root.join("deep").join("nested").join("restore.txt");
+    fs::create_dir_all(source.parent().expect("source parent")).expect("create source parent");
+    fs::write(&source, "restore parent").expect("write source file");
+
+    let moved = trash::move_path_to_trash(project_root, &source).expect("move to trash");
+    fs::remove_dir_all(project_root.join("deep")).expect("remove source parent tree");
+    assert!(
+        !source.parent().expect("source parent").exists(),
+        "parent tree must be missing before restore"
+    );
+
+    let restored = trash::restore_from_trash(project_root, &moved.moved_to).expect("restore entry");
+    assert!(
+        restored.restored_to.parent().expect("restored parent").exists(),
+        "restore must recreate missing parent directories"
+    );
+    assert!(restored.restored_to.exists(), "restored file must exist");
+}

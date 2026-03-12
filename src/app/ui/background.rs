@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -25,6 +25,52 @@ where
 
 fn should_run_autosave(save_mode: SaveMode) -> bool {
     matches!(save_mode, SaveMode::Automatic)
+}
+
+fn project_change_path(change: &FsChange) -> &PathBuf {
+    match change {
+        FsChange::Created(path) | FsChange::Removed(path) | FsChange::Modified(path) => path,
+    }
+}
+
+fn project_change_kind_key(change: &FsChange) -> &'static str {
+    match change {
+        FsChange::Created(_) => "created",
+        FsChange::Removed(_) => "removed",
+        FsChange::Modified(_) => "modified",
+    }
+}
+
+fn merge_project_change(existing: &mut FsChange, incoming: &FsChange) {
+    let path = project_change_path(existing).clone();
+    *existing = match (&*existing, incoming) {
+        (FsChange::Removed(_), _) | (_, FsChange::Removed(_)) => FsChange::Removed(path),
+        (FsChange::Created(_), _) | (_, FsChange::Created(_)) => FsChange::Created(path),
+        _ => FsChange::Modified(path),
+    };
+}
+
+fn dedupe_project_watcher_changes(changes: &[FsChange]) -> Vec<FsChange> {
+    let mut seen: HashSet<(PathBuf, &'static str)> = HashSet::new();
+    let mut merged_by_path: HashMap<PathBuf, FsChange> = HashMap::new();
+
+    for change in changes {
+        let path = project_change_path(change).clone();
+        let kind_key = project_change_kind_key(change);
+
+        if !seen.insert((path.clone(), kind_key)) {
+            continue;
+        }
+
+        merged_by_path
+            .entry(path.clone())
+            .and_modify(|existing| merge_project_change(existing, change))
+            .or_insert_with(|| change.clone());
+    }
+
+    let mut ordered: Vec<_> = merged_by_path.into_values().collect();
+    ordered.sort_by(|a, b| project_change_path(a).cmp(project_change_path(b)));
+    ordered
 }
 
 /// Processes events from watchers, build results, and autosave.
@@ -82,10 +128,11 @@ pub(super) fn process_background_events(
     if fs_batch.overflowed {
         ws.file_tree.request_reload();
     } else if !fs_batch.changes.is_empty() {
+        let deduped_changes = dedupe_project_watcher_changes(&fs_batch.changes);
         let mut need_reload = false;
         let mut created_file: Option<PathBuf> = None;
 
-        for change in &fs_batch.changes {
+        for change in &deduped_changes {
             ws.project_index.handle_change(change.clone());
 
             match change {

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
 status: executing
-last_updated: "2026-03-12T14:18:31.694Z"
-last_activity: 2026-03-12 - Completed 38-01 plan execution
+last_updated: "2026-03-12T14:26:34.034Z"
+last_activity: 2026-03-12 - Completed 38-02 plan execution
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 100
 ---
 
@@ -38,11 +38,11 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 38 (in progress)
-Plan: 01 (completed)
-Status: Plan 38-01 je dokonceny, phase pokracuje planem 38-02.
-Last activity: 2026-03-12 - Completed 38-01 plan execution
+Plan: 02 (completed)
+Status: Plan 38-02 je dokonceny, phase pokracuje planem 38-03.
+Last activity: 2026-03-12 - Completed 38-02 plan execution
 
-Progress: [██████████] 100%
+Progress: [██████████] 97%
 
 ---
 
@@ -116,6 +116,9 @@ Progress: [██████████] 100%
 - [Phase 38]: Batch window uzamcena na 120ms pres PROJECT_WATCHER_BATCH_WINDOW_MS.
 - [Phase 38]: Overflow fallback vraci pouze overflow signal bez granularniho replaye eventu.
 - [Phase 38]: Kolize eventu sjednoceny deterministicky s prioritou Removed.
+- [Phase 38]: Project watcher batch se v background vrstve znovu normalizuje (dedupe+merge) pred apply krokem.
+- [Phase 38]: Overflow branch i bezny branch sdili one-shot helper, aby v jednom poll cyklu nevznikl reload storm.
+- [Phase 38]: Po disconnectu se project watcher polling vypne a uzivatel dostane jeden viditelny toast.
 
 ### Roadmap Evolution
 

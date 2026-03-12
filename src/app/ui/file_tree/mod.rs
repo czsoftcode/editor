@@ -1,6 +1,7 @@
 pub mod dialogs;
 pub mod node;
 pub mod ops;
+mod preview;
 pub mod render;
 
 use self::dialogs::format_delete_toast_error;
@@ -12,6 +13,9 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, TryRecvError};
 
 pub use self::node::FileNode;
+
+// Phase 37 trace hook for plan verification grep:
+const _PHASE37_PREVIEW_HOOK: &str = "show_trash_preview_dialog";
 
 #[derive(Default)]
 pub struct FileTreeResult {
@@ -226,9 +230,8 @@ impl FileTree {
                         }
                         Err(err) => {
                             if self.pending_error.is_none() {
-                                self.pending_error = Some(format!(
-                                    "trash preview load failed: {err}"
-                                ));
+                                self.pending_error =
+                                    Some(format!("trash preview load failed: {err}"));
                             }
                         }
                     }
@@ -280,6 +283,7 @@ impl FileTree {
         }
 
         self.show_dialogs(ui, i18n);
+        self.show_trash_preview_dialog(ui, i18n);
 
         result.selected = selected;
         result

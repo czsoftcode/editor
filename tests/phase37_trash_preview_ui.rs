@@ -48,28 +48,34 @@ fn phase37_open_trash_preview_from_command() {
 
 #[test]
 fn phase37_preview_filtering() {
-    let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
-        .expect("failed to read file tree dialogs");
+    let preview = fs::read_to_string("src/app/ui/file_tree/preview.rs")
+        .expect("failed to read file tree preview module");
+    let file_tree_mod =
+        fs::read_to_string("src/app/ui/file_tree/mod.rs").expect("failed to read file tree module");
 
     assert!(
-        dialogs.contains("show_trash_preview_dialog"),
+        preview.contains("show_trash_preview_dialog"),
         "trash preview modal function must exist"
     );
     assert!(
-        dialogs.contains("self.trash_preview_filter.to_ascii_lowercase()"),
+        file_tree_mod.contains("show_trash_preview_dialog"),
+        "phase 37 verification hook must retain show_trash_preview_dialog symbol"
+    );
+    assert!(
+        preview.contains("self.trash_preview_filter.to_ascii_lowercase()"),
         "preview modal must filter list by normalized text query"
     );
     assert!(
-        dialogs.contains("file-tree-trash-preview-filter")
-            && dialogs.contains("file-tree-trash-preview-no-results"),
+        preview.contains("file-tree-trash-preview-filter")
+            && preview.contains("file-tree-trash-preview-no-results"),
         "preview modal must surface filter input and empty-state copy"
     );
 }
 
 #[test]
 fn phase37_restore_job_result_to_pending() {
-    let file_tree_mod = fs::read_to_string("src/app/ui/file_tree/mod.rs")
-        .expect("failed to read file tree module");
+    let file_tree_mod =
+        fs::read_to_string("src/app/ui/file_tree/mod.rs").expect("failed to read file tree module");
 
     assert!(
         file_tree_mod.contains("restore_rx: Option<mpsc::Receiver<RestoreJobResult>>"),
@@ -88,11 +94,13 @@ fn phase37_restore_job_result_to_pending() {
 
 #[test]
 fn phase37_conflict_routes_to_modal() {
+    let preview = fs::read_to_string("src/app/ui/file_tree/preview.rs")
+        .expect("failed to read file tree preview module");
     let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
         .expect("failed to read file tree dialogs");
 
     assert!(
-        dialogs.contains("RestoreJobResult::Conflict(selected_path)"),
+        preview.contains("RestoreJobResult::Conflict(selected_path)"),
         "restore conflict must route into explicit conflict result"
     );
     assert!(
@@ -117,5 +125,22 @@ fn phase37_conflict_has_no_overwrite_action() {
     assert!(
         !dialogs.contains("replace existing") && !dialogs.contains("force restore"),
         "conflict modal must not offer overwrite path"
+    );
+}
+
+#[test]
+fn phase37_trash_preview_ui() {
+    let file_tree_mod =
+        fs::read_to_string("src/app/ui/file_tree/mod.rs").expect("failed to read file tree module");
+    let preview = fs::read_to_string("src/app/ui/file_tree/preview.rs")
+        .expect("failed to read file tree preview module");
+    let dialogs = fs::read_to_string("src/app/ui/file_tree/dialogs.rs")
+        .expect("failed to read file tree dialogs module");
+
+    assert!(
+        file_tree_mod.contains("request_open_trash_preview")
+            && preview.contains("show_trash_preview_dialog")
+            && dialogs.contains("show_restore_conflict_dialog"),
+        "phase37 ui flow must keep preview open trigger, preview modal, and conflict modal hooks"
     );
 }

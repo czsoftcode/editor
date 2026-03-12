@@ -1,17 +1,67 @@
 ---
 phase: 38
 slug: watcher-stability-verification
-status: draft
-nyquist_compliant: false
+status: ready
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-03-12
 ---
 
-# Phase 38 — Validation Strategy
+# Phase 38 - Validation Strategy
 
-> Per-phase validation contract for feedback sampling during execution.
+> Nyquist-ready validation contract pro RELIAB-03 (watcher stability + final quality gate evidence).
 
 ---
+
+## Requirement Contract
+
+| Requirement | Scope | Signal | PASS | FAIL | Source Evidence |
+|-------------|-------|--------|------|------|-----------------|
+| RELIAB-03 | Watcher merge/dedupe policy | `phase38_dedupe_path_kind`, `phase38_remove_precedence` | Oba testy projdou a potvrdi dedupe podle `path+kind` + remove-priority merge | Libovolny test failne nebo chybi v focused runu | `tests/phase38_watcher_stability.rs`, `cargo test phase38 -- --nocapture` |
+| RELIAB-03 | Overflow fallback | `phase38_overflow_sets_fallback`, `phase38_overflow_triggers_single_reload` | Unit i orchestration test potvrdi overflow signal + one-shot reload guard | Overflow branch neexistuje, nebo test failne | `tests/phase38_watcher_stability.rs`, `tests/phase38_background_orchestration.rs` |
+| RELIAB-03 | Anti reload storm + orchestration stabilita | `phase38_batch_applies_deduped_changes` + single reload helper hook | Background vrstva aplikuje dedupe helper a overflow branch vola one-shot helper | Chybi helper hook nebo branch failne | `src/app/ui/background.rs`, focused phase38 test run |
+| RELIAB-03 | Final release gate | `cargo check` + `./check.sh` | Obe command-level gate kontroly jsou explicitne zaznamenane jako PASS ve verification reportu | Jedna z gate kontrol failne nebo chybi evidence | `.planning/phases/38-watcher-stability-verification/38-VERIFICATION.md` |
+
+## Nyquist Validation Matrix
+
+| Validation Item | Layer | Automated/Manual | PASS/FAIL Criteria | Evidence Source |
+|-----------------|-------|------------------|--------------------|-----------------|
+| Merge/dedupe deterministic final state | Unit | Automated | PASS: `phase38_dedupe_path_kind` PASS, FAIL: assert mismatch | `tests/phase38_watcher_stability.rs` |
+| Remove precedence across colliding events | Unit | Automated | PASS: `phase38_remove_precedence` PASS, FAIL: remove nezvitezil | `tests/phase38_watcher_stability.rs` |
+| Overflow fallback strips granular replay | Unit | Automated | PASS: `phase38_overflow_sets_fallback` PASS, FAIL: non-empty changes pri overflow | `tests/phase38_watcher_stability.rs` |
+| Overflow branch triggers one reload only | Orchestration | Automated | PASS: `phase38_overflow_triggers_single_reload` PASS, FAIL: chybi one-shot hook | `tests/phase38_background_orchestration.rs` |
+| Batch applies deduped changes only | Orchestration | Automated | PASS: `phase38_batch_applies_deduped_changes` PASS, FAIL: chybi dedupe apply hook | `tests/phase38_background_orchestration.rs` |
+| Visible anti-storm UX behavior | Manual | Manual | PASS: zadny reload/toast storm po burstu eventu, FAIL: opakovany refresh loop | Manual scenario + verification report |
+| Final gate integrity | Build/QA | Automated | PASS: `cargo check` + `./check.sh` oba PASS, FAIL: libovolny gate fail | Verification report command evidence |
+
+## Test Design
+
+1. Focused smoke: `RUSTC_WRAPPER= cargo test phase38 -- --nocapture`.
+2. Unit assertions:
+`phase38_dedupe_path_kind`, `phase38_remove_precedence`, `phase38_overflow_sets_fallback`.
+3. Orchestration assertions:
+`phase38_batch_applies_deduped_changes`, `phase38_overflow_triggers_single_reload`.
+4. Stabilita naming/hook kontraktu:
+test names musi korespondovat s RELIAB-03 mapou ve verification artefaktu.
+5. Final gate: `RUSTC_WRAPPER= cargo check` a `RUSTC_WRAPPER= ./check.sh`.
+
+PASS policy: vsechny focused testy + obe gate commandy PASS.
+FAIL policy: jakykoliv fail prerusuje sign-off a reportuje se do `38-VERIFICATION.md`.
+
+## Manual Verification Scenario
+
+| Scenario | Steps | PASS | FAIL | Evidence |
+|----------|-------|------|------|----------|
+| Anti reload storm pri burstu file eventu | 1) Otevri projekt s watcherem. 2) Vygeneruj burst create/modify/remove zmen. 3) Sleduj refresh chovani stromu. | Max jeden reload pulse na overflow, bez opakovaneho toast loopu a bez zamrznuti UI | Opakovane reloady/toasty nebo viditelne sekani UI | Poznamka v `38-VERIFICATION.md` manual section |
+| Remove-priority consistency | 1) Vytvor soubor. 2) Hned uprav a smaz. 3) Sleduj finalni stav ve stromu. | Finalni stav je odstraneni bez navratu phantom tabu | Phantom navrat nebo stale create/modify stav | Poznamka v `38-VERIFICATION.md` manual section |
+
+## Gate Execution Plan
+
+| Gate | Command | Expected Result | Evidence Sink |
+|------|---------|-----------------|---------------|
+| Focused RELIAB-03 gate | `RUSTC_WRAPPER= cargo test phase38 -- --nocapture` | PASS | `38-VERIFICATION.md` command log |
+| Compiler gate | `RUSTC_WRAPPER= cargo check` | PASS | `38-VERIFICATION.md` command log |
+| Full quality gate | `RUSTC_WRAPPER= ./check.sh` | PASS | `38-VERIFICATION.md` command log |
 
 ## Test Infrastructure
 
@@ -19,54 +69,19 @@ created: 2026-03-12
 |----------|-------|
 | **Framework** | Rust test harness (`cargo test`) |
 | **Config file** | none — standard Cargo workflow |
-| **Quick run command** | `cargo test phase38 -- --nocapture` |
-| **Full suite command** | `./check.sh` |
+| **Quick run command** | `RUSTC_WRAPPER= cargo test phase38 -- --nocapture` |
+| **Full suite command** | `RUSTC_WRAPPER= ./check.sh` |
 | **Estimated runtime** | ~120 seconds |
-
----
-
-## Sampling Rate
-
-- **After every task commit:** Run `cargo test phase38 -- --nocapture`
-- **After every plan wave:** Run `./check.sh`
-- **Before `$gsd-verify-work`:** Full suite must be green
-- **Max feedback latency:** 180 seconds
-
----
-
-## Per-Task Verification Map
-
-| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 38-01-01 | 01 | 1 | RELIAB-03 | unit/integration | `cargo test phase38 -- --nocapture` | ✅ | ⬜ pending |
-
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-
----
-
-## Wave 0 Requirements
-
-- [ ] `tests/phase38_watcher_stability.rs` — skeleton test matrix pro RELIAB-03
-- [ ] `tests/phase38_watcher_stability.rs` — overflow fallback contract test
-- [ ] Existing infrastructure covers framework setup (žádná instalace navíc)
-
----
-
-## Manual-Only Verifications
-
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| Delete -> restore bez viditelného UI lagu při burstu eventů | RELIAB-03 | "No visible lag" je UX metrika závislá na interakci | Proveď sekvenci delete -> immediate restore přes Trash Preview, sleduj file tree refresh bez freeze/blink loop |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 180s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] Requirement Contract exists with measurable PASS/FAIL and source evidence
+- [x] Nyquist Validation Matrix contains unit + orchestration + manual + gate signals
+- [x] Test Design aligns hooks with RELIAB-03 map
+- [x] Manual Verification Scenario captures non-automated UX checks
+- [x] Gate Execution Plan defines focused + compiler + full quality gates
+- [x] `nyquist_compliant: true` set in frontmatter after completeness check
 
-**Approval:** pending
+**Approval:** ready for execution evidence capture

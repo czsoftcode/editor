@@ -12,7 +12,7 @@
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
 | 35 | 3/3 | Complete    | 2026-03-11 | 3 |
-| 36 | 1/3 | In Progress|  | 4 |
+| 36 | 2/3 | In Progress|  | 4 |
 | 37 | Trash Preview + Restore MVP | Dodat nahled trash obsahu a restore workflow s conflict policy | TRASHUI-01, RESTORE-01, RESTORE-02, RESTORE-03 | 4 |
 | 38 | Watcher Stability + Verification | Stabilizovat watcher eventy po delete/restore a uzavrit quality gate | RELIAB-03 | 3 |
 

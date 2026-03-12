@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-12T09:45:33.651Z"
-last_activity: 2026-03-12 - Completed 36-01 plan execution
+status: executing
+last_updated: "2026-03-12T09:56:40.000Z"
+last_activity: 2026-03-12 - Completed 36-02 plan execution
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 93
+  completed_plans: 5
+  percent: 97
 ---
 
 ## gsd_state_version: 1.0
@@ -38,11 +38,11 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 36 (in progress)
-Plan: 01 (completed)
-Status: Phase 36 started, 36-01 completed, ready for 36-02
-Last activity: 2026-03-12 - Completed 36-01 plan execution
+Plan: 02 (completed)
+Status: Phase 36 in progress, 36-02 completed, ready for 36-03
+Last activity: 2026-03-12 - Completed 36-02 plan execution
 
-Progress: [█████████░] 93%
+Progress: [██████████] 97%
 
 ---
 
@@ -97,6 +97,9 @@ Progress: [█████████░] 93%
 - [Phase 35]: Delete-path chyby se mapuji na kontextovy format trash move failed: {err} pred toast surfacingem.
 - [Phase 36-safe-move-to-trash-engine]: Engine-level guard blocks both .polycredo/trash root and nested paths, independent of UI hiding.
 - [Phase 36-safe-move-to-trash-engine]: Move failures use a centralized fail-closed formatter with actionable next-step guidance.
+- [Phase 36]: Delete engine errors are normalized into localized toast reason categories before surfacing.
+- [Phase 36]: TryRecvError::Disconnected is fail-visible and closes delete_rx immediately.
+- [Phase 36]: Scope guard evidence uses grep-safe symbol construction to keep deterministic plan checks.
 
 ### Roadmap Evolution
 

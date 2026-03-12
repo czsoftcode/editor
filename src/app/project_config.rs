@@ -17,6 +17,10 @@ pub(crate) fn trash_dir_path(project_root: &Path) -> PathBuf {
     project_config_dir(project_root).join(TRASH_DIR)
 }
 
+pub(crate) fn project_trash_dir(project_root: &Path) -> PathBuf {
+    trash_dir_path(project_root)
+}
+
 pub(crate) fn load_profiles(project_root: &Path) -> ProjectProfiles {
     let path = profiles_path(project_root);
     if let Ok(content) = std::fs::read_to_string(&path) {

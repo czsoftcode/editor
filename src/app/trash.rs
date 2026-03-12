@@ -1,4 +1,4 @@
-use crate::app::project_config::trash_dir_path;
+use crate::app::project_config::project_trash_dir;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -63,7 +63,7 @@ fn entry_kind(path: &Path) -> Result<TrashEntryKind, TrashError> {
 }
 
 pub fn ensure_trash_dir(project_root: &Path) -> Result<PathBuf, TrashError> {
-    let trash_dir = trash_dir_path(project_root);
+    let trash_dir = project_trash_dir(project_root);
     if trash_dir.exists() && !trash_dir.is_dir() {
         return Err(TrashError::new(
             "konflikt cesty: `.polycredo/trash` existuje jako soubor; prejmenujte nebo odstranite tento soubor a zkuste akci znovu",
@@ -77,7 +77,7 @@ pub fn ensure_trash_dir(project_root: &Path) -> Result<PathBuf, TrashError> {
     Ok(trash_dir)
 }
 
-fn build_unique_destination(
+fn resolve_trash_destination(
     trash_root: &Path,
     original_relative_path: &Path,
     deleted_at: u128,
@@ -109,7 +109,7 @@ fn build_unique_destination(
 }
 
 fn is_inside_trash_dir(project_root: &Path, candidate_abs: &Path) -> bool {
-    let trash_abs = trash_dir_path(project_root);
+    let trash_abs = project_trash_dir(project_root);
     candidate_abs == trash_abs || candidate_abs.starts_with(&trash_abs)
 }
 
@@ -142,7 +142,7 @@ pub fn move_path_to_trash(
 
     let trash_root = ensure_trash_dir(&project_abs)?;
     let (trash_name, destination_abs) =
-        build_unique_destination(&trash_root, &relative_path, deleted_at)?;
+        resolve_trash_destination(&trash_root, &relative_path, deleted_at)?;
     if let Some(parent) = destination_abs.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| TrashError::new(format!("nelze pripravit cilovy trash adresar: {e}")))?;
@@ -154,7 +154,9 @@ pub fn move_path_to_trash(
         } else {
             "presun do trash selhal"
         };
-        TrashError::new(format!("{reason}: {e}; puvodni polozka zustava beze zmeny"))
+        TrashError::new(format!(
+            "{reason}: {e}; puvodni polozka zustava beze zmeny, zkontrolujte prava a zkuste akci znovu"
+        ))
     })?;
 
     let meta = TrashEntryMeta {

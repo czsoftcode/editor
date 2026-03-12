@@ -291,6 +291,13 @@ file-tree-create-dir-error = Невозможно создать папку: { $
 file-tree-create-file-error = Невозможно создать файл: { $reason }
 file-tree-rename-error = Невозможно переименовать: { $reason }
 file-tree-delete-error = Невозможно удалить: { $reason }
+file-tree-delete-move-failed-reason = Не удалось переместить в корзину: { $reason }
+file-tree-delete-move-failed-guidance = Проверьте права и блокировки файлов, затем повторите попытку.
+file-tree-delete-move-failed-reason-permission = недостаточно прав
+file-tree-delete-move-failed-reason-locked = файл или папка сейчас используется
+file-tree-delete-move-failed-reason-missing = элемент больше не существует в проекте
+file-tree-delete-move-failed-reason-internal-trash = внутренний каталог корзины нельзя удалять
+file-tree-delete-move-failed-reason-generic = неожиданная ошибка ввода-вывода
 
 ## Диалог внешнего конфликта
 conflict-title = Файл изменён извне

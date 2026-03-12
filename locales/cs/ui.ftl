@@ -281,6 +281,13 @@ file-tree-create-dir-error = Nelze vytvořit adresář: { $reason }
 file-tree-create-file-error = Nelze vytvořit soubor: { $reason }
 file-tree-rename-error = Nelze přejmenovat: { $reason }
 file-tree-delete-error = Nelze smazat: { $reason }
+file-tree-delete-move-failed-reason = Přesun do koše selhal: { $reason }
+file-tree-delete-move-failed-guidance = Zkontrolujte oprávnění a zamknuté soubory, pak akci zkuste znovu.
+file-tree-delete-move-failed-reason-permission = nedostatečná oprávnění
+file-tree-delete-move-failed-reason-locked = soubor nebo adresář je právě používán
+file-tree-delete-move-failed-reason-missing = položka už v projektu neexistuje
+file-tree-delete-move-failed-reason-internal-trash = interní adresář koše nelze mazat
+file-tree-delete-move-failed-reason-generic = neočekávaná I/O chyba
 
 ## Dialog externího konfliktu
 conflict-title = Soubor změněn externě

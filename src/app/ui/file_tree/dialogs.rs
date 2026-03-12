@@ -4,6 +4,40 @@ use crate::app::ui::file_tree::{DeleteJobResult, FileTree};
 use crate::app::ui::widgets::modal::{ModalResult, show_modal};
 use crate::app::validation::is_safe_filename;
 
+fn map_delete_error_reason_key(engine_error: &str) -> &'static str {
+    let normalized = engine_error.to_ascii_lowercase();
+    if normalized.contains("interni `.polycredo/trash`") {
+        "file-tree-delete-move-failed-reason-internal-trash"
+    } else if normalized.contains("permission denied")
+        || normalized.contains("opravnen")
+        || normalized.contains("prava")
+    {
+        "file-tree-delete-move-failed-reason-permission"
+    } else if normalized.contains("device or resource busy")
+        || normalized.contains("used by another process")
+        || normalized.contains("in use")
+    {
+        "file-tree-delete-move-failed-reason-locked"
+    } else if normalized.contains("no such file")
+        || normalized.contains("not found")
+        || normalized.contains("uz neexistuje")
+    {
+        "file-tree-delete-move-failed-reason-missing"
+    } else {
+        "file-tree-delete-move-failed-reason-generic"
+    }
+}
+
+pub(crate) fn format_delete_toast_error(i18n: &crate::i18n::I18n, engine_error: &str) -> String {
+    let mut args = fluent_bundle::FluentArgs::new();
+    args.set("reason", i18n.get(map_delete_error_reason_key(engine_error)));
+    let reason = i18n.get_args("file-tree-delete-move-failed-reason", &args);
+    format!(
+        "{reason} {}",
+        i18n.get("file-tree-delete-move-failed-guidance")
+    )
+}
+
 impl FileTree {
     pub fn show_dialogs(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) {
         self.show_new_item_dialog(ui, i18n);
@@ -184,7 +218,10 @@ impl FileTree {
                     self.delete_rx =
                         Some(spawn_task(move || match move_path_to_trash(&root, &path) {
                             Ok(outcome) => DeleteJobResult::Deleted(outcome.moved_from),
-                            Err(err) => DeleteJobResult::Error(format!("trash move failed: {err}")),
+                            Err(err) => {
+                                let detail = format!("trash move failed: {err}");
+                                DeleteJobResult::Error(detail)
+                            }
                         }));
                 }
             }

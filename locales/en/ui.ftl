@@ -273,6 +273,13 @@ file-tree-create-dir-error = Cannot create folder: { $reason }
 file-tree-create-file-error = Cannot create file: { $reason }
 file-tree-rename-error = Cannot rename: { $reason }
 file-tree-delete-error = Cannot delete: { $reason }
+file-tree-delete-move-failed-reason = Move to trash failed: { $reason }
+file-tree-delete-move-failed-guidance = Check permissions and file locks, then try again.
+file-tree-delete-move-failed-reason-permission = insufficient permissions
+file-tree-delete-move-failed-reason-locked = file or folder is currently in use
+file-tree-delete-move-failed-reason-missing = item no longer exists in the project
+file-tree-delete-move-failed-reason-internal-trash = internal trash directory cannot be deleted
+file-tree-delete-move-failed-reason-generic = unexpected I/O error
 
 ## External conflict dialog
 conflict-title = File Changed Externally

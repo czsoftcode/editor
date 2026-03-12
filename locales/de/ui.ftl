@@ -274,6 +274,13 @@ file-tree-create-dir-error = Ordner kann nicht erstellt werden: { $reason }
 file-tree-create-file-error = Datei kann nicht erstellt werden: { $reason }
 file-tree-rename-error = Umbenennen nicht möglich: { $reason }
 file-tree-delete-error = Löschen nicht möglich: { $reason }
+file-tree-delete-move-failed-reason = Verschieben in den Papierkorb fehlgeschlagen: { $reason }
+file-tree-delete-move-failed-guidance = Prüfen Sie Berechtigungen und Dateisperren und versuchen Sie es erneut.
+file-tree-delete-move-failed-reason-permission = unzureichende Berechtigungen
+file-tree-delete-move-failed-reason-locked = Datei oder Ordner wird gerade verwendet
+file-tree-delete-move-failed-reason-missing = Element existiert im Projekt nicht mehr
+file-tree-delete-move-failed-reason-internal-trash = internes Papierkorbverzeichnis kann nicht gelöscht werden
+file-tree-delete-move-failed-reason-generic = unerwarteter I/O-Fehler
 
 ## Dialog für externen Konflikt
 conflict-title = Datei extern geändert

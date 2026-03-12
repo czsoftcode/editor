@@ -273,6 +273,13 @@ file-tree-create-dir-error = Nemožno vytvoriť priečinok: { $reason }
 file-tree-create-file-error = Nemožno vytvoriť súbor: { $reason }
 file-tree-rename-error = Nemožno premenovať: { $reason }
 file-tree-delete-error = Nemožno odstrániť: { $reason }
+file-tree-delete-move-failed-reason = Presun do koša zlyhal: { $reason }
+file-tree-delete-move-failed-guidance = Skontrolujte oprávnenia a zamknuté súbory, potom akciu skúste znova.
+file-tree-delete-move-failed-reason-permission = nedostatočné oprávnenia
+file-tree-delete-move-failed-reason-locked = súbor alebo priečinok sa práve používa
+file-tree-delete-move-failed-reason-missing = položka už v projekte neexistuje
+file-tree-delete-move-failed-reason-internal-trash = interný adresár koša nemožno odstrániť
+file-tree-delete-move-failed-reason-generic = neočakávaná I/O chyba
 
 ## Dialóg externého konfliktu
 conflict-title = Súbor zmenený externe

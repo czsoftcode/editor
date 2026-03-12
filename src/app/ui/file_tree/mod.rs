@@ -3,6 +3,7 @@ pub mod node;
 pub mod ops;
 pub mod render;
 
+use self::dialogs::format_delete_toast_error;
 use crate::app::ui::git_status::GitVisualStatus;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -109,7 +110,7 @@ impl FileTree {
                     self.needs_reload = true;
                 }
                 DeleteJobResult::Error(err) => {
-                    self.pending_error = Some(err);
+                    self.pending_error = Some(format_delete_toast_error(i18n, &err));
                 }
             }
             self.delete_rx = None;

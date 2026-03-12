@@ -120,6 +120,7 @@ Progress: [██████████] 100%
 - V `Sestavit > Upravit` pridat online nahled zmen zapisovanych do `.polycredo/profiles.toml`
 - Zprovoznit `.polycredo/trash` a presouvat tam smazane soubory
 - Nabidnout otevirani projektu v aktualnim okne nebo v novem
+- Opravit ztratu obsahu pri kopirovani souboru jinam ve stromu
 
 ### Blockers/Concerns
 

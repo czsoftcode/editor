@@ -1,3 +1,10 @@
+---
+phase: 36-safe-move-to-trash-engine
+verified: 2026-03-12T11:00:00Z
+status: passed
+score: 4/4 must-haves verified
+---
+
 # Phase 36 Verification Report
 
 Datum: 2026-03-12
@@ -41,4 +48,3 @@ Scope: safe-move-to-trash-engine final quality gate evidence
 5. Ověř, že při chybě zůstávají data na původním místě (fail-closed).
 
 Výsledek manuálního ověření: PASS (toast je čitelný, tok zůstává responsivní, fail-closed zachován).
-

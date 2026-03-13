@@ -86,3 +86,4 @@
 - "Editor.ui() podmíněné na history_view.is_none() — editor se kompletně nekreslí v history mode, ne jen overlay přes"
 - "Diff cache invalidace přes diff_for_index != selected_index — jednoduchý a efektivní pattern bez generace/verze countera"
 - "on_hover_text() na navigačních šipkách voláno vždy (ne jen při hovered) — egui ho zobrazí jen při hoveru, zjednodušuje kód"
+- "Výchozí větev je develop, ne main. Slice branche se vytvářejí z develop a mergují zpět do develop. Main se používá jen pro release tagy."

@@ -1,3 +1,11 @@
+## [1.4.3-dev] - 2026-03-13
+
+### Fixed
+- **Status bar layout**: Všechny prvky status baru jsou nyní na jednom řádku. Dříve se způsob ukládání a git branch překrývaly (dva řádky vlevo) a sponzoring s kódováním se překrývaly vpravo. Pořadí: Způsob ukládání | ⎇ branch | cesta k souboru | … | Řádek X, Sloupec Y | Typ souboru | UTF-8 | ❤️.
+
+### Changed
+- **Status bar architektura**: Odstraněn vnořený `TopBottomPanel::bottom` uvnitř `editor.status_bar()`, který zabíral celou šířku a vytlačoval ostatní prvky na další řádek. Všechny prvky (save mode, branch, cesta, cursor, encoding, heart) se nyní renderují v jednom horizontálním layoutu.
+
 ## [1.4.1-dev] - 2026-03-13
 
 ### Added

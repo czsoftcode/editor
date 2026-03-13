@@ -236,154 +236,190 @@ impl Editor {
         }
     }
 
+    /// Renderuje obsah status baru do předaného horizontálního `ui`.
+    /// Globální prvky (save mode, branch, heart) se zobrazují vždy,
+    /// per-soubor prvky (cesta, cursor, typ, encoding, diagnostiky) jen s aktivním tabem.
+    /// Vrací `true` pokud uživatel klikl na support tlačítko.
     pub fn status_bar(
         &self,
         ui: &mut egui::Ui,
         git_branch: Option<&str>,
+        save_mode_label: Option<&str>,
+        is_indexing: bool,
         i18n: &crate::i18n::I18n,
         lsp_client: Option<&crate::app::lsp::LspClient>,
-    ) {
-        let tab = match self.active() {
-            Some(t) => t,
-            None => return,
-        };
-        let visuals = ui.visuals();
-        // Theme-aware status bar palette closes UAT gap for low contrast in light mode.
-        let primary_color = visuals.text_color();
-        let secondary_color = visuals.weak_text_color();
-        let (diag_error_color, diag_warning_color, status_warn_color, status_ok_color) =
-            if visuals.dark_mode {
-                (
-                    egui::Color32::from_rgb(240, 100, 100),
-                    egui::Color32::from_rgb(250, 180, 80),
-                    egui::Color32::from_rgb(255, 200, 120),
-                    egui::Color32::from_rgb(170, 230, 185),
-                )
-            } else {
-                (
-                    egui::Color32::from_rgb(170, 45, 45),
-                    egui::Color32::from_rgb(155, 95, 20),
-                    egui::Color32::from_rgb(155, 95, 20),
-                    egui::Color32::from_rgb(25, 120, 70),
-                )
-            };
+    ) -> bool {
+        let dark_mode = ui.visuals().dark_mode;
+        let primary_color = ui.visuals().text_color();
+        let secondary_color = ui.visuals().weak_text_color();
 
-        let cursor_text = tab.last_cursor_range.map(|cr| {
-            let rc = cr.primary.rcursor;
-            format!("{}:{}", rc.row + 1, rc.column + 1)
-        });
+        let mut support_clicked = false;
 
-        let file_type = ext_to_file_type(&self.extension());
+        // ── Levá strana (globální): save mode → branch ──
+        ui.add_space(8.0);
 
-        // Diagnostic counts for active file
-        let (error_count, warning_count) = 'diag: {
-            let Some(lsp) = lsp_client else {
-                break 'diag (0, 0);
-            };
-            let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(&tab.path) else {
-                break 'diag (0, 0);
-            };
-            let diag_map = lsp.diagnostics().lock().expect("lock diagnostics");
-            let Some(diags) = diag_map.get(&uri) else {
-                break 'diag (0, 0);
-            };
-            let errors = diags
-                .iter()
-                .filter(|d| d.severity == Some(async_lsp::lsp_types::DiagnosticSeverity::ERROR))
-                .count();
-            let warnings = diags
-                .iter()
-                .filter(|d| d.severity == Some(async_lsp::lsp_types::DiagnosticSeverity::WARNING))
-                .count();
-            (errors, warnings)
-        };
+        if let Some(mode_label) = save_mode_label {
+            ui.label(
+                egui::RichText::new(mode_label)
+                    .small()
+                    .color(secondary_color),
+            );
+            ui.separator();
+        }
 
-        egui::TopBottomPanel::bottom("status_bar")
-            .resizable(false)
-            .default_height(24.0)
-            .show_inside(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.add_space(8.0);
+        if let Some(branch) = git_branch {
+            ui.label(egui::RichText::new(format!(" {}", branch)).color(secondary_color));
+            ui.add_space(8.0);
+        }
 
-                    // Left side: Branch & Path
-                    if let Some(branch) = git_branch {
-                        ui.label(
-                            egui::RichText::new(format!(" {}", branch)).color(secondary_color),
-                        );
-                        ui.add_space(8.0);
-                    }
+        // ── Per-soubor prvky (jen s aktivním tabem) ──
+        if let Some(tab) = self.active() {
+            let (diag_error_color, diag_warning_color, status_warn_color, status_ok_color) =
+                if dark_mode {
+                    (
+                        egui::Color32::from_rgb(240, 100, 100),
+                        egui::Color32::from_rgb(250, 180, 80),
+                        egui::Color32::from_rgb(255, 200, 120),
+                        egui::Color32::from_rgb(170, 230, 185),
+                    )
+                } else {
+                    (
+                        egui::Color32::from_rgb(170, 45, 45),
+                        egui::Color32::from_rgb(155, 95, 20),
+                        egui::Color32::from_rgb(155, 95, 20),
+                        egui::Color32::from_rgb(25, 120, 70),
+                    )
+                };
 
-                    ui.label(egui::RichText::new(tab.path.to_string_lossy()).color(primary_color));
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.add_space(8.0);
-
-                        // Right side: Encoding, Type, Cursor
-                        ui.label(
-                            egui::RichText::new(i18n.get("statusbar-encoding"))
-                                .color(secondary_color),
-                        );
-                        ui.add_space(12.0);
-
-                        ui.label(egui::RichText::new(file_type).color(secondary_color));
-                        ui.add_space(12.0);
-
-                        if let Some(pos) = cursor_text {
-                            let mut args = fluent_bundle::FluentArgs::new();
-                            let parts: Vec<&str> = pos.split(':').collect();
-                            args.set("line", parts[0]);
-                            args.set("col", parts[1]);
-                            ui.label(
-                                egui::RichText::new(i18n.get_args("statusbar-line-col", &args))
-                                    .color(primary_color),
-                            );
-                        }
-
-                        // Diagnostics
-                        if error_count > 0 {
-                            ui.add_space(12.0);
-                            ui.label(
-                                egui::RichText::new(format!("✕ {}", error_count))
-                                    .color(diag_error_color),
-                            );
-                        }
-                        if warning_count > 0 {
-                            ui.add_space(8.0);
-                            ui.label(
-                                egui::RichText::new(format!("⚠ {}", warning_count))
-                                    .color(diag_warning_color),
-                            );
-                        }
-
-                        // LSP status
-                        if let Some(lsp) = lsp_client
-                            && !lsp.is_initialized()
-                        {
-                            ui.add_space(12.0);
-                            ui.label(
-                                egui::RichText::new(i18n.get("statusbar-lsp-initializing"))
-                                    .color(status_warn_color),
-                            );
-                        }
-
-                        // Save status
-                        if let Some(status) = save_status_presentation(&tab.save_status) {
-                            ui.add_space(12.0);
-                            let color = match status.tone {
-                                SaveStatusTone::Warning => status_warn_color,
-                                SaveStatusTone::Success => status_ok_color,
-                                SaveStatusTone::Neutral => secondary_color,
-                            };
-                            let text = egui::RichText::new(i18n.get(status.key)).color(color);
-                            ui.label(if status.is_primary {
-                                text.strong()
-                            } else {
-                                text
-                            });
-                        }
-                    });
-                });
+            let cursor_text = tab.last_cursor_range.map(|cr| {
+                let rc = cr.primary.rcursor;
+                format!("{}:{}", rc.row + 1, rc.column + 1)
             });
+
+            let file_type = ext_to_file_type(&self.extension());
+
+            let (error_count, warning_count) = 'diag: {
+                let Some(lsp) = lsp_client else {
+                    break 'diag (0, 0);
+                };
+                let Ok(uri) = async_lsp::lsp_types::Url::from_file_path(&tab.path) else {
+                    break 'diag (0, 0);
+                };
+                let diag_map = lsp.diagnostics().lock().expect("lock diagnostics");
+                let Some(diags) = diag_map.get(&uri) else {
+                    break 'diag (0, 0);
+                };
+                let errors = diags
+                    .iter()
+                    .filter(|d| d.severity == Some(async_lsp::lsp_types::DiagnosticSeverity::ERROR))
+                    .count();
+                let warnings = diags
+                    .iter()
+                    .filter(|d| {
+                        d.severity == Some(async_lsp::lsp_types::DiagnosticSeverity::WARNING)
+                    })
+                    .count();
+                (errors, warnings)
+            };
+
+            // Cesta k souboru (levá strana, per-soubor)
+            ui.label(egui::RichText::new(tab.path.to_string_lossy()).color(primary_color));
+
+            // Pravá strana: ❤️ → encoding → typ → cursor → diagnostiky → LSP → save status → indexing
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.add_space(8.0);
+
+                let support_btn = ui
+                    .selectable_label(false, "❤️")
+                    .on_hover_text(i18n.get("menu-help-support"));
+                if support_btn.clicked() {
+                    support_clicked = true;
+                }
+
+                ui.separator();
+
+                ui.label(
+                    egui::RichText::new(i18n.get("statusbar-encoding")).color(secondary_color),
+                );
+                ui.add_space(12.0);
+
+                ui.label(egui::RichText::new(file_type).color(secondary_color));
+                ui.add_space(12.0);
+
+                if let Some(pos) = cursor_text {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    let parts: Vec<&str> = pos.split(':').collect();
+                    args.set("line", parts[0]);
+                    args.set("col", parts[1]);
+                    ui.label(
+                        egui::RichText::new(i18n.get_args("statusbar-line-col", &args))
+                            .color(primary_color),
+                    );
+                }
+
+                if error_count > 0 {
+                    ui.add_space(12.0);
+                    ui.label(
+                        egui::RichText::new(format!("✕ {}", error_count)).color(diag_error_color),
+                    );
+                }
+                if warning_count > 0 {
+                    ui.add_space(8.0);
+                    ui.label(
+                        egui::RichText::new(format!("⚠ {}", warning_count))
+                            .color(diag_warning_color),
+                    );
+                }
+
+                if let Some(lsp) = lsp_client
+                    && !lsp.is_initialized()
+                {
+                    ui.add_space(12.0);
+                    ui.label(
+                        egui::RichText::new(i18n.get("statusbar-lsp-initializing"))
+                            .color(status_warn_color),
+                    );
+                }
+
+                if let Some(status) = save_status_presentation(&tab.save_status) {
+                    ui.add_space(12.0);
+                    let color = match status.tone {
+                        SaveStatusTone::Warning => status_warn_color,
+                        SaveStatusTone::Success => status_ok_color,
+                        SaveStatusTone::Neutral => secondary_color,
+                    };
+                    let text = egui::RichText::new(i18n.get(status.key)).color(color);
+                    ui.label(if status.is_primary {
+                        text.strong()
+                    } else {
+                        text
+                    });
+                }
+
+                if is_indexing {
+                    ui.add_space(8.0);
+                    ui.spinner();
+                    ui.label(
+                        egui::RichText::new(i18n.get("semantic-indexing-status-bar"))
+                            .small()
+                            .color(egui::Color32::from_rgb(100, 200, 255)),
+                    );
+                }
+            });
+        } else {
+            // Žádný tab — jen heart vpravo
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.add_space(8.0);
+                let support_btn = ui
+                    .selectable_label(false, "❤️")
+                    .on_hover_text(i18n.get("menu-help-support"));
+                if support_btn.clicked() {
+                    support_clicked = true;
+                }
+            });
+        }
+
+        support_clicked
     }
 }
 

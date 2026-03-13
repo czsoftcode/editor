@@ -630,42 +630,27 @@ pub(crate) fn render_workspace(
         .show(ctx, |ui| {
             let runtime_save_mode = shared.lock().expect("lock").settings.save_mode.clone();
             let settings_draft_mode = ws.settings_draft.as_ref().map(|draft| &draft.save_mode);
+            let save_mode_label = i18n.get(status_bar_save_mode_key_for_runtime(
+                &runtime_save_mode,
+                settings_draft_mode,
+            ));
+            let is_indexing = ws
+                .semantic_index
+                .lock()
+                .map(|si| si.is_indexing.load(std::sync::atomic::Ordering::SeqCst))
+                .unwrap_or(false);
             ui.horizontal(|ui| {
-                ws.editor
-                    .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
-                ui.separator();
-                ui.label(
-                    egui::RichText::new(i18n.get(status_bar_save_mode_key_for_runtime(
-                        &runtime_save_mode,
-                        settings_draft_mode,
-                    )))
-                    .small(),
+                let support_clicked = ws.editor.status_bar(
+                    ui,
+                    ws.git_branch.as_deref(),
+                    Some(save_mode_label.as_ref()),
+                    is_indexing,
+                    i18n,
+                    ws.lsp_client.as_ref(),
                 );
-                let is_indexing = ws
-                    .semantic_index
-                    .lock()
-                    .map(|si| si.is_indexing.load(std::sync::atomic::Ordering::SeqCst))
-                    .unwrap_or(false);
-                if is_indexing {
-                    ui.separator();
-                    ui.spinner();
-                    ui.label(
-                        egui::RichText::new(i18n.get("semantic-indexing-status-bar"))
-                            .small()
-                            .color(egui::Color32::from_rgb(100, 200, 255)),
-                    );
+                if support_clicked {
+                    ws.show_support = true;
                 }
-
-                // Support Button (Heart)
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.add_space(8.0);
-                    let support_btn = ui
-                        .selectable_label(false, "❤️")
-                        .on_hover_text(i18n.get("menu-help-support"));
-                    if support_btn.clicked() {
-                        ws.show_support = true;
-                    }
-                });
             });
         });
     // --- 4. PANELS (Side & Bottom) ---

@@ -11,9 +11,9 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 ## Current State
 
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
-- **Milestone result:** delete workflow je fail-closed move-to-trash (`.polycredo/trash`) s preview + restore MVP a watcher anti-storm stabilizaci
-- **Quality status:** milestone audit `tech_debt` (requirements 11/11, phases 4/4, integration 4/4, flows 4/4, bez kritickych mezer)
-- **Primary artifacts:** `.planning/milestones/v1.3.1-ROADMAP.md`, `.planning/milestones/v1.3.1-REQUIREMENTS.md`, `.planning/milestones/v1.3.1-MILESTONE-AUDIT.md`
+- **Last completed milestone:** M001: Migration (2026-03-13) — theme systém, sandbox runtime, slash commands, GSD state engine
+- **Quality status:** `cargo check` čistý, testy zelené (1 předexistující selhání mimo scope)
+- **Primary artifacts:** `.gsd/milestones/M001/M001-SUMMARY.md`
 
 ## Requirements
 
@@ -43,8 +43,8 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 
 ## Milestone Sequence
 
-- M001: Migration (completing)
-- M002: Local History (queued)
+- ~~M001: Migration~~ ✓ (completed 2026-03-13)
+- M002: Local History (queued — next)
 
 ## Next Milestone Goals
 
@@ -55,10 +55,13 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 ## Context
 
 **Known tech debt:**
+- Test `phase35_delete_foundation_scope_guard_has_no_restore_foundation_symbols` selhává (hledá odstraněný soubor z v1.3.1)
 - UAT skipped scenare ve fazich 35 a 36 (non-blocking)
 - Manualni anti-storm UX checkpoint ve fazi 38
 - Warning text kontrast v light mode (Settings modal)
 - Syntax highlighting v AI chatu (egui_commonmark code blocky)
+- warm_ivory_bg() threshold na hraně pro budoucí varianty
+- FmDocument dot-notation omezena na 2 úrovně zanoření
 
 ## Key Decisions
 
@@ -67,6 +70,9 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 | V1.3.1 delete tok zustava fail-closed bez hard-delete fallbacku | Bezpecnost dat ma prioritu pred agresivnim mazanim | ✓ Implemented v1.3.1 |
 | Restore konflikt default je nedestruktivni `obnovit jako kopii` | Zabrani tichemu overwrite uz existujiciho souboru | ✓ Implemented v1.3.1 |
 | Watcher stabilizace pouziva dedupe+batch + overflow full reload fallback | Ochrana proti event storm a UI lagum po delete/restore sekvenci | ✓ Implemented v1.3.1 |
+| Custom YAML-like parser místo serde_yaml | Nulové nové závislosti, plný round-trip, stačí subset | ✓ Implemented M001/S11 |
+| Terminal theme per-frame set_theme() místo PTY restartu | Jednodušší, responsivnější, bez race conditions | ✓ Implemented M001/S04 |
+| Sandbox runtime apply místo apply-on-reopen | Lepší UX, okamžitá odezva | ✓ Implemented M001/S08 |
 
 <details>
 <summary>Archived milestone context (v1.3.1 planning snapshot)</summary>
@@ -77,5 +83,14 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 
 </details>
 
+<details>
+<summary>Archived milestone context (M001: Migration)</summary>
+
+- 7 slicí: S02 (Základ), S04 (Terminal Git Barvy), S05 (Light Varianty), S07 (Infrastructure), S08 (Sandbox Apply), S10 (Slash Commands), S11 (GSD State Engine)
+- Hlavní deliverables: dark/light theme se 3 variantami, sandbox runtime lifecycle, 7 slash commands, YAML-like parser
+- Duration: 2026-03-04 až 2026-03-07
+
+</details>
+
 ---
-*Last updated: 2026-03-12 after shipping milestone v1.3.1*
+*Last updated: 2026-03-13 after completing milestone M001: Migration*

@@ -176,6 +176,14 @@ fn request_close_tab_target(ws: &mut WorkspaceState, target_path: PathBuf) {
     if queue.is_empty() {
         // Target tab is clean (or already gone) — close it without guard dialog.
         ws.editor.close_tabs_for_path(&target_path);
+        // Invalidovat history_view pokud odkazuje na zavíraný soubor
+        if ws
+            .history_view
+            .as_ref()
+            .is_some_and(|hv| hv.file_path == target_path)
+        {
+            ws.history_view = None;
+        }
         return;
     }
 
@@ -384,6 +392,14 @@ fn process_unsaved_close_guard_dialog(
 
         if should_close_tabs {
             ws.editor.close_tabs_for_path(&current_path);
+            // Invalidovat history_view pokud odkazuje na zavíraný soubor
+            if ws
+                .history_view
+                .as_ref()
+                .is_some_and(|hv| hv.file_path == current_path)
+            {
+                ws.history_view = None;
+            }
         }
 
         match outcome {
@@ -698,15 +714,32 @@ pub(crate) fn render_workspace(
                                 .push(Toast::info(i18n.get("history-panel-no-versions")));
                         } else {
                             let current_content = tab.content.clone();
+                            // Načíst mtime aktuálního souboru
+                            let current_file_mtime = std::fs::metadata(&tab.path)
+                                .and_then(|m| m.modified())
+                                .ok()
+                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                .map(|d| d.as_secs());
+                            let hash = history::content_hash(&current_content);
+                            let sel_idx = if entries.len() > 1 { Some(0) } else { None };
                             ws.history_view = Some(history::HistoryViewState {
                                 file_path: tab.path.clone(),
                                 relative_path: rel_path.to_path_buf(),
                                 entries,
-                                selected_index: Some(0),
+                                selected_index: sel_idx,
                                 current_content,
+                                current_file_mtime,
                                 cached_diff: None,
                                 diff_for_index: None,
                                 split_ratio: 0.5,
+                                content_hash: hash,
+                                left_scroll_y: 0.0,
+                                right_scroll_y: 0.0,
+                                scroll_source: history::ScrollSource::None,
+                                right_panel_text: String::new(),
+                                left_diff_map: Vec::new(),
+                                right_diff_map: Vec::new(),
+                                show_restore_confirm: false,
                             });
                         }
                     }
@@ -729,10 +762,89 @@ pub(crate) fn render_workspace(
 
         // History split view — zobrazí se místo editoru pokud je aktivní
         if ws.history_view.is_some() {
+            // Extrahovat data z editoru před mutable borrow na history_view
+            // (borrow checker nedovolí &ws.editor.highlighter a &mut ws.history_view současně)
+            let settings = Arc::clone(&shared.lock().expect("lock").settings);
+            let theme_name = settings.syntect_theme_name();
+            let ext = ws.editor.extension();
+            let fname = ws.editor.filename();
+            let font_size = crate::app::ui::editor::Editor::current_editor_font_size(ui);
+
             let hv = ws.history_view.as_mut().unwrap();
-            let close = history::render_history_split_view(hv, &ws.local_history, ui, i18n);
-            if close {
+            let hv_result = history::render_history_split_view(
+                hv,
+                &ws.local_history,
+                ui,
+                i18n,
+                &ws.editor.highlighter,
+                theme_name,
+                &ext,
+                &fname,
+                font_size,
+            );
+            if hv_result.close {
                 ws.history_view = None;
+            }
+            if hv_result.content_changed {
+                // Propsání editace z history view do tab bufferu
+                if let Some(ref hv) = ws.history_view {
+                    let hv_path = hv.file_path.clone();
+                    let hv_content = hv.current_content.clone();
+                    if let Some(tab) = ws.editor.tabs.iter_mut().find(|t| t.path == hv_path) {
+                        tab.content = hv_content;
+                        tab.modified = true;
+                        tab.last_edit = Some(std::time::Instant::now());
+                        tab.save_status = crate::app::ui::editor::SaveStatus::Modified;
+                    }
+                }
+            }
+            if hv_result.restore_confirmed {
+                // Extrahovat data z history_view do locals PŘED mutable operacemi
+                // (borrow checker: nelze &mut ws.local_history a &ws.history_view současně)
+                let restore_data = ws.history_view.as_ref().and_then(|hv| {
+                    let idx = hv.selected_index?;
+                    let entry = hv.entries.get(idx)?.clone();
+                    let rel_path = hv.relative_path.clone();
+                    let file_path = hv.file_path.clone();
+                    Some((idx, entry, rel_path, file_path))
+                });
+
+                if let Some((_idx, entry, rel_path, file_path)) = restore_data {
+                    match ws.local_history.get_snapshot_content(&rel_path, &entry) {
+                        Ok(historical_content) => {
+                            // Zapsat obsah do tab bufferu
+                            if let Some(tab) =
+                                ws.editor.tabs.iter_mut().find(|t| t.path == file_path)
+                            {
+                                tab.content = historical_content.clone();
+                                tab.modified = true;
+                                tab.last_edit = Some(std::time::Instant::now());
+                                tab.save_status = crate::app::ui::editor::SaveStatus::Modified;
+                            }
+
+                            // Uložit nový snapshot (deduplikace je v take_snapshot)
+                            let _ = ws
+                                .local_history
+                                .take_snapshot(&rel_path, &historical_content);
+
+                            // Refresh entries
+                            let new_entries = ws.local_history.get_history(&rel_path);
+
+                            // Update history view state
+                            if let Some(ref mut hv) = ws.history_view {
+                                hv.entries = new_entries;
+                                hv.selected_index = Some(0);
+                                hv.current_content = historical_content;
+                                hv.content_hash = 0; // Vynutí diff přepočet
+                                hv.diff_for_index = None;
+                                hv.cached_diff = None;
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("[Restore] Chyba při čtení historické verze: {}", e);
+                        }
+                    }
+                }
             }
         }
     });

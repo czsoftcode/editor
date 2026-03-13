@@ -160,38 +160,63 @@ impl LocalHistory {
         fs::read_to_string(snapshot_path)
     }
 
-    /// Cleans up old history files to prevent unbounded disk growth.
-    /// Keeps only the `max_versions` newest versions for each tracked file.
-    pub fn cleanup(&self, max_versions: usize) {
-        if let Ok(read_dir) = fs::read_dir(&self.base_dir) {
-            for entry in read_dir.flatten() {
-                if entry.path().is_dir() {
-                    // This is a directory for a specific file (e.g. "src_main.rs")
-                    let mut versions = Vec::new();
-                    if let Ok(file_dir) = fs::read_dir(entry.path()) {
-                        for f_entry in file_dir.flatten() {
-                            let path = f_entry.path();
-                            if path.is_file()
-                                && let Some(file_name) =
-                                    path.file_name().map(|n| n.to_string_lossy())
-                            {
-                                // Parse timestamp from filename (timestamp_hash.txt)
-                                if let Some(ts_str) = file_name.split('_').next()
-                                    && let Ok(ts) = ts_str.parse::<u64>()
-                                {
-                                    versions.push((path, ts));
-                                }
-                            }
-                        }
-                    }
+    /// Vyčistí staré verze historie — deleguje na standalone `cleanup_history_dir()`.
+    /// `max_versions`: maximální počet verzí na soubor.
+    /// `max_age_secs`: pokud Some, smaže verze starší než daný počet sekund.
+    pub fn cleanup(&self, max_versions: usize, max_age_secs: Option<u64>) {
+        cleanup_history_dir(&self.base_dir, max_versions, max_age_secs);
+    }
+}
 
-                    // Sort newest first (by timestamp)
-                    versions.sort_by(|a, b| b.1.cmp(&a.1));
+/// Standalone cleanup funkce — `Send`-safe (žádný `&self`).
+/// Iteruje adresáře v `base_dir`, pro každý soubor ponechá max `max_versions` nejnovějších verzí
+/// a volitelně smaže verze starší než `max_age_secs` sekund od aktuálního času.
+pub fn cleanup_history_dir(base_dir: &Path, max_versions: usize, max_age_secs: Option<u64>) {
+    let current_ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
 
-                    // Remove versions exceeding the limit
-                    for (path, _) in versions.into_iter().skip(max_versions) {
-                        let _ = fs::remove_file(path);
+    let read_dir = match fs::read_dir(base_dir) {
+        Ok(rd) => rd,
+        Err(_) => return,
+    };
+
+    for entry in read_dir.flatten() {
+        if !entry.path().is_dir() {
+            continue;
+        }
+
+        let mut versions = Vec::new();
+        if let Ok(file_dir) = fs::read_dir(entry.path()) {
+            for f_entry in file_dir.flatten() {
+                let path = f_entry.path();
+                if path.is_file()
+                    && let Some(file_name) = path.file_name().map(|n| n.to_string_lossy())
+                {
+                    // Parsovat timestamp z filename (timestamp_hash.txt)
+                    if let Some(ts_str) = file_name.split('_').next()
+                        && let Ok(ts) = ts_str.parse::<u64>()
+                    {
+                        versions.push((path, ts));
                     }
+                }
+            }
+        }
+
+        // Seřadit od nejnovějšího (sestupně podle timestamp)
+        versions.sort_by(|a, b| b.1.cmp(&a.1));
+
+        // Jednoduchý průchod: ponechat max_versions nejnovějších,
+        // ze zbytku smazat vše. Z ponechaných navíc smazat ty, co překročily max_age.
+        for (idx, (path, ts)) in versions.into_iter().enumerate() {
+            if idx >= max_versions {
+                // Přes limit počtu verzí — smazat bezpodmínečně
+                let _ = fs::remove_file(path);
+            } else if let Some(max_age) = max_age_secs {
+                // V limitu verzí, ale kontrola stáří
+                if current_ts.saturating_sub(ts) > max_age {
+                    let _ = fs::remove_file(path);
                 }
             }
         }
@@ -307,5 +332,76 @@ mod tests {
         fs::set_permissions(&lh.base_dir, fs::Permissions::from_mode(0o755)).unwrap();
 
         assert!(result.is_err(), "zápis do readonly adresáře by měl selhat");
+    }
+
+    #[test]
+    fn cleanup_removes_old_versions_by_age() {
+        let tmp = TempDir::new().expect("tmpdir");
+        let base_dir = tmp.path().join(".polycredo").join("history");
+        let file_dir = base_dir.join("test_file_hash");
+        fs::create_dir_all(&file_dir).unwrap();
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let sixty_days_ago = now - 60 * 24 * 3600;
+        let ten_days_ago = now - 10 * 24 * 3600;
+        let max_age_secs = 30 * 24 * 3600_u64; // 30 dní
+
+        // Starý snapshot (60 dní) — má být smazán
+        let old_path = file_dir.join(format!("{}_111.txt", sixty_days_ago));
+        fs::write(&old_path, "starý obsah").unwrap();
+
+        // Čerstvý snapshot (10 dní) — má zůstat
+        let recent_path = file_dir.join(format!("{}_222.txt", ten_days_ago));
+        fs::write(&recent_path, "čerstvý obsah").unwrap();
+
+        // Aktuální snapshot — má zůstat
+        let current_path = file_dir.join(format!("{}_333.txt", now));
+        fs::write(&current_path, "aktuální obsah").unwrap();
+
+        // Spustit cleanup: max 50 verzí, max_age 30 dní
+        cleanup_history_dir(&base_dir, 50, Some(max_age_secs));
+
+        assert!(
+            !old_path.exists(),
+            "starý snapshot (60 dní) by měl být smazán"
+        );
+        assert!(
+            recent_path.exists(),
+            "čerstvý snapshot (10 dní) by měl zůstat"
+        );
+        assert!(current_path.exists(), "aktuální snapshot by měl zůstat");
+    }
+
+    #[test]
+    fn cleanup_respects_max_versions_before_age() {
+        let tmp = TempDir::new().expect("tmpdir");
+        let base_dir = tmp.path().join(".polycredo").join("history");
+        let file_dir = base_dir.join("versions_test");
+        fs::create_dir_all(&file_dir).unwrap();
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        // Vytvořit 5 čerstvých verzí (všechny v rámci max_age)
+        for i in 0..5 {
+            let ts = now - i * 60; // každá o minutu starší
+            let path = file_dir.join(format!("{}_{}.txt", ts, 100 + i));
+            fs::write(&path, format!("verze {}", i)).unwrap();
+        }
+
+        // Cleanup s max_versions=3 — nejstarší 2 mají být smazány i když jsou v rámci age
+        cleanup_history_dir(&base_dir, 3, Some(30 * 24 * 3600));
+
+        let remaining: Vec<_> = fs::read_dir(&file_dir)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.path().is_file())
+            .collect();
+        assert_eq!(remaining.len(), 3, "měly by zůstat jen 3 nejnovější verze");
     }
 }

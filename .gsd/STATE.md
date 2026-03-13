@@ -1,13 +1,14 @@
 # GSD State
 
-**Active Milestone:** M002 — Local History
-**Active Slice:** S03 — Cleanup, Edge Cases a Finální Integrace
-**Phase:** planning
-**Requirements Status:** 0 active · 0 validated · 0 deferred · 0 out of scope
+**Active Milestone:** M003 — Vylepšení UI Historie Souboru
+**Active Slice:** None
+**Phase:** completing-milestone
+**Requirements Status:** 9 active · 0 validated · 0 deferred · 2 out of scope
 
 ## Milestone Registry
 - ✅ **M001:** Migration
-- 🔄 **M002:** Local History
+- ✅ **M002:** Local History
+- 🔄 **M003:** Vylepšení UI Historie Souboru
 
 ## Recent Decisions
 - None recorded
@@ -16,4 +17,4 @@
 - None
 
 ## Next Action
-Plan slice S03 (Cleanup, Edge Cases a Finální Integrace).
+All slices complete in M003. Write milestone summary.

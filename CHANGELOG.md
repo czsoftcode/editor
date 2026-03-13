@@ -1,3 +1,28 @@
+## [1.4.0-dev] - 2026-03-13
+ 
+### Added
+- **Local History — Snapshot Pipeline**: Kazde ulozeni souboru (Ctrl+S, autosave, unsaved-close-guard) automaticky vytvari snapshot do `.polycredo/history/`. Duplikatni obsah je preskocen (xxhash deduplikace). Binarni soubory jsou ignorovany.
+- **Local History — Split View s Diff**: Pravy klik na tab → "Historie souboru" otevre dvoupanelovy split view s resize handle. Levy panel zobrazuje aktualni verzi, pravy historickou s diff zvyraznenim (zelena = pridano, cervena = odebrano). Dark i light mode palety.
+- **Local History — Navigace sipkami**: Toolbar nad split view s navigacnimi tlacitky (starsi/novejsi verze), informaci o vybrane verzi (timestamp) a zaviracim tlacitkem. Disabled stav na hranicich seznamu verzi.
+- **Local History — Retention Cleanup**: Automaticky cleanup pri startu workspace v background threadu — max 50 verzi na soubor, verze starsi 30 dni jsou smazany.
+- **Tab Context Menu**: Pravy klik na editorovy tab nově zobrazuje context menu s polozkami "Historie souboru" (jen pro textove soubory) a "Zavrit tab".
+- **I/O Error Propagace**: Chyby pri snapshotovani se propaguji do UI toastu s cestou souboru a popisem chyby (castecne pokryti pozadavku S-3).
+- **i18n**: 12 novych lokalizacnich klicu pro history UI ve vsech 5 jazycich (cs, en, sk, de, ru).
+- **Unit Testy**: 13 novych unit testu pokryvajicich snapshot pipeline (vytvoreni, duplikaty, binary skip, readonly FS, cleanup retence, cleanup max_age) a diff logiku (inserce/delece, identicke texty, dark/light barvy, timestamp format).
+
+### Changed
+- **Background IO Kanal**: Oziveny mrtvy `background_io_tx`/`background_io_rx` kanal (mpsc::channel) — nyni propojuje save hooky s `LocalHistory::take_snapshot()`.
+- **take_snapshot() Signature**: Zmenena z `Option` na `Result<Option<PathBuf>, io::Error>` pro propagaci I/O chyb misto ticheho swallowingu.
+- **Editor Rendering v History Mode**: `Editor.ui()` se nevolá, kdyz je aktivni history view — split view kompletne nahradi normalni editor rendering.
+- **Celkovy pocet testu**: 148 (135 unit + 13 integracnich), 1 preexistujici selhani mimo scope (phase35_delete_foundation).
+
+### Verified
+- **cargo check**: Kompilace bez chyb.
+- **cargo clippy**: Zadne warningy.
+- **cargo test**: 148 testu zelených, 1 preexistujici selhani mimo scope.
+- **i18n audit**: 12 klicu kompletních ve vsech 5 jazycich.
+- **Manualni UAT**: Scenare popsany v S01-UAT.md a S02-UAT.md, vyzaduji GUI desktop.
+
 ## [1.3.1-dev] - 2026-03-12
 
 ### Added

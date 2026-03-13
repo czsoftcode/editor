@@ -11,10 +11,10 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 ## Current State
 
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
-- **Last completed milestone:** M001: Migration (2026-03-13) — theme systém, sandbox runtime, slash commands, GSD state engine
-- **Active milestone:** M002: Local History — S01+S02 dokončeny, S03 next
-- **Quality status:** `cargo check` čistý, clippy čistý, testy zelené (1 předexistující selhání mimo scope)
-- **Primary artifacts:** `.gsd/milestones/M002/slices/S02/S02-SUMMARY.md`
+- **Last completed milestone:** M003: Vylepšení UI Historie Souboru (2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze
+- **Active milestone:** M003: Vylepšení UI Historie Souboru ✅ complete (S01 ✅, S02 ✅)
+- **Quality status:** `cargo check` čistý, clippy čistý, 145 testů zelených (1 předexistující selhání mimo scope)
+- **Primary artifacts:** `.gsd/milestones/M003/M003-ROADMAP.md`
 
 ## Requirements
 
@@ -42,10 +42,15 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 - Pridavani novych AI provideru bez jasneho produktoveho cile.
 - Velke refaktory mimo konkretni milestone scope.
 
+## Capability Contract
+
+See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement status, and coverage mapping.
+
 ## Milestone Sequence
 
 - ~~M001: Migration~~ ✓ (completed 2026-03-13)
-- 🔄 M002: Local History (active — S01+S02 done, S03 next)
+- ~~M002: Local History~~ ✓ (completed 2026-03-13) — snapshot pipeline, split view s diff zvýrazněním, cleanup retence 50 verzí / 30 dní
+- ~~M003: Vylepšení UI Historie Souboru~~ ✓ (completed 2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
 
 ## Next Milestone Goals
 
@@ -74,6 +79,12 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 | Custom YAML-like parser místo serde_yaml | Nulové nové závislosti, plný round-trip, stačí subset | ✓ Implemented M001/S11 |
 | Terminal theme per-frame set_theme() místo PTY restartu | Jednodušší, responsivnější, bez race conditions | ✓ Implemented M001/S04 |
 | Sandbox runtime apply místo apply-on-reopen | Lepší UX, okamžitá odezva | ✓ Implemented M001/S08 |
+| Local history split view místo diff modalu | Inline UX, navigace šipkami mezi verzemi | ✓ Implemented M002 |
+| Diff cache per history entry, ne per-frame | similar::TextDiff je O(n*d), nesmí se volat každý frame | ✓ Implemented M002/S02 |
+| Cleanup v background threadu při startu | UI nesmí blokovat při mazání starých snapshotů | ✓ Implemented M002/S03 |
+| TextEdit+layouter+diff overlay v history view | Editovatelný panel se syntax highlighting + per-řádek diff pozadím | ✓ Implemented M003/S01 |
+| Proportionální sync scroll s epsilon tolerancí | Line-based mapování odloženo, proporce stačí | ✓ Implemented M003/S01 |
+| Restore jako append (ne replace) | Zachování kompletní historie při obnovení | ✓ Implemented M003/S02 |
 
 <details>
 <summary>Archived milestone context (v1.3.1 planning snapshot)</summary>
@@ -94,4 +105,4 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 </details>
 
 ---
-*Last updated: 2026-03-13 after completing slice M002/S02: History Split View s Diff a Navigací*
+*Last updated: 2026-03-13 after M003 completed*

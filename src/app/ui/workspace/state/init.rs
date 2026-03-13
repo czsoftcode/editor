@@ -132,7 +132,19 @@ pub fn init_workspace(
             font_scale: panel_state.ai_font_scale,
         },
         git_cancel,
-        local_history: crate::app::local_history::LocalHistory::new(&root_path),
+        local_history: {
+            let lh = crate::app::local_history::LocalHistory::new(&root_path);
+            // Spustit background cleanup při startu workspace
+            let cleanup_base = root_path.join(".polycredo").join("history");
+            std::thread::spawn(move || {
+                crate::app::local_history::cleanup_history_dir(
+                    &cleanup_base,
+                    50,                   // max_versions
+                    Some(30 * 24 * 3600), // max_age_secs: 30 dní
+                );
+            });
+            lh
+        },
         background_io_tx,
         background_io_rx: Some(background_io_rx),
         applied_settings_version: 0,

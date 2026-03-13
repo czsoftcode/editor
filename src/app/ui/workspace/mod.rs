@@ -17,7 +17,6 @@ use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 
-use super::super::build_runner::run_build_check;
 use super::super::types::{AppShared, FocusedPanel, Toast, should_emit_save_error_toast};
 use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
@@ -72,15 +71,6 @@ fn status_bar_save_mode_key_for_runtime(
     _settings_draft_mode: Option<&SaveMode>,
 ) -> &'static str {
     status_bar_runtime_mode_key(runtime_mode)
-}
-
-fn consume_close_tab_shortcut(ctx: &egui::Context) -> bool {
-    ctx.input_mut(|input| {
-        input.consume_shortcut(&egui::KeyboardShortcut::new(
-            egui::Modifiers::CTRL,
-            egui::Key::W,
-        ))
-    })
 }
 
 fn editor_input_locked(dialog_open_base: bool, pending_close_flow_active: bool) -> bool {
@@ -505,37 +495,16 @@ pub(crate) fn render_workspace(
         }
     }
 
-    // --- KEYBOARD SHORTCUTS ---
-    if ctx.input(|i| i.modifiers.ctrl && i.modifiers.alt && i.key_pressed(egui::Key::E)) {
-        ws.focused_panel = FocusedPanel::Editor;
-        ws.editor.request_editor_focus();
-    }
-    if ctx.input(|i| i.modifiers.ctrl && i.modifiers.alt && i.key_pressed(egui::Key::B)) {
-        ws.show_build_terminal = true;
-        ws.focused_panel = FocusedPanel::Build;
-    }
-    if ctx.input(|i| i.modifiers.ctrl && i.modifiers.alt && i.key_pressed(egui::Key::A)) {
-        ws.show_right_panel = true;
-        ws.focused_panel = FocusedPanel::Claude;
-    }
-    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        handle_manual_save_action(ws, shared, i18n);
-    }
-    if consume_close_tab_shortcut(ctx) {
-        request_close_active_tab(ws);
-    }
-    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::B)) {
-        if let Some(t) = &mut ws.build_terminal {
-            t.send_command("cargo build 2>&1");
-        }
-        let build_path = ws.root_path.clone();
-        ws.build_error_rx = Some(run_build_check(build_path));
-        ws.build_errors.clear();
-    }
-    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R))
-        && let Some(t) = &mut ws.build_terminal
-    {
-        t.send_command("cargo run 2>&1");
+    // --- CENTRÁLNÍ KEYMAP DISPATCH ---
+    // Dispatch musí být PŘED widget renderingem — consume_shortcut konzumuje event.
+    if let Some(cmd_id) = ctx.input_mut(|input| ws.keymap.dispatch(input)) {
+        let mut dispatch_actions = MenuActions::default();
+        execute_command(
+            crate::app::registry::CommandAction::Internal(cmd_id),
+            &mut dispatch_actions,
+            shared,
+        );
+        process_menu_actions(ctx, ws, shared, dispatch_actions, i18n);
     }
 
     // --- 1. TOP UI (MenuBar) ---

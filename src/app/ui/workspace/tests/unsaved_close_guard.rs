@@ -5,7 +5,6 @@ use crate::app::ui::editor::Editor;
 use crate::app::ui::workspace::state::{DirtyCloseQueueMode, build_dirty_close_queue_for_mode};
 
 use super::super::apply_unsaved_close_decision;
-use super::super::consume_close_tab_shortcut;
 use super::super::editor_input_locked;
 use super::super::open_guard_queue_item_without_focus;
 use super::super::process_guard_save_failure_feedback;
@@ -148,24 +147,52 @@ fn unsaved_close_guard_tab_triggers() {
 }
 
 #[test]
-fn unsaved_close_guard_ctrl_w_consumes_shortcut() {
-    let ctx = eframe::egui::Context::default();
+fn unsaved_close_guard_ctrl_w_via_keymap_dispatch() {
+    use crate::app::keymap::Keymap;
+    use crate::app::registry::{Command, CommandAction};
+    use crate::app::ui::widgets::command_palette::CommandId;
+    use eframe::egui::{Key, KeyboardShortcut, Modifiers};
 
+    // Vytvořit keymapu s Ctrl+W → CloseTab (jako v command registry)
+    let keymap = Keymap::from_commands(&[Command {
+        id: "editor.close_tab".to_string(),
+        i18n_key: "close-tab",
+        shortcut: Some(KeyboardShortcut::new(Modifiers::COMMAND, Key::W)),
+        action: CommandAction::Internal(CommandId::CloseTab),
+    }]);
+
+    let ctx = eframe::egui::Context::default();
     ctx.begin_pass(eframe::egui::RawInput {
         events: vec![eframe::egui::Event::Key {
-            key: eframe::egui::Key::W,
-            physical_key: None,
+            key: Key::W,
+            physical_key: Some(Key::W),
             pressed: true,
             repeat: false,
-            modifiers: eframe::egui::Modifiers::CTRL,
+            modifiers: Modifiers {
+                alt: false,
+                ctrl: true,
+                shift: false,
+                mac_cmd: false,
+                command: true,
+            },
         }],
         ..Default::default()
     });
 
-    // Prvni cteni shortcutu ma uspet.
-    assert!(consume_close_tab_shortcut(&ctx));
-    // Druhe cteni v tom samem frame uz musi byt false (shortcut je spotrebovany).
-    assert!(!consume_close_tab_shortcut(&ctx));
+    // Dispatch přes keymap musí vrátit CloseTab
+    let result = ctx.input_mut(|input| keymap.dispatch(input));
+    assert_eq!(
+        result,
+        Some(CommandId::CloseTab),
+        "Ctrl+W musí matchnout CloseTab přes keymap"
+    );
+
+    // Druhý dispatch v tom samém frame musí vrátit None (event je spotřebovaný)
+    let result2 = ctx.input_mut(|input| keymap.dispatch(input));
+    assert_eq!(
+        result2, None,
+        "Ctrl+W musí být spotřebovaný po prvním dispatch"
+    );
 
     let _ = ctx.end_pass();
 }

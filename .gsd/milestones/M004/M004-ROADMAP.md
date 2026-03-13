@@ -51,7 +51,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Centrální keymap dispatch a oprava modifier filtrování** `risk:high` `depends:[]`
+- [x] **S01: Centrální keymap dispatch a oprava modifier filtrování** `risk:high` `depends:[]`
   > After this: Ctrl+Alt+B přepne fokus na build panel bez spuštění cargo build. Ctrl+B spustí build. Všechny existující zkratky (Ctrl+S, Ctrl+W, Ctrl+B, Ctrl+R) fungují přes centrální dispatch místo ad-hoc handlerů. Cross-platform Cmd/Ctrl automaticky přes Modifiers::COMMAND.
 - [ ] **S02: Chybějící keyboard handlery a oživení command palette** `risk:medium` `depends:[S01]`
   > After this: Ctrl+F otevře search bar, Ctrl+H otevře replace, Ctrl+G otevře goto line, Ctrl+Shift+P otevře command palette, Ctrl+Shift+F otevře project search. Palette zobrazuje skutečné keybinding labely z keymapu.

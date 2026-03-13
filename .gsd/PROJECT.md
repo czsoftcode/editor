@@ -12,9 +12,9 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
 - **Last completed milestone:** M003: Vylepšení UI Historie Souboru (2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
-- **Active milestone:** none
-- **Quality status:** `cargo check` čistý, clippy čistý, 195 testů zelených (0 selhání)
-- **Primary artifacts:** `.gsd/milestones/M003/M003-SUMMARY.md`
+- **Active milestone:** M004: Klávesové Zkratky a Centrální Keymap — S01 complete, S02 next
+- **Quality status:** `cargo check` čistý, clippy čistý, 156 testů zelených (0 selhání)
+- **Primary artifacts:** `.gsd/milestones/M004/slices/S01/S01-SUMMARY.md`
 
 ## Requirements
 
@@ -52,7 +52,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - ~~M001: Migration~~ ✓ (completed 2026-03-13)
 - ~~M002: Local History~~ ✓ (completed 2026-03-13) — snapshot pipeline, split view s diff zvýrazněním, cleanup retence 50 verzí / 30 dní
 - ~~M003: Vylepšení UI Historie Souboru~~ ✓ (completed 2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
-- M004: Klávesové Zkratky a Centrální Keymap — oprava modifier filtrování, centrální dispatch, chybějící handlery, VS Code/JetBrains konvence, uživatelská konfigurace, Linux+macOS
+- M004: Klávesové Zkratky a Centrální Keymap — S01 ✓ (centrální dispatch, modifier fix), S02 next (chybějící handlery, command palette), S03 (uživatelská konfigurace)
 
 ## Next Milestone Goals
 
@@ -90,6 +90,9 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 | Restore jako append (ne replace) | Zachování kompletní historie při obnovení | ✓ Implemented M003/S02 |
 | Diff cache invalidace přes content_hash (xxh3_64) | Diff se přepočítá jen při reálné změně obsahu, ne per-frame | ✓ Implemented M003/S01 |
 | Restore signalizace přes HistorySplitResult flag | Render nemá &mut LocalHistory, restore musí proběhnout v workspace handleru | ✓ Implemented M003/S02 |
+| Centrální Keymap dispatch místo ad-hoc ctx.input() handlerů | Konzistence, konfigurovatelnost, exkluzivní modifier matching | ✓ Implemented M004/S01 |
+| Modifiers::COMMAND místo Modifiers::CTRL | Cross-platform: Ctrl na Linuxu, Cmd na macOS automaticky | ✓ Implemented M004/S01 |
+| Keymap bindings seřazeny dle modifier_count() | egui consume_shortcut ignoruje extra modifikátory — řazení zajistí prioritu trojkombinací | ✓ Implemented M004/S01 |
 
 <details>
 <summary>Archived milestone context (v1.3.1 planning snapshot)</summary>
@@ -129,4 +132,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 </details>
 
 ---
-*Last updated: 2026-03-13 after M003 completed*
+*Last updated: 2026-03-13 after M004/S01 completed*

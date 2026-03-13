@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use super::{ProjectSearch, WorkspaceState};
 use crate::app::ai_prefs::AiPanelState;
+use crate::app::keymap::Keymap;
 use crate::app::project_config::load_profiles;
 use crate::app::types::{FocusedPanel, PersistentState};
 use crate::app::ui::background::{fetch_git_branch, fetch_git_status};
@@ -42,6 +43,13 @@ pub fn init_workspace(
     }
     project_index.full_rescan();
 
+    // Vytvořit keymapu z registrovaných příkazů (před spawn_semantic_indexer,
+    // kde se shared přesouvá)
+    let keymap = {
+        let sh = shared.lock().expect("lock shared for keymap init");
+        Keymap::from_commands(sh.registry.commands.get_all())
+    };
+
     // Start semantic index initialization only if empty OR explicitly requested (Audit S-5)
     let is_empty = if let Ok(si) = semantic_index.lock() {
         si.snippets.lock().unwrap().is_empty()
@@ -64,6 +72,7 @@ pub fn init_workspace(
     let (background_io_tx, background_io_rx) = std::sync::mpsc::channel::<super::FsChangeResult>();
 
     WorkspaceState {
+        keymap,
         file_tree,
         editor: Editor::new(),
         watcher: FileWatcher::new(),

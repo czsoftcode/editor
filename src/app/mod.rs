@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 pub mod ai_prefs;
 mod build_runner;
 mod fonts;
+pub(crate) mod keymap;
 pub(crate) mod local_history;
 pub(crate) mod lsp;
 mod project_config;
@@ -914,6 +915,9 @@ mod tests {
 
         // Minimal workspace with one dirty tab.
         let mut ws = WorkspaceState {
+            keymap: crate::app::keymap::Keymap {
+                bindings: Vec::new(),
+            },
             file_tree: crate::app::ui::file_tree::FileTree::new(),
             editor: crate::app::ui::editor::Editor::new(),
             watcher: crate::watcher::FileWatcher::new(),
@@ -1044,6 +1048,9 @@ mod tests {
     fn root_project_close_without_dirty_tabs_opens_close_project_confirm() {
         let ctx = egui::Context::default();
         let ws = WorkspaceState {
+            keymap: crate::app::keymap::Keymap {
+                bindings: Vec::new(),
+            },
             file_tree: crate::app::ui::file_tree::FileTree::new(),
             editor: crate::app::ui::editor::Editor::new(),
             watcher: crate::watcher::FileWatcher::new(),

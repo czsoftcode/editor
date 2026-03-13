@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex, mpsc};
 
 use crate::app::ai_prefs::AiPanelState;
 use crate::app::build_runner::BuildError;
+use crate::app::keymap::Keymap;
 use crate::app::lsp::LspClient;
 use crate::app::types::{FocusedPanel, ProjectProfiles, Toast};
 use crate::app::ui::dialogs::WizardState;
@@ -62,6 +63,7 @@ pub struct PendingCloseFlow {
 }
 
 pub struct WorkspaceState {
+    pub keymap: Keymap,
     pub file_tree: FileTree,
     pub editor: Editor,
     pub watcher: FileWatcher,

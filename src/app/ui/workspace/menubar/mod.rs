@@ -5,7 +5,7 @@ use crate::app::ui::background::spawn_task;
 use eframe::egui;
 
 use super::super::super::build_runner::run_build_check;
-use super::super::super::types::{AppAction, AppShared, Toast};
+use super::super::super::types::{AppAction, AppShared, FocusedPanel, Toast};
 use super::handle_manual_save_action;
 use super::request_close_active_tab;
 use super::state::{FilePicker, WorkspaceState};
@@ -15,6 +15,24 @@ mod file;
 mod help;
 mod project;
 mod view;
+
+// ---------------------------------------------------------------------------
+// Helper funkce pro shortcut labely z keymapu
+// ---------------------------------------------------------------------------
+
+/// Vyhledá shortcut label pro daný CommandId v keymapu workspace.
+/// Vrátí formátovaný string (např. "Ctrl+S") nebo prázdný string pokud shortcut neexistuje.
+pub(crate) fn shortcut_label(
+    keymap: &crate::app::keymap::Keymap,
+    cmd_id: crate::app::ui::widgets::command_palette::CommandId,
+) -> String {
+    keymap
+        .bindings
+        .iter()
+        .find(|(_, id)| *id == cmd_id)
+        .map(|(shortcut, _)| crate::app::keymap::format_shortcut(shortcut))
+        .unwrap_or_default()
+}
 
 // ---------------------------------------------------------------------------
 // Helper data types
@@ -42,6 +60,9 @@ pub(crate) struct MenuActions {
     pub run: bool,
     pub open_file_picker: bool,
     pub project_search: bool,
+    pub focus_editor: bool,
+    pub focus_build: bool,
+    pub focus_claude: bool,
 }
 
 pub(super) fn render_menu_bar(
@@ -59,9 +80,9 @@ pub(super) fn render_menu_bar(
 
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
         egui::menu::bar(ui, |ui| {
-            file::render(ui, &mut actions, i18n);
+            file::render(ui, &mut actions, i18n, &ws.keymap);
             project::render(ui, &mut actions, &recent_snapshot, i18n);
-            edit::render(ui, &mut actions, i18n);
+            edit::render(ui, &mut actions, i18n, &ws.keymap);
             view::render(ui, &mut actions, ws, i18n);
             help::render(ui, &mut actions, i18n);
         });
@@ -147,6 +168,18 @@ pub(super) fn process_menu_actions(
     if actions.project_search {
         ws.project_search.show_input = true;
         ws.project_search.focus_requested = true;
+    }
+    if actions.focus_editor {
+        ws.focused_panel = FocusedPanel::Editor;
+        ws.editor.request_editor_focus();
+    }
+    if actions.focus_build {
+        ws.show_build_terminal = true;
+        ws.focused_panel = FocusedPanel::Build;
+    }
+    if actions.focus_claude {
+        ws.show_right_panel = true;
+        ws.focused_panel = FocusedPanel::Claude;
     }
     if actions.trash_preview {
         ws.file_tree.request_open_trash_preview();

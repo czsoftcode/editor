@@ -4,7 +4,7 @@ use crate::app::ui::workspace::{MenuActions, WorkspaceState};
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CommandId {
     OpenFile,
     ProjectSearch,
@@ -23,6 +23,9 @@ pub(crate) enum CommandId {
     About,
     Settings,
     Quit,
+    FocusEditor,
+    FocusBuild,
+    FocusClaude,
 }
 
 pub(crate) struct CommandPaletteState {
@@ -165,12 +168,11 @@ pub(crate) fn render_command_palette(
                                 }
 
                                 if let Some(shortcut) = cmd.shortcut {
+                                    let label = crate::app::keymap::format_shortcut(&shortcut);
                                     ui.with_layout(
                                         egui::Layout::right_to_left(egui::Align::Center),
                                         |ui| {
-                                            ui.label(
-                                                egui::RichText::new(shortcut).weak().size(11.0),
-                                            );
+                                            ui.label(egui::RichText::new(label).weak().size(11.0));
                                         },
                                     );
                                 }
@@ -213,6 +215,9 @@ pub(crate) fn execute_command(
                 CommandId::About => actions.about = true,
                 CommandId::Settings => actions.settings = true,
                 CommandId::Quit => actions.quit = true,
+                CommandId::FocusEditor => actions.focus_editor = true,
+                CommandId::FocusBuild => actions.focus_build = true,
+                CommandId::FocusClaude => actions.focus_claude = true,
             }
             None
         }

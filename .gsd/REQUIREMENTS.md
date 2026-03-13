@@ -4,28 +4,6 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ## Active
 
-### R010 — Centrální keymap dispatch
-- Class: core-capability
-- Status: active
-- Description: Všechny klávesové zkratky procházejí centrálním dispatch systémem napojeným na command registry. Žádné ad-hoc `ctx.input()` handlery roztroušené po kódu.
-- Why it matters: Údržba, konzistence, konfigurovatelnost — přidání nové zkratky nesmí vyžadovat editaci 3+ souborů.
-- Source: user
-- Primary owning slice: M004
-- Supporting slices: none
-- Validation: pending
-- Notes: none
-
-### R011 — Exkluzivní modifier matching
-- Class: core-capability
-- Status: active
-- Description: Ctrl+B matchne pouze Ctrl+B, ne Ctrl+Alt+B ani Ctrl+Shift+B. Trojkombinace nespouští dvoukombinace.
-- Why it matters: Současný kód spouští cargo build i při Ctrl+Alt+B (focus build panel).
-- Source: user
-- Primary owning slice: M004
-- Supporting slices: none
-- Validation: pending
-- Notes: none
-
 ### R012 — Chybějící keyboard handlery
 - Class: primary-user-loop
 - Status: active
@@ -48,17 +26,6 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 - Validation: pending
 - Notes: none
 
-### R014 — Cross-platform Ctrl↔Cmd
-- Class: launchability
-- Status: active
-- Description: Na macOS se místo Ctrl používá Cmd pro všechny zkratky. Editor automaticky mapuje Ctrl↔Cmd dle platformy.
-- Why it matters: macOS uživatelé očekávají Cmd, ne Ctrl.
-- Source: user
-- Primary owning slice: M004
-- Supporting slices: none
-- Validation: pending
-- Notes: none
-
 ### R015 — Sjednocení s VS Code / JetBrains konvencemi
 - Class: primary-user-loop
 - Status: active
@@ -67,10 +34,43 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 - Source: user
 - Primary owning slice: M004
 - Supporting slices: none
-- Validation: pending
+- Validation: pending — dispatch infrastruktura hotová (S01), chybějící zkratky doplní S02
 - Notes: none
 
 ## Validated
+
+### R010 — Centrální keymap dispatch
+- Class: core-capability
+- Status: validated
+- Description: Všechny klávesové zkratky procházejí centrálním dispatch systémem napojeným na command registry. Žádné ad-hoc `ctx.input()` handlery roztroušené po kódu.
+- Why it matters: Údržba, konzistence, konfigurovatelnost — přidání nové zkratky nesmí vyžadovat editaci 3+ souborů.
+- Source: user
+- Primary owning slice: M004/S01
+- Supporting slices: none
+- Validation: Keymap::dispatch() v render_workspace(), 9 unit testů, grep na absenci ad-hoc handlerů (0 výskytů "i.modifiers.ctrl" v workspace/mod.rs). 156 testů pass.
+- Notes: none
+
+### R011 — Exkluzivní modifier matching
+- Class: core-capability
+- Status: validated
+- Description: Ctrl+B matchne pouze Ctrl+B, ne Ctrl+Alt+B ani Ctrl+Shift+B. Trojkombinace nespouští dvoukombinace.
+- Why it matters: Současný kód spouští cargo build i při Ctrl+Alt+B (focus build panel).
+- Source: user
+- Primary owning slice: M004/S01
+- Supporting slices: none
+- Validation: test_dispatch_ordering unit test — Ctrl+Alt+B → FocusBuild (ne Build). Bindings seřazeny sestupně dle modifier_count().
+- Notes: none
+
+### R014 — Cross-platform Ctrl↔Cmd
+- Class: launchability
+- Status: validated
+- Description: Na macOS se místo Ctrl používá Cmd pro všechny zkratky. Editor automaticky mapuje Ctrl↔Cmd dle platformy.
+- Why it matters: macOS uživatelé očekávají Cmd, ne Ctrl.
+- Source: user
+- Primary owning slice: M004/S01
+- Supporting slices: none
+- Validation: Modifiers::COMMAND použit ve všech registracích. parse_shortcut mapuje "Ctrl"/"Cmd" → COMMAND. format_shortcut() wrapper přes egui s platform-aware výstupem. Unit testy pass.
+- Notes: none
 
 ### R001 — Editovatelný levý panel v history view
 - Class: primary-user-loop
@@ -212,18 +212,18 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 | R007 | primary-user-loop | validated | M003/S01 | none | podmíněný selected_index |
 | R008 | launchability | validated | M003/S02 | M003/S01 | 5 klíčů × 5 jazyků |
 | R009 | primary-user-loop | validated | M003/S01 | none | apply_diff_backgrounds + highlight |
-| R010 | core-capability | active | M004 | none | pending |
-| R011 | core-capability | active | M004 | none | pending |
-| R012 | primary-user-loop | active | M004 | none | pending |
-| R013 | primary-user-loop | active | M004 | none | pending |
-| R014 | launchability | active | M004 | none | pending |
-| R015 | primary-user-loop | active | M004 | none | pending |
+| R010 | core-capability | validated | M004/S01 | none | Keymap dispatch, 9 unit testů, 0 ad-hoc handlerů |
+| R011 | core-capability | validated | M004/S01 | none | test_dispatch_ordering, modifier_count řazení |
+| R012 | primary-user-loop | active | M004 | none | pending (S02) |
+| R013 | primary-user-loop | active | M004 | none | pending (S03) |
+| R014 | launchability | validated | M004/S01 | none | Modifiers::COMMAND, parse_shortcut Ctrl/Cmd→COMMAND |
+| R015 | primary-user-loop | active | M004 | none | partially (S01 dispatch, S02 chybějící zkratky) |
 | R100 | anti-feature | out-of-scope | none | none | n/a |
 | R101 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 6
-- Mapped to slices: 15
-- Validated: 9
+- Active requirements: 3 (R012, R013, R015)
+- Mapped to slices: 18
+- Validated: 12 (R001–R011, R014)
 - Unmapped active requirements: 0

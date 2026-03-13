@@ -115,3 +115,8 @@
 - "Ctrl+A/C/V/X/Z/Y neregistrovány v centrálním keymapu — TextEdit je zpracuje sám, interceptování by rozbilo Copy/Paste/Undo"
 - "Centrální dispatch napojený na existující execute_command → MenuActions → process_menu_actions pipeline — žádná duplikace logiky"
 - "Uživatelská konfigurace keybindings přes HashMap<String, String> v [keybindings] sekci settings.toml — serde(default) pro backwards compatibility"
+- "S01 rozdělen na 2 tasky: T01 (keymap modul + testy) a T02 (napojení na workspace + smazání ad-hoc handlerů) — T01 dodá testovatelné jádro bez UI závislostí, T02 provede wiring a ověří celý pipeline"
+- "FocusEditor/FocusBuild/FocusClaude jako nové CommandId varianty — trojkombinace Ctrl+Alt+E/B/A procházejí stejným dispatch jako dvoukombinace, řazení zajistí správný match"
+- "Focus panel commandy implementovány přes MenuActions flagy + process_menu_actions pipeline, ne přes přímý &mut WorkspaceState v execute_command — zachovává existující architektonický pattern a centralizuje side-effecty"
+- "Keymap dispatch umístěn PŘED widget renderingem v render_workspace() — consume_shortcut konzumuje event, musí proběhnout dřív než widgety"
+- "Clipboard (Ctrl+C/V/A) a editor-interní zkratky (Ctrl+F/H/G) ponechány s hardcoded menu labely — nejsou v command registry, TextEdit/editor je zpracovává sám"

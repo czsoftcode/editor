@@ -1,4 +1,5 @@
 use crate::app::ui::widgets::command_palette::CommandId;
+use eframe::egui::{Key, KeyboardShortcut, Modifiers};
 use std::collections::HashMap;
 
 /// Metadata for an AI agent or CLI tool.
@@ -56,12 +57,12 @@ pub enum PanelArea {
     Bottom,
 }
 
-/// A command that can be invoked via the Command Palette or keyboard shortcuts.
+/// Příkaz vyvolávaný přes Command Palette nebo klávesovou zkratku.
 #[derive(Clone)]
 pub struct Command {
     pub id: String,
     pub i18n_key: &'static str,
-    pub shortcut: Option<&'static str>,
+    pub shortcut: Option<KeyboardShortcut>,
     pub action: CommandAction,
 }
 
@@ -152,35 +153,49 @@ impl Registry {
         }
     }
 
-    /// Initializes the registry with default internal commands.
+    /// Inicializuje registry výchozími interními příkazy.
     pub fn init_defaults(&mut self) {
         use CommandId::*;
 
-        let defaults = vec![
+        // Helper: shortcut s jedním modifikátorem (COMMAND = Ctrl na Linuxu, Cmd na macOS)
+        let cmd = |key: Key| -> Option<KeyboardShortcut> {
+            Some(KeyboardShortcut::new(Modifiers::COMMAND, key))
+        };
+        // Helper: shortcut se dvěma modifikátory (COMMAND + SHIFT)
+        let cmd_shift = |key: Key| -> Option<KeyboardShortcut> {
+            Some(KeyboardShortcut::new(
+                Modifiers::COMMAND | Modifiers::SHIFT,
+                key,
+            ))
+        };
+        // Helper: shortcut se dvěma modifikátory (COMMAND + ALT)
+        let cmd_alt = |key: Key| -> Option<KeyboardShortcut> {
+            Some(KeyboardShortcut::new(
+                Modifiers::COMMAND | Modifiers::ALT,
+                key,
+            ))
+        };
+
+        let defaults: Vec<(&str, &str, Option<KeyboardShortcut>, CommandId)> = vec![
             (
                 "editor.open_file",
                 "command-name-open-file",
-                Some("Ctrl+P"),
+                cmd(Key::P),
                 OpenFile,
             ),
             (
                 "editor.project_search",
                 "command-name-project-search",
-                Some("Ctrl+Shift+F"),
+                cmd_shift(Key::F),
                 ProjectSearch,
             ),
-            (
-                "build.run_build",
-                "command-name-build",
-                Some("Ctrl+B"),
-                Build,
-            ),
-            ("build.run_profile", "command-name-run", Some("Ctrl+R"), Run),
-            ("editor.save", "command-name-save", Some("Ctrl+S"), Save),
+            ("build.run_build", "command-name-build", cmd(Key::B), Build),
+            ("build.run_profile", "command-name-run", cmd(Key::R), Run),
+            ("editor.save", "command-name-save", cmd(Key::S), Save),
             (
                 "editor.close_tab",
                 "command-name-close-tab",
-                Some("Ctrl+W"),
+                cmd(Key::W),
                 CloseTab,
             ),
             ("project.new", "command-name-new-project", None, NewProject),
@@ -229,11 +244,30 @@ impl Registry {
             (
                 "ui.show_settings",
                 "command-name-show-settings",
-                Some("Ctrl+,"),
+                cmd(Key::Comma),
                 Settings,
             ),
             ("ui.show_about", "command-name-show-about", None, About),
             ("app.quit", "command-name-quit", None, Quit),
+            // Trojkombinace pro přepínání fokus panelů
+            (
+                "ui.focus_editor",
+                "command-name-focus-editor",
+                cmd_alt(Key::E),
+                FocusEditor,
+            ),
+            (
+                "ui.focus_build",
+                "command-name-focus-build",
+                cmd_alt(Key::B),
+                FocusBuild,
+            ),
+            (
+                "ui.focus_claude",
+                "command-name-focus-claude",
+                cmd_alt(Key::A),
+                FocusClaude,
+            ),
         ];
 
         for (id, i18n, shortcut, internal_id) in defaults {

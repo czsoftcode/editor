@@ -4,7 +4,71 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ## Active
 
-(none)
+### R010 — Centrální keymap dispatch
+- Class: core-capability
+- Status: active
+- Description: Všechny klávesové zkratky procházejí centrálním dispatch systémem napojeným na command registry. Žádné ad-hoc `ctx.input()` handlery roztroušené po kódu.
+- Why it matters: Údržba, konzistence, konfigurovatelnost — přidání nové zkratky nesmí vyžadovat editaci 3+ souborů.
+- Source: user
+- Primary owning slice: M004
+- Supporting slices: none
+- Validation: pending
+- Notes: none
+
+### R011 — Exkluzivní modifier matching
+- Class: core-capability
+- Status: active
+- Description: Ctrl+B matchne pouze Ctrl+B, ne Ctrl+Alt+B ani Ctrl+Shift+B. Trojkombinace nespouští dvoukombinace.
+- Why it matters: Současný kód spouští cargo build i při Ctrl+Alt+B (focus build panel).
+- Source: user
+- Primary owning slice: M004
+- Supporting slices: none
+- Validation: pending
+- Notes: none
+
+### R012 — Chybějící keyboard handlery
+- Class: primary-user-loop
+- Status: active
+- Description: Všechny zkratky zobrazené v menu a command palette mají funkční keyboard handler — Ctrl+F, Ctrl+H, Ctrl+G, Ctrl+P, Ctrl+Shift+F, Ctrl+Shift+P.
+- Why it matters: Menu zobrazuje zkratky, které ve skutečnosti nefungují — matoucí UX.
+- Source: user
+- Primary owning slice: M004
+- Supporting slices: none
+- Validation: pending
+- Notes: none
+
+### R013 — Uživatelská konfigurace keybindings
+- Class: primary-user-loop
+- Status: active
+- Description: Uživatel může v `[keybindings]` sekci settings.toml přemapovat zkratky na jiné klávesové kombinace. Chybějící sekce = default bindings.
+- Why it matters: Různí uživatelé mají různé preference a návyky z jiných editorů.
+- Source: user
+- Primary owning slice: M004
+- Supporting slices: none
+- Validation: pending
+- Notes: none
+
+### R014 — Cross-platform Ctrl↔Cmd
+- Class: launchability
+- Status: active
+- Description: Na macOS se místo Ctrl používá Cmd pro všechny zkratky. Editor automaticky mapuje Ctrl↔Cmd dle platformy.
+- Why it matters: macOS uživatelé očekávají Cmd, ne Ctrl.
+- Source: user
+- Primary owning slice: M004
+- Supporting slices: none
+- Validation: pending
+- Notes: none
+
+### R015 — Sjednocení s VS Code / JetBrains konvencemi
+- Class: primary-user-loop
+- Status: active
+- Description: Defaultní keybindings odpovídají konvencím VS Code / JetBrains (Ctrl+Shift+P command palette, Ctrl+Tab přepínání tabů, Ctrl+F find, Ctrl+H replace, atd.). Chybějící standardní zkratky jsou doplněny.
+- Why it matters: Uživatelé přecházející z jiných editorů očekávají známé zkratky.
+- Source: user
+- Primary owning slice: M004
+- Supporting slices: none
+- Validation: pending
+- Notes: none
 
 ## Validated
 
@@ -148,12 +212,18 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 | R007 | primary-user-loop | validated | M003/S01 | none | podmíněný selected_index |
 | R008 | launchability | validated | M003/S02 | M003/S01 | 5 klíčů × 5 jazyků |
 | R009 | primary-user-loop | validated | M003/S01 | none | apply_diff_backgrounds + highlight |
+| R010 | core-capability | active | M004 | none | pending |
+| R011 | core-capability | active | M004 | none | pending |
+| R012 | primary-user-loop | active | M004 | none | pending |
+| R013 | primary-user-loop | active | M004 | none | pending |
+| R014 | launchability | active | M004 | none | pending |
+| R015 | primary-user-loop | active | M004 | none | pending |
 | R100 | anti-feature | out-of-scope | none | none | n/a |
 | R101 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 0
-- Mapped to slices: 9
+- Active requirements: 6
+- Mapped to slices: 15
 - Validated: 9
 - Unmapped active requirements: 0

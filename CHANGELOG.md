@@ -1,3 +1,250 @@
+## [1.3.1-dev] - 2026-03-12
+
+### Added
+- **Safe Trash Delete MVP**: Mazani souboru/adresaru je prevedeno na fail-closed move-to-trash do `.polycredo/trash`.
+- **Trash Preview + Restore**: Preview modal s entrypointy z menu/command palette a asynchronnim restore flow.
+- **Watcher Stability Contract**: Dedupe+batch ingest, overflow fallback a one-shot disconnect handling pro delete/restore sekvence.
+
+### Changed
+- **Milestone Archival**: Milestone `v1.3.1` byl archivovan do `.planning/milestones/` vcetne phase artefaktu 35-38.
+- **Planning Baseline**: `ROADMAP.md` a `PROJECT.md` byly prepnuty do post-ship stavu po release `v1.3.1`.
+
+### Verified
+- **Audit v1.3.1**: `requirements 11/11`, `phases 4/4`, `integration 4/4`, `flows 4/4`; verdict `tech_debt` bez kritickych mezer.
+- **Gate Evidence**: Zavreno command-level PASS chainem (`cargo check` + `./check.sh`) v phase verification artefaktech.
+
+## [1.3.0-dev] - 2026-03-11
+
+### Changed
+- **Phase 33 Cleanup**: Dokonceno launcher-only sjednoceni AI toku (`ai_bar -> terminal.send_command`) bez integrovaneho chat/runtime subsystemu.
+- **AI Settings UX**: V `Nastaveni > AI` zustala pouze sprava asistentu (nazev, prikaz, parametry); odstranena hint veta o vlastnich CLI nastrojich.
+
+### Removed
+- **Left Panel CLI Bar**: Z leveho panelu byl odstraneny cely CLI quick-launch bar (label + Start + Settings).
+- **AI Settings CLI/Ollama Controls**: Z AI sekce settings byly odstraneny URL/API key/model, expertise/reasoning, generation parametry a blacklist.
+
+### Fixed
+- **Phase 33 Verification Drift**: Dotazene planning artefakty a globalni historical cleanup tak, aby phase 33 UAT probehla bez nalezenych issue.
+
+### Verified
+- **UAT Phase 33**: Manualni UAT dokoncena s vysledkem `5 passed, 0 issues` (`33-UAT.md`).
+
+## [1.2.5-dev] - 2026-03-11
+
+### Changed
+- **Phase 32 Stabilizace**: Uzavrena evidence-first stabilizace po phase 31 bez novych capability.
+
+### Fixed
+- **STAB-01**: Potvrzen PASS quality gate (`cargo check` + `./check.sh`) po cleanupu CLI vrstvy.
+- **STAB-02**: Potvrzena regresni coverage pro namespace guard a assistant-only runtime toky.
+
+## [1.2.4-dev] - 2026-03-11
+
+### Fixed
+- **Windows Build**: Opraveno volani `localtime` v AI chatu (Windows pouziva `localtime_s`).
+- **Warnings**: Odstraneny warningy `unused variable` ve fontech a terminal dialogu.
+- **Build Profiles**: Zmeny v `.polycredo/profiles.toml` se po ulozeni okamzite projevi v comboboxu Spustit.
+
+## [1.2.3-dev] - 2026-03-11
+
+### Fixed
+- **Quality Gate**: Opraveny vsechny chyby z `./check.sh` (fmt + clippy + testy).
+- **GSD Utils**: Upravene pomocne funkce a parsery podle aktualnich clippy pravidel.
+- **AI Chat UI**: Cisteni kolabujicich if-bloku a drobne refaktory bez zmen chovani.
+
+## [1.2.2-dev] - 2026-03-11
+
+### Added
+- **WarmTan Light Variant**: 4. svetla varianta s pickerem, swatch a i18n ve vsech jazycich.
+- **Midnight Dark Variant**: 2. dark varianta s pickerem a persistence.
+- **Syntect Theme Mapping**: Explicitni mapovani syntect theme pro vsechny light/dark varianty.
+
+### Changed
+- **Theme Picker Layout**: Light varianty 2x2 v mrizce, dark varianty vedle sebe; sjednoceny styl karet.
+- **Theme Mode Logic**: Dark rezim se ridi pouze prepinacem; dark varianty neprebiji light rezim.
+
+### Fixed
+- **WarmTan Visibility**: WarmTan se uz neztraci v Settings pickeru.
+
+## [1.2.1-dev] - 2026-03-10
+
+### Added
+- **Manual Save (Ctrl+S)**: Default manual save for active file tab without focus change.
+- **Auto/Manual Save Mode**: Toggle between Automatic and Manual save in Settings, persisted across restart.
+- **Runtime Save Mode Apply**: Save mode applies immediately after Settings Save without app restart.
+- **Unsaved Close Guard**: Confirmation dialog (Save/Discard/Cancel) when closing tab with unsaved changes.
+- **App Close Guard**: Confirmation dialog when closing app with any unsaved tabs.
+- **Save Status Indicators**: Status bar shows current save mode (Manual/Auto), tab shows dirty indicator (●).
+- **Save Error Feedback**: Toast notification and inline error message on save failure, tab stays open.
+- **Save Mode Tests**: Regression test suite for save UX contract (MODE-04).
+
+### Changed
+- **Status Bar Save Mode**: Now reads from runtime value only, ignoring settings draft until apply.
+- **Dirty Visual Priority**: Dirty symbol (●) remains visually primary in tab labels before mode marker.
+- **Ctrl+S in Settings Modal**: Ctrl+S now saves settings draft (equivalent to Save button), not editor file save.
+
+### Fixed
+- **Save Error Dedupe**: Fixed 1.5s deduplication window semantics for save error toasts.
+
+## [1.2.0-dev] - 2026-03-07
+
+### Added
+- **AI Provider System**: New `AiProvider` trait and `OllamaProvider` with NDJSON streaming, Bearer authentication and URL validation.
+- **Streaming AI Chat**: Fully streamed chat with Claude/Ollama panel — token polling, auto-scroll, stop/send toggle, theme-aware conversation and markdown rendering.
+- **Model Picker**: Type-to-filter model selector in chat header with status indicator.
+- **AI Settings**: AI provider configuration directly in Settings modal — URL, API key, generation parameters (temperature, top_p, top_k, num_predict).
+- **Tool Execution**: Complete AI tool calls system — security infrastructure, audit logger, tool executor with dispatch and approval workflow, tool approval UI with blacklist.
+- **Ollama Tools API**: Support for `tools` parameter in Ollama API, parsing `tool_calls` from NDJSON responses, text-based fallback on error.
+- **Thinking Blocks**: Rendering of thinking blocks in AI responses.
+- **Context Injection**: Extended `AiContextPayload` with terminal output, LSP diagnostics and system message builder.
+- **i18n for CLI Panel**: Localized Rank/Depth/Model/Filter labels, new i18n keys for AI chat and CLI.
+
+### Changed
+- **State Refactor**: Extracted `ChatState`, `AiState` and `OllamaState` from `WorkspaceState` into separate modules in `ai/`.
+- **Rename ai → cli**: Complete rename of `src/app/ai/` to `src/app/cli/` and all paths.
+- **Compile Buttons**: Moved compile buttons into build bar, removed standalone `compile_bar`.
+- **Ollama Generation Params**: Added generation parameter configuration to `ProviderConfig` and Settings UI.
+
+### Removed
+- **WASM Plugin System**: Complete removal of extism, PluginManager, plugin sources and related i18n keys.
+- **systemd-run Wrapper**: Removed systemd-run wrapper from `run_limited.sh` and `packaging/deb/wrapper.sh`.
+
+### Fixed
+- **AI Chat UI**: Fixed chat window expansion, transparent AI background, model picker height.
+- **ScrollArea**: Fixed height expansion and scroll-to-bottom button.
+- **Stream Disconnect**: Fixed stream disconnect and API key synchronization.
+- **Terminal Focus**: Prevented terminal from stealing focus when AI chat is open.
+- **i18n**: Replaced hardcoded English strings with i18n calls, fixed ask-heading bug.
+- **Reasoning Depth**: Injected reasoning depth and expertise into every AI query.
+
+## [1.1.0-dev] - 2026-03-06
+
+### Removed
+- **Sandbox Mode**: Complete removal of sandbox mode from all application layers (phases 9–12):
+  - **Settings**: Removed `sandbox_mode` from configuration, migrated existing settings.
+  - **Types and Structures**: Removed sandbox structs from `types.rs`, `state/mod.rs` and `sandbox.rs`.
+  - **UI**: Removed sandbox modal, settings block, build bar label, gitignore filter and `is_sandbox` parameter from file tree.
+  - **Editor and Terminal**: Removed sandbox logic from editor files, editor UI and terminal instances.
+  - **Watcher and Migration**: Removed sandbox filter from watcher and sandbox comments from migration.
+  - **Plugins**: Renamed `sandbox_root` to `project_root` in plugin registry, `exec_in_sandbox` to `exec` in AI tools and WASM plugins.
+  - **i18n**: Removed all sandbox i18n keys from all locales (cs, en, de, ru, sk) and updated sandbox-mentioning values.
+
+### Fixed
+- **Build Bar**: Removed extra separator and preserved git colors in file tree.
+- **WASM Plugins**: Rebuilt plugins for `exec` rename and fixed plugin error re-triggering.
+- **Compile Warnings**: Removed 3 warnings (unused import, parameters).
+
+### Changed
+- **Metadata**: Updated author to `stkremen@kremenservices.cz` and copyright to `(c) Copyright 2026 Kremen Services s.r.o.` in packager and deb metadata.
+
+## [1.0.6-dev] - 2026-03-05
+
+### Added
+- **Modal Close Control**: `StandardModal` now supports `close_on_click_outside` flag — interactive modals (Settings, Plugins) can only be closed via Save/Cancel/X buttons.
+
+### Changed
+- **Modal Backdrop**: Backdrop is now an interactive `Area` at `Order::Middle` that captures events behind modal. Modal window renders at `Order::Foreground` — guaranteed to stay above backdrop and fully interactive.
+
+### Fixed
+- **Terminal Focus Suppression**: Hover over docked terminals no longer steals keyboard focus. All 4 `Hovered` handlers are now no-op. Float and docked terminal click handlers respect `dialog_open` guard.
+- **Modal Blocks Terminal Focus**: Open modals and AI Chat prevent terminal from capturing focus — keyboard input stays in the active dialog/chat.
+- **Settings Discard Prompt**: Closing Settings with unsaved changes (via X or Cancel) now triggers a discard confirmation dialog.
+
+## [1.0.5-dev] - 2026-03-05
+
+### Removed
+- **AI Context Sync**: Removed automatic context sending (open files, build errors) to AI CLI agents on start. Agents now receive only the launch command.
+- **Sync Button**: Removed "⟳ Sync" button from AI bar and all related i18n keys (cs, en, de, ru, sk).
+
+### Changed
+- **Terminal Headers**: Simplified terminal title bar — shows "Terminál" or "Sandbox" without path; AI panel shows "AI Terminál" or "AI Terminál — Sandbox".
+- **Sandbox Label Color**: Replaced yellow sandbox labels with orange (`rgb(200, 120, 0)`) for better readability in light mode.
+- **Large File Color (Light Mode)**: Files with 500+ lines in sandbox file tree now use purple (`rgb(100, 60, 140)`) instead of white for light mode readability.
+- **Git Button Icon**: Git bar button now uses GitHub icon (U+F09B) from Nerd Font.
+
+### Fixed
+- **Build Target Dir**: `build.rs` now expands `$HOME` for `target-dir` in `.cargo/config.toml` — fixes spurious `./~/.cache/` directory appearing in the project file tree.
+
+## [1.0.4-dev] - 2026-03-05
+
+### Added
+- **Bundled Nerd Font**: JetBrains Mono Nerd Font is now included in the `.deb` package and installed to `/usr/share/fonts/truetype/polycredo-nerd/`. Covers Nerd Font glyphs (git branch icon, etc.) and extended Unicode symbols out of the box.
+
+### Fixed
+- **Bitmap Font Filter**: `fonts.rs` now skips bitmap color emoji fonts (NotoColorEmoji CBDT) that egui cannot render, preventing invisible fallback glyphs.
+- **Font Cache in .deb**: `postinst` runs `fc-cache` after install and `postrm` refreshes cache after removal so the bundled font is available immediately.
+
+## [1.0.3-dev] - 2026-03-05
+
+### Changed
+- **Floating Terminal Frame**: Floating terminal windows now use the default window frame styling, matching StandardModal borders.
+- **Inactive Terminal Text (Light Mode)**: Unfocused terminal text is subtly lightened (~15%) to reduce glare without losing readability.
+
+## [1.0.2-dev] - 2026-03-05
+
+### Added
+- **Sandbox Instant Apply**: Sandbox mode now applies immediately after clicking Save in Settings — no project reopen required. Terminals restart, file tree reloads, and open tabs are remapped to the new root.
+- **Tab Remap Toast**: After sandbox mode switch, a toast offers "Remap Tabs" / "Keep Current" — unresolvable tabs (files missing in new root) are marked as deleted. Pending remap state cleans up automatically if the toast expires without interaction.
+- **Sandbox OFF Confirmation**: Switching sandbox OFF now shows a confirmation dialog. If another dialog is open, the apply can be deferred via "Apply Later" toast.
+- **Staged Files Guard**: Sandbox OFF is blocked when staged git changes exist — a dialog explains the block and prompts to resolve staged files first.
+- **Sync on Sandbox ON**: Enabling sandbox mode offers an automatic project-to-sandbox sync dialog. Sync runs in a background thread; result is shown as a toast.
+- **Persist Failure Recovery**: If sandbox mode fails to persist to disk, a toast offers "Revert" or "Keep Temporarily" — the runtime state never diverges silently from disk.
+- **Multi-Window Propagation**: Sandbox mode changes propagate to all open windows of the same project via `settings_version` mechanism.
+
+### Changed
+- **Sandbox Mode Persistence**: Sandbox mode is now stored in `settings.toml` and applied consistently on project reopen (previously session-only).
+- **Sandbox Tooltip**: The sandbox toggle in Settings now has a full-row hover target for easier tooltip discovery.
+- **Sandbox Reopen Note**: The inline note about terminal restart on reopen is no longer visually suppressed (`small()` removed) — text is fully readable.
+- **Terminal Label Timing**: Terminal label reflects the new mode immediately on creation of a new instance; the old process finishes gracefully in `retired_terminals`. This is intentional behavior, documented in `apply_sandbox_mode_change()`.
+
+## [1.0.0] - 2026-03-05
+
+### Added
+- **Light Mode Variants**: Three selectable light palette variants — Warm Ivory (warm cream), Cool Gray (GitHub/VS Code style), and Sepia (brownish-beige). Selectable via card picker in Settings.
+- **Light Variant Card Picker**: Visual card selector in Settings panel (visible only in light mode) with color swatch, localized name, and selected-state indicator. Selection applies instantly as live preview.
+- **Terminal Variant Toning**: Terminal background is tonally adjusted per active light variant. Warm Ivory uses a dedicated warm cream base (`#f5f2e8`, blend 0.55) for a visually distinct feel.
+- **Variant-Aware Git Colors**: File tree git status colors blend with the active variant's `panel_fill` and `faint_bg_color` for consistent tonal harmony across all three variants.
+
+### Changed
+- **Settings Persistence**: Theme and variant are now stored in canonical `settings.toml`. Legacy `settings.json` is read on first launch for migration, then replaced. Backward-compatible — old configs without `light_variant` default to Warm Ivory.
+- **Settings Save/Cancel Semantics**: Opening Settings captures a snapshot of current theme. Cancel restores the snapshot immediately; Save persists only when theme fingerprint actually changed.
+- **Live Preview**: Dark/light toggle and variant selection apply instantly across all open windows via `settings_version` bump — no restart required.
+- **Syntax Highlighting**: Light mode now uses the `Solarized (light)` syntect theme instead of the dark `base16-ocean.dark`. Theme switches without editor restart; highlighter cache is invalidated only on actual theme change.
+- **Terminal Theming**: Both Claude panel and Build terminal now use an explicit light palette in light mode (light background, dark foreground, sufficient contrast). Theme applies at runtime on every render frame without PTY restart.
+- **Terminal Scrollbar**: Scrollbar colors are derived from active `egui::Visuals` instead of hardcoded dark values.
+- **Floating Terminal Frame**: `StandardTerminalWindow` frame fill is derived from `ctx.style().visuals.panel_fill` — no longer hardcoded dark in light mode.
+- **Status Bar Contrast**: Primary and secondary text in the status bar is derived from `ui.visuals()`. Diagnostic and save/LSP state accents branch by `dark_mode` for readable contrast in both themes.
+- **File Tree Git Colors**: Git status colors (`M`/`A`/`??`/`D`) use an explicit semantic model (`GitVisualStatus`) with separate light/dark palettes. Untracked files are now clearly visible in light mode.
+- **Tab Unsaved Indicator**: The `●` indicator in editor tabs renders through the active theme text color — no hardcoded light color.
+
+## [0.9.1] - 2026-03-04
+
+### Added
+- **Discard Confirmation Dialog**: Implemented a global confirmation dialog when discarding unsaved changes in Settings, Plugins, or New Project Wizard.
+- **Improved Localization**: Added new strings for confirmation dialogs across all supported languages (CS, EN, SK, DE, RU).
+
+### Changed
+- **Unified Button Layout**: Implemented a standardized button layout across all modal dialogs. "Close" or "Discard/Quit" buttons are now consistently positioned on the far right, with action buttons to their left.
+- **Button Renaming**: Renamed "Cancel" button to "Discard" (EN) / "Storno" (CS/SK) to better reflect the action of discarding local drafts.
+- **Modal Infrastructure**: Introduced `ui_footer_actions` and `ModalFooter` helper in `StandardModal` to eliminate code duplication and enforce UI consistency.
+- **Refactored Dialogs**: Updated all major dialogs (Settings, Plugins, Project Wizard, Search, LSP, Startup, etc.) to use the new unified footer system and removed redundant/duplicate buttons.
+
+## [0.9.0] - 2026-03-04
+
+### Added
+- **Terminal Activity Indicator**: Added a visual cue (dot •) to terminal tab labels to indicate new unread output in background tabs.
+- **Typing FPS Cap**: Implemented a smart repaint throttle that caps the UI at ~30 FPS during active typing, significantly reducing CPU spikes during rapid text entry.
+
+### Changed
+- **Repaint Gate (Performance)**: Major optimization of the UI render loop. The editor is now strictly event-driven in idle states, with a 2-second fallback repaint when unfocused or minimized.
+- **Background Isolation**: Throttled all background-to-UI repaint requests (AI chat, indexing, plugin host, system stats) to a maximum of 10Hz (100ms), preventing "repaint storms" during intensive background tasks.
+- **Terminal Throttling & Batching**: PTY event processing is now time-budgeted (max 2ms per frame) and batched into single writes to the terminal backend, ensuring a smooth UI even during massive console output (e.g., `cat` of large files).
+- **PTY Lifecycle Management**: Improved process group termination. Closing a terminal tab now reliably kills the entire process group (SIGTERM to -PID), preventing zombie processes.
+
+### Fixed
+- **Accesskit Overhead**: Disabled `accesskit` and `web_screen_reader` features in `eframe` to eliminate unnecessary background accessibility processing and unsolicited repaints.
+- **Path Detection Optimization**: Optimized clickable path detection in the terminal by caching results at the line level, reducing regex overhead during mouse movement.
+
 ## [0.8.5] - 2026-03-03
 
 ### Added

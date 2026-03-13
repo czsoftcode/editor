@@ -11,6 +11,9 @@ impl Editor {
     ) {
         // Render using egui_commonmark.
         // Style (colors and size) is controlled by the parent element in render.rs.
-        CommonMarkViewer::new().show(ui, cache, content);
+        CommonMarkViewer::new()
+            .syntax_theme_dark("base16-ocean.dark")
+            .syntax_theme_light("base16-ocean.light")
+            .show(ui, cache, content);
     }
 }

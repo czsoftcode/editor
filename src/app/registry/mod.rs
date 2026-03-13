@@ -1,6 +1,3 @@
-pub mod plugins;
-
-use crate::app::registry::plugins::PluginManager;
 use crate::app::ui::widgets::command_palette::CommandId;
 use std::collections::HashMap;
 
@@ -73,12 +70,6 @@ pub struct Command {
 pub enum CommandAction {
     /// An internal command handled by the hardcoded `execute_command`.
     Internal(CommandId),
-    /// A command provided by a plugin.
-    #[allow(dead_code)]
-    Plugin {
-        plugin_id: String,
-        func_name: String,
-    },
 }
 
 /// Registry for managing all commands in the application.
@@ -144,24 +135,20 @@ impl PanelRegistry {
     }
 }
 
-use std::sync::Arc;
-
 /// The root registry holding all extension points.
 pub struct Registry {
     pub commands: CommandRegistry,
     pub agents: AgentRegistry,
     #[allow(dead_code)]
     pub panels: PanelRegistry,
-    pub plugins: Arc<PluginManager>,
 }
 
 impl Registry {
-    pub fn new(sandbox_root: std::path::PathBuf) -> Self {
+    pub fn new() -> Self {
         Self {
             commands: CommandRegistry::new(),
             agents: AgentRegistry::new(),
             panels: PanelRegistry::new(),
-            plugins: Arc::new(PluginManager::new(sandbox_root)),
         }
     }
 
@@ -210,6 +197,12 @@ impl Registry {
                 OpenFolder,
             ),
             (
+                "project.trash_preview",
+                "command-name-trash-preview",
+                None,
+                TrashPreview,
+            ),
+            (
                 "ui.toggle_left",
                 "command-name-toggle-left",
                 None,
@@ -238,18 +231,6 @@ impl Registry {
                 "command-name-show-settings",
                 Some("Ctrl+,"),
                 Settings,
-            ),
-            (
-                "ui.show_plugins",
-                "command-name-show-plugins",
-                Some("Ctrl+Shift+L"),
-                Plugins,
-            ),
-            (
-                "app.install_appimagetool",
-                "command-name-install-appimagetool",
-                None,
-                InstallAppImageTool,
             ),
             ("ui.show_about", "command-name-show-about", None, About),
             ("app.quit", "command-name-quit", None, Quit),

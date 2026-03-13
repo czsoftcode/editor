@@ -1,10 +1,12 @@
 use eframe::egui;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 
 use super::{ProjectSearch, WorkspaceState};
+use crate::app::ai_prefs::AiPanelState;
 use crate::app::project_config::load_profiles;
 use crate::app::types::{FocusedPanel, PersistentState};
 use crate::app::ui::background::{fetch_git_branch, fetch_git_status};
@@ -19,19 +21,10 @@ pub fn init_workspace(
     settings: &crate::settings::Settings,
     shared: Arc<Mutex<crate::app::types::AppShared>>,
 ) -> WorkspaceState {
-    let sandbox = crate::app::sandbox::Sandbox::new(&root_path);
     let mut file_tree = FileTree::new();
-    let file_tree_in_sandbox = settings.project_read_only;
-    let target_tree_root = if file_tree_in_sandbox {
-        &sandbox.root
-    } else {
-        &root_path
-    };
-    file_tree.load(target_tree_root);
+    file_tree.load(&root_path);
 
-    let mut project_watcher = ProjectWatcher::new(&root_path);
-    project_watcher.add_path(&sandbox.root);
-    let sandbox_staged_files = sandbox.get_staged_files();
+    let project_watcher = ProjectWatcher::new(&root_path);
 
     let git_cancel = Arc::new(AtomicBool::new(false));
     let git_branch_rx = fetch_git_branch(&root_path, Arc::clone(&git_cancel));
@@ -66,25 +59,23 @@ pub fn init_workspace(
         );
     }
 
-    let i18n = crate::i18n::I18n::new(&settings.lang);
     let profiles = load_profiles(&root_path);
 
-    let selected_provider = panel_state
-        .ai_selected_provider
-        .clone()
-        .unwrap_or_else(|| "gemini".to_string());
-    let ai_settings = settings.plugins.get(&selected_provider);
+    let (background_io_tx, background_io_rx) = std::sync::mpsc::channel::<super::FsChangeResult>();
 
     WorkspaceState {
         file_tree,
         editor: Editor::new(),
         watcher: FileWatcher::new(),
         project_watcher,
+        project_watcher_active: true,
+        project_watcher_disconnect_reported: false,
         claude_tabs: Vec::new(),
         claude_active_tab: 0,
         next_claude_tab_id: 1,
         next_terminal_id: 2,
         build_terminal: None,
+        retired_terminals: Vec::new(),
         focused_panel: FocusedPanel::Editor,
         root_path: root_path.clone(),
         show_left_panel: panel_state.show_left_panel,
@@ -95,13 +86,8 @@ pub fn init_workspace(
         show_about: false,
         show_support: false,
         show_settings: false,
-        show_plugins: false,
-        show_ai_chat: false,
         show_semantic_indexing_modal: true,
-        ai_show_settings: false,
-        selected_plugin_id: None,
         selected_settings_category: None,
-        ai_font_scale: panel_state.ai_font_scale,
         profiles,
         build_errors: Vec::new(),
         build_error_rx: None,
@@ -110,7 +96,6 @@ pub fn init_workspace(
             .first()
             .map(|a| a.name.to_lowercase().replace(' ', "_"))
             .unwrap_or_default(),
-        ai_selected_provider: selected_provider.clone(),
         claude_float: panel_state.claude_float,
         show_new_project: false,
         wizard: crate::app::ui::dialogs::WizardState::default(),
@@ -130,7 +115,7 @@ pub fn init_workspace(
         git_last_refresh: std::time::Instant::now(),
         lsp_last_retry: std::time::Instant::now(),
         settings_draft: None,
-        plugins_draft: None,
+        settings_original: None,
         settings_folder_pick_rx: None,
         ai_tool_available: HashMap::new(),
         ai_tool_check_rx: None,
@@ -140,79 +125,22 @@ pub fn init_workspace(
         win_tool_last_check: std::time::Instant::now(),
         external_change_conflict: None,
         dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
-        build_all_modal: crate::app::ui::workspace::build_all_modal::BuildAllModal::new(),
-        sandbox_deletion_sync: None,
         terminal_close_requested: None,
         ai_viewport_open: false,
-        promotion_success: None,
-        show_sandbox_staged: false,
-        plugin_error: None,
-        ai_prompt: String::new(),
-        ai_history: Vec::new(),
-        ai_history_index: None,
-        ai_monologue: Vec::new(),
-        ai_conversation: vec![(
-            String::new(),
-            crate::app::ai::AiManager::get_logo(
-                crate::config::CLI_VERSION,
-                &ai_settings
-                    .and_then(|s| s.config.get("MODEL").cloned())
-                    .unwrap_or_else(|| {
-                        if selected_provider == "ollama" {
-                            "llama3.1".to_string()
-                        } else {
-                            "gemini-1.5-flash".to_string()
-                        }
-                    }),
-                panel_state
-                    .ai_expertise
-                    .unwrap_or_else(|| ai_settings.map(|s| s.expertise).unwrap_or_default()),
-                panel_state
-                    .ai_reasoning_depth
-                    .unwrap_or_else(|| ai_settings.map(|s| s.reasoning_depth).unwrap_or_default()),
-            ),
-        )],
-        ai_system_prompt: panel_state.ai_system_prompt.clone().unwrap_or_else(|| {
-            ai_settings
-                .and_then(|s| s.config.get("SYSTEM_PROMPT").cloned())
-                .unwrap_or_else(|| i18n.get("ai-chat-default-prompt"))
-        }),
-        ai_language: panel_state.ai_language.clone().unwrap_or_else(|| {
-            ai_settings
-                .and_then(|s| s.config.get("LANGUAGE").cloned())
-                .unwrap_or_else(|| i18n.lang().to_string())
-        }),
-        ai_expertise: panel_state
-            .ai_expertise
-            .unwrap_or_else(|| ai_settings.map(|s| s.expertise).unwrap_or_default()),
-        ai_reasoning_depth: panel_state
-            .ai_reasoning_depth
-            .unwrap_or_else(|| ai_settings.map(|s| s.reasoning_depth).unwrap_or_default()),
-        ai_in_tokens: 0,
-        ai_out_tokens: 0,
-        ai_inspector_open: false,
-        ai_focus_requested: true,
-        ai_last_payload: String::new(),
-        ai_response: None,
-        ai_loading: false,
-        markdown_cache: egui_commonmark::CommonMarkCache::default(),
-        sync_confirmation: None,
-        pending_agent_id: None,
-        build_in_sandbox: settings.project_read_only,
-        file_tree_in_sandbox,
+        settings_conflict: None,
+        ai_panel: AiPanelState {
+            font_scale: panel_state.ai_font_scale,
+        },
         git_cancel,
         local_history: crate::app::local_history::LocalHistory::new(&root_path),
-        sandbox,
-        sandbox_staged_files,
-        sandbox_staged_rx: None,
-        sandbox_staged_dirty: false,
-        sandbox_staged_last_dirty: std::time::Instant::now(),
-        sandbox_staged_last_refresh: std::time::Instant::now(),
-        background_io_rx: None,
+        background_io_tx,
+        background_io_rx: Some(background_io_rx),
         applied_settings_version: 0,
-        pending_plugin_approval: None,
-        pending_ask_user: None,
-        ai_cancellation_token: Arc::new(AtomicBool::new(false)),
+        confirm_discard_changes: None,
+        last_keystroke_time: None,
+        pending_close_flow: None,
+        last_unsaved_close_cancelled: false,
+        history_view: None,
     }
 }
 
@@ -224,7 +152,6 @@ fn spawn_semantic_indexer(
     shared: Arc<Mutex<crate::app::types::AppShared>>,
 ) {
     let thread_root = root_path.clone();
-    let thread_sandbox_root = thread_root.join(".polycredo").join("sandbox");
 
     // Load ignore patterns from .gitignore
     let mut blacklist_strings = blacklist;
@@ -233,7 +160,7 @@ fn spawn_semantic_indexer(
         for line in content.lines() {
             let line = line.trim();
             if !line.is_empty() && !line.starts_with('#') {
-                if line.contains(".polycredo") || line.contains("sandbox") {
+                if line.contains(".polycredo") {
                     continue;
                 }
                 blacklist_strings.push(line.to_string());
@@ -254,7 +181,7 @@ fn spawn_semantic_indexer(
     }
 
     std::thread::spawn(move || {
-        println!("[SemanticIndex] Thread started. Virtual Root: Sandbox.");
+        println!("[SemanticIndex] Thread started. Virtual Root: Project.");
 
         {
             let si = si_arc.lock().unwrap();
@@ -268,8 +195,8 @@ fn spawn_semantic_indexer(
         std::thread::sleep(std::time::Duration::from_millis(100));
 
         let mut files = Vec::new();
-        if thread_sandbox_root.exists() {
-            for entry in walkdir::WalkDir::new(&thread_sandbox_root)
+        if thread_root.exists() {
+            for entry in walkdir::WalkDir::new(&thread_root)
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
@@ -277,7 +204,7 @@ fn spawn_semantic_indexer(
                     continue;
                 }
 
-                if let Ok(rel) = entry.path().strip_prefix(&thread_sandbox_root) {
+                if let Ok(rel) = entry.path().strip_prefix(&thread_root) {
                     let path_str = rel.to_string_lossy();
                     let mut is_blacklisted = false;
 
@@ -373,7 +300,7 @@ fn spawn_semantic_indexer(
             }
             ctx.request_repaint();
 
-            let abs_path = thread_sandbox_root.join(rel_path);
+            let abs_path = thread_root.join(rel_path);
             let mtime = std::fs::metadata(&abs_path)
                 .and_then(|m| m.modified())
                 .ok()

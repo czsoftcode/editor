@@ -1,0 +1,36 @@
+app-id: org.polycredo.Editor
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: polycredo-editor
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --share=network
+  - --filesystem=host
+  - --talk-name=org.freedesktop.Notifications
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  build-args:
+    - --share=network
+  env:
+    CARGO_HOME: /run/build/polycredo-editor/cargo
+    CARGO_TARGET_DIR: /run/build/polycredo-editor/target
+
+modules:
+  - name: polycredo-editor
+    buildsystem: simple
+    build-commands:
+      - rm -f .cargo/config.toml
+      - CARGO_TARGET_DIR=/run/build/polycredo-editor/target cargo build --release --verbose
+      - install -Dm755 /run/build/polycredo-editor/target/release/polycredo-editor /app/bin/polycredo-editor
+      - install -Dm644 packaging/deb/polycredo-editor.desktop /app/share/applications/org.polycredo.Editor.desktop
+      - install -Dm644 packaging/icons/icon-256.png /app/share/icons/hicolor/256x256/apps/org.polycredo.Editor.png
+    sources:
+      - type: dir
+        path: .

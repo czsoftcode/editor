@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+. /usr/share/debconf/confmodule
+
+if db_get polycredo-editor/accept-license; then
+    if [ "$RET" != "true" ]; then
+        echo "ERROR: You must accept the license agreement to install PolyCredo Editor." >&2
+        # If we are in non-interactive mode, we might want to continue anyway
+        # but let's at least try to be safe.
+        # exit 1
+    fi
+fi
+
+#DEBHELPER#
+
+exit 0

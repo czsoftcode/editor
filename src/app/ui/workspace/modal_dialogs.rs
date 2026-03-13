@@ -8,7 +8,6 @@ use super::state::WorkspaceState;
 mod about;
 mod ai_dialogs;
 mod conflict;
-mod plugins;
 mod settings;
 mod terminal;
 
@@ -36,29 +35,33 @@ pub(super) fn render_dialogs(
     crate::app::ui::dialogs::show_support_dialog(ctx, ws, i18n);
 
     // 2. Settings dialog
-    settings::show(ctx, ws, shared, i18n, &id_salt);
+    settings::show(ctx, ws, shared, i18n);
 
-    // 3. Plugins dialog
-    plugins::show(ctx, ws, shared, i18n, &id_salt);
-
-    // 4. New project wizard (within workspace)
+    // 3. New project wizard (within workspace)
     if ws.show_new_project {
         let wizard_modal_id = format!("ws_new_project_modal_{}", ws.root_path.display());
-        show_project_wizard(
+        let mut wizard_state = std::mem::take(&mut ws.wizard);
+        let mut show_flag = ws.show_new_project;
+
+        let args = crate::app::ui::dialogs::WizardArgs {
             ctx,
-            &mut ws.wizard,
-            &mut ws.show_new_project,
-            &wizard_modal_id,
+            state: &mut wizard_state,
+            show: &mut show_flag,
+            modal_id: &wizard_modal_id,
             shared,
             i18n,
-            |path, sh| {
-                let mut sh = sh
-                    .lock()
-                    .expect("Failed to lock AppShared in new project wizard callback");
-                sh.actions.push(AppAction::AddRecent(path.clone()));
-                sh.actions.push(AppAction::OpenInNewWindow(path));
-            },
-        );
+            ws: Some(ws),
+        };
+
+        show_project_wizard(args, |path, sh| {
+            let mut sh = sh
+                .lock()
+                .expect("Failed to lock AppShared in new project wizard callback");
+            sh.actions.push(AppAction::AddRecent(path.clone()));
+            sh.actions.push(AppAction::OpenInNewWindow(path));
+        });
+        ws.wizard = wizard_state;
+        ws.show_new_project = show_flag;
     }
 
     // 4. External change conflict dialog
@@ -70,5 +73,24 @@ pub(super) fn render_dialogs(
     // 6. AI related dialogs (Promotion success, Sandbox staged files, Sync confirmation)
     ai_dialogs::show(ctx, ws, shared, i18n);
 
+    // 7. Global confirm discard dialog
+    if crate::app::ui::widgets::modal::render_confirm_discard_dialog(ctx, ws, i18n) {
+        // Settings modal may have already pushed live preview into shared runtime settings.
+        // Confirm-discard must always restore snapshot and clear draft lifecycle state.
+        settings::discard_settings_draft(ws, shared);
+
+        // If confirmed, close common modals
+        ws.show_settings = false;
+        ws.show_new_project = false;
+    }
+
     any_interacted
+}
+
+pub(super) fn save_settings_draft(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
+    settings::save_settings_draft(ws, shared, i18n);
 }

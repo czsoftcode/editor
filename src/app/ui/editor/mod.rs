@@ -12,6 +12,7 @@ use std::time::Instant;
 
 use eframe::egui;
 
+use crate::app::ui::widgets::tab_bar::TabBarAction;
 use crate::highlighter::Highlighter;
 
 const AUTOSAVE_DELAY_MS: u128 = 500;
@@ -63,9 +64,29 @@ pub enum DiffAction {
 pub struct EditorUiResult {
     pub clicked: bool,
     pub diff_action: Option<(String, DiffAction, String)>,
+    pub tab_action: Option<TabBarAction>,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarkdownLayoutMode {
+    PodSebou,
+    VedleSebe,
+    JenomKod,
+    JenomNahled,
+}
+
+impl MarkdownLayoutMode {
+    pub fn next(self) -> Self {
+        match self {
+            Self::PodSebou => Self::VedleSebe,
+            Self::VedleSebe => Self::JenomKod,
+            Self::JenomKod => Self::JenomNahled,
+            Self::JenomNahled => Self::PodSebou,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SaveStatus {
     None,
     Modified,
@@ -124,6 +145,7 @@ pub struct Editor {
     pub(crate) current_match: Option<usize>,
     pub(crate) search_focus_requested: bool,
     pub(crate) md_split_ratio: f32,
+    pub(crate) md_layout_mode: MarkdownLayoutMode,
     pub(crate) tab_scroll_x: f32,
     pub(crate) scroll_to_active: bool,
     /// Pending jump to (line, column) — 1-based
@@ -180,6 +202,7 @@ impl Editor {
             current_match: None,
             search_focus_requested: false,
             md_split_ratio: 0.5,
+            md_layout_mode: MarkdownLayoutMode::PodSebou,
             tab_scroll_x: 0.0,
             scroll_to_active: false,
             pending_jump: None,

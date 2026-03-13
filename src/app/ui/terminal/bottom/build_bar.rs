@@ -4,44 +4,11 @@ use crate::app::ui::workspace::state::open_file_in_ws;
 use eframe::egui;
 
 pub fn render_build_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate::i18n::I18n) {
+    let target_dir = ws.root_path.clone();
+
     ui.horizontal(|ui| {
         // 1. LEFT CONTROLS
         ui.strong(i18n.get("panel-build"));
-        ui.separator();
-
-        // Sandbox Toggle
-        let prev_in_sandbox = ws.build_in_sandbox;
-        let sandbox_label = if ws.build_in_sandbox {
-            egui::RichText::new(i18n.get("btn-build-sandbox-on"))
-                .color(egui::Color32::from_rgb(255, 230, 100))
-                .strong()
-        } else {
-            egui::RichText::new(i18n.get("btn-build-sandbox-off"))
-        };
-
-        if ui
-            .selectable_label(ws.build_in_sandbox, sandbox_label)
-            .on_hover_text(i18n.get("hover-build-sandbox"))
-            .clicked()
-        {
-            ws.build_in_sandbox = !ws.build_in_sandbox;
-        }
-
-        if ws.build_in_sandbox != prev_in_sandbox {
-            let target_dir = if ws.build_in_sandbox {
-                &ws.sandbox.root
-            } else {
-                &ws.root_path
-            };
-            ws.next_terminal_id += 1;
-            ws.build_terminal = Some(crate::app::ui::terminal::instance::Terminal::new(
-                ws.next_terminal_id,
-                ui.ctx(),
-                target_dir,
-                None,
-            ));
-        }
-
         ui.separator();
 
         // Profile Dropdown
@@ -65,14 +32,9 @@ pub fn render_build_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate
 
                 if let Some(idx) = run_profile_idx {
                     let profile = ws.profiles.runners[idx].clone();
-                    let target_dir = if ws.build_in_sandbox {
-                        &ws.sandbox.root
-                    } else {
-                        &ws.root_path
-                    };
                     let terminal = crate::app::build_runner::run_profile(
                         ui.ctx(),
-                        target_dir,
+                        &target_dir,
                         &profile,
                         &mut ws.next_terminal_id,
                     );
@@ -93,6 +55,39 @@ pub fn render_build_bar(ui: &mut egui::Ui, ws: &mut WorkspaceState, i18n: &crate
                 open_file_in_ws(ws, profiles_path);
             }
         });
+
+        ui.separator();
+
+        #[cfg(target_os = "linux")]
+        {
+            if ui
+                .button(i18n.get("btn-create-deb"))
+                .on_hover_text(i18n.get("hover-create-deb"))
+                .clicked()
+            {
+                let cmd = "export DEB_BUILD_TYPE=deb-dev && ./packaging/deb/build-deb.sh";
+                ws.next_terminal_id += 1;
+                let terminal = crate::app::ui::terminal::instance::Terminal::new(
+                    ws.next_terminal_id,
+                    ui.ctx(),
+                    &ws.root_path,
+                    Some(cmd),
+                );
+                ws.build_terminal = Some(terminal);
+                ws.show_build_terminal = true;
+                ws.focused_panel = FocusedPanel::Build;
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            ui.weak("MSI Installer (WIP)");
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            ui.weak("DMG Bundle (WIP)");
+        }
 
         // RESERVE SPACE for the float button
         ui.add_space(28.0);

@@ -36,13 +36,34 @@ pub const SUPPORTED_LANGS: &[&str] = &["cs", "en", "sk", "de", "ru"];
 
 /// Default language used as fallback if the system language is not supported.
 pub const FALLBACK_LANG: &str = "en";
+pub const PHASE_26_SAVE_UX_KEYS: &[&str] = &[
+    "statusbar-unsaved",
+    "statusbar-saved",
+    "statusbar-save-mode-automatic",
+    "statusbar-save-mode-manual",
+    "settings-save-mode-title",
+    "settings-save-mode-automatic",
+    "settings-save-mode-manual",
+    "settings-save-mode-toast-automatic",
+    "settings-save-mode-toast-manual",
+    "unsaved-close-guard-title",
+    "unsaved-close-guard-message",
+    "unsaved-close-guard-save",
+    "unsaved-close-guard-discard",
+    "unsaved-close-guard-cancel",
+    "unsaved_close_guard_save_failed",
+];
+
+pub fn phase_26_save_ux_keys() -> &'static [&'static str] {
+    PHASE_26_SAVE_UX_KEYS
+}
 
 const RESOURCES_CS: &[&str] = &[
     include_str!("../locales/cs/menu.ftl"),
     include_str!("../locales/cs/ui.ftl"),
     include_str!("../locales/cs/dialogs.ftl"),
     include_str!("../locales/cs/errors.ftl"),
-    include_str!("../locales/cs/ai.ftl"),
+    include_str!("../locales/cs/cli.ftl"),
 ];
 
 const RESOURCES_EN: &[&str] = &[
@@ -50,7 +71,7 @@ const RESOURCES_EN: &[&str] = &[
     include_str!("../locales/en/ui.ftl"),
     include_str!("../locales/en/dialogs.ftl"),
     include_str!("../locales/en/errors.ftl"),
-    include_str!("../locales/en/ai.ftl"),
+    include_str!("../locales/en/cli.ftl"),
 ];
 
 const RESOURCES_SK: &[&str] = &[
@@ -58,7 +79,7 @@ const RESOURCES_SK: &[&str] = &[
     include_str!("../locales/sk/ui.ftl"),
     include_str!("../locales/sk/dialogs.ftl"),
     include_str!("../locales/sk/errors.ftl"),
-    include_str!("../locales/sk/ai.ftl"),
+    include_str!("../locales/sk/cli.ftl"),
 ];
 
 const RESOURCES_DE: &[&str] = &[
@@ -66,7 +87,7 @@ const RESOURCES_DE: &[&str] = &[
     include_str!("../locales/de/ui.ftl"),
     include_str!("../locales/de/dialogs.ftl"),
     include_str!("../locales/de/errors.ftl"),
-    include_str!("../locales/de/ai.ftl"),
+    include_str!("../locales/de/cli.ftl"),
 ];
 
 const RESOURCES_RU: &[&str] = &[
@@ -74,7 +95,7 @@ const RESOURCES_RU: &[&str] = &[
     include_str!("../locales/ru/ui.ftl"),
     include_str!("../locales/ru/dialogs.ftl"),
     include_str!("../locales/ru/errors.ftl"),
-    include_str!("../locales/ru/ai.ftl"),
+    include_str!("../locales/ru/cli.ftl"),
 ];
 
 pub(crate) fn resources_for(lang: &str) -> &'static [&'static str] {
@@ -425,6 +446,27 @@ mod tests {
                 "Language '{lang}' has extra keys compared to EN:\n  {}",
                 extra.join("\n  ")
             );
+        }
+    }
+
+    #[test]
+    fn phase_26_save_ux_keys_match_english_reference() {
+        let en_keys = all_keys_for(FALLBACK_LANG);
+        for &key in phase_26_save_ux_keys() {
+            assert!(
+                en_keys.contains(key),
+                "EN reference is missing save UX key '{key}'"
+            );
+        }
+
+        for &lang in SUPPORTED_LANGS {
+            let lang_keys = all_keys_for(lang);
+            for &key in phase_26_save_ux_keys() {
+                assert!(
+                    lang_keys.contains(key),
+                    "language '{lang}' is missing phase 26 save UX key '{key}'"
+                );
+            }
         }
     }
 

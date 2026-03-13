@@ -17,6 +17,10 @@ pub fn render(
             actions.new_project = true;
             ui.close_menu();
         }
+        if ui.button(i18n.get("menu-project-trash-preview")).clicked() {
+            actions.trash_preview = true;
+            ui.close_menu();
+        }
         if !recent_snapshot.is_empty() {
             ui.separator();
             ui.menu_button(i18n.get("menu-project-recent"), |ui| {

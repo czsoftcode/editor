@@ -3,20 +3,23 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
-pub mod ai;
+pub mod ai_prefs;
 mod build_runner;
 mod fonts;
-pub mod local_history;
-pub mod lsp;
+pub(crate) mod local_history;
+pub(crate) mod lsp;
 mod project_config;
 pub(crate) mod project_templates;
-pub mod registry;
-pub mod sandbox;
+pub(crate) mod registry;
 mod startup;
+pub(crate) mod trash;
 mod types;
 pub(crate) mod ui;
 pub(crate) mod validation;
 
+use crate::app::ui::workspace::state::{
+    PendingCloseFlow, PendingCloseMode, build_dirty_close_queue,
+};
 use types::*;
 use ui::dialogs::{
     PrivacyResult, PrivacyState, QuitDialogResult, WizardState, show_close_project_confirm_dialog,
@@ -36,6 +39,16 @@ use eframe::egui;
 // ---------------------------------------------------------------------------
 
 use crate::tr;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum GlobalCloseKind {
+    /// User requested to quit the entire application (menu or Ctrl+Q equivalent).
+    QuitAll,
+    /// Root viewport window close (e.g., clicking OS window close button).
+    RootViewportClose,
+    /// Close project in the root window while keeping the app running.
+    RootProjectClose,
+}
 
 pub struct EditorApp {
     /// Root workspace (None = startup dialog)
@@ -68,7 +81,6 @@ pub struct EditorApp {
 
     _ipc_server: Option<IpcServer>,
     focus_rx: mpsc::Receiver<()>,
-    action_rx: mpsc::Receiver<AppAction>,
     /// Incoming requests from secondary instances to open project in a new window.
     open_request_rx: Option<mpsc::Receiver<PathBuf>>,
 
@@ -78,6 +90,11 @@ pub struct EditorApp {
 
     /// Last settings version applied to the root viewport context (Audit S-4).
     applied_settings_version: u64,
+
+    /// Pending global close guard flow for Quit/Close Project/root window close.
+    /// When set, root close orchestrace waits for workspace unsaved guard to finish
+    /// before showing the final confirmation dialog or terminating the app.
+    pub(crate) pending_global_close: Option<GlobalCloseKind>,
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +115,6 @@ impl EditorApp {
             Some((server, rx)) => (Some(server), Some(rx)),
             None => (None, None),
         };
-        let (action_tx, action_rx) = mpsc::channel();
         let focus_rx = ipc::start_process_listener();
 
         // Load recent projects
@@ -115,16 +131,11 @@ impl EditorApp {
             };
 
         let settings = std::sync::Arc::new(crate::settings::Settings::load());
+        // Apply theme before first frame to avoid startup flash.
+        settings.apply(&cc.egui_ctx);
         let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
 
-        let sandbox_root = paths_to_open
-            .first()
-            .map(|p| p.join(".polycredo").join("sandbox"))
-            .unwrap_or_else(|| PathBuf::from("/tmp/polycredo-sandbox"));
-
-        let mut registry = crate::app::registry::Registry::new(sandbox_root);
-        *registry.plugins.action_sender.lock().expect("lock") = Some(action_tx);
-        *registry.plugins.egui_ctx.lock().expect("lock") = Some(cc.egui_ctx.clone());
+        let mut registry = crate::app::registry::Registry::new();
         registry.init_defaults();
 
         // Register agents exclusively from settings
@@ -139,78 +150,6 @@ impl EditorApp {
                 label: ca.name.clone(),
                 command: cmd,
                 context_aware: true,
-            });
-        }
-
-        // Load WASM plugins from Global fallback
-        registry.plugins.set_blacklist(settings.blacklist.clone());
-
-        // Priority: Global Fallback (~/.config/polycredo-editor/plugins)
-        let global_plugins = ipc::plugins_dir();
-        if let Err(e) = registry.plugins.load_from_dir(&global_plugins) {
-            eprintln!(
-                "Failed to load global plugins from {:?}: {}",
-                global_plugins, e
-            );
-        }
-
-        // Auto-authorize enabled plugins that require internet access (allowed_hosts)
-        let pending = registry.plugins.get_pending_authorizations();
-        for (id, _metadata) in pending {
-            let is_enabled = settings.plugins.get(&id).map(|s| s.enabled).unwrap_or(true);
-            if is_enabled {
-                let config = settings
-                    .plugins
-                    .get(&id)
-                    .map(|s| s.config.clone())
-                    .unwrap_or_default();
-                if let Err(e) = registry.plugins.authorize(&id, &config) {
-                    eprintln!("Failed to auto-authorize plugin {}: {}", id, e);
-                }
-            }
-        }
-
-        // Auto-register "hello" plugin command if loaded
-        if registry
-            .plugins
-            .get_loaded_ids()
-            .contains(&"hello".to_string())
-        {
-            registry.commands.register(crate::app::registry::Command {
-                id: "plugin.hello".to_string(),
-                i18n_key: "command-name-plugin-hello",
-                shortcut: None,
-                action: crate::app::registry::CommandAction::Plugin {
-                    plugin_id: "hello".to_string(),
-                    func_name: "hello".to_string(),
-                },
-            });
-        }
-
-        // Dynamically register AI agent commands
-        let ai_agents = registry.plugins.get_ai_agents();
-        for (id, _meta) in ai_agents {
-            let cmd_id = format!("plugin.{}", id);
-            let func_name = format!("ask_{}", id);
-
-            // We use a generic i18n key or construct one if needed.
-            // For now, we'll try to find a specific one or fallback to a default.
-            let i18n_key = if id == "gemini" {
-                "command-name-plugin-gemini"
-            } else if id == "ollama" {
-                "command-name-plugin-ollama"
-            } else {
-                "command-name-plugin-ai-chat" // We should add this to locales
-            };
-
-            registry.commands.register(crate::app::registry::Command {
-                id: cmd_id,
-                i18n_key,
-                shortcut: None,
-                action: crate::app::registry::CommandAction::Plugin {
-                    plugin_id: id.clone(),
-                    func_name,
-                },
             });
         }
 
@@ -313,10 +252,10 @@ impl EditorApp {
             show_close_project_confirm: false,
             _ipc_server: ipc_server,
             focus_rx,
-            action_rx,
             open_request_rx,
             missing_session_paths,
             applied_settings_version: 0,
+            pending_global_close: None,
         }
     }
 
@@ -399,19 +338,20 @@ impl EditorApp {
     }
 
     fn process_actions(&mut self, ctx: &egui::Context) {
-        // Forward incremental actions from plugins (monologues)
-        while let Ok(action) = self.action_rx.try_recv() {
-            self.shared.lock().expect("lock").actions.push(action);
-        }
-
-        let actions = std::mem::take(
-            &mut self
+        let mut actions = {
+            let mut sh = self
                 .shared
                 .lock()
-                .expect("Failed to lock AppShared in process_actions")
-                .actions,
-        );
-        for action in actions {
+                .expect("Failed to lock AppShared in process_actions");
+            std::mem::take(&mut sh.actions)
+        };
+
+        let start_time = std::time::Instant::now();
+
+        // Process actions with a time limit (Plan 03: 2ms)
+        while !actions.is_empty() {
+            let action = actions.remove(0);
+
             match action {
                 AppAction::OpenInNewWindow(path) => {
                     self.open_in_new_window(path, ctx);
@@ -424,76 +364,19 @@ impl EditorApp {
                     self.push_recent(path);
                 }
                 AppAction::QuitAll => {
-                    self.show_close_project_confirm = false;
-                    self.show_quit_confirm = true;
+                    self.start_global_close_guard(GlobalCloseKind::QuitAll, ctx);
                 }
-                AppAction::PluginResponse(id, result) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
-                    {
-                        ws.ai_loading = false;
-                        match result {
-                            Ok(text) => {
-                                ws.ai_response = Some(text.clone());
-                                // Update conversation history - append AFTER monologue
-                                if let Some(last) = ws.ai_conversation.last_mut() {
-                                    if !last.1.is_empty() {
-                                        last.1.push_str("\n\n");
-                                    }
-                                    last.1.push_str(&text);
-                                }
-                            }
-                            Err(err) => ws.plugin_error = Some(err),
-                        }
-                    }
-                }
-                AppAction::PluginMonologue(id, message) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
-                    {
-                        ws.ai_monologue.push(message.clone());
-                    }
-                }
-                AppAction::PluginUsage(id, in_t, out_t) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
-                    {
-                        // Add the input and output tokens consumed by the last request to the session counter.
-                        ws.ai_in_tokens = ws.ai_in_tokens.saturating_add(in_t);
-                        ws.ai_out_tokens = ws.ai_out_tokens.saturating_add(out_t);
-                    }
-                }
-                AppAction::PluginPayload(id, payload) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
-                    {
-                        ws.ai_last_payload = payload;
-                    }
-                }
-                AppAction::PluginApprovalRequest(id, action, details, sender) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
-                    {
-                        ws.pending_plugin_approval = Some((id, action, details, sender));
-                        ws.ai_focus_requested = true;
-                    }
-                }
-                AppAction::PluginAskUser(id, question, options, sender) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
-                    {
-                        ws.pending_ask_user = Some((id, question, options, String::new(), sender));
-                        ws.ai_focus_requested = true;
-                    }
-                }
-                AppAction::PluginCompleted(id, summary) => {
-                    if let Some(ws) = &mut self.root_ws
-                        && id == ws.ai_selected_provider
-                    {
-                        ws.ai_monologue.push(format!("✅ DONE: {}", summary));
-                        ws.ai_loading = false;
-                    }
-                }
+            }
+
+            // If we've spent more than 2ms, defer remaining actions to the next frame
+            if start_time.elapsed().as_millis() >= 2 && !actions.is_empty() {
+                let mut sh = self.shared.lock().expect("lock");
+                // Prepend remaining actions back to the queue
+                let mut combined = actions;
+                combined.append(&mut sh.actions);
+                sh.actions = combined;
+                ctx.request_repaint(); // Ensure we come back soon to finish
+                break;
             }
         }
     }
@@ -537,6 +420,8 @@ impl EditorApp {
                             .settings_version
                             .load(std::sync::atomic::Ordering::SeqCst);
                         if ws.applied_settings_version != v {
+                            let theme_name = shared.settings.syntect_theme_name();
+                            ws.editor.highlighter.set_theme(theme_name);
                             shared.settings.apply(ctx);
                             ws.applied_settings_version = v;
                         }
@@ -599,6 +484,162 @@ impl EditorApp {
                     }
                 },
             );
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_new_with_workspace(ws: WorkspaceState, _ctx: &egui::Context) -> Self {
+        use std::sync::mpsc;
+
+        let panel_state = PersistentState::default();
+        let settings = std::sync::Arc::new(crate::settings::Settings::default());
+        let i18n = std::sync::Arc::new(crate::i18n::I18n::new(&settings.lang));
+        let registry = {
+            let mut r = crate::app::registry::Registry::new();
+            r.init_defaults();
+            r
+        };
+
+        let shared = Arc::new(Mutex::new(AppShared {
+            recent_projects: Vec::new(),
+            actions: Vec::new(),
+            settings,
+            i18n,
+            is_internal_save: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            registry,
+            settings_version: std::sync::atomic::AtomicU64::new(1),
+            bert_model: None,
+            bert_tokenizer: None,
+        }));
+
+        let (_focus_tx, focus_rx) = mpsc::channel();
+
+        EditorApp {
+            root_ws: Some(ws),
+            secondary: Vec::new(),
+            shared,
+            next_viewport_counter: 0,
+            saved_panel_state: panel_state,
+            privacy_state: PrivacyState::default(),
+            path_buffer: String::new(),
+            startup_browse_rx: None,
+            show_startup_wizard: false,
+            startup_wizard: WizardState::default(),
+            show_quit_confirm: false,
+            quit_confirmed: false,
+            show_close_project_confirm: false,
+            _ipc_server: None,
+            focus_rx,
+            open_request_rx: None,
+            missing_session_paths: Vec::new(),
+            applied_settings_version: 0,
+            pending_global_close: None,
+        }
+    }
+
+    /// Starts a workspace-level unsaved close guard run before executing a
+    /// global close action (Quit/Close Project/root window close).
+    ///
+    /// If there is no workspace or there are no dirty tabs, the original
+    /// action is executed immediately. Otherwise, this sets up a
+    /// `PendingCloseFlow` in `WorkspaceClose` mode and records the
+    /// `pending_global_close` kind so that `update` can resume the original
+    /// action once the guard flow finishes or is cancelled.
+    pub(crate) fn start_global_close_guard(&mut self, kind: GlobalCloseKind, ctx: &egui::Context) {
+        if self.pending_global_close.is_some() {
+            return;
+        }
+
+        let Some(ws) = self.root_ws.as_mut() else {
+            // No workspace open — behave as before.
+            match kind {
+                GlobalCloseKind::QuitAll => {
+                    self.show_close_project_confirm = false;
+                    self.show_quit_confirm = true;
+                }
+                GlobalCloseKind::RootViewportClose => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                GlobalCloseKind::RootProjectClose => {
+                    self.show_close_project_confirm = true;
+                }
+            }
+            return;
+        };
+
+        // Snapshot dirty tabs across the workspace.
+        let tabs_snapshot: Vec<(PathBuf, bool)> = ws
+            .editor
+            .tabs
+            .iter()
+            .map(|t| (t.path.clone(), t.modified))
+            .collect();
+
+        let active_path = ws.editor.active_path().cloned();
+        let queue = build_dirty_close_queue(active_path.as_ref(), &tabs_snapshot);
+
+        if queue.is_empty() {
+            // Nothing dirty — execute the original action immediately.
+            match kind {
+                GlobalCloseKind::QuitAll => {
+                    self.show_close_project_confirm = false;
+                    self.show_quit_confirm = true;
+                }
+                GlobalCloseKind::RootViewportClose => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                GlobalCloseKind::RootProjectClose => {
+                    self.show_close_project_confirm = true;
+                }
+            }
+            return;
+        }
+
+        // Start a workspace-wide guard flow.
+        ws.pending_close_flow = Some(PendingCloseFlow {
+            mode: PendingCloseMode::WorkspaceClose,
+            queue,
+            current_index: 0,
+            inline_error: None,
+        });
+        ws.last_unsaved_close_cancelled = false;
+        self.pending_global_close = Some(kind);
+        // Ensure we process guard dialogs promptly.
+        ctx.request_repaint();
+    }
+
+    /// Resumes a pending global close action after the workspace-level unsaved
+    /// guard flow has finished.
+    fn resume_global_close_after_guard(&mut self, ctx: &egui::Context) {
+        if let Some(kind) = self.pending_global_close {
+            if let Some(ws) = &self.root_ws {
+                if ws.pending_close_flow.is_none() {
+                    let cancelled = ws.last_unsaved_close_cancelled;
+                    match (kind, cancelled) {
+                        // User cancelled at least jedno guard rozhodnutí — abort whole close.
+                        (_, true) => {
+                            self.pending_global_close = None;
+                        }
+                        // All dirty items resolved (Saved/Discarded) — proceed.
+                        (GlobalCloseKind::QuitAll, false) => {
+                            self.pending_global_close = None;
+                            self.show_close_project_confirm = false;
+                            self.show_quit_confirm = true;
+                        }
+                        (GlobalCloseKind::RootViewportClose, false) => {
+                            self.pending_global_close = None;
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                        (GlobalCloseKind::RootProjectClose, false) => {
+                            self.pending_global_close = None;
+                            self.show_close_project_confirm = true;
+                        }
+                    }
+                }
+            } else {
+                // No workspace but still pending flag — nothing to guard, clear it.
+                self.pending_global_close = None;
+            }
         }
     }
 
@@ -695,6 +736,10 @@ impl eframe::App for EditorApp {
                 .settings_version
                 .load(std::sync::atomic::Ordering::SeqCst);
             if self.applied_settings_version != v {
+                let theme_name = shared.settings.syntect_theme_name();
+                if let Some(ws) = &mut self.root_ws {
+                    ws.editor.highlighter.set_theme(theme_name);
+                }
                 shared.settings.apply(ctx);
                 self.applied_settings_version = v;
                 // If there's a workspace, sync its version too to prevent double-apply
@@ -761,9 +806,10 @@ impl eframe::App for EditorApp {
             if self.quit_confirmed {
                 // Confirmed — let it close
             } else if self.root_ws.is_some() {
-                // Open project — request close confirmation.
+                // Open project v hlavním okně:
+                // křížek má zavřít aktuální projekt (ne celou aplikaci).
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                self.show_close_project_confirm = true;
+                self.start_global_close_guard(GlobalCloseKind::RootProjectClose, ctx);
             } else {
                 // Startup dialog — terminate application
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
@@ -835,6 +881,10 @@ impl eframe::App for EditorApp {
             self.root_ws = Some(ws);
         }
 
+        // If a global close guard is pending and the workspace guard flow has finished,
+        // resume the original close action based on whether the user cancelled.
+        self.resume_global_close_after_guard(ctx);
+
         // Process actions from this frame (new projects, closed workspaces, etc.)
         // Called AFTER render so click actions are processed immediately
         self.process_actions(ctx);
@@ -851,5 +901,238 @@ impl eframe::App for EditorApp {
         if self.show_quit_confirm {
             self.show_quit_confirm_dialog(ctx);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsaved_close_guard_root_flow() {
+        let ctx = egui::Context::default();
+
+        // Minimal workspace with one dirty tab.
+        let mut ws = WorkspaceState {
+            file_tree: crate::app::ui::file_tree::FileTree::new(),
+            editor: crate::app::ui::editor::Editor::new(),
+            watcher: crate::watcher::FileWatcher::new(),
+            project_watcher: crate::watcher::ProjectWatcher::new(&PathBuf::from("/tmp/test")),
+            project_watcher_active: true,
+            project_watcher_disconnect_reported: false,
+            claude_tabs: Vec::new(),
+            claude_active_tab: 0,
+            next_claude_tab_id: 1,
+            next_terminal_id: 2,
+            build_terminal: None,
+            retired_terminals: Vec::new(),
+            focused_panel: FocusedPanel::Editor,
+            root_path: PathBuf::from("/tmp/test"),
+            show_left_panel: true,
+            show_right_panel: false,
+            show_build_terminal: false,
+            build_terminal_float: false,
+            left_panel_split: 0.5,
+            show_about: false,
+            show_support: false,
+            show_settings: false,
+            show_semantic_indexing_modal: false,
+            selected_settings_category: None,
+            profiles: ProjectProfiles::default(),
+            build_errors: Vec::new(),
+            build_error_rx: None,
+            selected_agent_id: String::new(),
+            claude_float: false,
+            show_new_project: false,
+            wizard: WizardState::default(),
+            toasts: Vec::new(),
+            folder_pick_rx: None,
+            command_palette: None,
+            project_index: std::sync::Arc::new(
+                crate::app::ui::workspace::index::ProjectIndex::new(PathBuf::from("/tmp/test")),
+            ),
+            semantic_index: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::app::ui::workspace::semantic_index::SemanticIndex::new(PathBuf::from(
+                    "/tmp/test",
+                )),
+            )),
+            file_picker: None,
+            project_search: crate::app::ui::workspace::state::types::ProjectSearch::default(),
+            lsp_client: None,
+            lsp_binary_missing: false,
+            lsp_install_rx: None,
+            git_branch: None,
+            git_branch_rx: None,
+            git_status_rx: None,
+            git_last_refresh: std::time::Instant::now(),
+            lsp_last_retry: std::time::Instant::now(),
+            settings_draft: None,
+            settings_original: None,
+            settings_folder_pick_rx: None,
+            ai_tool_available: std::collections::HashMap::new(),
+            ai_tool_check_rx: None,
+            ai_tool_last_check: std::time::Instant::now(),
+            win_tool_available: std::collections::HashMap::new(),
+            win_tool_check_rx: None,
+            win_tool_last_check: std::time::Instant::now(),
+            external_change_conflict: None,
+            dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
+            terminal_close_requested: None,
+            ai_viewport_open: false,
+            settings_conflict: None,
+            ai_panel: crate::app::ai_prefs::AiPanelState::default(),
+            git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
+                "/tmp/test",
+            )),
+            background_io_tx: {
+                let (tx, _rx) = std::sync::mpsc::channel();
+                tx
+            },
+            background_io_rx: None,
+            applied_settings_version: 0,
+            confirm_discard_changes: None,
+            last_keystroke_time: None,
+            pending_close_flow: None,
+            last_unsaved_close_cancelled: false,
+            history_view: None,
+        };
+
+        let dirty_path = ws.root_path.join("dirty.txt");
+        ws.editor.tabs.push(crate::app::ui::editor::Tab {
+            content: String::new(),
+            path: dirty_path.clone(),
+            modified: true,
+            deleted: false,
+            last_edit: None,
+            last_autosave_attempt: None,
+            save_status: crate::app::ui::editor::SaveStatus::Modified,
+            last_saved_content: String::new(),
+            scroll_offset: 0.0,
+            md_scroll_offset: 0.0,
+            last_cursor_range: None,
+            is_binary: false,
+            image_texture: None,
+            binary_data: None,
+            svg_modal_shown: false,
+            lsp_version: 0,
+            lsp_synced_version: 0,
+            read_error: false,
+            canonical_path: dirty_path.clone(),
+            md_cache: egui_commonmark::CommonMarkCache::default(),
+        });
+        ws.editor.active_tab = Some(0);
+
+        let mut app = EditorApp::test_new_with_workspace(ws, &ctx);
+        app.start_global_close_guard(GlobalCloseKind::QuitAll, &ctx);
+
+        assert!(matches!(
+            app.pending_global_close,
+            Some(GlobalCloseKind::QuitAll)
+        ));
+        let ws_after = app.root_ws.as_ref().expect("root workspace should exist");
+        let flow = ws_after
+            .pending_close_flow
+            .as_ref()
+            .expect("pending close flow should be created");
+        assert_eq!(flow.mode, PendingCloseMode::WorkspaceClose);
+        assert_eq!(flow.queue.len(), 1);
+        assert_eq!(flow.queue[0], dirty_path);
+    }
+
+    #[test]
+    fn root_project_close_without_dirty_tabs_opens_close_project_confirm() {
+        let ctx = egui::Context::default();
+        let ws = WorkspaceState {
+            file_tree: crate::app::ui::file_tree::FileTree::new(),
+            editor: crate::app::ui::editor::Editor::new(),
+            watcher: crate::watcher::FileWatcher::new(),
+            project_watcher: crate::watcher::ProjectWatcher::new(&PathBuf::from("/tmp/test")),
+            project_watcher_active: true,
+            project_watcher_disconnect_reported: false,
+            claude_tabs: Vec::new(),
+            claude_active_tab: 0,
+            next_claude_tab_id: 1,
+            next_terminal_id: 2,
+            build_terminal: None,
+            retired_terminals: Vec::new(),
+            focused_panel: FocusedPanel::Editor,
+            root_path: PathBuf::from("/tmp/test"),
+            show_left_panel: true,
+            show_right_panel: false,
+            show_build_terminal: false,
+            build_terminal_float: false,
+            left_panel_split: 0.5,
+            show_about: false,
+            show_support: false,
+            show_settings: false,
+            show_semantic_indexing_modal: false,
+            selected_settings_category: None,
+            profiles: ProjectProfiles::default(),
+            build_errors: Vec::new(),
+            build_error_rx: None,
+            selected_agent_id: String::new(),
+            claude_float: false,
+            show_new_project: false,
+            wizard: WizardState::default(),
+            toasts: Vec::new(),
+            folder_pick_rx: None,
+            command_palette: None,
+            project_index: std::sync::Arc::new(
+                crate::app::ui::workspace::index::ProjectIndex::new(PathBuf::from("/tmp/test")),
+            ),
+            semantic_index: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::app::ui::workspace::semantic_index::SemanticIndex::new(PathBuf::from(
+                    "/tmp/test",
+                )),
+            )),
+            file_picker: None,
+            project_search: crate::app::ui::workspace::state::types::ProjectSearch::default(),
+            lsp_client: None,
+            lsp_binary_missing: false,
+            lsp_install_rx: None,
+            git_branch: None,
+            git_branch_rx: None,
+            git_status_rx: None,
+            git_last_refresh: std::time::Instant::now(),
+            lsp_last_retry: std::time::Instant::now(),
+            settings_draft: None,
+            settings_original: None,
+            settings_folder_pick_rx: None,
+            ai_tool_available: std::collections::HashMap::new(),
+            ai_tool_check_rx: None,
+            ai_tool_last_check: std::time::Instant::now(),
+            win_tool_available: std::collections::HashMap::new(),
+            win_tool_check_rx: None,
+            win_tool_last_check: std::time::Instant::now(),
+            external_change_conflict: None,
+            dep_wizard: crate::app::ui::dialogs::DependencyWizard::new(),
+            terminal_close_requested: None,
+            ai_viewport_open: false,
+            settings_conflict: None,
+            ai_panel: crate::app::ai_prefs::AiPanelState::default(),
+            git_cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
+                "/tmp/test",
+            )),
+            background_io_tx: {
+                let (tx, _rx) = std::sync::mpsc::channel();
+                tx
+            },
+            background_io_rx: None,
+            applied_settings_version: 0,
+            confirm_discard_changes: None,
+            last_keystroke_time: None,
+            pending_close_flow: None,
+            last_unsaved_close_cancelled: false,
+            history_view: None,
+        };
+
+        let mut app = EditorApp::test_new_with_workspace(ws, &ctx);
+        app.start_global_close_guard(GlobalCloseKind::RootProjectClose, &ctx);
+
+        assert!(app.pending_global_close.is_none());
+        assert!(app.show_close_project_confirm);
+        assert!(!app.show_quit_confirm);
     }
 }

@@ -9,7 +9,6 @@ error-file-delete = Chyba pri odstraňovaní { $name }: { $reason }
 error-file-rename = Chyba premenovania: { $reason }
 error-file-create = Chyba pri vytváraní súboru { $name }: { $reason }
 error-file-read-only-error = Súbor „{ $name }“ nie je možné uložiť, pretože sa ho nepodarilo správne prečítať. Táto karta je teraz len na čítanie, aby sa zabránilo strate údajov.
-error-safe-mode-blocked = Projekt je v bezpečnom režime (iba na čítanie). Zmeny môžete vykonávať iba v Sandboxe alebo vypnite bezpečný režim v Nastaveniach.
 error-file-watch = Chyba sledovania súborov
 
 ## Priečinky
@@ -44,6 +43,7 @@ error-unknown = Vyskytla sa neznáma chyba.
 
 ## Informačné správy (toast info)
 info-file-saved = Súbor uložený.
+info-file-already-saved = Súbor je už uložený.
 info-project-created = Projekt { $name } bol úspešne vytvorený.
 info-session-restored =
     { $count ->
@@ -51,3 +51,9 @@ info-session-restored =
         [few] Obnovené { $count } okná z predchádzajúcej relácie.
        *[other] Obnovených { $count } okien z predchádzajúcej relácie.
     }
+
+## Strážca neuložených zmien
+unsaved_close_guard_save_failed = Nepodarilo sa uložiť „{ $name }“ počas zatvárania: { $reason }
+
+## Lokálna história
+error-history-snapshot = Nepodarilo sa vytvoriť snapshot súboru „{ $path }": { $reason }

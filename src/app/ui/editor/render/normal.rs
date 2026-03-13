@@ -7,6 +7,7 @@ use std::time::Instant;
 impl Editor {
     // --- Normal editor ---
 
+    #[allow(clippy::too_many_arguments)]
     pub fn ui_normal(
         &mut self,
         ui: &mut egui::Ui,
@@ -15,13 +16,14 @@ impl Editor {
         diagnostics_for_file: Option<&Vec<async_lsp::lsp_types::Diagnostic>>,
         lsp_client: Option<&crate::app::lsp::LspClient>,
         is_readonly: bool,
+        theme_name: &str,
     ) -> bool {
         let idx = match self.active_tab {
             Some(i) => i,
             None => return false,
         };
 
-        let bg = self.highlighter.background_color();
+        let bg = self.highlighter.background_color(theme_name);
         let ext = self.extension();
         let fname = self.filename();
         let current_match = self.current_match;
@@ -75,7 +77,7 @@ impl Editor {
             .inner_margin(egui::Margin::same(8));
 
         frame.show(ui, |ui| {
-            if !is_readonly {
+            if !is_readonly && !dialog_open {
                 self.handle_smart_typing(ui, edit_id, idx);
             }
             let scroll_y = desired_scroll_y.unwrap_or(current_scroll_y);
@@ -92,7 +94,8 @@ impl Editor {
                     // This way it remains interactive (cursor, selection, shortcuts for movement),
                     // but changes are never saved back to the tab.
                     let mut temp_content;
-                    let content_to_edit = if is_readonly {
+                    let readonly_for_frame = is_readonly || dialog_open;
+                    let content_to_edit = if readonly_for_frame {
                         temp_content = tab.content.clone();
                         &mut temp_content
                     } else {
@@ -105,6 +108,7 @@ impl Editor {
                             &ext,
                             &fname,
                             Self::current_editor_font_size(ui),
+                            theme_name,
                         );
                         // We clone the job from the Arc to apply dynamic overlays like wrap width and search.
                         // This is still much faster than re-parsing the whole file.
@@ -127,7 +131,7 @@ impl Editor {
                             .id(edit_id)
                             .font(egui::TextStyle::Monospace)
                             .code_editor()
-                            .interactive(true)
+                            .interactive(!dialog_open)
                             .desired_width(f32::INFINITY)
                             .layouter(&mut layouter)
                             .show(ui);
@@ -155,7 +159,7 @@ impl Editor {
                         } else if response.response.clicked() || response.response.has_focus() {
                             clicked = true;
                         }
-                        if response.response.changed() && !is_readonly {
+                        if response.response.changed() && !readonly_for_frame {
                             tab.modified = true;
                             tab.last_edit = Some(Instant::now());
                             tab.save_status = SaveStatus::Modified;

@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 // ---------------------------------------------------------------------------
 // Build / Runner Profiles
@@ -49,14 +51,13 @@ pub(crate) struct ProjectProfiles {
 // Helper types
 // ---------------------------------------------------------------------------
 
-use crate::app::ai::{AiExpertiseRole, AiReasoningDepth};
+use crate::app::ai_prefs::{AiExpertiseRole, AiReasoningDepth};
 
 #[derive(PartialEq, Clone, Copy)]
 pub(crate) enum FocusedPanel {
     Build,
     Claude,
     Editor,
-    AiChat,
     Files,
 }
 
@@ -105,6 +106,8 @@ pub(crate) struct PersistentState {
     pub ai_language: Option<String>,
     pub ai_expertise: Option<AiExpertiseRole>,
     pub ai_reasoning_depth: Option<AiReasoningDepth>,
+    #[serde(default)]
+    pub ollama_selected_model: Option<String>,
 }
 
 impl Default for PersistentState {
@@ -120,6 +123,7 @@ impl Default for PersistentState {
             ai_language: None,
             ai_expertise: None,
             ai_reasoning_depth: None,
+            ollama_selected_model: None,
         }
     }
 }
@@ -137,33 +141,6 @@ pub(crate) enum AppAction {
     AddRecent(PathBuf),
     /// Terminate the whole application
     QuitAll,
-    /// Result from a background plugin call
-    PluginResponse(String, Result<String, String>),
-    /// Incremental "thought" or log from a plugin
-    PluginMonologue(String, String),
-    /// Token usage info from a plugin (id, in_tokens, out_tokens)
-    PluginUsage(String, u32, u32),
-    /// RAW JSON payload from a plugin for inspection
-    PluginPayload(String, String),
-    /// Request for user approval for a dangerous AI action (plugin_id, action_name, action_details, sender)
-    PluginApprovalRequest(
-        String,
-        String,
-        String,
-        std::sync::mpsc::Sender<PluginApprovalResponse>,
-    ),
-    /// Agent asks the user a clarifying question and blocks for the answer.
-    /// (plugin_id, question, options, response_sender)
-    PluginAskUser(String, String, Vec<String>, std::sync::mpsc::Sender<String>),
-    /// Agent signals successful task completion with a summary.
-    /// (plugin_id, summary)
-    PluginCompleted(String, String),
-}
-
-pub(crate) enum PluginApprovalResponse {
-    Approve,
-    ApproveAlways,
-    Deny,
 }
 
 pub(crate) struct AppShared {
@@ -216,6 +193,46 @@ impl Toast {
     }
 }
 
+pub(crate) const SAVE_ERROR_DEDUPE_WINDOW: Duration = Duration::from_millis(1500);
+static SAVE_ERROR_LAST_SEEN: OnceLock<Mutex<std::collections::HashMap<String, Instant>>> =
+    OnceLock::new();
+
+pub(crate) fn save_error_dedupe_decision(
+    last_seen: Option<Instant>,
+    now: Instant,
+    window: Duration,
+) -> bool {
+    !is_within_save_error_dedupe_window(last_seen, now, window)
+}
+
+pub(crate) fn is_within_save_error_dedupe_window(
+    last_seen: Option<Instant>,
+    now: Instant,
+    window: Duration,
+) -> bool {
+    match last_seen {
+        None => false,
+        Some(prev) => now.duration_since(prev) <= window,
+    }
+}
+
+pub(crate) fn should_emit_save_error_toast(error_key: &str) -> bool {
+    let now = Instant::now();
+    let mut seen = SAVE_ERROR_LAST_SEEN
+        .get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+        .lock()
+        .expect("Failed to lock save error dedupe map");
+    let should_emit =
+        save_error_dedupe_decision(seen.get(error_key).copied(), now, SAVE_ERROR_DEDUPE_WINDOW);
+    if should_emit {
+        seen.insert(error_key.to_string(), now);
+    }
+
+    let retention = SAVE_ERROR_DEDUPE_WINDOW + SAVE_ERROR_DEDUPE_WINDOW;
+    seen.retain(|_, ts| now.duration_since(*ts) <= retention);
+    should_emit
+}
+
 // ---------------------------------------------------------------------------
 // Helper free functions
 // ---------------------------------------------------------------------------
@@ -235,4 +252,57 @@ pub(crate) fn path_env() -> String {
 
 pub(crate) fn default_wizard_path() -> String {
     crate::settings::default_project_path()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SAVE_ERROR_DEDUPE_WINDOW;
+    use super::is_within_save_error_dedupe_window;
+    use super::save_error_dedupe_decision;
+
+    #[test]
+    fn save_error_dedupe_suppresses_repeated_error_within_window() {
+        let now = std::time::Instant::now();
+        let old = now - (SAVE_ERROR_DEDUPE_WINDOW + std::time::Duration::from_millis(1));
+        let recent = now - std::time::Duration::from_millis(5);
+
+        assert!(save_error_dedupe_decision(
+            None,
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
+        assert!(save_error_dedupe_decision(
+            Some(old),
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
+        assert!(!save_error_dedupe_decision(
+            Some(recent),
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
+    }
+
+    #[test]
+    fn save_error_dedupe_window_classifies_within_and_outside_1_5s() {
+        let now = std::time::Instant::now();
+        let within = now - std::time::Duration::from_millis(250);
+        let outside = now - std::time::Duration::from_millis(1700);
+        let boundary = now - SAVE_ERROR_DEDUPE_WINDOW;
+
+        assert!(is_within_save_error_dedupe_window(
+            Some(within),
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
+        assert!(!is_within_save_error_dedupe_window(
+            Some(outside),
+            now,
+            SAVE_ERROR_DEDUPE_WINDOW
+        ));
+        assert!(
+            is_within_save_error_dedupe_window(Some(boundary), now, SAVE_ERROR_DEDUPE_WINDOW),
+            "presna hranice 1.5s je stale uvnitr dedupe okna"
+        );
+    }
 }

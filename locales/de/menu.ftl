@@ -5,21 +5,19 @@ menu-file = Datei
 menu-project = Projekt
 menu-edit = Bearbeiten
 menu-view = Ansicht
-menu-build = Bauen
 menu-help = Hilfe
 
 ## Menü Datei
 menu-file-open-folder = Ordner öffnen
 menu-file-save = Speichern
 menu-file-close-tab = Datei schließen
-menu-file-plugins = Plugins
-menu-file-plugins-manager = Plugin-Manager...
 menu-file-settings = Einstellungen...
 menu-file-quit = Beenden
 
 ## Menü Projekt
 menu-project-open = Projekt öffnen
 menu-project-new = Neues Projekt
+menu-project-trash-preview = Papierkorb-Vorschau
 menu-project-close = Projekt schließen
 menu-project-recent = Zuletzt geöffnet
 menu-project-recent-none = Keine zuletzt geöffneten Projekte
@@ -44,11 +42,6 @@ menu-view-ai-panel = AI-Terminal
 menu-view-ai-float = Schwebendes AI-Terminal
 
 ## Menü Bauen
-menu-build-deb = .deb-Paket
-menu-build-rpm = .rpm-Paket
-menu-build-appimage = .AppImage-Paket
-menu-build-tar-gz = .tar.gz-Archiv (Linux/BSD)
-menu-build-exe = .exe-Installer (Windows)
 
 ## Menü Hilfe
 menu-help-settings = Einstellungen…

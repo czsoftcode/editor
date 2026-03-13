@@ -9,7 +9,6 @@ error-file-delete = Error deleting { $name }: { $reason }
 error-file-rename = Rename error: { $reason }
 error-file-create = Error creating file { $name }: { $reason }
 error-file-read-only-error = Cannot save "{ $name }" because it could not be read correctly. This tab is now read-only to prevent data loss.
-error-safe-mode-blocked = Project is in Safe Mode (read-only). You can only make changes in the Sandbox or disable Safe Mode in Settings.
 error-file-watch = File watching error
 
 ## Directories
@@ -44,9 +43,16 @@ error-unknown = An unknown error occurred.
 
 ## Informational messages (toast info)
 info-file-saved = File saved.
+info-file-already-saved = File is already saved.
 info-project-created = Project { $name } created successfully.
 info-session-restored =
     { $count ->
         [one] Restored 1 window from the previous session.
        *[other] Restored { $count } windows from the previous session.
     }
+
+## Unsaved close guard
+unsaved_close_guard_save_failed = Failed to save "{ $name }" while closing: { $reason }
+
+## Local History
+error-history-snapshot = Failed to create snapshot of "{ $path }": { $reason }

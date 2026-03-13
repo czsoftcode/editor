@@ -9,7 +9,6 @@ error-file-delete = Chyba mazání souboru { $name }: { $reason }
 error-file-rename = Chyba přejmenování: { $reason }
 error-file-create = Chyba vytváření souboru { $name }: { $reason }
 error-file-read-only-error = Nelze uložit soubor „{ $name }“, protože jej nebylo možné správně přečíst. Tento tab je nyní pouze pro čtení, aby se zabránilo ztrátě dat.
-error-safe-mode-blocked = Projekt je v bezpečném režimu (pouze pro čtení). Změny můžete provádět pouze v Sandboxu nebo vypněte bezpečný režim v Nastavení.
 error-file-watch = Chyba sledování souborů
 
 ## Složky
@@ -44,9 +43,16 @@ error-unknown = Nastala neznámá chyba.
 
 ## Informační hlášky (toast info)
 info-file-saved = Soubor uložen.
+info-file-already-saved = Soubor už je uložen.
 info-project-created = Projekt { $name } byl vytvořen.
 info-session-restored =
     { $count ->
         [one] Obnoveno 1 okno z předchozí session.
        *[other] Obnoveno { $count } oken z předchozí session.
     }
+
+## Strážce neuložených změn
+unsaved_close_guard_save_failed = Nepodařilo se uložit „{ $name }“ během zavírání: { $reason }
+
+## Lokální historie
+error-history-snapshot = Nepodařilo se vytvořit snapshot souboru „{ $path }": { $reason }

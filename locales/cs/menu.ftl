@@ -5,21 +5,19 @@ menu-file = Soubor
 menu-project = Projekt
 menu-edit = Upravit
 menu-view = Zobrazit
-menu-build = Sestavit
 menu-help = Nápověda
 
 ## Menu Soubor
 menu-file-open-folder = Otevřít složku
 menu-file-save = Uložit
 menu-file-close-tab = Zavřít soubor
-menu-file-plugins = Pluginy
-menu-file-plugins-manager = Správce pluginů...
 menu-file-settings = Nastavení...
 menu-file-quit = Ukončit
 
 ## Menu Projekt
 menu-project-open = Otevřít projekt
 menu-project-new = Nový projekt
+menu-project-trash-preview = Náhled koše
 menu-project-close = Zavřít projekt
 menu-project-recent = Nedávné projekty
 menu-project-recent-none = Žádné nedávné projekty
@@ -42,13 +40,6 @@ menu-view-left-panel = Levý panel
 menu-view-build-terminal = Build terminál
 menu-view-ai-panel = AI terminál
 menu-view-ai-float = Plovoucí AI terminál
-
-## Menu Sestavit
-menu-build-deb = Balíček .deb
-menu-build-rpm = Balíček .rpm
-menu-build-appimage = Balíček .AppImage
-menu-build-tar-gz = Archiv .tar.gz (Linux/BSD)
-menu-build-exe = Instalátor .exe (Windows)
 
 ## Menu Nápověda
 menu-help-settings = Nastavení…

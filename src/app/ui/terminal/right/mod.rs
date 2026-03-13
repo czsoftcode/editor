@@ -1,7 +1,5 @@
 pub mod ai_bar;
 
-pub use ai_bar::format_context_for_terminal;
-
 use crate::app::types::{AppShared, FocusedPanel};
 use crate::app::ui::terminal::StandardTerminalWindow;
 use crate::app::ui::terminal::instance::{Terminal, TerminalAction};
@@ -33,18 +31,16 @@ pub fn render_ai_panel(
     let config = PanelDisplayConfig {
         dialog_open,
         focused: ws.focused_panel,
-        font_size: config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0,
+        font_size: config::EDITOR_FONT_SIZE * ws.ai_panel.font_scale as f32 / 100.0,
         is_float: ws.claude_float,
         is_viewport: false,
     };
 
     if ws.claude_float {
         let mut is_open = true;
-        let win = StandardTerminalWindow::new(
-            i18n.get("ai-panel-title"),
-            "claude_float_win",
-            FocusedPanel::Claude,
-        );
+        let float_title = i18n.get("ai-panel-title").to_string();
+        let win =
+            StandardTerminalWindow::new(float_title, "claude_float_win", FocusedPanel::Claude);
 
         let (interacted, res) = win.show(
             ctx,
@@ -77,9 +73,16 @@ pub fn render_ai_panel(
             |ui, ws_arg, _body_h| {
                 // BODY: Tabs + Terminal (without duplicating AI bar)
                 ui.vertical(|ui| {
-                    let items: Vec<TabItem> = (0..ws_arg.claude_tabs.len())
-                        .map(|i| TabItem {
-                            label: (i + 1).to_string(),
+                    let items: Vec<TabItem> = ws_arg
+                        .claude_tabs
+                        .iter()
+                        .enumerate()
+                        .map(|(i, t)| TabItem {
+                            label: if t.has_unread_output {
+                                format!("{} \u{2022}", i + 1)
+                            } else {
+                                (i + 1).to_string()
+                            },
                             closable: ws_arg.claude_tabs.len() > 1,
                         })
                         .collect();
@@ -97,14 +100,19 @@ pub fn render_ai_panel(
                     if let Some(terminal) = ws_arg.claude_tabs.get_mut(ws_arg.claude_active_tab) {
                         let terminal_action = terminal.ui(
                             ui,
-                            ws_arg.focused_panel == FocusedPanel::Claude,
+                            ws_arg.focused_panel == FocusedPanel::Claude && !config.dialog_open,
                             config.font_size,
                             i18n,
                         );
                         if let Some(act) = terminal_action {
                             match act {
-                                TerminalAction::Clicked | TerminalAction::Hovered => {
-                                    ws_arg.focused_panel = FocusedPanel::Claude;
+                                TerminalAction::Clicked => {
+                                    if !config.dialog_open {
+                                        ws_arg.focused_panel = FocusedPanel::Claude;
+                                    }
+                                }
+                                TerminalAction::Hovered => {
+                                    /* No-op: hover does not change focus */
                                 }
                                 TerminalAction::Navigate(path, line, col) => {
                                     let abs_path = if path.is_absolute() {
@@ -223,9 +231,16 @@ pub fn render_ai_panel_content(
     });
 
     // Tabs
-    let items: Vec<TabItem> = (0..ws.claude_tabs.len())
-        .map(|i| TabItem {
-            label: (i + 1).to_string(),
+    let items: Vec<TabItem> = ws
+        .claude_tabs
+        .iter()
+        .enumerate()
+        .map(|(i, t)| TabItem {
+            label: if t.has_unread_output {
+                format!("{} \u{2022}", i + 1)
+            } else {
+                (i + 1).to_string()
+            },
             closable: ws.claude_tabs.len() > 1,
         })
         .collect();
@@ -250,15 +265,12 @@ pub fn render_ai_panel_content(
         );
         match terminal_action {
             Some(TerminalAction::Clicked) => {
-                ws.focused_panel = FocusedPanel::Claude;
-                any_clicked = true;
-            }
-            Some(TerminalAction::Hovered) => {
                 if !config.dialog_open {
                     ws.focused_panel = FocusedPanel::Claude;
                 }
                 any_clicked = true;
             }
+            Some(TerminalAction::Hovered) => { /* No-op: hover does not change focus */ }
             Some(TerminalAction::Navigate(path, line, col)) => {
                 let abs_path = if path.is_absolute() {
                     path
@@ -289,6 +301,8 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
         TabBarAction::Close(idx) => {
             if let Some(terminal) = ws.claude_tabs.get(idx) {
                 if terminal.is_exited() {
+                    #[cfg(unix)]
+                    terminal.kill_process_group();
                     ws.claude_tabs.remove(idx);
                     if ws.claude_active_tab >= ws.claude_tabs.len() {
                         ws.claude_active_tab = ws.claude_tabs.len().saturating_sub(1);
@@ -301,9 +315,12 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
         TabBarAction::New => {
             let id = ws.next_claude_tab_id;
             ws.next_claude_tab_id += 1;
-            let root = ws.sandbox.root.clone();
+            let root = ws.root_path.clone();
             ws.claude_tabs.push(Terminal::new(id, ctx, &root, None));
             ws.claude_active_tab = ws.claude_tabs.len() - 1;
+        }
+        TabBarAction::ShowHistory(_) => {
+            // ShowHistory je relevantní jen pro editor tab bar, ne pro AI terminálové taby.
         }
     }
 }

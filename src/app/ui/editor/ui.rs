@@ -1,6 +1,42 @@
 use super::*;
 use eframe::egui;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct SaveStatusPresentation {
+    key: &'static str,
+    is_primary: bool,
+    tone: SaveStatusTone,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SaveStatusTone {
+    Warning,
+    Success,
+    Neutral,
+}
+
+fn save_status_presentation(status: &super::SaveStatus) -> Option<SaveStatusPresentation> {
+    match status {
+        super::SaveStatus::None => None,
+        // Dirty stav je primární UX signál.
+        super::SaveStatus::Modified => Some(SaveStatusPresentation {
+            key: "statusbar-unsaved",
+            is_primary: true,
+            tone: SaveStatusTone::Warning,
+        }),
+        super::SaveStatus::Saving => Some(SaveStatusPresentation {
+            key: "statusbar-saving",
+            is_primary: false,
+            tone: SaveStatusTone::Neutral,
+        }),
+        super::SaveStatus::Saved => Some(SaveStatusPresentation {
+            key: "statusbar-saved",
+            is_primary: false,
+            tone: SaveStatusTone::Success,
+        }),
+    }
+}
+
 impl Editor {
     // --- UI entry point ---
 
@@ -14,6 +50,7 @@ impl Editor {
         settings: &crate::settings::Settings,
     ) -> EditorUiResult {
         let mut diff_action = None;
+        let mut result_tab_action = None;
 
         if let Some((path, old_text, new_text)) = self.pending_ai_diff.clone() {
             let font_size = Self::current_editor_font_size(ui);
@@ -49,13 +86,14 @@ impl Editor {
             return EditorUiResult {
                 clicked: false,
                 diff_action: None,
+                tab_action: None,
             };
         }
 
         // --- Tabs and bars ---
         use crate::app::ui::widgets::tab_bar::TabBarAction;
         let mut tab_action = None;
-        self.tab_bar(ui, &mut tab_action);
+        self.tab_bar(ui, &mut tab_action, settings, i18n);
 
         if let Some(action) = tab_action {
             match action {
@@ -65,9 +103,14 @@ impl Editor {
                     self.update_search();
                 }
                 TabBarAction::Close(idx) => {
-                    self.close_tab(idx);
+                    // Defer handling of tab close to the workspace so that
+                    // unsaved close guard can run through a single entry point.
+                    result_tab_action = Some(TabBarAction::Close(idx));
                 }
                 TabBarAction::New => {}
+                TabBarAction::ShowHistory(idx) => {
+                    result_tab_action = Some(TabBarAction::ShowHistory(idx));
+                }
             }
         }
 
@@ -84,15 +127,8 @@ impl Editor {
             }
         });
 
-        let is_readonly = if settings.project_read_only {
-            if let Some(path) = self.active_path() {
-                !path.to_string_lossy().contains(".polycredo/sandbox")
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let is_readonly = false;
+        let theme_name = settings.syntect_theme_name();
 
         let clicked = if self.is_markdown() {
             self.ui_markdown_split(
@@ -102,6 +138,7 @@ impl Editor {
                 current_diagnostics.as_ref(),
                 lsp_client,
                 is_readonly,
+                theme_name,
             )
         } else {
             if self.is_svg() {
@@ -124,17 +161,17 @@ impl Editor {
 
                     modal.show(ui.ctx(), &mut show_flag, |ui| {
                         // FOOTER
-                        if let Some((ext, edit)) = modal.ui_footer(ui, |ui| {
-                            if ui.button(i18n.get("btn-close")).clicked() {
+                        if let Some((ext, edit)) = modal.ui_footer_actions(ui, i18n, |f| {
+                            if f.close() || f.cancel() {
                                 return Some((false, false));
                             }
                             let mut local_ext = false;
                             let mut local_edit = false;
-                            if ui.button(i18n.get("svg-open-external")).clicked() {
-                                local_ext = true;
-                            }
-                            if ui.button(i18n.get("svg-modal-edit")).clicked() {
+                            if f.button("svg-modal-edit").clicked() {
                                 local_edit = true;
+                            }
+                            if f.button("md-open-external").clicked() {
+                                local_ext = true;
                             }
                             if local_ext || local_edit {
                                 Some((local_ext, local_edit))
@@ -188,12 +225,14 @@ impl Editor {
                 current_diagnostics.as_ref(),
                 lsp_client,
                 is_readonly,
+                theme_name,
             )
         };
 
         EditorUiResult {
             clicked,
             diff_action,
+            tab_action: result_tab_action,
         }
     }
 
@@ -208,10 +247,26 @@ impl Editor {
             Some(t) => t,
             None => return,
         };
-        let primary_color = egui::Color32::from_rgb(235, 240, 248);
-        let secondary_color = egui::Color32::from_rgb(195, 205, 220);
-        let status_warn_color = egui::Color32::from_rgb(255, 200, 120);
-        let status_ok_color = egui::Color32::from_rgb(170, 230, 185);
+        let visuals = ui.visuals();
+        // Theme-aware status bar palette closes UAT gap for low contrast in light mode.
+        let primary_color = visuals.text_color();
+        let secondary_color = visuals.weak_text_color();
+        let (diag_error_color, diag_warning_color, status_warn_color, status_ok_color) =
+            if visuals.dark_mode {
+                (
+                    egui::Color32::from_rgb(240, 100, 100),
+                    egui::Color32::from_rgb(250, 180, 80),
+                    egui::Color32::from_rgb(255, 200, 120),
+                    egui::Color32::from_rgb(170, 230, 185),
+                )
+            } else {
+                (
+                    egui::Color32::from_rgb(170, 45, 45),
+                    egui::Color32::from_rgb(155, 95, 20),
+                    egui::Color32::from_rgb(155, 95, 20),
+                    egui::Color32::from_rgb(25, 120, 70),
+                )
+            };
 
         let cursor_text = tab.last_cursor_range.map(|cr| {
             let rc = cr.primary.rcursor;
@@ -289,14 +344,14 @@ impl Editor {
                             ui.add_space(12.0);
                             ui.label(
                                 egui::RichText::new(format!("✕ {}", error_count))
-                                    .color(egui::Color32::from_rgb(240, 100, 100)),
+                                    .color(diag_error_color),
                             );
                         }
                         if warning_count > 0 {
                             ui.add_space(8.0);
                             ui.label(
                                 egui::RichText::new(format!("⚠ {}", warning_count))
-                                    .color(egui::Color32::from_rgb(250, 180, 80)),
+                                    .color(diag_warning_color),
                             );
                         }
 
@@ -312,32 +367,52 @@ impl Editor {
                         }
 
                         // Save status
-                        match tab.save_status {
-                            super::SaveStatus::None => {}
-                            super::SaveStatus::Modified => {
-                                ui.add_space(12.0);
-                                ui.label(
-                                    egui::RichText::new(i18n.get("statusbar-unsaved"))
-                                        .color(status_warn_color),
-                                );
-                            }
-                            super::SaveStatus::Saving => {
-                                ui.add_space(12.0);
-                                ui.label(
-                                    egui::RichText::new(i18n.get("statusbar-saving"))
-                                        .color(status_warn_color),
-                                );
-                            }
-                            super::SaveStatus::Saved => {
-                                ui.add_space(12.0);
-                                ui.label(
-                                    egui::RichText::new(i18n.get("statusbar-saved"))
-                                        .color(status_ok_color),
-                                );
-                            }
+                        if let Some(status) = save_status_presentation(&tab.save_status) {
+                            ui.add_space(12.0);
+                            let color = match status.tone {
+                                SaveStatusTone::Warning => status_warn_color,
+                                SaveStatusTone::Success => status_ok_color,
+                                SaveStatusTone::Neutral => secondary_color,
+                            };
+                            let text = egui::RichText::new(i18n.get(status.key)).color(color);
+                            ui.label(if status.is_primary {
+                                text.strong()
+                            } else {
+                                text
+                            });
                         }
                     });
                 });
             });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::SaveStatus;
+    use super::save_status_presentation;
+
+    #[test]
+    fn dirty_state_visual_priority_marks_modified_as_primary_signal() {
+        let modified = save_status_presentation(&SaveStatus::Modified);
+        let saving = save_status_presentation(&SaveStatus::Saving);
+
+        assert!(modified.is_some());
+        assert!(saving.is_some());
+        let modified = modified.expect("modified presentation");
+        let saving = saving.expect("saving presentation");
+
+        assert!(modified.is_primary);
+        assert!(!saving.is_primary);
+    }
+
+    #[test]
+    fn dirty_state_visual_priority_keeps_mode_status_secondary() {
+        let modified =
+            save_status_presentation(&SaveStatus::Modified).expect("modified presentation");
+        let saved = save_status_presentation(&SaveStatus::Saved).expect("saved presentation");
+
+        assert!(modified.is_primary);
+        assert!(!saved.is_primary);
     }
 }

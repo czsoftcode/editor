@@ -3,31 +3,82 @@ use crate::app::ui::widgets::tab_bar::TabBarAction;
 use crate::config;
 use eframe::egui;
 
+fn tab_mode_marker(is_active: bool, save_mode: &crate::settings::SaveMode) -> &'static str {
+    if !is_active {
+        return "";
+    }
+    match save_mode {
+        crate::settings::SaveMode::Automatic => "·A",
+        crate::settings::SaveMode::Manual => "·M",
+    }
+}
+
+fn tab_label_with_mode_indicator(
+    name: &str,
+    modified: bool,
+    deleted: bool,
+    is_active: bool,
+    save_mode: &crate::settings::SaveMode,
+) -> String {
+    if deleted {
+        return format!("{} \u{26A0}", name);
+    }
+
+    let mut label = String::from(name);
+    if modified {
+        label.push_str(" \u{25CF}");
+    }
+    let marker = tab_mode_marker(is_active, save_mode);
+    if !marker.is_empty() {
+        label.push(' ');
+        label.push_str(marker);
+    }
+    label
+}
+
+#[cfg(test)]
+pub(crate) fn tab_label_with_mode_indicator_for_tests(
+    name: &str,
+    modified: bool,
+    deleted: bool,
+    is_active: bool,
+    save_mode: &crate::settings::SaveMode,
+) -> String {
+    tab_label_with_mode_indicator(name, modified, deleted, is_active, save_mode)
+}
+
 impl Editor {
-    pub fn tab_bar(&mut self, ui: &mut egui::Ui, action: &mut Option<TabBarAction>) {
+    pub fn tab_bar(
+        &mut self,
+        ui: &mut egui::Ui,
+        action: &mut Option<TabBarAction>,
+        settings: &crate::settings::Settings,
+        i18n: &crate::i18n::I18n,
+    ) {
         let btn_w = config::TAB_BTN_WIDTH;
         let initial_scroll = self.tab_scroll_x;
         let active_tab = self.active_tab;
         let tab_count = self.tabs.len();
         let need_scroll = self.scroll_to_active;
 
-        let tab_data: Vec<(String, bool, bool)> = self
+        let tab_data: Vec<(String, bool)> = self
             .tabs
             .iter()
-            .map(|t| {
+            .enumerate()
+            .map(|(idx, t)| {
                 let name = t
                     .path
                     .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_else(|| "???".to_string());
-                let label = if t.deleted {
-                    format!("{} \u{26A0}", name)
-                } else if t.modified {
-                    format!("{} \u{25CF}", name)
-                } else {
-                    name
-                };
-                (label, t.modified, t.deleted)
+                let label = tab_label_with_mode_indicator(
+                    &name,
+                    t.modified,
+                    t.deleted,
+                    active_tab == Some(idx),
+                    &settings.save_mode,
+                );
+                (label, t.deleted)
             })
             .collect();
 
@@ -57,7 +108,7 @@ impl Editor {
                 .max_width(avail_w)
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
-                        for (idx, (label, _, deleted)) in tab_data.iter().enumerate() {
+                        for (idx, (label, deleted)) in tab_data.iter().enumerate() {
                             let is_active = active_tab == Some(idx);
                             let mut text = egui::RichText::new(label).size(config::UI_FONT_SIZE);
                             if is_active {
@@ -77,6 +128,24 @@ impl Editor {
                             if r.clicked_by(egui::PointerButton::Middle) {
                                 tab_action = Some(TabBarAction::Close(idx));
                             }
+
+                            // Context menu (pravý klik na tab)
+                            r.context_menu(|ui| {
+                                // "Historie souboru" — jen pro ne-binární taby
+                                let is_binary = self.tabs.get(idx).is_none_or(|t| t.is_binary);
+                                if !is_binary
+                                    && ui.button(i18n.get("tab-context-history")).clicked()
+                                {
+                                    tab_action = Some(TabBarAction::ShowHistory(idx));
+                                    ui.close_menu();
+                                }
+                                // "Zavřít tab"
+                                if ui.button(i18n.get("tab-context-close")).clicked() {
+                                    tab_action = Some(TabBarAction::Close(idx));
+                                    ui.close_menu();
+                                }
+                            });
+
                             if ui.small_button("\u{00D7}").clicked() {
                                 tab_action = Some(TabBarAction::Close(idx));
                             }
@@ -184,5 +253,35 @@ impl Editor {
             self.show_goto_line = false;
             self.goto_line_focus_requested = false;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::tab_label_with_mode_indicator;
+    use crate::settings::SaveMode;
+
+    #[test]
+    fn tab_save_mode_indicator_is_visible_for_active_tab_only() {
+        let active_label =
+            tab_label_with_mode_indicator("main.rs", false, false, true, &SaveMode::Manual);
+        let inactive_label =
+            tab_label_with_mode_indicator("lib.rs", false, false, false, &SaveMode::Manual);
+
+        assert!(active_label.contains("·M"));
+        assert!(!inactive_label.contains("·M"));
+    }
+
+    #[test]
+    fn tab_save_mode_indicator_keeps_dirty_symbol_primary() {
+        let label = tab_label_with_mode_indicator("main.rs", true, false, true, &SaveMode::Manual);
+        assert!(label.contains("● ·M"));
+    }
+
+    #[test]
+    fn tab_save_mode_indicator_uses_active_mode_symbol() {
+        let auto_label =
+            tab_label_with_mode_indicator("main.rs", false, false, true, &SaveMode::Automatic);
+        assert!(auto_label.contains("·A"));
     }
 }

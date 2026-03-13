@@ -3,6 +3,7 @@ use crate::app::ui::background::spawn_task;
 use crate::app::ui::widgets::modal::StandardModal;
 use crate::app::ui::workspace::state::WorkspaceState;
 use crate::i18n::I18n;
+use crate::settings::{DarkVariant, LightVariant, SaveMode};
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 
@@ -11,19 +12,277 @@ pub enum SettingsModalAction {
     Cancel,
 }
 
+fn light_variant_label_key(variant: &LightVariant) -> &'static str {
+    match variant {
+        LightVariant::WarmIvory => "settings-light-variant-warm-ivory",
+        LightVariant::CoolGray => "settings-light-variant-cool-gray",
+        LightVariant::Sepia => "settings-light-variant-sepia",
+        LightVariant::WarmTan => "settings-light-variant-warm-tan",
+    }
+}
+
+fn light_variant_swatch(variant: &LightVariant) -> egui::Color32 {
+    match variant {
+        LightVariant::WarmIvory => egui::Color32::from_rgb(250, 246, 235),
+        LightVariant::CoolGray => egui::Color32::from_rgb(236, 236, 236),
+        LightVariant::Sepia => egui::Color32::from_rgb(234, 223, 202),
+        LightVariant::WarmTan => egui::Color32::from_rgb(215, 200, 185),
+    }
+}
+
+pub(super) const LIGHT_VARIANT_OPTIONS: [LightVariant; 4] = [
+    LightVariant::WarmIvory,
+    LightVariant::CoolGray,
+    LightVariant::Sepia,
+    LightVariant::WarmTan,
+];
+
+fn dark_variant_label_key(variant: &DarkVariant) -> &'static str {
+    match variant {
+        DarkVariant::Default => "settings-dark-variant-default",
+        DarkVariant::Midnight => "settings-dark-variant-midnight",
+    }
+}
+
+fn dark_variant_swatch(variant: &DarkVariant) -> egui::Color32 {
+    match variant {
+        DarkVariant::Default => egui::Color32::from_rgb(0, 43, 54),
+        DarkVariant::Midnight => egui::Color32::from_rgb(43, 48, 59),
+    }
+}
+
+pub(super) const DARK_VARIANT_OPTIONS: [DarkVariant; 2] =
+    [DarkVariant::Default, DarkVariant::Midnight];
+
+fn show_light_variant_card(
+    ui: &mut egui::Ui,
+    draft: &mut crate::settings::Settings,
+    i18n: &I18n,
+    variant: LightVariant,
+) -> bool {
+    let is_selected = draft.light_variant == variant;
+    let border_color = if is_selected {
+        ui.visuals().selection.stroke.color
+    } else {
+        ui.visuals().widgets.noninteractive.bg_stroke.color
+    };
+
+    let card = egui::Frame::new()
+        .fill(ui.visuals().faint_bg_color)
+        .stroke(egui::Stroke::new(
+            if is_selected { 2.0 } else { 1.0 },
+            border_color,
+        ))
+        .corner_radius(8.0)
+        .inner_margin(egui::Margin::same(8))
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                ui.set_width(140.0);
+                ui.strong(i18n.get(light_variant_label_key(&variant)));
+                ui.add_space(6.0);
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(100.0, 30.0), egui::Sense::hover());
+                ui.painter()
+                    .rect_filled(rect, 6.0, light_variant_swatch(&variant));
+                if is_selected {
+                    ui.add_space(6.0);
+                    ui.label(
+                        egui::RichText::new("✓")
+                            .strong()
+                            .color(ui.visuals().selection.stroke.color),
+                    );
+                }
+            });
+        });
+
+    let card_id = ui.id().with((
+        "settings-light-variant-card",
+        light_variant_label_key(&variant),
+    ));
+    let response = ui.interact(card.response.rect, card_id, egui::Sense::click());
+    if response.clicked() && draft.light_variant != variant {
+        draft.light_variant = variant;
+        return true;
+    }
+    false
+}
+
+fn show_dark_variant_card(
+    ui: &mut egui::Ui,
+    draft: &mut crate::settings::Settings,
+    i18n: &I18n,
+    variant: DarkVariant,
+) -> bool {
+    let is_selected = draft.dark_variant == variant;
+    let border_color = if is_selected {
+        ui.visuals().selection.stroke.color
+    } else {
+        ui.visuals().widgets.noninteractive.bg_stroke.color
+    };
+
+    let card = egui::Frame::new()
+        .fill(ui.visuals().faint_bg_color)
+        .stroke(egui::Stroke::new(
+            if is_selected { 2.0 } else { 1.0 },
+            border_color,
+        ))
+        .corner_radius(8.0)
+        .inner_margin(egui::Margin::same(8))
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                ui.set_width(110.0);
+                ui.strong(i18n.get(dark_variant_label_key(&variant)));
+                ui.add_space(6.0);
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(80.0, 28.0), egui::Sense::hover());
+                ui.painter()
+                    .rect_filled(rect, 6.0, dark_variant_swatch(&variant));
+            });
+        });
+
+    let card_id = ui.id().with((
+        "settings-dark-variant-card",
+        dark_variant_label_key(&variant),
+    ));
+    let response = ui.interact(card.response.rect, card_id, egui::Sense::click());
+    if response.clicked() && draft.dark_variant != variant {
+        draft.dark_variant = variant;
+        return true;
+    }
+    false
+}
+
+fn theme_fingerprint(settings: &crate::settings::Settings) -> (bool, DarkVariant, LightVariant) {
+    (
+        settings.dark_theme,
+        settings.dark_variant.clone(),
+        settings.light_variant.clone(),
+    )
+}
+
+fn should_persist_settings_change(
+    original: Option<&crate::settings::Settings>,
+    draft: &crate::settings::Settings,
+) -> bool {
+    original.map(|snapshot| snapshot != draft).unwrap_or(true)
+}
+
+fn save_mode_changed(
+    original: Option<&crate::settings::Settings>,
+    draft: &crate::settings::Settings,
+) -> bool {
+    original
+        .map(|snapshot| snapshot.save_mode != draft.save_mode)
+        .unwrap_or(false)
+}
+
+fn save_mode_label_key(save_mode: &SaveMode) -> &'static str {
+    match save_mode {
+        SaveMode::Automatic => "settings-save-mode-automatic",
+        SaveMode::Manual => "settings-save-mode-manual",
+    }
+}
+
+fn save_mode_toast_key(save_mode: &SaveMode) -> &'static str {
+    match save_mode {
+        SaveMode::Automatic => "settings-save-mode-toast-automatic",
+        SaveMode::Manual => "settings-save-mode-toast-manual",
+    }
+}
+
+fn apply_theme_preview(shared: &Arc<Mutex<AppShared>>, draft: &crate::settings::Settings) {
+    let mut shared_state = shared.lock().expect("lock");
+    shared_state.settings = Arc::new(draft.clone());
+    shared_state
+        .settings_version
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+}
+
+pub(crate) fn restore_runtime_settings_from_snapshot(
+    shared: &Arc<Mutex<AppShared>>,
+    snapshot: crate::settings::Settings,
+) {
+    let mut shared_state = shared.lock().expect("lock");
+    let should_bump_version =
+        theme_fingerprint(&shared_state.settings) != theme_fingerprint(&snapshot);
+    shared_state.settings = Arc::new(snapshot);
+    if should_bump_version {
+        shared_state
+            .settings_version
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+pub(super) fn discard_settings_draft(ws: &mut WorkspaceState, shared: &Arc<Mutex<AppShared>>) {
+    if let Some(snapshot) = ws.settings_original.take() {
+        restore_runtime_settings_from_snapshot(shared, snapshot);
+    }
+    ws.settings_draft = None;
+}
+
+pub(super) fn save_settings_draft(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &I18n,
+) {
+    if let Some(draft) = ws.settings_draft.take() {
+        let original_settings = ws.settings_original.clone();
+        let save_mode_was_changed = save_mode_changed(original_settings.as_ref(), &draft);
+        let mut saved_successfully = true;
+        if should_persist_settings_change(original_settings.as_ref(), &draft)
+            && let Err(err) = draft.try_save()
+        {
+            saved_successfully = false;
+            ws.toasts.push(crate::app::types::Toast::error(err));
+        }
+        if save_mode_was_changed && saved_successfully {
+            ws.toasts.push(crate::app::types::Toast::info(
+                i18n.get(save_mode_toast_key(&draft.save_mode)),
+            ));
+        }
+        ws.wizard.path = draft.default_project_path.clone();
+        let lang = draft.lang.clone();
+        let mut s = shared.lock().expect("lock");
+
+        // Immediate agent registry update
+        s.registry.agents.clear();
+        for ca in &draft.custom_agents {
+            let cmd = if ca.args.is_empty() {
+                ca.command.clone()
+            } else {
+                format!("{} {}", ca.command, ca.args)
+            };
+            s.registry.agents.register(crate::app::registry::Agent {
+                id: ca.name.to_lowercase().replace(' ', "_"),
+                label: ca.name.clone(),
+                command: cmd,
+                context_aware: true,
+            });
+        }
+
+        s.settings = Arc::new(draft);
+        s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
+        s.settings_version
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+    ws.settings_original = None;
+    ws.show_settings = false;
+}
+
 pub fn show(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &I18n,
-    _id_salt: &std::ffi::OsStr,
 ) {
     if !ws.show_settings {
         return;
     }
 
     if ws.settings_draft.is_none() {
-        ws.settings_draft = Some((*shared.lock().expect("lock").settings).clone());
+        let current_settings = (*shared.lock().expect("lock").settings).clone();
+        ws.settings_original = Some(current_settings.clone());
+        ws.settings_draft = Some(current_settings);
     }
 
     if let Some(rx) = ws.settings_folder_pick_rx.as_ref()
@@ -37,26 +296,28 @@ pub fn show(
         }
     }
 
-    let mut action = None;
+    let mut save_requested = false;
+    let mut cancel_requested = false;
     let mut browse_requested = false;
     let mut selected_cat = ws
         .selected_settings_category
         .clone()
         .unwrap_or_else(|| "general".to_string());
     let mut show_flag = ws.show_settings;
+    let was_open = show_flag;
 
-    let modal = StandardModal::new(i18n.get("settings-title"), "main_settings");
+    let modal = StandardModal::new(i18n.get("settings-title"), "main_settings")
+        .with_close_on_click_outside(false);
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
-        action = modal.ui_footer(ui, |ui: &mut egui::Ui| {
-            if ui.button(i18n.get("btn-close")).clicked() {
+        let _footer_action = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.confirm_cancel(ws) {
+                cancel_requested = true;
                 return Some(SettingsModalAction::Cancel);
             }
-            if ui.button(i18n.get("btn-cancel")).clicked() {
-                return Some(SettingsModalAction::Cancel);
-            }
-            if ui.button(i18n.get("btn-save")).clicked() {
+            if f.save() {
+                save_requested = true;
                 return Some(SettingsModalAction::Save);
             }
             None
@@ -98,7 +359,7 @@ pub fn show(
                             if ui
                                 .selectable_label(
                                     selected_cat == "ai",
-                                    format!("🤖 {}", i18n.get("settings-category-ai")),
+                                    format!("🤖 {}", i18n.get("cli-settings-section")),
                                 )
                                 .clicked()
                             {
@@ -153,18 +414,6 @@ pub fn show(
                                 }
                             });
                             ui.add_space(20.0);
-
-                            ui.separator();
-                            ui.add_space(10.0);
-                            ui.checkbox(
-                                &mut draft.project_read_only,
-                                i18n.get("settings-safe-mode"),
-                            );
-                            ui.label(
-                                egui::RichText::new(i18n.get("settings-safe-mode-hint"))
-                                    .small()
-                                    .weak(),
-                            );
                         } else if selected_cat == "editor" {
                             ui.strong(
                                 egui::RichText::new(i18n.get("settings-category-editor"))
@@ -173,19 +422,59 @@ pub fn show(
                             ui.add_space(12.0);
 
                             ui.strong(i18n.get("settings-theme"));
+                            let theme_before = theme_fingerprint(draft);
+                            let mut theme_controls_changed = false;
                             ui.horizontal(|ui| {
-                                ui.radio_value(
-                                    &mut draft.dark_theme,
-                                    true,
-                                    i18n.get("settings-theme-dark"),
-                                );
-                                ui.radio_value(
-                                    &mut draft.dark_theme,
-                                    false,
-                                    i18n.get("settings-theme-light"),
-                                );
+                                theme_controls_changed |= ui
+                                    .radio_value(
+                                        &mut draft.dark_theme,
+                                        true,
+                                        i18n.get("settings-theme-dark"),
+                                    )
+                                    .changed();
+                                theme_controls_changed |= ui
+                                    .radio_value(
+                                        &mut draft.dark_theme,
+                                        false,
+                                        i18n.get("settings-theme-light"),
+                                    )
+                                    .changed();
                             });
                             ui.add_space(16.0);
+
+                            if draft.dark_theme {
+                                ui.strong(i18n.get("settings-dark-variant"));
+                                ui.add_space(6.0);
+                                ui.horizontal_wrapped(|ui| {
+                                    for variant in DARK_VARIANT_OPTIONS.iter().cloned() {
+                                        theme_controls_changed |=
+                                            show_dark_variant_card(ui, draft, i18n, variant);
+                                        ui.add_space(8.0);
+                                    }
+                                });
+                            } else {
+                                ui.strong(i18n.get("settings-light-variant"));
+                                ui.add_space(6.0);
+                                egui::Grid::new("settings_light_variant_grid")
+                                    .spacing(egui::vec2(8.0, 8.0))
+                                    .show(ui, |ui| {
+                                        for (idx, variant) in
+                                            LIGHT_VARIANT_OPTIONS.iter().cloned().enumerate()
+                                        {
+                                            theme_controls_changed |=
+                                                show_light_variant_card(ui, draft, i18n, variant);
+                                            if idx % 2 == 1 {
+                                                ui.end_row();
+                                            }
+                                        }
+                                    });
+                            }
+                            ui.add_space(16.0);
+
+                            let theme_after = theme_fingerprint(draft);
+                            if theme_controls_changed && theme_before != theme_after {
+                                apply_theme_preview(shared, draft);
+                            }
 
                             ui.strong(i18n.get("settings-editor-font"));
                             ui.add_space(4.0);
@@ -194,14 +483,29 @@ pub fn show(
                                     .step_by(1.0)
                                     .suffix(" px"),
                             );
+                            ui.add_space(16.0);
+
+                            ui.strong(i18n.get("settings-save-mode-title"));
+                            ui.add_space(4.0);
+                            ui.horizontal(|ui| {
+                                ui.radio_value(
+                                    &mut draft.save_mode,
+                                    SaveMode::Automatic,
+                                    i18n.get(save_mode_label_key(&SaveMode::Automatic)),
+                                );
+                                ui.radio_value(
+                                    &mut draft.save_mode,
+                                    SaveMode::Manual,
+                                    i18n.get(save_mode_label_key(&SaveMode::Manual)),
+                                );
+                            });
                         } else if selected_cat == "ai" {
                             ui.strong(
-                                egui::RichText::new(i18n.get("settings-category-ai")).size(18.0),
+                                egui::RichText::new(i18n.get("cli-settings-section")).size(18.0),
                             );
                             ui.add_space(12.0);
 
-                            ui.label(i18n.get("settings-ai-hint"));
-                            ui.add_space(12.0);
+                            ui.add_space(4.0);
 
                             let mut to_remove = None;
                             for (idx, agent) in draft.custom_agents.iter_mut().enumerate() {
@@ -268,6 +572,21 @@ pub fn show(
     });
 
     ws.selected_settings_category = Some(selected_cat);
+
+    // Detekce zavření backdropem nebo křížkem (bez explicitního Save/Cancel)
+    if was_open && !show_flag && !save_requested && !cancel_requested {
+        let has_changes = ws
+            .settings_draft
+            .as_ref()
+            .zip(ws.settings_original.as_ref())
+            .map(|(draft, original)| draft != original)
+            .unwrap_or(false);
+        if has_changes {
+            show_flag = true;
+            ws.confirm_discard_changes = Some("settings_backdrop_close".to_string());
+        }
+    }
+
     ws.show_settings = show_flag;
 
     if browse_requested && ws.settings_folder_pick_rx.is_none() {
@@ -286,42 +605,91 @@ pub fn show(
         }));
     }
 
-    if let Some(act) = action {
-        match act {
-            SettingsModalAction::Save => {
-                if let Some(draft) = ws.settings_draft.take() {
-                    draft.save();
-                    ws.wizard.path = draft.default_project_path.clone();
-                    let lang = draft.lang.clone();
-                    let mut s = shared.lock().expect("lock");
+    if cancel_requested {
+        discard_settings_draft(ws, shared);
+        ws.show_settings = false;
+    } else if save_requested {
+        save_settings_draft(ws, shared, i18n);
+    }
+}
 
-                    // Immediate agent registry update
-                    s.registry.agents.clear();
-                    for ca in &draft.custom_agents {
-                        let cmd = if ca.args.is_empty() {
-                            ca.command.clone()
-                        } else {
-                            format!("{} {}", ca.command, ca.args)
-                        };
-                        s.registry.agents.register(crate::app::registry::Agent {
-                            id: ca.name.to_lowercase().replace(' ', "_"),
-                            label: ca.name.clone(),
-                            command: cmd,
-                            context_aware: true,
-                        });
-                    }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::i18n::{I18n, SUPPORTED_LANGS};
+    use crate::settings::{LightVariant, SaveMode, Settings};
 
-                    s.settings = Arc::new(draft);
-                    s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
-                    s.settings_version
-                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                }
-                ws.show_settings = false;
-            }
-            SettingsModalAction::Cancel => {
-                ws.settings_draft = None;
-                ws.show_settings = false;
-            }
+    #[test]
+    fn save_mode_change_is_detected_against_original_snapshot() {
+        let original = Settings {
+            save_mode: SaveMode::Manual,
+            ..Settings::default()
+        };
+        let unchanged = Settings {
+            save_mode: SaveMode::Manual,
+            ..Settings::default()
+        };
+        let changed = Settings {
+            save_mode: SaveMode::Automatic,
+            ..Settings::default()
+        };
+
+        assert!(!save_mode_changed(Some(&original), &unchanged));
+        assert!(save_mode_changed(Some(&original), &changed));
+    }
+
+    #[test]
+    fn save_mode_toast_text_is_mode_specific() {
+        assert_eq!(
+            save_mode_toast_key(&SaveMode::Automatic),
+            "settings-save-mode-toast-automatic"
+        );
+        assert_eq!(
+            save_mode_toast_key(&SaveMode::Manual),
+            "settings-save-mode-toast-manual"
+        );
+    }
+
+    #[test]
+    fn save_mode_label_keys_are_mode_specific() {
+        assert_eq!(
+            save_mode_label_key(&SaveMode::Automatic),
+            "settings-save-mode-automatic"
+        );
+        assert_eq!(
+            save_mode_label_key(&SaveMode::Manual),
+            "settings-save-mode-manual"
+        );
+    }
+
+    #[test]
+    fn settings_light_variant_picker_includes_warmtan() {
+        assert!(LIGHT_VARIANT_OPTIONS.contains(&LightVariant::WarmTan));
+    }
+
+    #[test]
+    fn settings_dark_variant_picker_includes_default_and_midnight() {
+        assert!(DARK_VARIANT_OPTIONS.contains(&DarkVariant::Default));
+        assert!(DARK_VARIANT_OPTIONS.contains(&DarkVariant::Midnight));
+    }
+
+    #[test]
+    fn settings_light_variant_label_warmtan_localized() {
+        for &lang in SUPPORTED_LANGS {
+            let i18n = I18n::new(lang);
+            let label = i18n.get(light_variant_label_key(&LightVariant::WarmTan));
+            assert_ne!(label, "settings-light-variant-warm-tan");
+            assert!(!label.is_empty());
+        }
+    }
+
+    #[test]
+    fn settings_dark_variant_label_midnight_localized() {
+        for &lang in SUPPORTED_LANGS {
+            let i18n = I18n::new(lang);
+            let label = i18n.get(dark_variant_label_key(&DarkVariant::Midnight));
+            assert_ne!(label, "settings-dark-variant-midnight");
+            assert!(!label.is_empty());
         }
     }
 }

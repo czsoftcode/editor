@@ -1,4 +1,4 @@
-pub(crate) mod build_all_modal;
+pub(crate) mod history;
 pub(crate) mod index;
 mod menubar;
 mod modal_dialogs;
@@ -8,8 +8,8 @@ pub(crate) mod state;
 // Re-exports for external callers
 pub(super) use state::spawn_ai_tool_check;
 pub(crate) use state::{
-    FsChangeResult, SearchResult, SecondaryWorkspace, WorkspaceState, init_workspace,
-    open_file_in_ws, ws_to_panel_state,
+    FsChangeResult, SecondaryWorkspace, WorkspaceState, init_workspace, open_file_in_ws,
+    ws_to_panel_state,
 };
 
 use std::path::PathBuf;
@@ -18,50 +18,387 @@ use std::sync::{Arc, Mutex};
 use eframe::egui;
 
 use super::super::build_runner::run_build_check;
-use super::super::types::{AppShared, FocusedPanel, Toast};
+use super::super::types::{AppShared, FocusedPanel, Toast, should_emit_save_error_toast};
 use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{render_file_picker, render_project_search_dialog};
 use super::terminal::right::render_ai_panel;
 use super::widgets::command_palette::{execute_command, render_command_palette};
+use crate::app::ui::dialogs::confirm::{UnsavedGuardDecision, show_unsaved_close_guard_dialog};
+use crate::app::ui::widgets::tab_bar::TabBarAction;
+use crate::app::ui::workspace::state::{
+    DirtyCloseQueueMode, PendingCloseFlow, PendingCloseMode, build_dirty_close_queue_for_mode,
+};
 use crate::config;
+use crate::settings::SaveMode;
 use crate::tr;
 pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
 use modal_dialogs::render_dialogs;
 
-fn trigger_sandbox_staged_refresh(ws: &mut WorkspaceState) {
-    if ws.sandbox_staged_rx.is_some() {
-        return; // Already scanning
-    }
-    let sandbox = ws.sandbox.root.clone();
-    let project = ws.root_path.clone();
-    let (tx, rx) = std::sync::mpsc::channel();
-    ws.sandbox_staged_rx = Some(rx);
-
-    std::thread::spawn(move || {
-        let sb = crate::app::sandbox::Sandbox::new_with_roots(project, sandbox);
-        let files = sb.get_staged_files();
-        let _ = tx.send(files);
-    });
+fn should_save_settings_draft_on_ctrl_s(show_settings: bool) -> bool {
+    show_settings
 }
 
-fn refresh_sandbox_staged_cache_if_due(ws: &mut WorkspaceState) {
-    if !ws.sandbox_staged_dirty {
+/// Odešle snapshot signál přes background IO kanál pro ne-binární taby.
+/// Volá se po úspěšném uložení souboru (manual save, autosave, unsaved-close-guard).
+fn send_snapshot_signal(ws: &WorkspaceState, tab_path: &PathBuf) {
+    if let Some(tab) = ws.editor.tabs.iter().find(|t| &t.path == tab_path) {
+        if tab.is_binary {
+            return;
+        }
+        if let Ok(rel_path) = tab.path.strip_prefix(&ws.root_path) {
+            let _ = ws.background_io_tx.send(FsChangeResult::LocalHistory(
+                rel_path.to_path_buf(),
+                tab.content.clone(),
+            ));
+        }
+    }
+}
+
+fn save_mode_status_key(save_mode: &SaveMode) -> &'static str {
+    match save_mode {
+        SaveMode::Automatic => "statusbar-save-mode-automatic",
+        SaveMode::Manual => "statusbar-save-mode-manual",
+    }
+}
+
+fn status_bar_runtime_mode_key(runtime_mode: &SaveMode) -> &'static str {
+    save_mode_status_key(runtime_mode)
+}
+
+fn status_bar_save_mode_key_for_runtime(
+    runtime_mode: &SaveMode,
+    _settings_draft_mode: Option<&SaveMode>,
+) -> &'static str {
+    status_bar_runtime_mode_key(runtime_mode)
+}
+
+fn consume_close_tab_shortcut(ctx: &egui::Context) -> bool {
+    ctx.input_mut(|input| {
+        input.consume_shortcut(&egui::KeyboardShortcut::new(
+            egui::Modifiers::CTRL,
+            egui::Key::W,
+        ))
+    })
+}
+
+fn editor_input_locked(dialog_open_base: bool, pending_close_flow_active: bool) -> bool {
+    dialog_open_base || pending_close_flow_active
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ManualSaveRequest {
+    SaveSettingsDraft,
+    SaveEditorFile,
+    ShowAlreadySavedInfo,
+    NoActiveTab,
+}
+
+fn manual_save_request(show_settings: bool, active_modified: Option<bool>) -> ManualSaveRequest {
+    if should_save_settings_draft_on_ctrl_s(show_settings) {
+        ManualSaveRequest::SaveSettingsDraft
+    } else {
+        match active_modified {
+            Some(true) => ManualSaveRequest::SaveEditorFile,
+            Some(false) => ManualSaveRequest::ShowAlreadySavedInfo,
+            None => ManualSaveRequest::NoActiveTab,
+        }
+    }
+}
+
+fn manual_save_request_for_shortcut(
+    show_settings: bool,
+    active_modified: Option<bool>,
+) -> ManualSaveRequest {
+    manual_save_request(show_settings, active_modified)
+}
+
+pub(super) fn handle_manual_save_action(
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
+    match manual_save_request_for_shortcut(
+        ws.show_settings,
+        ws.editor.active().map(|tab| tab.modified),
+    ) {
+        ManualSaveRequest::SaveSettingsDraft => {
+            modal_dialogs::save_settings_draft(ws, shared, i18n)
+        }
+        ManualSaveRequest::SaveEditorFile => {
+            let saved_path = ws.editor.active_path().cloned();
+            let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
+            if let Some(err) = ws.editor.save(i18n, &internal_save)
+                && should_emit_save_error_toast(&err)
+            {
+                ws.toasts.push(Toast::error(err));
+            } else {
+                if let Some(path) = &saved_path {
+                    send_snapshot_signal(ws, path);
+                }
+                ws.refresh_profiles_if_active_path();
+            }
+        }
+        ManualSaveRequest::ShowAlreadySavedInfo => {
+            ws.toasts
+                .push(Toast::info(i18n.get("info-file-already-saved")));
+        }
+        ManualSaveRequest::NoActiveTab => {}
+    }
+}
+
+/// Guard-aware entry point for closing the active editor tab.
+///
+/// - If there is no active tab, nothing happens.
+/// - If there are no dirty tabs, the active tab is closed immediately.
+/// - If a guard flow is already active, new close requests are ignored.
+/// - Otherwise, a new `PendingCloseFlow` is created with a stable queue of dirty tabs.
+fn request_close_tab_target(ws: &mut WorkspaceState, target_path: PathBuf) {
+    // Re-entrancy guard: ignore new requests while a flow is in progress.
+    if ws.pending_close_flow.is_some() {
         return;
     }
 
-    // Debounce: Wait at least 1000ms after the LAST change to let things settle.
-    // Also wait at least 3000ms between scans to avoid I/O spam.
-    let debounce_ms = 1000;
-    let min_interval_ms = 3000;
+    // Snapshot dirty tabs for queue building.
+    let tabs_snapshot: Vec<(PathBuf, bool)> = ws
+        .editor
+        .tabs
+        .iter()
+        .map(|t| (t.path.clone(), t.modified))
+        .collect();
 
-    let time_since_dirty = ws.sandbox_staged_last_dirty.elapsed().as_millis();
-    let time_since_refresh = ws.sandbox_staged_last_refresh.elapsed().as_millis();
+    let queue = build_dirty_close_queue_for_mode(
+        DirtyCloseQueueMode::SingleTab(&target_path),
+        &tabs_snapshot,
+    );
 
-    if time_since_dirty >= debounce_ms && time_since_refresh >= min_interval_ms {
-        trigger_sandbox_staged_refresh(ws);
-        ws.sandbox_staged_dirty = false;
+    if queue.is_empty() {
+        // Target tab is clean (or already gone) — close it without guard dialog.
+        ws.editor.close_tabs_for_path(&target_path);
+        return;
+    }
+
+    ws.pending_close_flow = Some(PendingCloseFlow {
+        mode: PendingCloseMode::SingleTab,
+        queue,
+        current_index: 0,
+        inline_error: None,
+    });
+}
+
+pub(crate) fn request_close_active_tab(ws: &mut WorkspaceState) {
+    let Some(active_path) = ws.editor.active_path().cloned() else {
+        return;
+    };
+    request_close_tab_target(ws, active_path);
+}
+
+pub(crate) fn tabbar_close_target_path(tabs: &[(PathBuf, bool)], idx: usize) -> Option<PathBuf> {
+    tabs.get(idx).map(|(path, _)| path.clone())
+}
+
+pub(crate) fn open_guard_queue_item_without_focus(
+    editor: &mut crate::app::ui::editor::Editor,
+    path: &PathBuf,
+) {
+    editor.open_file_without_focus(path);
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UnsavedCloseOutcome {
+    Continue,
+    Finished,
+    Cancelled,
+}
+
+fn apply_unsaved_close_decision(
+    flow: &mut PendingCloseFlow,
+    decision: UnsavedGuardDecision,
+    save_result: Result<(), String>,
+) -> UnsavedCloseOutcome {
+    if flow.queue.is_empty() || flow.current_index >= flow.queue.len() {
+        flow.inline_error = None;
+        return UnsavedCloseOutcome::Cancelled;
+    }
+
+    match decision {
+        UnsavedGuardDecision::Cancel => {
+            flow.inline_error = None;
+            UnsavedCloseOutcome::Cancelled
+        }
+        UnsavedGuardDecision::Discard => {
+            flow.inline_error = None;
+            if flow.current_index + 1 < flow.queue.len() {
+                flow.current_index += 1;
+                UnsavedCloseOutcome::Continue
+            } else {
+                UnsavedCloseOutcome::Finished
+            }
+        }
+        UnsavedGuardDecision::Save => match save_result {
+            Ok(()) => {
+                flow.inline_error = None;
+                if flow.current_index + 1 < flow.queue.len() {
+                    flow.current_index += 1;
+                    UnsavedCloseOutcome::Continue
+                } else {
+                    UnsavedCloseOutcome::Finished
+                }
+            }
+            Err(msg) => {
+                flow.inline_error = Some(msg);
+                UnsavedCloseOutcome::Continue
+            }
+        },
+        UnsavedGuardDecision::Pending => UnsavedCloseOutcome::Continue,
+    }
+}
+
+fn process_guard_save_failure_feedback(
+    flow: &mut PendingCloseFlow,
+    toasts: &mut Vec<Toast>,
+    message: &str,
+    emit_toast: bool,
+) -> UnsavedCloseOutcome {
+    if emit_toast {
+        toasts.push(Toast::error(message.to_string()));
+    }
+    apply_unsaved_close_decision(flow, UnsavedGuardDecision::Save, Err(message.to_string()))
+}
+
+fn should_close_tabs_after_guard_decision(
+    decision: UnsavedGuardDecision,
+    save_result: &Result<(), String>,
+) -> bool {
+    match decision {
+        UnsavedGuardDecision::Discard => true,
+        UnsavedGuardDecision::Save => save_result.is_ok(),
+        UnsavedGuardDecision::Cancel | UnsavedGuardDecision::Pending => false,
+    }
+}
+
+fn process_unsaved_close_guard_dialog(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    shared: &Arc<Mutex<AppShared>>,
+    i18n: &crate::i18n::I18n,
+) {
+    let mut should_refresh_profiles = false;
+
+    {
+        let Some(flow) = ws.pending_close_flow.as_mut() else {
+            return;
+        };
+
+        if flow.queue.is_empty() || flow.current_index >= flow.queue.len() {
+            // An empty or exhausted queue means the guard flow is effectively done.
+            // Treat this as a cancelled flow from the workspace perspective.
+            ws.last_unsaved_close_cancelled = true;
+            ws.pending_close_flow = None;
+            return;
+        }
+
+        let current_path = flow.queue[flow.current_index].clone();
+
+        // Ensure the editor is focused on the current item in the queue.
+        if ws.editor.tabs.iter().all(|t| t.path != current_path) {
+            // Tab no longer exists; treat as discarded and advance the queue.
+            let outcome = apply_unsaved_close_decision(flow, UnsavedGuardDecision::Discard, Ok(()));
+            match outcome {
+                UnsavedCloseOutcome::Cancelled => {
+                    ws.last_unsaved_close_cancelled = true;
+                    ws.pending_close_flow = None;
+                }
+                UnsavedCloseOutcome::Continue => {
+                    // Nothing else to do this frame; next item will be handled on the next call.
+                }
+                UnsavedCloseOutcome::Finished => {
+                    ws.last_unsaved_close_cancelled = false;
+                    ws.pending_close_flow = None;
+                }
+            }
+            return;
+        }
+
+        // Keep queue alignment without requesting editor focus while modal is active.
+        open_guard_queue_item_without_focus(&mut ws.editor, &current_path);
+
+        let file_name = current_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        let file_path = current_path.to_string_lossy().to_string();
+
+        let decision = show_unsaved_close_guard_dialog(
+            ctx,
+            i18n,
+            file_name,
+            &file_path,
+            flow.inline_error.as_deref(),
+        );
+
+        if decision == UnsavedGuardDecision::Pending {
+            return;
+        }
+
+        let mut precomputed_outcome = None;
+        // Only attempt a save when the user explicitly chose Save.
+        let save_result: Result<(), String> = if matches!(decision, UnsavedGuardDecision::Save) {
+            let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
+            if let Some(err) = ws.editor.save(i18n, &internal_save) {
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("name", file_name);
+                args.set("reason", err.as_str());
+                let message = i18n.get_args("unsaved_close_guard_save_failed", &args);
+                precomputed_outcome = Some(process_guard_save_failure_feedback(
+                    flow,
+                    &mut ws.toasts,
+                    &message,
+                    should_emit_save_error_toast(&message),
+                ));
+                Err(message.clone())
+            } else {
+                // Odeslat snapshot signál po úspěšném save v unsaved-close-guard
+                if let Some(tab) = ws.editor.tabs.iter().find(|t| t.path == current_path)
+                    && !tab.is_binary
+                    && let Ok(rel_path) = tab.path.strip_prefix(&ws.root_path)
+                {
+                    let _ = ws.background_io_tx.send(FsChangeResult::LocalHistory(
+                        rel_path.to_path_buf(),
+                        tab.content.clone(),
+                    ));
+                }
+                should_refresh_profiles = true;
+                Ok(())
+            }
+        } else {
+            Ok(())
+        };
+
+        let outcome = precomputed_outcome
+            .unwrap_or_else(|| apply_unsaved_close_decision(flow, decision, save_result.clone()));
+
+        // Close tabs only when the decision allows it and the save (if any) succeeded.
+        let should_close_tabs = should_close_tabs_after_guard_decision(decision, &save_result);
+
+        if should_close_tabs {
+            ws.editor.close_tabs_for_path(&current_path);
+        }
+
+        match outcome {
+            UnsavedCloseOutcome::Continue => {
+                // Keep the flow active; next item (or same on save-fail) will be handled on the next frame.
+            }
+            UnsavedCloseOutcome::Finished | UnsavedCloseOutcome::Cancelled => {
+                ws.last_unsaved_close_cancelled = matches!(outcome, UnsavedCloseOutcome::Cancelled);
+                ws.pending_close_flow = None;
+            }
+        }
+    }
+
+    if should_refresh_profiles {
+        ws.refresh_profiles_if_active_path();
     }
 }
 
@@ -82,11 +419,13 @@ pub(crate) fn render_workspace(
 
     // Lazy initialization of terminals — only when the respective panel is visible
     if ws.show_right_panel && ws.claude_tabs.is_empty() {
-        let root = ws.sandbox.root.clone();
         let id = ws.next_claude_tab_id;
         ws.next_claude_tab_id += 1;
         ws.claude_tabs.push(crate::app::ui::terminal::Terminal::new(
-            id, ctx, &root, None,
+            id,
+            ctx,
+            &ws.root_path,
+            None,
         ));
     }
     if ws.show_build_terminal && ws.build_terminal.is_none() {
@@ -99,24 +438,55 @@ pub(crate) fn render_workspace(
     }
 
     // Background events
-    process_background_events(ws, shared, i18n, ctx);
-    refresh_sandbox_staged_cache_if_due(ws);
+    ws.tick_retired_terminals();
+    process_background_events(ws, shared, i18n);
 
-    // Podmíněný repaint — pouze pokud běží aktivní operace na pozadí.
-    let has_active_work = ws.ai_loading
-        || ws.build_error_rx.is_some()
-        || ws.git_status_rx.is_some()
-        || ws.git_branch_rx.is_some()
-        || ws
-            .semantic_index
-            .lock()
-            .map(|si| si.is_indexing.load(std::sync::atomic::Ordering::SeqCst))
+    // --- REPAINT THROTTLING (Focus-aware) ---
+    let is_focused = ctx.input(|i| i.viewport().focused.unwrap_or(true));
+    let is_minimized = ctx.input(|i| i.viewport().minimized.unwrap_or(false));
+
+    if !is_focused || is_minimized {
+        // Unfocused or minimized: VERY slow repaint (2s interval)
+        ctx.request_repaint_after(std::time::Duration::from_secs(2));
+    } else {
+        // --- TYPING FPS CAP ---
+        // If user is actively typing, cap at ~30 FPS (33ms) to prevent repaint storm
+        let has_kb_input = ctx.input(|i| {
+            i.events.iter().any(|e| {
+                matches!(
+                    e,
+                    egui::Event::Key { .. } | egui::Event::Text(_) | egui::Event::Ime(_)
+                )
+            })
+        });
+        if has_kb_input {
+            ws.last_keystroke_time = Some(std::time::Instant::now());
+        }
+
+        let is_typing = ws
+            .last_keystroke_time
+            .map(|t| t.elapsed().as_millis() < 500)
             .unwrap_or(false);
 
-    if has_active_work {
-        ctx.request_repaint_after(std::time::Duration::from_millis(
-            config::REPAINT_INTERVAL_MS,
-        ));
+        if is_typing {
+            ctx.request_repaint_after(std::time::Duration::from_millis(33));
+        }
+
+        // Focused: Podmíněný repaint — pouze pokud běží aktivní operace na pozadí.
+        let has_active_work = ws.build_error_rx.is_some()
+            || ws.git_status_rx.is_some()
+            || ws.git_branch_rx.is_some()
+            || ws
+                .semantic_index
+                .lock()
+                .map(|si| si.is_indexing.load(std::sync::atomic::Ordering::SeqCst))
+                .unwrap_or(false);
+
+        if has_active_work {
+            ctx.request_repaint_after(std::time::Duration::from_millis(
+                config::REPAINT_INTERVAL_MS,
+            ));
+        }
     }
 
     // --- KEYBOARD SHORTCUTS ---
@@ -132,34 +502,17 @@ pub(crate) fn render_workspace(
         ws.show_right_panel = true;
         ws.focused_panel = FocusedPanel::Claude;
     }
-    if ctx.input(|i| i.modifiers.ctrl && i.modifiers.alt && i.key_pressed(egui::Key::G)) {
-        ws.show_ai_chat = true;
-        ws.ai_focus_requested = true;
-        ws.focused_panel = FocusedPanel::AiChat;
-    }
-
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
-        let settings = Arc::clone(&shared.lock().expect("lock").settings);
-        if let Some(err) = ws.editor.save(
-            i18n,
-            &shared.lock().expect("lock").is_internal_save,
-            settings.project_read_only,
-        ) {
-            ws.toasts.push(Toast::error(err));
-        }
+        handle_manual_save_action(ws, shared, i18n);
     }
-    if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::W)) {
-        ws.editor.clear();
+    if consume_close_tab_shortcut(ctx) {
+        request_close_active_tab(ws);
     }
     if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::B)) {
         if let Some(t) = &mut ws.build_terminal {
             t.send_command("cargo build 2>&1");
         }
-        let build_path = if ws.build_in_sandbox {
-            ws.sandbox.root.clone()
-        } else {
-            ws.root_path.clone()
-        };
+        let build_path = ws.root_path.clone();
         ws.build_error_rx = Some(run_build_check(build_path));
         ws.build_errors.clear();
     }
@@ -176,18 +529,18 @@ pub(crate) fn render_workspace(
     // --- 2. GLOBAL DIALOGS (Highest priority for input) ---
     let dialog_open_base = ws.file_tree.has_open_dialog()
         || ws.command_palette.is_some()
-        || ws.show_plugins
         || ws.show_settings
         || ws.show_new_project
         || ws.show_about
-        || ws.show_semantic_indexing_modal
-        || ws.sync_confirmation.is_some()
-        || ws.show_sandbox_staged;
+        || ws.show_semantic_indexing_modal;
+    let editor_locked = editor_input_locked(dialog_open_base, ws.pending_close_flow.is_some());
 
     let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
+    // Unsaved close guard dialog is rendered after generic dialogs so that it
+    // can safely own the decision flow for pending close operations.
+    process_unsaved_close_guard_dialog(ctx, ws, shared, i18n);
     render_semantic_indexing_modal(ctx, ws, i18n);
     ws.dep_wizard.render(ctx, i18n);
-    ws.build_all_modal.render(ctx, i18n);
     if let Some(path) = render_file_picker(ctx, ws, i18n) {
         open_file_in_ws(ws, path);
     }
@@ -196,13 +549,7 @@ pub(crate) fn render_workspace(
     if let Some(cmd_id) = render_command_palette(ctx, ws, shared, i18n) {
         let mut actions = MenuActions::default();
         if let Some(plugin_res) = execute_command(cmd_id, &mut actions, shared) {
-            if plugin_res == "OPEN_AI_CHAT_MODAL" {
-                ws.show_ai_chat = true;
-                ws.ai_focus_requested = true;
-                ws.ai_response = None;
-            } else {
-                ws.toasts.push(crate::app::types::Toast::info(plugin_res));
-            }
+            ws.toasts.push(crate::app::types::Toast::info(plugin_res));
         }
         if let Some(path) = process_menu_actions(ctx, ws, shared, actions, i18n) {
             open_here_path = Some(path);
@@ -214,17 +561,18 @@ pub(crate) fn render_workspace(
     if ws.ai_viewport_open {
         let viewport_id =
             egui::ViewportId::from_hash_of(format!("ai_viewport_{}", ws.root_path.display()));
+        let ai_label = "Terminal".to_string();
         ctx.show_viewport_immediate(
             viewport_id,
             egui::ViewportBuilder::default()
-                .with_title(format!("AI Terminal — {}", ws.root_path.display()))
+                .with_title(format!("{} — {}", i18n.get("ai-panel-title"), ai_label))
                 .with_inner_size([600.0, 500.0]),
             |ctx, _| {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     let config = crate::app::ui::terminal::right::PanelDisplayConfig {
                         dialog_open: false,
                         focused: ws.focused_panel,
-                        font_size: config::EDITOR_FONT_SIZE * ws.ai_font_scale as f32 / 100.0,
+                        font_size: config::EDITOR_FONT_SIZE * ws.ai_panel.font_scale as f32 / 100.0,
                         is_float: false,
                         is_viewport: true,
                     };
@@ -243,8 +591,7 @@ pub(crate) fn render_workspace(
     }
 
     // --- 3. STATUS BARS ---
-    let should_render_info_separator =
-        !ws.sandbox_staged_files.is_empty() || ws.lsp_binary_missing || ws.lsp_install_rx.is_some();
+    let should_render_info_separator = ws.lsp_binary_missing || ws.lsp_install_rx.is_some();
 
     if should_render_info_separator {
         egui::TopBottomPanel::top("info_bar_separator")
@@ -254,9 +601,7 @@ pub(crate) fn render_workspace(
             });
     }
 
-    render_sandbox_staged_bar(ctx, ws, i18n);
     render_lsp_setup_bar(ctx, ws, i18n);
-    render_sandbox_deletion_sync_dialog(ctx, ws, i18n);
 
     egui::TopBottomPanel::bottom("footer_separator")
         .exact_height(1.0)
@@ -267,9 +612,19 @@ pub(crate) fn render_workspace(
     egui::TopBottomPanel::bottom("status_bar")
         .exact_height(config::STATUS_BAR_HEIGHT)
         .show(ctx, |ui| {
+            let runtime_save_mode = shared.lock().expect("lock").settings.save_mode.clone();
+            let settings_draft_mode = ws.settings_draft.as_ref().map(|draft| &draft.save_mode);
             ui.horizontal(|ui| {
                 ws.editor
                     .status_bar(ui, ws.git_branch.as_deref(), i18n, ws.lsp_client.as_ref());
+                ui.separator();
+                ui.label(
+                    egui::RichText::new(i18n.get(status_bar_save_mode_key_for_runtime(
+                        &runtime_save_mode,
+                        settings_draft_mode,
+                    )))
+                    .small(),
+                );
                 let is_indexing = ws
                     .semantic_index
                     .lock()
@@ -298,7 +653,6 @@ pub(crate) fn render_workspace(
             });
         });
     // --- 4. PANELS (Side & Bottom) ---
-    let ai_chat_clicked = crate::app::ui::terminal::ai_chat::show(ctx, ws, shared, i18n);
     let bottom_clicked =
         crate::app::ui::terminal::bottom::render_bottom_panel(ctx, ws, dialog_open_base, i18n);
     let ai_clicked = render_ai_panel(ctx, ws, shared, dialog_open_base, i18n);
@@ -308,31 +662,70 @@ pub(crate) fn render_workspace(
     let prev_active_path = ws.editor.active_path().cloned();
     egui::CentralPanel::default().show(ctx, |ui| {
         let settings = Arc::clone(&shared.lock().expect("lock").settings);
-        let editor_res = ws.editor.ui(
-            ui,
-            dialog_open_base,
-            i18n,
-            ws.lsp_client.as_ref(),
-            &settings,
-        );
+        let editor_res = ws
+            .editor
+            .ui(ui, editor_locked, i18n, ws.lsp_client.as_ref(), &settings);
         if editor_res.clicked {
             ws.focused_panel = FocusedPanel::Editor;
+        }
+
+        if let Some(action) = editor_res.tab_action {
+            match action {
+                TabBarAction::Close(idx) => {
+                    let tabs_snapshot: Vec<(PathBuf, bool)> = ws
+                        .editor
+                        .tabs
+                        .iter()
+                        .map(|tab| (tab.path.clone(), tab.modified))
+                        .collect();
+                    if let Some(target_path) = tabbar_close_target_path(&tabs_snapshot, idx) {
+                        request_close_tab_target(ws, target_path);
+                    }
+                }
+                TabBarAction::ShowHistory(idx) => {
+                    if let Some(tab) = ws.editor.tabs.get(idx)
+                        && let Ok(rel_path) = tab.path.strip_prefix(&ws.root_path)
+                    {
+                        let entries = ws.local_history.get_history(rel_path);
+                        if entries.is_empty() {
+                            ws.toasts
+                                .push(Toast::info(i18n.get("history-panel-no-versions")));
+                        } else {
+                            ws.history_view = Some(history::HistoryViewState {
+                                file_path: tab.path.clone(),
+                                relative_path: rel_path.to_path_buf(),
+                                entries,
+                                selected_index: None,
+                                preview_content: None,
+                                scroll_to_selected: false,
+                            });
+                        }
+                    }
+                }
+                TabBarAction::Switch(_) | TabBarAction::New => {
+                    // Other actions are already handled inside the editor UI.
+                }
+            }
         }
 
         if let Some((path_str, action, _new_text)) = editor_res.diff_action
             && action == crate::app::ui::editor::DiffAction::Accepted
         {
             let path = PathBuf::from(&path_str);
-            let rel_path = path
-                .strip_prefix(&ws.root_path)
-                .unwrap_or(&path)
-                .to_path_buf();
-            let _ = ws.sandbox.promote_file(&rel_path);
             if !ws.editor.tabs.iter().any(|t| t.path == path) {
-                open_file_in_ws(ws, path.clone());
+                open_file_in_ws(ws, path);
             }
-            ws.promotion_success = Some(path);
-            ws.sandbox_staged_dirty = true;
+        }
+
+        // History panel overlay — zobrazí se místo editoru pokud je aktivní
+        if ws.history_view.is_some() {
+            // Vytvořit nový scope pro borrow split:
+            // potřebujeme &mut history_view a &local_history současně.
+            let hv = ws.history_view.as_mut().unwrap();
+            let close = history::render_history_panel(hv, &ws.local_history, ui, i18n);
+            if close {
+                ws.history_view = None;
+            }
         }
     });
 
@@ -366,17 +759,12 @@ pub(crate) fn render_workspace(
     // Reset focus to editor only when the user explicitly clicks outside all panels.
     // Do NOT reset just because the mouse drifted away from the terminal area —
     // that would make keyboard input impossible after clicking the terminal.
-    let any_panel_interacted = ai_chat_clicked
-        || ai_clicked
-        || left_clicked
-        || ai_viewport_clicked
-        || ws.show_ai_chat
-        || bottom_clicked
-        || dialogs_interacted;
-    if !any_panel_interacted {
-        let in_terminal = ws.focused_panel == FocusedPanel::Claude
-            || ws.focused_panel == FocusedPanel::Build
-            || ws.focused_panel == FocusedPanel::AiChat;
+    let any_panel_interacted =
+        ai_clicked || left_clicked || ai_viewport_clicked || bottom_clicked || dialogs_interacted;
+    let guard_active = ws.pending_close_flow.is_some();
+    if !any_panel_interacted && !guard_active {
+        let in_terminal =
+            ws.focused_panel == FocusedPanel::Claude || ws.focused_panel == FocusedPanel::Build;
         let explicit_click_elsewhere = ctx.input(|i| i.pointer.any_click());
         if in_terminal && explicit_click_elsewhere {
             ws.focused_panel = FocusedPanel::Editor;
@@ -384,7 +772,7 @@ pub(crate) fn render_workspace(
         }
     }
 
-    render_toasts(ctx, ws);
+    render_toasts(ctx, ws, i18n);
     open_here_path
 }
 
@@ -414,37 +802,6 @@ fn render_lsp_setup_bar(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &cra
             }
             if ui.button("\u{00D7}").clicked() {
                 ws.lsp_binary_missing = false;
-            }
-        });
-    });
-}
-
-fn render_sandbox_staged_bar(
-    ctx: &egui::Context,
-    ws: &mut WorkspaceState,
-    i18n: &crate::i18n::I18n,
-) {
-    let staged_files = ws.sandbox_staged_files.clone();
-    if staged_files.is_empty() {
-        return;
-    }
-    egui::TopBottomPanel::top("sandbox_staged_bar").show(ctx, |ui| {
-        ui.horizontal(|ui| {
-            ui.visuals_mut().widgets.noninteractive.bg_fill = egui::Color32::from_rgb(80, 70, 20);
-            ui.label(
-                egui::RichText::new(format!("\u{26A0} {}", i18n.get("ai-staged-bar-msg")))
-                    .color(egui::Color32::from_rgb(255, 230, 100))
-                    .strong(),
-            );
-            ui.label(format!("({})", staged_files.len()));
-            if ui.button(i18n.get("ai-staged-bar-review")).clicked() {
-                ws.show_sandbox_staged = true;
-            }
-            if ui.button(i18n.get("ai-staged-bar-promote-all")).clicked() {
-                for f in staged_files {
-                    let _ = ws.sandbox.promote_file(&f);
-                }
-                ws.sandbox_staged_dirty = true;
             }
         });
     });
@@ -547,21 +904,106 @@ fn render_semantic_indexing_modal(
         });
 }
 
-fn render_sandbox_deletion_sync_dialog(
-    ctx: &egui::Context,
-    ws: &mut WorkspaceState,
-    i18n: &crate::i18n::I18n,
-) {
-    if let Some(rel_path) = ws.sandbox_deletion_sync.clone() {
-        egui::Window::new(i18n.get("sandbox-delete-title")).show(ctx, |ui| {
-            ui.label(format!("File deleted: {}", rel_path.display()));
-            if ui.button("Keep in project").clicked() {
-                ws.sandbox_deletion_sync = None;
-            }
-            if ui.button("Delete from project").clicked() {
-                let _ = std::fs::remove_file(ws.root_path.join(&rel_path));
-                ws.sandbox_deletion_sync = None;
-            }
-        });
+#[cfg(test)]
+mod tests {
+    use super::ManualSaveRequest;
+    use super::manual_save_request;
+    use super::manual_save_request_for_shortcut;
+    use super::save_mode_status_key;
+    use super::should_save_settings_draft_on_ctrl_s;
+    use super::status_bar_save_mode_key_for_runtime;
+    use crate::settings::SaveMode;
+
+    mod save_mode;
+    mod unsaved_close_guard;
+
+    #[test]
+    fn ctrl_s_is_routed_to_settings_when_settings_modal_is_open() {
+        assert!(should_save_settings_draft_on_ctrl_s(true));
+        assert!(!should_save_settings_draft_on_ctrl_s(false));
+    }
+
+    #[test]
+    fn status_bar_uses_mode_specific_save_mode_key() {
+        assert_eq!(
+            save_mode_status_key(&SaveMode::Automatic),
+            "statusbar-save-mode-automatic"
+        );
+        assert_eq!(
+            save_mode_status_key(&SaveMode::Manual),
+            "statusbar-save-mode-manual"
+        );
+    }
+
+    #[test]
+    fn save_mode_status_ignores_settings_draft_before_apply() {
+        let runtime_mode = SaveMode::Manual;
+        let settings_draft_mode = Some(&SaveMode::Automatic);
+        assert_eq!(
+            status_bar_save_mode_key_for_runtime(&runtime_mode, settings_draft_mode),
+            "statusbar-save-mode-manual"
+        );
+    }
+
+    #[test]
+    fn save_mode_status_tracks_runtime_after_apply() {
+        let runtime_mode = SaveMode::Automatic;
+        let settings_draft_mode = Some(&SaveMode::Manual);
+        assert_eq!(
+            status_bar_save_mode_key_for_runtime(&runtime_mode, settings_draft_mode),
+            "statusbar-save-mode-automatic"
+        );
+    }
+
+    #[test]
+    fn manual_save_request_routes_to_settings_when_modal_is_open() {
+        assert_eq!(
+            manual_save_request(true, Some(true)),
+            ManualSaveRequest::SaveSettingsDraft
+        );
+    }
+
+    #[test]
+    fn manual_save_request_routes_modified_tab_to_file_save() {
+        assert_eq!(
+            manual_save_request(false, Some(true)),
+            ManualSaveRequest::SaveEditorFile
+        );
+    }
+
+    #[test]
+    fn manual_save_request_routes_clean_tab_to_info_toast() {
+        assert_eq!(
+            manual_save_request(false, Some(false)),
+            ManualSaveRequest::ShowAlreadySavedInfo
+        );
+    }
+
+    #[test]
+    fn manual_save_request_routes_no_active_tab_to_noop() {
+        assert_eq!(
+            manual_save_request(false, None),
+            ManualSaveRequest::NoActiveTab
+        );
+    }
+
+    #[test]
+    fn manual_save_request_shortcut_helper_respects_settings_priority() {
+        assert_eq!(
+            manual_save_request_for_shortcut(true, Some(true)),
+            ManualSaveRequest::SaveSettingsDraft
+        );
+        assert_eq!(
+            manual_save_request_for_shortcut(false, Some(true)),
+            ManualSaveRequest::SaveEditorFile
+        );
+        assert_eq!(
+            manual_save_request_for_shortcut(false, Some(false)),
+            ManualSaveRequest::ShowAlreadySavedInfo
+        );
+        assert_eq!(
+            manual_save_request_for_shortcut(false, None),
+            ManualSaveRequest::NoActiveTab
+        );
     }
 }

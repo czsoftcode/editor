@@ -1,8 +1,14 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, mpsc};
+use std::sync::{Arc, Mutex, mpsc};
+
+use super::super::types::{AppShared, Toast, should_emit_save_error_toast};
+use super::git_status::{GitVisualStatus, parse_porcelain_status};
+use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
+use crate::settings::SaveMode;
+use crate::watcher::{FileEvent, FsChange};
 
 /// Spawns a closure in a new thread and returns a Receiver with the result.
 pub(crate) fn spawn_task<T, F>(f: F) -> mpsc::Receiver<T>
@@ -17,19 +23,78 @@ where
     rx
 }
 
-use eframe::egui;
+fn should_run_autosave(save_mode: SaveMode) -> bool {
+    matches!(save_mode, SaveMode::Automatic)
+}
 
-use super::super::types::{AppShared, Toast};
-use super::workspace::{FsChangeResult, WorkspaceState, spawn_ai_tool_check};
-use crate::watcher::{FileEvent, FsChange};
-use std::sync::Mutex;
+fn project_change_path(change: &FsChange) -> &PathBuf {
+    match change {
+        FsChange::Created(path) | FsChange::Removed(path) | FsChange::Modified(path) => path,
+    }
+}
+
+fn project_change_kind_key(change: &FsChange) -> &'static str {
+    match change {
+        FsChange::Created(_) => "created",
+        FsChange::Removed(_) => "removed",
+        FsChange::Modified(_) => "modified",
+    }
+}
+
+fn merge_project_change(existing: &mut FsChange, incoming: &FsChange) {
+    let path = project_change_path(existing).clone();
+    *existing = match (&*existing, incoming) {
+        (FsChange::Removed(_), _) | (_, FsChange::Removed(_)) => FsChange::Removed(path),
+        (FsChange::Created(_), _) | (_, FsChange::Created(_)) => FsChange::Created(path),
+        _ => FsChange::Modified(path),
+    };
+}
+
+fn dedupe_project_watcher_changes(changes: &[FsChange]) -> Vec<FsChange> {
+    let mut seen: HashSet<(PathBuf, &'static str)> = HashSet::new();
+    let mut merged_by_path: HashMap<PathBuf, FsChange> = HashMap::new();
+
+    for change in changes {
+        let path = project_change_path(change).clone();
+        let kind_key = project_change_kind_key(change);
+
+        if !seen.insert((path.clone(), kind_key)) {
+            continue;
+        }
+
+        merged_by_path
+            .entry(path.clone())
+            .and_modify(|existing| merge_project_change(existing, change))
+            .or_insert_with(|| change.clone());
+    }
+
+    let mut ordered: Vec<_> = merged_by_path.into_values().collect();
+    ordered.sort_by(|a, b| project_change_path(a).cmp(project_change_path(b)));
+    ordered
+}
+
+fn trigger_project_watcher_reload_once(
+    file_tree: &mut crate::app::ui::file_tree::FileTree,
+    reload_requested_for_batch: &mut bool,
+    created_file: Option<&PathBuf>,
+) {
+    if *reload_requested_for_batch {
+        return;
+    }
+
+    if let Some(path) = created_file {
+        file_tree.request_reload_and_expand(path);
+    } else {
+        file_tree.request_reload();
+    }
+    *reload_requested_for_batch = true;
+}
 
 /// Processes events from watchers, build results, and autosave.
 pub(super) fn process_background_events(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
-    egui_ctx: &egui::Context,
 ) {
     // --- 1. Background I/O results ---
     if let Some(rx) = &ws.background_io_rx
@@ -40,7 +105,13 @@ pub(super) fn process_background_events(
                 ws.editor.pending_ai_diff = Some((path, original, new));
             }
             FsChangeResult::LocalHistory(rel_path, content) => {
-                ws.local_history.take_snapshot(&rel_path, &content);
+                if let Err(e) = ws.local_history.take_snapshot(&rel_path, &content) {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("path", rel_path.to_string_lossy().into_owned());
+                    args.set("reason", e.to_string());
+                    ws.toasts
+                        .push(Toast::error(i18n.get_args("error-history-snapshot", &args)));
+                }
             }
         }
     }
@@ -76,320 +147,59 @@ pub(super) fn process_background_events(
     }
 
     // --- 3. Project watcher events (directory tree) ---
-    let fs_changes = ws.project_watcher.poll();
-    if !fs_changes.is_empty() {
-        let mut need_reload = false;
-        let mut created_file: Option<PathBuf> = None;
-        let sandbox_root = &ws.sandbox.root;
+    if ws.project_watcher_active {
+        let mut reload_requested_for_batch = false;
+        let fs_batch = ws.project_watcher.poll();
+        if fs_batch.disconnected {
+            ws.project_watcher_active = false;
+            if !ws.project_watcher_disconnect_reported {
+                ws.project_watcher_disconnect_reported = true;
+                ws.toasts.push(Toast::error(
+                    "watcher odpojen: automaticka aktualizace stromu souboru byla zastavena"
+                        .to_string(),
+                ));
+            }
+        } else if fs_batch.overflowed {
+            trigger_project_watcher_reload_once(
+                &mut ws.file_tree,
+                &mut reload_requested_for_batch,
+                None,
+            );
+        } else if !fs_batch.changes.is_empty() {
+            let deduped_changes = dedupe_project_watcher_changes(&fs_batch.changes);
+            let mut need_reload = false;
+            let mut created_file: Option<PathBuf> = None;
 
-        for change in &fs_changes {
-            ws.project_index.handle_change(change.clone());
-            ws.sandbox_staged_dirty = true;
-            ws.sandbox_staged_last_dirty = std::time::Instant::now();
+            for change in &deduped_changes {
+                ws.project_index.handle_change(change.clone());
 
-            match change {
-                FsChange::Created(path) => {
-                    need_reload = true;
-                    if path.is_file() {
-                        created_file = Some(path.clone());
-                        if path.starts_with(sandbox_root) {
-                            // Created in sandbox
-                            if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
-                                // UPDATE SEMANTIC INDEX
-                                let si_clone = ws.semantic_index.clone();
-                                let abs_path = path.clone();
-                                let rel_path_buf = rel_path.to_path_buf();
-
-                                let ctx_opt = {
-                                    if let Ok(si) = si_clone.try_lock() {
-                                        si.get_indexing_context()
-                                    } else {
-                                        None
-                                    }
-                                };
-
-                                if let Some(ctx) = ctx_opt {
-                                    {
-                                        if let Ok(si) = si_clone.try_lock() {
-                                            si.is_indexing
-                                                .store(true, std::sync::atomic::Ordering::SeqCst);
-                                            if let Ok(mut cur) = si.current_file.lock() {
-                                                *cur = rel_path_buf.to_string_lossy().to_string();
-                                            }
-                                        }
-                                    }
-                                    let ui_ctx = egui_ctx.clone();
-                                    std::thread::spawn(move || {
-                                        let mtime = std::fs::metadata(&abs_path)
-                                            .and_then(|m| m.modified())
-                                            .ok()
-                                            .and_then(|t| {
-                                                t.duration_since(std::time::UNIX_EPOCH).ok()
-                                            })
-                                            .map(|d| d.as_secs())
-                                            .unwrap_or(0);
-
-                                        // Compute file hash for incremental indexing
-                                        let file_hash = match crate::app::ui::workspace::semantic_index::compute_file_hash(&abs_path) {
-                                        Ok(h) => h,
-                                        Err(e) => {
-                                            eprintln!("[SemanticIndex] Failed to compute hash for {:?}: {}", abs_path, e);
-                                            let si = si_clone.lock().unwrap();
-                                            si.is_indexing
-                                                .store(false, std::sync::atomic::Ordering::SeqCst);
-                                            ui_ctx.request_repaint();
-                                            return;
-                                        }
-                                    };
-
-                                        if let Ok(content) = std::fs::read_to_string(&abs_path) {
-                                            let snippets = crate::app::ui::workspace::semantic_index::compute_snippets_for_file(
-                                            &ctx,
-                                            rel_path_buf.clone(),
-                                            content,
-                                            mtime,
-                                            file_hash
-                                        );
-
-                                            {
-                                                let si = si_clone.lock().unwrap();
-                                                si.update_snippets_for_file(
-                                                    &rel_path_buf,
-                                                    snippets,
-                                                );
-                                            }
-                                            {
-                                                let si = si_clone.lock().unwrap();
-                                                let _ = si.save();
-                                                si.is_indexing.store(
-                                                    false,
-                                                    std::sync::atomic::Ordering::SeqCst,
-                                                );
-                                            }
-                                            ui_ctx.request_repaint();
-                                        } else {
-                                            let si = si_clone.lock().unwrap();
-                                            si.is_indexing
-                                                .store(false, std::sync::atomic::Ordering::SeqCst);
-                                            ui_ctx.request_repaint();
-                                        }
-                                    });
-                                }
-
-                                let real_path_str =
-                                    ws.root_path.join(rel_path).to_string_lossy().to_string();
-                                let auto_show = shared
-                                    .lock()
-                                    .expect("lock shared")
-                                    .settings
-                                    .auto_show_ai_diff;
-                                if auto_show {
-                                    let (tx, rx) = mpsc::channel();
-                                    ws.background_io_rx = Some(rx);
-                                    let p = path.clone();
-                                    std::thread::spawn(move || {
-                                        if let Ok(new_content) = std::fs::read_to_string(p) {
-                                            let _ = tx.send(FsChangeResult::AiDiff(
-                                                real_path_str,
-                                                String::new(),
-                                                new_content,
-                                            ));
-                                        }
-                                    });
-                                }
-                            }
-                        } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root)
-                        {
-                            // Created in REAL PROJECT -> Auto-sync TO SANDBOX
-                            if let Ok(rel_path) = path.strip_prefix(&ws.root_path) {
-                                // Skip if the relative path is inside .polycredo itself
-                                if !rel_path.starts_with(".polycredo") {
-                                    let target = sandbox_root.join(rel_path);
-                                    if let Some(parent) = target.parent() {
-                                        let _ = std::fs::create_dir_all(parent);
-                                    }
-                                    let _ = std::fs::copy(path, target);
-                                }
-                            }
+                match change {
+                    FsChange::Created(path) => {
+                        need_reload = true;
+                        if path.is_file() {
+                            created_file = Some(path.clone());
                         }
                     }
-                }
-                FsChange::Removed(path) => {
-                    need_reload = true;
-                    ws.editor.close_tabs_for_path(path);
-
-                    if path.starts_with(sandbox_root) {
-                        // DELETED IN SANDBOX
-                        if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
-                            // UPDATE SEMANTIC INDEX
-                            let si_clone = ws.semantic_index.clone();
-                            let rel_path_buf = rel_path.to_path_buf();
-                            std::thread::spawn(move || {
-                                let si = si_clone.lock().unwrap();
-                                si.remove_file(&rel_path_buf);
-                                let _ = si.save();
-                            });
-
-                            let project_path = ws.root_path.join(rel_path);
-                            if project_path.exists() && ws.sandbox_deletion_sync.is_none() {
-                                // File was deleted in sandbox but exists in project -> show modal
-                                ws.sandbox_deletion_sync = Some(rel_path.to_path_buf());
-                            }
-                        }
+                    FsChange::Removed(path) => {
+                        need_reload = true;
+                        ws.editor.close_tabs_for_path(path);
                     }
-                }
-                FsChange::Modified(path) => {
-                    need_reload = true;
-                    if path.starts_with(sandbox_root) {
-                        // Modified in sandbox
-                        if let Ok(rel_path) = path.strip_prefix(sandbox_root) {
-                            // UPDATE SEMANTIC INDEX
-                            let si_clone = ws.semantic_index.clone();
-                            let abs_path = path.clone();
-                            let rel_path_buf = rel_path.to_path_buf();
-
-                            let ctx_opt = {
-                                if let Ok(si) = si_clone.try_lock() {
-                                    si.get_indexing_context()
-                                } else {
-                                    None
-                                }
-                            };
-
-                            if let Some(ctx) = ctx_opt {
-                                {
-                                    if let Ok(si) = si_clone.try_lock() {
-                                        si.is_indexing
-                                            .store(true, std::sync::atomic::Ordering::SeqCst);
-                                        if let Ok(mut cur) = si.current_file.lock() {
-                                            *cur = rel_path_buf.to_string_lossy().to_string();
-                                        }
-                                    }
-                                }
-                                let ui_ctx = egui_ctx.clone();
-                                std::thread::spawn(move || {
-                                    let mtime = std::fs::metadata(&abs_path)
-                                        .and_then(|m| m.modified())
-                                        .ok()
-                                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                                        .map(|d| d.as_secs())
-                                        .unwrap_or(0);
-
-                                    // Compute file hash for incremental indexing
-                                    let file_hash = match crate::app::ui::workspace::semantic_index::compute_file_hash(&abs_path) {
-                                        Ok(h) => h,
-                                        Err(e) => {
-                                            eprintln!("[SemanticIndex] Failed to compute hash for {:?}: {}", abs_path, e);
-                                            let si = si_clone.lock().unwrap();
-                                            si.is_indexing
-                                                .store(false, std::sync::atomic::Ordering::SeqCst);
-                                            ui_ctx.request_repaint();
-                                            return;
-                                        }
-                                    };
-
-                                    if let Ok(content) = std::fs::read_to_string(&abs_path) {
-                                        let snippets = crate::app::ui::workspace::semantic_index::compute_snippets_for_file(
-                                            &ctx,
-                                            rel_path_buf.clone(),
-                                            content,
-                                            mtime,
-                                            file_hash
-                                        );
-
-                                        {
-                                            let si = si_clone.lock().unwrap();
-                                            si.update_snippets_for_file(&rel_path_buf, snippets);
-                                        }
-                                        {
-                                            let si = si_clone.lock().unwrap();
-                                            let _ = si.save();
-                                            si.is_indexing
-                                                .store(false, std::sync::atomic::Ordering::SeqCst);
-                                        }
-                                        ui_ctx.request_repaint();
-                                    } else {
-                                        let si = si_clone.lock().unwrap();
-                                        si.is_indexing
-                                            .store(false, std::sync::atomic::Ordering::SeqCst);
-                                        ui_ctx.request_repaint();
-                                    }
-                                });
-                            }
-
-                            let auto_show = shared
-                                .lock()
-                                .expect("lock shared")
-                                .settings
-                                .auto_show_ai_diff;
-                            if auto_show {
-                                let project_path = ws.root_path.join(rel_path);
-                                let (tx, rx) = mpsc::channel();
-                                ws.background_io_rx = Some(rx);
-                                let p_sandbox = path.clone();
-                                let p_project = project_path.clone();
-                                let path_str = project_path.to_string_lossy().to_string();
-                                std::thread::spawn(move || {
-                                    let original =
-                                        std::fs::read_to_string(p_project).unwrap_or_default();
-                                    if let Ok(new_content) = std::fs::read_to_string(p_sandbox) {
-                                        let _ = tx.send(FsChangeResult::AiDiff(
-                                            path_str,
-                                            original,
-                                            new_content,
-                                        ));
-                                    }
-                                });
-                            }
-                        }
-                    } else if path.starts_with(&ws.root_path) && !path.starts_with(sandbox_root) {
-                        // Modified in REAL PROJECT -> Auto-sync TO SANDBOX
-                        if let Ok(rel_path) = path.strip_prefix(&ws.root_path) {
-                            // Skip if the relative path is inside .polycredo itself
-                            if !rel_path.starts_with(".polycredo") {
-                                let target = sandbox_root.join(rel_path);
-                                // Avoid infinite sync loop by checking if files differ
-                                let should_sync = if !target.exists() {
-                                    true
-                                } else {
-                                    let m_proj = match path.metadata() {
-                                        Ok(m) => m,
-                                        Err(_) => return, // Skip this change if metadata fails
-                                    };
-                                    let m_sand = match target.metadata() {
-                                        Ok(m) => m,
-                                        Err(_) => {
-                                            // If sandbox file metadata fails, we sync just to be safe
-                                            let _ = std::fs::copy(path, target);
-                                            return;
-                                        }
-                                    };
-                                    m_proj
-                                        .modified()
-                                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                                        > m_sand
-                                            .modified()
-                                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                                };
-                                if should_sync {
-                                    let _ = std::fs::copy(path, target);
-                                }
-                            }
-                        }
+                    FsChange::Modified(_path) => {
+                        need_reload = true;
                     }
                 }
             }
-        }
-        if need_reload {
-            if let Some(ref path) = created_file {
-                ws.file_tree.request_reload_and_expand(path);
-            } else {
-                ws.file_tree.request_reload();
+            if need_reload {
+                trigger_project_watcher_reload_once(
+                    &mut ws.file_tree,
+                    &mut reload_requested_for_batch,
+                    created_file.as_ref(),
+                );
             }
         }
     }
 
-    // --- 4. Periodic tasks (Git, AI tools) ---
+    // --- 4. Periodic tasks (Git + external tools availability) ---
     if ws.git_last_refresh.elapsed().as_secs() > 10 {
         ws.git_last_refresh = std::time::Instant::now();
         if ws.git_status_rx.is_none() {
@@ -410,7 +220,7 @@ pub(super) fn process_background_events(
     if let Some(rx) = &ws.git_status_rx
         && let Ok(status) = rx.try_recv()
     {
-        ws.file_tree.set_git_colors(status);
+        ws.file_tree.set_git_statuses(status);
         ws.git_status_rx = None;
     }
 
@@ -443,9 +253,7 @@ pub(super) fn process_background_events(
         ws.win_tool_check_rx = None;
         ws.win_tool_last_check = std::time::Instant::now();
     }
-    if ws.win_tool_last_check.elapsed().as_secs() >= 30 // Check every 30 seconds
-        && ws.win_tool_check_rx.is_none()
-    {
+    if ws.win_tool_last_check.elapsed().as_secs() >= 30 && ws.win_tool_check_rx.is_none() {
         ws.win_tool_check_rx =
             Some(crate::app::ui::workspace::state::actions::spawn_win_tool_check());
     }
@@ -458,22 +266,28 @@ pub(super) fn process_background_events(
         ws.build_error_rx = None;
     }
 
-    if let Some(rx) = &ws.sandbox_staged_rx
-        && let Ok(files) = rx.try_recv()
-    {
-        ws.sandbox_staged_files = files;
-        ws.sandbox_staged_rx = None;
-        ws.sandbox_staged_last_refresh = std::time::Instant::now();
-    }
-
-    if ws.external_change_conflict.is_none() {
-        let read_only = shared.lock().expect("lock").settings.project_read_only;
-        if let Some(err) = ws.editor.try_autosave(
-            i18n,
-            &shared.lock().expect("lock").is_internal_save,
-            read_only,
-        ) {
+    let save_mode = { shared.lock().expect("lock").settings.save_mode.clone() };
+    if should_run_autosave(save_mode) && ws.external_change_conflict.is_none() {
+        let should_autosave = ws.editor.should_autosave();
+        let saved_path = ws.editor.active_path().cloned();
+        let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
+        if let Some(err) = ws.editor.try_autosave(i18n, &internal_save)
+            && should_emit_save_error_toast(&err)
+        {
             ws.toasts.push(Toast::error(err));
+        } else if should_autosave {
+            // Odeslat snapshot signál po úspěšném autosave pro ne-binární taby
+            if let Some(path) = &saved_path
+                && let Some(tab) = ws.editor.tabs.iter().find(|t| &t.path == path)
+                && !tab.is_binary
+                && let Ok(rel_path) = tab.path.strip_prefix(&ws.root_path)
+            {
+                let _ = ws.background_io_tx.send(FsChangeResult::LocalHistory(
+                    rel_path.to_path_buf(),
+                    tab.content.clone(),
+                ));
+            }
+            ws.refresh_profiles_if_active_path();
         }
     }
 
@@ -540,8 +354,8 @@ pub(crate) fn fetch_git_branch(
     })
 }
 
-fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, egui::Color32> {
-    let mut colors = HashMap::new();
+fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, GitVisualStatus> {
+    let mut statuses = HashMap::new();
     let entries: Vec<&[u8]> = raw
         .split(|b| *b == 0)
         .filter(|chunk| !chunk.is_empty())
@@ -561,22 +375,16 @@ fn parse_git_status(root: &std::path::Path, raw: &[u8]) -> HashMap<PathBuf, egui
             path_bytes = entries[i];
         }
         let rel = String::from_utf8_lossy(path_bytes);
-        let color = match (x, y) {
-            ('?', '?') => egui::Color32::from_rgb(120, 190, 255),
-            ('D', _) | (_, 'D') => egui::Color32::from_rgb(210, 80, 80),
-            ('A', _) => egui::Color32::from_rgb(100, 200, 110),
-            _ => egui::Color32::from_rgb(220, 180, 60),
-        };
-        colors.insert(root.join(rel.as_ref()), color);
+        statuses.insert(root.join(rel.as_ref()), parse_porcelain_status(x, y));
         i += 1;
     }
-    colors
+    statuses
 }
 
 pub(crate) fn fetch_git_status(
     root: &std::path::Path,
     cancel: Arc<AtomicBool>,
-) -> mpsc::Receiver<HashMap<PathBuf, egui::Color32>> {
+) -> mpsc::Receiver<HashMap<PathBuf, GitVisualStatus>> {
     let root = root.to_path_buf();
     spawn_task(move || {
         let child = std::process::Command::new("git")
@@ -591,4 +399,16 @@ pub(crate) fn fetch_git_status(
             .unwrap_or_default();
         parse_git_status(&root, &raw)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_run_autosave;
+    use crate::settings::SaveMode;
+
+    #[test]
+    fn should_run_autosave_only_in_automatic_mode() {
+        assert!(should_run_autosave(SaveMode::Automatic));
+        assert!(!should_run_autosave(SaveMode::Manual));
+    }
 }

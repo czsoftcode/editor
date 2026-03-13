@@ -52,6 +52,12 @@ pub const TERMINAL_MAX_EVENTS_PER_FRAME: usize = 64;
 /// Detection runs in the background and is unobtrusive; manual re-check is provided by the ↻ button.
 pub const AI_TOOL_CHECK_INTERVAL_SECS: u64 = 60;
 
+/// Interval for automatic Ollama server availability check (in seconds).
+pub const OLLAMA_CHECK_INTERVAL_SECS: u64 = 10;
+
+/// Default Ollama server URL.
+pub const OLLAMA_DEFAULT_URL: &str = "http://localhost:11434";
+
 /// Current version of the AI CLI interface.
 pub const CLI_VERSION: &str = "0.1.0";
 

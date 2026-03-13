@@ -5,21 +5,19 @@ menu-file = File
 menu-project = Project
 menu-edit = Edit
 menu-view = View
-menu-build = Build
 menu-help = Help
 
 ## File menu
 menu-file-open-folder = Open Folder
 menu-file-save = Save
 menu-file-close-tab = Close File
-menu-file-plugins = Plugins
-menu-file-plugins-manager = Plugin Manager...
 menu-file-settings = Settings...
 menu-file-quit = Quit
 
 ## Project menu
 menu-project-open = Open Project
 menu-project-new = New Project
+menu-project-trash-preview = Trash Preview
 menu-project-close = Close Project
 menu-project-recent = Recent Projects
 menu-project-recent-none = No recent projects
@@ -44,14 +42,8 @@ menu-view-ai-panel = AI Terminal
 menu-view-ai-float = Floating AI Terminal
 
 ## Build Menu
-menu-build-deb = .deb package
-menu-build-rpm = .rpm package
-menu-build-appimage = .AppImage package
-menu-build-tar-gz = .tar.gz archive (Linux/BSD)
-menu-build-exe = .exe installer (Windows)
 
 ## Help Menu
 menu-help-settings = Settings…
 menu-help-about = About
 menu-help-support = Support Development (Sponsorship)
-

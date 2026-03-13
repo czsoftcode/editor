@@ -1,8 +1,8 @@
 [package]
 name = "polycredo-editor"
-version = "0.8.5-dev"
+version = "1.3.0-dev"
 edition = "2024"
-authors = ["stkremen <stkremen@gmail.com>"]
+authors = ["Stanislav Kremeň <stkremen@kremenservices.cz>"]
 description = "PolyCredo Editor — Local-first AI-powered editor for Rust and more."
 license = "AGPL-3.0-or-later"
 repository = "https://github.com/czsoftcode/editor"
@@ -11,10 +11,10 @@ homepage = "https://github.com/czsoftcode/editor"
 [package.metadata.packager]
 name = "polycredo-editor"
 identifier = "io.github.czsoftcode.editor"
-authors = ["stkremen <stkremen@gmail.com>"]
+authors = ["Stanislav Kremeň <stkremen@kremenservices.cz>"]
 description = "PolyCredo Editor — Local-first AI-powered editor for Rust and more."
 category = "Development"
-copyright = "Copyright 2024-2026 stkremen"
+copyright = "(c) Copyright 2026 Kremen Services s.r.o."
 icons = [
     "packaging/icons/icon.svg",
     "packaging/icons/icon-16.png",
@@ -23,6 +23,23 @@ icons = [
     "packaging/icons/icon-64.png",
     "packaging/icons/icon-128.png",
     "packaging/icons/icon-256.png"
+]
+
+[package.metadata.deb]
+maintainer = "Stanislav Kremeň <stkremen@kremenservices.cz>"
+copyright = "(c) Copyright 2026 Kremen Services s.r.o."
+license-file = ["LICENSE", "0"]
+extended-description = "PolyCredo Editor is a modern, high-performance editor built with Rust. It features deep AI integration, a built-in terminal, and focuses on local-first privacy."
+depends = "$auto, libx11-6, libxcb1, libxkbcommon0, libwayland-client0, libegl1, libgl1, ripgrep"
+section = "devel"
+priority = "optional"
+assets = [
+    ["target/release/polycredo-editor", "usr/bin/", "755"],
+    ["packaging/deb/polycredo-editor.desktop", "usr/share/applications/", "644"],
+    ["packaging/icons/icon-256.png", "usr/share/icons/hicolor/256x256/apps/polycredo-editor.png", "644"],
+    ["packaging/icons/icon-128.png", "usr/share/icons/hicolor/128x128/apps/polycredo-editor.png", "644"],
+    ["packaging/icons/icon-64.png", "usr/share/icons/hicolor/64x64/apps/polycredo-editor.png", "644"],
+    ["packaging/icons/icon-32.png", "usr/share/icons/hicolor/32x32/apps/polycredo-editor.png", "644"],
 ]
 
 [package.metadata.generate-rpm]
@@ -90,7 +107,7 @@ RC = "llvm-rc"
 winres = "0.1"
 
 [dependencies]
-eframe = { version = "0.31", features = ["persistence"] }
+eframe = { version = "0.31", default-features = false, features = ["persistence", "default_fonts", "glow", "wayland", "x11"] }
 egui_extras = { version = "0.31", features = ["image", "svg"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 serde = { version = "1", features = ["derive"] }
@@ -116,16 +133,20 @@ async-lsp = "0.2.2"
 tower = { version = "0.4", features = ["full"] }
 similar = "2.7.0"
 xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
-extism = "1.5"
 anyhow = "1"
 bincode = "1.3"
-smallvec = "1"
+smallvec = { version = "1", features = ["serde"] }
 candle-core = "0.9"
 candle-nn = { version = "0.9" }
 candle-transformers = { version = "0.9" }
 tokenizers = "0.21"
 hf-hub = "0.4"
 url = "2.5.8"
+ureq = { version = "2", features = ["json"] }
+globset = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
 
 [patch.crates-io]
 egui_term = { path = "vendor/egui_term" }

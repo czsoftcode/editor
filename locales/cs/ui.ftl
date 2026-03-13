@@ -2,9 +2,7 @@
 
 ## Panely
 panel-files = Soubory
-panel-files-sandbox = Soubory (Sandbox)
 btn-tree-project = Projekt
-btn-tree-sandbox = Sandbox
 panel-runners = Spouštěče
 panel-build = Sestavit
 panel-git = Git
@@ -17,22 +15,16 @@ panel-build-errors =
 
 ## Build tlačítka
 btn-build = ▶ Sestavit
-btn-build-sandbox-on = Sandbox ON
-btn-build-sandbox-off = Sandbox OFF
-hover-build-sandbox = Přepnout mezi spouštěním v projektu a v AI sandboxu
 btn-run = ▶ Spustit
 btn-run-new = ▶ Spustit+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Vytvořit .deb
 hover-create-deb = Sestavit a vytvořit vývojový .deb balíček s číslem sestavení (build)
-hover-create-deb-disabled = Nelze vytvářet balíček v režimu sandboxu. Přepněte na Sandbox OFF.
-hover-build-menu-disabled = Sestavování je zakázáno v režimu Sandbox ON nebo pokud nejsou všechny soubory ze sandboxu přeneseny do projektu.
 btn-run-profile = ▶ Spustit...
-btn-git-profile =  Git...
+btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Upravit
 runner-none = Nejsou definovány žádné profily.
-menu-build-windows = Windows
 
 ## Git operace
 git-add-all = git add .
@@ -44,7 +36,6 @@ git-checkout-file = git checkout (soubor)
 git-checkout-branch = git checkout (větev)
 git-pull = git pull
 git-reset-hard = git reset --hard
-hover-git-disabled-sandbox = Git operace jsou zakázány, dokud nejsou vyřešeny změny v sandboxu (použijte tlačítko 'Zkontrolovat změny' nebo 'Přenést vše' ve žluté liště).
 
 ## Status bar
 statusbar-line-col = Řádek { $line }, Sloupec { $col }
@@ -54,6 +45,8 @@ statusbar-saving = Ukládání…
 statusbar-saved = Uloženo
 statusbar-lsp-initializing = LSP se inicializuje...
 statusbar-filetype-plain = Prostý text
+statusbar-save-mode-automatic = Auto ukládání
+statusbar-save-mode-manual = Ruční ukládání
 
 ## Záložky editoru
 tab-unsaved-indicator = ●
@@ -126,6 +119,7 @@ command-name-close-tab = Zavřít aktuální záložku
 command-name-new-project = Nový projekt
 command-name-open-project = Otevřít projekt (v novém okně)
 command-name-open-folder = Otevřít složku (v tomto okně)
+command-name-trash-preview = Náhled koše
 command-name-toggle-left = Přepnout panel souborů
 command-name-toggle-right = Přepnout AI panel
 command-name-toggle-build = Přepnout build terminál
@@ -133,8 +127,6 @@ command-name-toggle-float = Přepnout plovoucí AI panel
 command-name-show-about = O aplikaci
 command-name-show-settings = Nastavení
 command-name-quit = Ukončit PolyCredo Editor
-command-name-plugin-hello = Plugin: Pozdravit svět
-command-name-plugin-gemini = Plugin: Zeptat se Gemini
 
 ## Rychlé otevření souboru (Ctrl+P)
 file-picker-heading = Otevřít soubor
@@ -162,8 +154,10 @@ project-search-max-results = Zobrazeno max. { $max } výsledků
 ## Obecná tlačítka
 btn-ok = OK
 btn-confirm = Potvrdit
-btn-cancel = Zrušit
+btn-cancel = Storno
 btn-close = Zavřít
+cancel-confirm-title = Zahodit změny?
+cancel-confirm-msg = Opravdu si přejete zahodit všechny neuložené změny a zavřít toto okno?
 btn-browse = Procházet…
 btn-create = Vytvořit
 btn-open = Otevřít
@@ -188,14 +182,8 @@ ai-hover-checking = Ověřuji dostupnost AI CLI nástrojů…
 ai-hover-start = Spustí { $tool } (`{ $cmd }`) v terminálu
 ai-hover-missing = Příkaz `{ $cmd }` nebyl nalezen v PATH. Nainstaluj nástroj a klikni na ↻.
 ai-btn-start = ▶ Spustit
-ai-btn-sync = ⟳ Sync
-ai-hover-sync = Odeslat kontext (otevřené soubory, chyby buildu) AI agentovi
 ai-diff-heading = Kontrola změn navržených AI
 ai-diff-new-file = Nový soubor navržen
-ai-plugin-bar-label = AI:
-ai-plugin-bar-settings = ⚙
-ai-plugin-bar-start-hover = Spustit AI chat s vybraným pluginem
-ai-plugin-bar-settings-hover = Otevřít nastavení vybraného AI pluginu
 ai-float-dock = Přikovat do panelu
 ai-float-undock = Odpojit do plovoucího okna
 ai-viewport-open = Otevřít v samostatném okně
@@ -205,7 +193,7 @@ ai-staged-bar-msg = AI navrhlo změny v projektu
 ai-staged-bar-review = Zkontrolovat změny
 ai-staged-bar-promote-all = Přenést vše
 ai-staged-modal-hint = Klikněte na soubor pro zobrazení rozdílů a schválení změn:
-ai-staged-files = Navržené změny (Sandbox)
+ai-staged-files = Navržené změny
 ai-staged-new = [NOVÝ]
 ai-staged-mod = [MOD]
 ai-staged-del = [SMAZÁNO]
@@ -216,17 +204,8 @@ ai-promotion-all-success = Úspěšně přeneseno { $count } souborů do projekt
 ai-promotion-failed = Nepodařilo se aplikovat změny: { $error }
 
 ## Synchronizace před spuštěním AI
-ai-sync-title = Synchronizace před spuštěním
-ai-sync-msg = Byly detekovány rozdíly mezi projektem a sandboxem. Nejnovější verze souborů by měly být synchronizovány.
-ai-sync-to-sandbox = Aktualizovat Sandbox ({ $count } novějších v projektu)
-ai-sync-to-project = Povýšit do Projektu ({ $count } novějších v sandboxu)
-ai-sync-btn-sync = Synchronizovat a spustit
-ai-sync-btn-skip = Spustit bez synchronizace
 
 ## Oprávnění pluginů
-plugin-auth-bar-msg = Plugin „{ $name }“ žádá o přístup k internetu ({ $hosts }).
-plugin-auth-bar-allow = Povolit a spustit
-plugin-auth-bar-deny = Zakázat
 
 ## Nastavení
 settings-title = Nastavení
@@ -238,9 +217,24 @@ settings-language-restart = Jazyk se změní okamžitě.
 settings-theme = Téma
 settings-theme-dark = Tmavé
 settings-theme-light = Světlé
+settings-light-variant = Světlá varianta
+settings-light-variant-warm-ivory = Teplá slonová kost
+settings-light-variant-cool-gray = Studená šedá
+settings-light-variant-sepia = Sépie
+settings-light-variant-warm-tan = Teplý tan
+settings-dark-variant = Tmavá varianta
+settings-dark-variant-default = Výchozí
+settings-dark-variant-midnight = Polnoční
+settings-save-mode-title = Režim ukládání
+settings-save-mode-automatic = Automatické ukládání
+settings-save-mode-manual = Ruční ukládání
+settings-save-mode-toast-automatic = Automatické ukládání zapnuto
+settings-save-mode-toast-manual = Ruční ukládání zapnuto
 settings-auto-show-diff = Automaticky otevírat náhled změn AI
-settings-safe-mode = Bezpečný režim (Projekt pouze pro čtení)
-settings-safe-mode-hint = Při zapnutí jsou zobrazení a build přepnuty na Sandbox a nelze přímo ukládat do projektu.
+settings-conflict-title = Nastavení změněno
+settings-conflict-message = Nastavení bylo upraveno v jiném okně. Načtěte nejnovější hodnoty, nebo pokračujte v aktuálním návrhu.
+settings-conflict-reload = Načíst
+settings-conflict-keep = Ponechat
 settings-diff-mode = Zobrazení AI Diffu
 settings-diff-inline = Sloučené (+ / -)
 settings-diff-side-by-side = Vedle sebe
@@ -258,41 +252,8 @@ settings-blacklist-hint = Podporuje vzory jako *.env, secret/* nebo konkrétní 
 settings-blacklist-add = Přidat vzor
 
 ## Pluginy
-plugins-title = Správce pluginů
-plugins-list-label = Seznam pluginů
-plugins-no-selection = Vyberte plugin ze seznamu vlevo
-plugins-enabled-label = Povolit tento plugin
-plugins-config-label = Konfigurace pluginu:
-plugins-unknown-agent = Neznámý agent
-plugins-category-ai = 🤖 AI agenti
-plugins-category-general = ⚙ Obecné
-plugins-item-settings = Nastavení
-plugins-item-welcome = Přehled
-plugins-welcome-title = Vítejte ve Správci pluginů
-plugins-welcome-text = PolyCredo Editor používá moderní systém pluginů založený na technologii WebAssembly (WASM). To zajišťuje vysoký výkon a maximální bezpečnost — pluginy běží v izolovaném prostředí (sandboxu) a mají přístup pouze k tomu, co jim explicitně povolíte.
-plugins-welcome-hint = Vyberte kategorii nebo konkrétní plugin v seznamu vlevo pro jeho konfiguraci.
-plugins-security-info = 🛡 Zabezpečení: Blacklist souborů a adresářů můžete spravovat v hlavním Nastavení.
-plugins-settings-saved = Nastavení pluginů uloženo. U některých změn je doporučen restart.
-plugins-placeholder-api-key = API klíč (např. Gemini, Anthropic)
-plugins-placeholder-model = ID modelu (např. gemini-1.5-flash)
-command-name-show-plugins = Pluginy
 
-## AI Chat
-ai-chat-title = AI Chat asistent
-ai-chat-label-response = Odpověď:
-ai-chat-loading = AI přemýšlí…
-ai-chat-label-prompt = Tvůj dotaz:
-ai-chat-placeholder-prompt = Napiš zadání pro AI (např. „Vysvětli tento kód“ nebo „Navrhni refaktoring“)...
-ai-chat-btn-send = Odeslat
-ai-chat-btn-new = Nové vlákno
-ai-chat-settings-title = Nastavení AI
-ai-chat-label-language = Jazyk:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = Systémový prompt:
-ai-chat-default-prompt = Expert Rust Developer.
-command-name-plugin-gemini = Plugin: Zeptat se Gemini
-command-name-plugin-ollama = Plugin: Zeptat se Ollama
-command-name-plugin-ai-chat = Plugin: Zeptat se AI agenta
+## Command Palette – AI pluginy
 
 ## Sémantická indexace (RAG)
 semantic-indexing-title = Sémantická indexace projektu
@@ -305,8 +266,6 @@ semantic-indexing-status-bar = Indexace projektu...
 settings-suggested-patterns = Doporučené vzory:
 
 ## Chyba pluginu
-plugin-error-title = Chyba pluginu
-plugin-error-heading = Selhání pluginu
 
 ## Soubory
 file-tree-new-file = Nový soubor
@@ -323,32 +282,48 @@ file-tree-create-dir-error = Nelze vytvořit adresář: { $reason }
 file-tree-create-file-error = Nelze vytvořit soubor: { $reason }
 file-tree-rename-error = Nelze přejmenovat: { $reason }
 file-tree-delete-error = Nelze smazat: { $reason }
+file-tree-delete-move-failed-reason = Přesun do koše selhal: { $reason }
+file-tree-delete-move-failed-guidance = Zkontrolujte oprávnění a zamknuté soubory, pak akci zkuste znovu.
+file-tree-delete-move-failed-reason-permission = nedostatečná oprávnění
+file-tree-delete-move-failed-reason-locked = soubor nebo adresář je právě používán
+file-tree-delete-move-failed-reason-missing = položka už v projektu neexistuje
+file-tree-delete-move-failed-reason-internal-trash = interní adresář koše nelze mazat
+file-tree-delete-move-failed-reason-generic = neočekávaná I/O chyba
+file-tree-trash-preview-title = Náhled koše
+file-tree-trash-preview-filter = Filtr:
+file-tree-trash-preview-loading = Načítám položky koše...
+file-tree-trash-preview-no-results = Filtru neodpovídá žádná položka koše.
+file-tree-trash-preview-kind-file = soubor
+file-tree-trash-preview-kind-dir = složka
+file-tree-trash-preview-restore = Obnovit
+file-tree-restore-conflict-title = Konflikt při obnově
+file-tree-restore-conflict-message = Cílová cesta už existuje. Zvolte nedestruktivní obnovu.
+file-tree-restore-as-copy = Obnovit jako kopii
+file-tree-restore-success = Položka obnovena do: { $path }
+file-tree-restore-error = Obnova selhala: { $reason }
 
 ## Dialog externího konfliktu
 conflict-title = Soubor změněn externě
-conflict-message = Soubor „{ $name }" byl změněn (pravděpodobně převodem ze sandboxu), ale obsahuje neuložené změny v editoru.
+conflict-message = Soubor „{ $name }" byl změněn mimo editor, ale obsahuje neuložené změny v editoru.
 conflict-choose = Vyberte, kterou verzi chcete zachovat:
-conflict-load-disk = Přepsat ze sandboxu
-conflict-keep-editor = Zachovat z projektu
+conflict-load-disk = Načíst z disku
+conflict-keep-editor = Zachovat verzi editoru
 conflict-dismiss = Zrušit
-conflict-hover-disk = Zahodit neuložené změny v editoru a načíst verzi, která byla právě přenesena ze sandboxu
-conflict-hover-keep = Ponechat rozpracované změny v editoru; verze ze sandboxu na disku bude přepsána při vašem příštím uložení (Ctrl+S)
+conflict-hover-disk = Zahodit neuložené změny v editoru a načíst verzi změněnou na disku
+conflict-hover-keep = Ponechat rozpracované změny v editoru; verze na disku bude přepsána při vašem příštím uložení (Ctrl+S)
 conflict-hover-dismiss = Zavřít upozornění bez provedení změn
 
 md-open-external = ↗ Otevřít v externím prohlížeči
+md-layout-pod-sebou = Pod sebou
+md-layout-vedle-sebe = Vedle sebe
+md-layout-jenom-kod = Jenom kód
+md-layout-jenom-nahled = Jenom náhled
 
 svg-open-external = ↗ Otevřít náhled v prohlížeči
 
 svg-modal-title = SVG soubor
 svg-modal-body = Tento soubor je SVG obrázek. Chcete ho otevřít v systémovém prohlížeči, nebo upravovat jako XML text?
 svg-modal-edit = Upravovat jako text
-
-## Dialog synchronizace smazání v sandboxu
-sandbox-delete-title = Soubor smazán v sandboxu
-sandbox-delete-msg = Soubor „{ $name }" byl smazán v AI sandboxu, ale v projektu stále existuje. Co si přejete udělat?
-sandbox-delete-keep-project = Ponechat v projektu (obnovit do sandboxu)
-sandbox-delete-also-project = Smazat i v projektu
-
 ## Support Modal
 support-modal-title = Podpořit vývoj PolyCredo
 support-modal-body = PolyCredo Editor je vyvíjen s vizí soukromí, rychlosti a bezpečné integrace AI asistentů. Pokud se vám projekt líbí, budeme vděční za jakoukoli podporu. Vaše příspěvky nám pomáhají věnovat více času vývoji nových funkcí a údržbě.
@@ -364,77 +339,24 @@ dep-wizard-btn-install = Stáhnout a nainstalovat
 dep-wizard-status-downloading = Stahování...
 dep-wizard-status-success = Nástroj byl úspěšně nainstalován.
 dep-wizard-status-error = Chyba při instalaci: { $error }
-command-name-install-appimagetool = Instalovat appimagetool
 
-dep-wizard-nsis-desc = Pro vytvoření Windows .exe instalátorů je vyžadován systémový nástroj NSIS.
-dep-wizard-rpm-desc = Pro vytvoření .rpm balíčků je vyžadován nástroj rpmbuild.
 dep-wizard-install-cmd-question = Tento nástroj lze nainstalovat pomocí systémového správce balíčků. Chcete spustit instalaci?
 dep-wizard-btn-run-cmd = Spustit instalaci (vyžaduje sudo)
 dep-wizard-status-running = Instaluji...
-command-name-install-nsis = Instalovat NSIS
-command-name-install-rpm = Instalovat rpm-build (dnf)
-command-name-install-generate-rpm = Instalovat cargo-generate-rpm
-command-name-install-appimage = Instalovat cargo-appimage
-command-name-install-flatpak = Instalovat flatpak-builder
-command-name-install-snap = Instalovat snapcraft
-command-name-configure-lxd = Konfigurovat LXD (pro sestavení)
-command-name-install-deb-tools = Instalovat Debian Build Tools
-command-name-install-freebsd-target = Instalovat FreeBSD Target (rustup)
-command-name-install-cross = Instalovat cross (cross-kompilace)
-command-name-install-fpm = Instalovat fpm (gem install fpm)
-command-name-install-podman = Instalovat Podman (kontejner pro cross)
-command-name-install-windows-target = Instalovat Windows Target (rustup)
-command-name-install-xwin = Instalovat cargo-xwin
-command-name-install-clang = Instalovat Clang (LLVM)
-command-name-install-lld = Instalovat LLD (Linker)
-dep-wizard-xwin-desc = Nástroj cargo-xwin je vyžadován pro cross-kompilaci pro Windows MSVC z Linuxu.
-dep-wizard-generate-rpm-desc = Nástroj cargo-generate-rpm je vyžadován pro vytvoření .rpm balíčku přímo z projektu v Rustu.
-dep-wizard-appimage-desc = Nástroj cargo-appimage je vyžadován pro vytvoření přenositelného balíčku AppImage přímo z vašeho projektu v Rustu.
-dep-wizard-flatpak-desc = Nástroj flatpak-builder je vyžadován pro sestavení a balení aplikace do formátu Flatpak.
-dep-wizard-snap-desc = Nástroj snapcraft je vyžadován pro vytváření Snap balíčků pro Ubuntu a další distribuce.
-dep-wizard-lxd-desc = LXD je kontejnerový systém vyžadovaný nástrojem snapcraft pro sestavení Snap balíčků. Přidá vašeho uživatele do skupiny lxd a inicializuje LXD.
-dep-wizard-deb-desc = Pro vytváření .deb balíčků jsou vyžadovány systémové nástroje jako dpkg-dev, build-essential a fakeroot.
-dep-wizard-freebsd-target-desc = Standardní knihovna Rustu pro x86_64-unknown-freebsd je vyžadována pro cross-kompilaci pro FreeBSD.
-dep-wizard-cross-desc = Nástroj cross umožňuje cross-kompilaci pro FreeBSD a další platformy pomocí Docker/Podman kontejnerů.
-dep-wizard-fpm-desc = Nástroj fpm (Effing Package Manager) umožňuje vytváření nativních FreeBSD .pkg balíčků z Linuxu.
-dep-wizard-podman-desc = Podman je kontejnerový engine vyžadovaný nástrojem cross pro cross-kompilaci. Alternativa k Dockeru bez démonního procesu.
-dep-wizard-clang-desc = Kompilátor Clang je vyžadován pro sestavení nativních C/C++ závislostí pro Windows.
-dep-wizard-lld-desc = Linker LLD je vyžadován pro linkování Windows binárek na Linuxu.
-dep-wizard-windows-target-desc = Pro kompilaci je vyžadována standardní knihovna Rustu pro x86_64-pc-windows-msvc.
-dep-wizard-zigbuild-desc = cargo-zigbuild je vyžadován pro cross-kompilaci pro macOS (Intel + Apple Silicon) z Linuxu. Jako linker používá kompilátor Zig.
-dep-wizard-macos-targets-desc = Standardní knihovny Rustu pro x86_64-apple-darwin a aarch64-apple-darwin jsou vyžadovány pro cross-kompilaci pro macOS (Intel + Apple Silicon).
-dep-wizard-genisoimage-desc = genisoimage se používá k vytvoření .dmg diskového obrazu z macOS .app bundlu.
-dep-wizard-macos-deps-desc = Nainstaluje všechny nástroje potřebné pro sestavení macOS: cargo-zigbuild (cross-kompilátor), zig (linker), Rust targety pro x86_64-apple-darwin a aarch64-apple-darwin a LLVM (lipo pro Universal Binary).
-dep-wizard-llvm-desc = LLVM poskytuje nástroj lipo pro sloučení Intel (x86_64) a Apple Silicon (aarch64) binárních souborů do Universal Binary (.app / .dmg).
+btn-create-deb = Sestavit .deb
+hover-create-deb = Sestaví vývojový balíček .deb pro aktuální architekturu.
 
-menu-build-macos-sub = macOS
-menu-build-macos-dmg = Sestavit .dmg (macOS)
-command-name-install-macos-deps = Instalovat macOS závislosti (cargo-zigbuild + zig + targety)
-command-name-install-llvm = Instalovat LLVM (lipo — Universal Binary)
+## Strážce neuložených změn
+unsaved-close-guard-title = Neuložené změny
+unsaved-close-guard-message = Tento soubor má neuložené změny. Co chceš udělat před zavřením?
+unsaved-close-guard-save = Uložit a zavřít
+unsaved-close-guard-discard = Zahodit změny
+unsaved-close-guard-cancel = Zrušit
 
-menu-build-fedora = Fedora
-menu-build-debian = Debian / Ubuntu
-menu-build-freebsd = FreeBSD
-menu-build-freebsd-pkg = Sestavit .pkg (FreeBSD)
-menu-build-flatpak-sub = Flatpak
-menu-build-snap-sub = Snap
-menu-build-appimage-sub = AppImage
-menu-build-deb = Sestavit .deb
-menu-build-rpm = Sestavit .rpm
-menu-build-flatpak = Sestavit Flatpak bundle
-menu-build-snap = Sestavit Snap balíček
-menu-build-appimage = Sestavit .AppImage
-menu-build-exe = Sestavit .exe (Windows)
-menu-build = Sestavit
-
-menu-build-all = Všechny balíčky
-build-all-status-running = Sestavení probíhá…
-build-all-status-ok = ✔ Vše sestaveno úspěšně
-build-all-status-error = ✘ Sestavení skončilo s chybou (kód { $code })
-build-all-status-waiting = Čeká na spuštění…
-build-all-waiting-output = Spouštím scripts/build-all.sh…
-build-all-btn-close = Zavřít
-build-all-btn-run = Spustit
-build-all-btn-rerun = Znovu spustit
-build-all-not-started = Vyberte balíčky a klikněte Spustit
-build-all-hint-start = Vyberte balíčky nahoře a klikněte Spustit…
+## History panel (lokální historie souboru)
+tab-context-history = Historie souboru
+tab-context-close = Zavřít tab
+history-panel-title = Historie: { $name }
+history-panel-no-versions = Žádné historické verze.
+history-panel-close = ✕ Zavřít
+history-panel-version-label = { $date }

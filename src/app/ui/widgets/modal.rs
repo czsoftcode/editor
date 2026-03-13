@@ -15,6 +15,8 @@ pub(crate) struct StandardModal {
     pub default_size: egui::Vec2,
     pub min_size: egui::Vec2,
     pub footer_hint: Option<String>,
+    pub is_cancel_confirmed: bool,
+    pub close_on_click_outside: bool,
 }
 
 impl StandardModal {
@@ -25,6 +27,8 @@ impl StandardModal {
             default_size: egui::vec2(850.0, 600.0),
             min_size: egui::vec2(700.0, 500.0),
             footer_hint: None,
+            is_cancel_confirmed: false,
+            close_on_click_outside: true,
         }
     }
 
@@ -39,8 +43,21 @@ impl StandardModal {
         self
     }
 
+    /// Pomocná metoda pro nastavení příznaku potvrzení storna.
+    pub fn with_cancel_confirmed(mut self, confirmed: bool) -> Self {
+        self.is_cancel_confirmed = confirmed;
+        self
+    }
+
+    pub fn with_close_on_click_outside(mut self, close: bool) -> Self {
+        self.close_on_click_outside = close;
+        self
+    }
+
     /// Vykreslí modal s jednotným stylem.
     /// Nyní je posouvatelný a má zavírací tlačítko v záhlaví.
+    /// Vykreslí poloprůhledný overlay za modalem, který blokuje interakci s pozadím.
+    /// Kliknutí na overlay zavře modal (nastaví show_flag = false).
     pub fn show<R>(
         &self,
         ctx: &egui::Context,
@@ -51,11 +68,31 @@ impl StandardModal {
             return None;
         }
 
+        // 1. Interaktivní backdrop — zachytí eventy za modalem.
+        //    Backdrop je na Order::Middle, Window na Order::Foreground.
+        let screen = ctx.screen_rect();
+        let backdrop_resp = egui::Area::new(self.id.with("_backdrop"))
+            .order(egui::Order::Middle)
+            .fixed_pos(screen.min)
+            .show(ctx, |ui| {
+                let (_, resp) = ui.allocate_exact_size(screen.size(), egui::Sense::click());
+                ui.painter()
+                    .rect_filled(screen, 0.0, egui::Color32::from_black_alpha(120));
+                resp
+            });
+
+        // Sledujeme, zda byl modal otevřený v minulém frame.
+        let was_open_key = self.id.with("_was_open");
+        let was_open_prev_frame = ctx.data(|d| d.get_temp::<bool>(was_open_key).unwrap_or(false));
+        ctx.data_mut(|d| d.insert_temp(was_open_key, true));
+
+        // 2. Window na Order::Foreground (nad backdropem)
         let mut result = None;
 
-        egui::Window::new(&self.title)
+        let window_response = egui::Window::new(&self.title)
             .id(self.id)
-            .open(show_flag) // Umožní zavření křížkem v záhlaví
+            .order(egui::Order::Foreground)
+            .open(show_flag)
             .collapsible(false)
             .resizable(true)
             .default_size(self.default_size)
@@ -64,11 +101,20 @@ impl StandardModal {
             .pivot(egui::Align2::CENTER_CENTER)
             .default_pos(ctx.screen_rect().center())
             .show(ctx, |ui| {
-                // If mouse enters the window, we report it to the caller indirectly
-                // via the fact that we are currently processing this UI.
                 ui.set_min_height(self.min_size.y - 20.0);
                 result = Some(content(ui));
             });
+
+        // 3. Kliknutí na backdrop → zavřít modal (přeskočíme první frame)
+        if self.close_on_click_outside && was_open_prev_frame && backdrop_resp.inner.clicked() {
+            *show_flag = false;
+        }
+        let _ = window_response;
+
+        // Pokud se modal zavřel, vyčistíme stav
+        if !*show_flag {
+            ctx.data_mut(|d| d.remove::<bool>(was_open_key));
+        }
 
         result
     }
@@ -105,12 +151,128 @@ impl StandardModal {
         result
     }
 
+    /// Sjednocená metoda pro patičku s akcemi.
+    /// V closure `actions` volejte metody `ModalFooter` v pořadí:
+    /// 1. Zavřít/Zrušit (bude úplně vpravo)
+    /// 2. Ostatní akce (budou vlevo od něj)
+    pub fn ui_footer_actions<R>(
+        &self,
+        ui: &mut egui::Ui,
+        i18n: &crate::i18n::I18n,
+        actions: impl FnOnce(&mut ModalFooter) -> Option<R>,
+    ) -> Option<R> {
+        self.ui_footer(ui, |ui| {
+            let mut footer = ModalFooter { ui, i18n };
+            actions(&mut footer)
+        })
+    }
+
     /// Pomocná metoda pro vykreslení těla (CentralPanel).
     pub fn ui_body(&self, ui: &mut egui::Ui, body: impl FnOnce(&mut egui::Ui)) {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             body(ui);
         });
     }
+}
+
+/// Helper pro práci s tlačítky v patičce modalu.
+pub(crate) struct ModalFooter<'a, 'u> {
+    pub ui: &'u mut egui::Ui,
+    pub i18n: &'a crate::i18n::I18n,
+}
+
+impl<'a, 'u> ModalFooter<'a, 'u> {
+    /// Vykreslí standardní tlačítko s klíčem z i18n.
+    pub fn button(&mut self, key: &str) -> egui::Response {
+        self.ui.button(self.i18n.get(key))
+    }
+
+    /// Tlačítko "Zavřít" (úplně vpravo, pokud je voláno jako první).
+    pub fn close(&mut self) -> bool {
+        self.button("btn-close").clicked()
+    }
+
+    /// Tlačítko "Zrušit" (úplně vpravo, pokud je voláno jako první).
+    pub fn cancel(&mut self) -> bool {
+        self.button("btn-cancel").clicked()
+    }
+
+    /// Tlačítko "Zrušit" s potvrzovacím dialogem.
+    /// Vrací true, pokud uživatel potvrdil zahození změn (příznak přenesen přes WorkspaceState).
+    pub fn confirm_cancel(
+        &mut self,
+        ws: &mut crate::app::ui::workspace::state::WorkspaceState,
+    ) -> bool {
+        // Pokud už byl modal dříve potvrzen, vrátíme true
+        if self.ui.available_width() < 0.0 {
+            // Jen pojistka pro případné renderovací cykly
+        }
+
+        if self.cancel() {
+            // Nastavíme ID aktuálního modalu jako čekajícího na potvrzení
+            // Použijeme i18n key jako sůl pro unikátnost v rámci cyklu
+            ws.confirm_discard_changes = Some(self.i18n.get("btn-cancel").to_string());
+        }
+        false
+    }
+
+    /// Tlačítko "OK".
+    pub fn ok(&mut self) -> bool {
+        self.button("btn-ok").clicked()
+    }
+
+    /// Tlačítko "Uložit".
+    pub fn save(&mut self) -> bool {
+        self.button("btn-save").clicked()
+    }
+}
+
+/// Vykreslí globální potvrzovací dialog pro zahození změn.
+/// Volá se centrálně v render_dialogs.
+pub(crate) fn render_confirm_discard_dialog(
+    ctx: &egui::Context,
+    ws: &mut crate::app::ui::workspace::state::WorkspaceState,
+    i18n: &crate::i18n::I18n,
+) -> bool {
+    if ws.confirm_discard_changes.is_none() {
+        return false;
+    }
+
+    let mut confirmed = false;
+    let mut open = true;
+
+    let modal = StandardModal::new(i18n.get("cancel-confirm-title"), "confirm_discard_modal")
+        .with_size(450.0, 220.0);
+
+    modal.show(ctx, &mut open, |ui| {
+        modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() {
+                ws.confirm_discard_changes = None;
+                return Some(());
+            }
+            if f.button("btn-confirm").clicked() {
+                confirmed = true;
+                ws.confirm_discard_changes = None;
+                return Some(());
+            }
+            None
+        });
+
+        modal.ui_body(ui, |ui| {
+            ui.add_space(12.0);
+            ui.label(
+                egui::RichText::new(i18n.get("cancel-confirm-msg"))
+                    .size(14.0)
+                    .line_height(Some(20.0)),
+            );
+        });
+    });
+
+    if !open {
+        ws.confirm_discard_changes = None;
+    }
+
+    confirmed
 }
 
 pub(crate) fn show_modal<T>(

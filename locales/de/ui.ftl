@@ -2,9 +2,7 @@
 
 ## Panels
 panel-files = Dateien
-panel-files-sandbox = Dateien (Sandbox)
 btn-tree-project = Projekt
-btn-tree-sandbox = Sandbox
 panel-runners = Runner
 panel-build = Build
 panel-git = Git
@@ -16,95 +14,16 @@ panel-build-errors =
 
 ## Build-Schaltflächen
 btn-build = ▶ Build
-btn-build-sandbox-on = Sandbox EIN
-btn-build-sandbox-off = Sandbox AUS
-hover-build-sandbox = Zwischen Projekt-Root und KI-Sandbox zum Ausführen umschalten
 btn-run = ▶ Run
 btn-run-new = ▶ Run+
 btn-test = ▶ Test
 btn-clean = ✖ Clean
 btn-create-deb = Create .deb
 hover-create-deb = Ein Entwicklungs-.deb-Paket mit Build-Nummer erstellen
-hover-create-deb-disabled = Im Sandbox-Modus kann kein Paket erstellt werden. Wechseln Sie zu Sandbox AUS.
-hover-build-menu-disabled = Das Erstellen ist im Sandbox-Modus oder bei nicht übertragenen Sandbox-Dateien deaktiviert.
 btn-run-profile = ▶ Run Profile...
-btn-git-profile =  Git...
+btn-git-profile =  Git...
 btn-edit-profiles = ⚙ Edit
 runner-none = No profiles defined.
-
-menu-build-windows = Windows
-
-## Dependency Wizard
-dep-wizard-title = Dependency Installation Wizard
-dep-wizard-install-question = Do you want to download and install { $tool } to { $path }?
-dep-wizard-install-cmd-question = Do you want to start the installation of { $tool } using a system command?
-dep-wizard-btn-install = Install
-dep-wizard-btn-run-cmd = Start Installation (requires sudo)
-dep-wizard-status-downloading = Downloading...
-dep-wizard-status-running = Installing...
-dep-wizard-status-success = Installation successful!
-dep-wizard-status-error = Installation error: { $error }
-
-command-name-install-nsis = Install NSIS
-command-name-install-rpm = Install rpm-build (dnf)
-command-name-install-generate-rpm = Install cargo-generate-rpm
-command-name-install-appimage = Install cargo-appimage
-command-name-install-flatpak = Install flatpak-builder
-command-name-install-snap = Install snapcraft
-command-name-configure-lxd = LXD konfigurieren (für Build)
-command-name-install-deb-tools = Install Debian Build Tools
-command-name-install-freebsd-target = FreeBSD Target installieren (rustup)
-command-name-install-cross = cross installieren (Cross-Compilation)
-command-name-install-fpm = fpm installieren (gem install fpm)
-command-name-install-podman = Podman installieren (Container-Engine für cross)
-command-name-install-appimagetool = Install appimagetool
-command-name-install-windows-target = Install Windows Target (rustup)
-command-name-install-xwin = Install cargo-xwin
-command-name-install-clang = Install Clang (LLVM)
-command-name-install-lld = Install LLD (Linker)
-
-dep-wizard-xwin-desc = The cargo-xwin tool is required for cross-compiling for Windows MSVC from Linux.
-dep-wizard-generate-rpm-desc = The cargo-generate-rpm tool is required to create an .rpm package directly from your Rust project.
-dep-wizard-appimage-desc = The cargo-appimage tool is required to create a portable AppImage package directly from your Rust project.
-dep-wizard-flatpak-desc = The flatpak-builder tool is required to build and package the application into the Flatpak format.
-dep-wizard-snap-desc = The snapcraft tool is required to create Snap packages for Ubuntu and other distributions.
-dep-wizard-lxd-desc = LXD ist ein Container-System, das von snapcraft zum Erstellen von Snap-Paketen benötigt wird. Fügt Ihren Benutzer zur lxd-Gruppe hinzu und initialisiert LXD.
-dep-wizard-deb-desc = System tools like dpkg-dev, build-essential, and fakeroot are required to create .deb packages.
-dep-wizard-freebsd-target-desc = Die Rust-Standardbibliothek für x86_64-unknown-freebsd ist für die Cross-Kompilierung für FreeBSD erforderlich.
-dep-wizard-cross-desc = Das cross-Tool ermöglicht die Cross-Kompilierung für FreeBSD und andere Plattformen über Docker/Podman-Container.
-dep-wizard-fpm-desc = fpm (Effing Package Manager) ermöglicht die Erstellung nativer FreeBSD .pkg-Pakete unter Linux.
-dep-wizard-podman-desc = Podman ist eine Container-Engine, die vom cross-Tool für die Cross-Kompilierung benötigt wird. Eine daemonfreie Alternative zu Docker.
-dep-wizard-clang-desc = Clang compiler is required for building native C/C++ dependencies for Windows.
-dep-wizard-lld-desc = LLD linker is required for linking Windows binaries on Linux.
-dep-wizard-windows-target-desc = Rust standard library for x86_64-pc-windows-msvc is required for compilation.
-dep-wizard-nsis-desc = NSIS is required to create Windows installers.
-dep-wizard-rpm-desc = The rpmbuild utility is required to create .rpm packages.
-dep-wizard-appimagetool-desc = The appimagetool utility is required for final AppImage bundling.
-dep-wizard-zigbuild-desc = cargo-zigbuild wird für die Cross-Kompilierung für macOS (Intel + Apple Silicon) von Linux aus benötigt. Verwendet den Zig-Compiler als Linker.
-dep-wizard-macos-targets-desc = Rust-Standardbibliotheken für x86_64-apple-darwin und aarch64-apple-darwin werden für die Cross-Kompilierung für macOS benötigt.
-dep-wizard-genisoimage-desc = genisoimage wird verwendet, um ein .dmg-Disk-Image aus dem macOS .app-Bundle zu erstellen.
-dep-wizard-macos-deps-desc = Installiert alle für macOS-Builds benötigten Tools: cargo-zigbuild (Cross-Compiler), zig (Linker), Rust-Targets für x86_64-apple-darwin und aarch64-apple-darwin sowie LLVM (lipo für Universal Binary).
-dep-wizard-llvm-desc = LLVM stellt das lipo-Tool bereit, um Intel- (x86_64) und Apple-Silicon-Binärdateien (aarch64) zu einem Universal Binary (.app / .dmg) zusammenzuführen.
-
-menu-build-macos-sub = macOS
-menu-build-macos-dmg = .dmg erstellen (macOS)
-command-name-install-macos-deps = macOS-Abhängigkeiten installieren (cargo-zigbuild + zig + Targets)
-command-name-install-llvm = LLVM installieren (lipo — Universal Binary)
-
-menu-build-fedora = Fedora
-menu-build-debian = Debian / Ubuntu
-menu-build-freebsd = FreeBSD
-menu-build-freebsd-pkg = .pkg erstellen (FreeBSD)
-menu-build-flatpak-sub = Flatpak
-menu-build-snap-sub = Snap
-menu-build-appimage-sub = AppImage
-menu-build-deb = .deb erstellen
-menu-build-rpm = .rpm erstellen
-menu-build-flatpak = Flatpak-Bundle erstellen
-menu-build-snap = Snap-Paket erstellen
-menu-build-appimage = .AppImage erstellen
-menu-build-exe = .exe erstellen (Windows)
-menu-build = Build
 
 ## Git-Operationen
 git-add-all = git add .
@@ -116,7 +35,6 @@ git-checkout-file = git checkout (Datei)
 git-checkout-branch = git checkout (Zweig)
 git-pull = git pull
 git-reset-hard = git reset --hard
-hover-git-disabled-sandbox = Git-Operationen sind deaktiviert, bis alle Sandbox-Änderungen gelöst sind (Schaltfläche 'Änderungen überprüfen' oder 'Alle übernehmen' in der gelben Leiste verwenden).
 
 ## Statusleiste
 statusbar-line-col = Zeile { $line }, Spalte { $col }
@@ -126,6 +44,8 @@ statusbar-saving = Speichern…
 statusbar-saved = Gespeichert
 statusbar-lsp-initializing = LSP wird initialisiert...
 statusbar-filetype-plain = Nur Text
+statusbar-save-mode-automatic = Auto-Speichern
+statusbar-save-mode-manual = Manuelles Speichern
 
 ## Editor-Tabs
 tab-unsaved-indicator = ●
@@ -160,6 +80,17 @@ lsp-installing = Installiere rust-analyzer...
 lsp-install-success = rust-analyzer wurde erfolgreich installiert. LSP wird neu gestartet...
 lsp-install-error = Installation fehlgeschlagen: { $error }
 
+## Find References (Shift+F12)
+lsp-references-heading = Referenzen
+lsp-references-searching = Suche nach Referenzen...
+lsp-references-none = Keine Referenzen gefunden.
+lsp-references-found =
+    { $count ->
+        [one] 1 Referenz gefunden.
+       *[other] { $count } Referenzen gefunden.
+    }
+lsp-references-error = LSP: Fehler bei der Suche nach Referenzen.
+
 ## Terminal
 terminal-unavailable = Terminal ist nicht verfügbar.
 terminal-retry = Erneut versuchen
@@ -185,6 +116,7 @@ command-name-close-tab = Aktuellen Tab schließen
 command-name-new-project = Neues Projekt
 command-name-open-project = Projekt öffnen (in neuem Fenster)
 command-name-open-folder = Ordner öffnen (in diesem Fenster)
+command-name-trash-preview = Papierkorb-Vorschau
 command-name-toggle-left = Dateipanel umschalten
 command-name-toggle-right = KI-Panel umschalten
 command-name-toggle-build = Build-Terminal umschalten
@@ -192,9 +124,6 @@ command-name-toggle-float = Schwebendes KI-Panel umschalten
 command-name-show-about = Über
 command-name-show-settings = Einstellungen
 command-name-quit = PolyCredo Editor beenden
-command-name-plugin-hello = Plugin: Hallo sagen
-command-name-plugin-gemini = Plugin: Gemini fragen
-command-name-show-plugins = Pluginy
 
 ## Schnelles Öffnen (Ctrl+P)
 file-picker-heading = Datei öffnen
@@ -224,6 +153,8 @@ btn-ok = OK
 btn-confirm = Bestätigen
 btn-cancel = Abbrechen
 btn-close = Schließen
+cancel-confirm-title = Änderungen verwerfen?
+cancel-confirm-msg = Möchten Sie wirklich alle ungespeicherten Änderungen verwerfen und dieses Fenster schließen?
 btn-browse = Durchsuchen…
 btn-create = Erstellen
 btn-open = Öffnen
@@ -248,10 +179,8 @@ ai-hover-checking = Verfügbarkeit der KI-CLI-Werkzeuge wird geprüft…
 ai-hover-start = Startet { $tool } (`{ $cmd }`) im Terminal
 ai-hover-missing = Befehl `{ $cmd }` nicht in PATH gefunden. Werkzeug installieren und ↻ klicken.
 ai-btn-start = ▶ Starten
-ai-plugin-bar-label = KI:
-ai-plugin-bar-settings = ⚙
-ai-plugin-bar-start-hover = KI-Chat mit ausgewähltem Plugin starten
-ai-plugin-bar-settings-hover = Einstellungen für das ausgewählte KI-Plugin öffnen
+ai-diff-heading = Vorgeschlagene KI-Änderungen überprüfen
+ai-diff-new-file = Neue Datei vorgeschlagen
 ai-float-dock = Im Panel andocken
 ai-float-undock = Als schwebendes Fenster lösen
 ai-viewport-open = In separatem Fenster öffnen
@@ -261,7 +190,7 @@ ai-staged-bar-msg = KI hat Änderungen im Projekt vorgeschlagen
 ai-staged-bar-review = Änderungen überprüfen
 ai-staged-bar-promote-all = Alle übernehmen
 ai-staged-modal-hint = Klicken Sie auf eine Datei, um Unterschiede anzuzeigen und Änderungen zu genehmigen:
-ai-staged-files = Vorgeschlagene Änderungen (Sandbox)
+ai-staged-files = Vorgeschlagene Änderungen
 ai-staged-new = [NEU]
 ai-staged-mod = [MOD]
 ai-staged-del = [GELÖSCHT]
@@ -271,18 +200,7 @@ ai-promotion-success = Die Änderungen wurden erfolgreich in das Projekt überno
 ai-promotion-all-success = Erfolgreich { $count } Dateien in das Projekt übertragen.
 ai-promotion-failed = Änderungen konnten nicht angewendet werden: { $error }
 
-## Synchronisierung vor dem Start von AI
-ai-sync-title = Synchronisierung vor dem Start
-ai-sync-msg = Unterschiede zwischen Projekt und Sandbox erkannt. Die neuesten Versionen sollten synchronisiert werden.
-ai-sync-to-sandbox = Sandbox aktualisieren ({ $count } neuere im Projekt)
-ai-sync-to-project = Ins Projekt befördern ({ $count } neuere in der Sandbox)
-ai-sync-btn-sync = Synchronisieren und Starten
-ai-sync-btn-skip = Ohne Synchronisierung starten
-
 ## Plugin-Berechtigungen
-plugin-auth-bar-msg = Das Plugin „{ $name }“ beantragt Internetzugriff ({ $hosts }).
-plugin-auth-bar-allow = Zulassen und Starten
-plugin-auth-bar-deny = Ablehnen
 
 ## Einstellungen
 settings-title = Einstellungen
@@ -294,9 +212,24 @@ settings-language-restart = Sprachänderungen werden sofort wirksam.
 settings-theme = Design
 settings-theme-dark = Dunkel
 settings-theme-light = Hell
+settings-light-variant = Helle Variante
+settings-light-variant-warm-ivory = Warmes Elfenbein
+settings-light-variant-cool-gray = Kühles Grau
+settings-light-variant-sepia = Sepia
+settings-light-variant-warm-tan = Warme Tan
+settings-dark-variant = Dunkle Variante
+settings-dark-variant-default = Standard
+settings-dark-variant-midnight = Mitternacht
+settings-save-mode-title = Speichermodus
+settings-save-mode-automatic = Automatisches Speichern
+settings-save-mode-manual = Manuelles Speichern
+settings-save-mode-toast-automatic = Automatisches Speichern aktiviert
+settings-save-mode-toast-manual = Manuelles Speichern aktiviert
 settings-auto-show-diff = KI-Änderungsvorschau automatisch öffnen
-settings-safe-mode = Sicherer Modus (Projekt schreibgeschützt)
-settings-safe-mode-hint = Wenn aktiviert, wechseln Dateibaum und Build zum Sandbox-Modus, und direktes Speichern im Projekt ist blockiert.
+settings-conflict-title = Einstellungen geändert
+settings-conflict-message = Einstellungen wurden in einem anderen Fenster aktualisiert. Neu laden oder aktuellen Entwurf beibehalten?
+settings-conflict-reload = Neu laden
+settings-conflict-keep = Weiter bearbeiten
 settings-diff-mode = KI-Diff-Layout
 settings-diff-inline = Zusammengefügt (+ / -)
 settings-diff-side-by-side = Nebeneinander
@@ -314,30 +247,9 @@ settings-blacklist-hint = Unterstützt Muster wie *.env, secret/*. Sperrt automa
 settings-blacklist-add = Muster hinzufügen
 settings-suggested-patterns = Empfohlene Muster:
 
-## Pluginy
-plugins-title = Plugin-Manager
-plugins-config-label = Plugin-Konfiguration:
-plugins-unknown-agent = Unbekannter Agent
 ## Plugins
-plugins-title = Plugin-Manager
-plugins-list-label = Plugin-Liste
-plugins-no-selection = Wählen Sie ein Plugin aus der Liste links
-plugins-enabled-label = Dieses Plugin aktivieren
-plugins-config-label = Plugin-Konfiguration:
-plugins-unknown-agent = Unbekannter Agent
-plugins-category-ai = 🤖 KI-Agenten
-plugins-category-general = ⚙ Allgemein
-plugins-item-settings = Einstellungen
-plugins-item-welcome = Übersicht
-plugins-welcome-title = Willkommen im Plugin-Manager
-plugins-welcome-text = Der PolyCredo Editor verwendet ein modernes Plugin-System basierend auf der WebAssembly (WASM) Technologie. Dies gewährleistet hohe Leistung und maximale Sicherheit — Plugins laufen in einer isolierten Umgebung (Sandbox) und haben nur Zugriff auf das, was Sie explizit erlauben.
-plugins-welcome-hint = Wählen Sie eine Kategorie oder ein bestimmtes Plugin aus der Liste links, um es zu konfigurieren.
-plugins-security-info = 🛡 Sicherheit: Sie können die Datei/Ordner-Blacklist in den Haupteinstellungen verwalten.
-plugins-settings-saved = Plugin-Einstellungen gespeichert. Neustart bei einigen Änderungen empfohlen.
-plugins-placeholder-api-key = API-Schlüssel (z. B. Gemini, Anthropic)
-command-name-show-plugins = Plugins
 
-## Gemini AI
+## Command Palette – KI-Plugins
 
 ## Semantische Indexierung (RAG)
 semantic-indexing-title = Semantische Projektindexierung
@@ -347,8 +259,6 @@ semantic-indexing-btn-bg = Im Hintergrund ausführen
 semantic-indexing-status-bar = Projekt-Indexierung...
 
 ## Plugin-Fehler
-plugin-error-title = Plugin-Fehler
-plugin-error-heading = Plugin-Fehlgeschlagen
 
 ## Dateibaum
 file-tree-new-file = Neue Datei
@@ -365,116 +275,48 @@ file-tree-create-dir-error = Ordner kann nicht erstellt werden: { $reason }
 file-tree-create-file-error = Datei kann nicht erstellt werden: { $reason }
 file-tree-rename-error = Umbenennen nicht möglich: { $reason }
 file-tree-delete-error = Löschen nicht möglich: { $reason }
+file-tree-delete-move-failed-reason = Verschieben in den Papierkorb fehlgeschlagen: { $reason }
+file-tree-delete-move-failed-guidance = Prüfen Sie Berechtigungen und Dateisperren und versuchen Sie es erneut.
+file-tree-delete-move-failed-reason-permission = unzureichende Berechtigungen
+file-tree-delete-move-failed-reason-locked = Datei oder Ordner wird gerade verwendet
+file-tree-delete-move-failed-reason-missing = Element existiert im Projekt nicht mehr
+file-tree-delete-move-failed-reason-internal-trash = internes Papierkorbverzeichnis kann nicht gelöscht werden
+file-tree-delete-move-failed-reason-generic = unerwarteter I/O-Fehler
+file-tree-trash-preview-title = Papierkorb-Vorschau
+file-tree-trash-preview-filter = Filter:
+file-tree-trash-preview-loading = Papierkorb-Einträge werden geladen...
+file-tree-trash-preview-no-results = Keine Papierkorb-Einträge passen zum Filter.
+file-tree-trash-preview-kind-file = Datei
+file-tree-trash-preview-kind-dir = Ordner
+file-tree-trash-preview-restore = Wiederherstellen
+file-tree-restore-conflict-title = Wiederherstellungskonflikt
+file-tree-restore-conflict-message = Zielpfad existiert bereits. Wähle eine nicht-destruktive Wiederherstellung.
+file-tree-restore-as-copy = Als Kopie wiederherstellen
+file-tree-restore-success = Eintrag wiederhergestellt nach: { $path }
+file-tree-restore-error = Wiederherstellung fehlgeschlagen: { $reason }
 
 ## Dialog für externen Konflikt
 conflict-title = Datei extern geändert
-conflict-message = Die Datei „{ $name }" wurde geändert (wahrscheinlich durch Sandbox-Übernahme), hat aber ungespeicherte Änderungen im Editor.
+conflict-message = Die Datei „{ $name }" wurde außerhalb des Editors geändert, hat aber ungespeicherte Änderungen im Editor.
 conflict-choose = Wählen Sie, welche Version Sie behalten möchten:
-conflict-load-disk = Aus Sandbox überschreiben
-conflict-keep-editor = Aus Projekt beibehalten
+conflict-load-disk = Von Festplatte laden
+conflict-keep-editor = Editor-Version beibehalten
 conflict-dismiss = Abbrechen
-conflict-hover-disk = Nicht gespeicherte Editor-Änderungen verwerfen und die gerade aus der Sandbox übernommene Version laden
-conflict-hover-keep = In Arbeit befindliche Änderungen im Editor behalten; die Sandbox-Version auf der Festplatte wird beim nächsten Speichern (Strg+S) überschrieben
+conflict-hover-disk = Nicht gespeicherte Editor-Änderungen verwerfen und die auf der Festplatte geänderte Version laden
+conflict-hover-keep = In Arbeit befindliche Änderungen im Editor behalten; die Version auf der Festplatte wird beim nächsten Speichern (Strg+S) überschrieben
 conflict-hover-dismiss = Benachrichtigung schließen, ohne Änderungen vorzunehmen
 
 md-open-external = ⧉ In externem Betrachter öffnen
+md-layout-pod-sebou = Untereinander
+md-layout-vedle-sebe = Nebeneinander
+md-layout-jenom-kod = Nur Code
+md-layout-jenom-nahled = Nur Vorschau
 
 svg-open-external = ⧉ Vorschau im Betrachter öffnen
 
 svg-modal-title = SVG-Datei
 svg-modal-body = Diese Datei ist ein SVG-Bild. Möchten Sie sie im Systembetrachter öffnen oder als XML-Text bearbeiten?
 svg-modal-edit = Als Text bearbeiten
-
-## Dialog zur Synchronisation des Löschens in der Sandbox
-sandbox-delete-title = Datei in der Sandbox gelöscht
-sandbox-delete-msg = Die Datei „{ $name }" wurde in der KI-Sandbox gelöscht, existiert aber im Projekt noch. Was möchten Sie tun?
-sandbox-delete-keep-project = Im Projekt behalten (in der Sandbox wiederherstellen)
-sandbox-delete-also-project = Auch im Projekt löschen
-panel-runners = Runners
-btn-run-profile = Run Profile...
-btn-edit-profiles = Edit
-runner-none = None
-
-## Find References (Shift+F12)
-lsp-references-heading = Referenzen
-lsp-references-searching = Suche nach Referenzen...
-lsp-references-none = Keine Referenzen gefunden.
-lsp-references-found =
-    { $count ->
-        [one] 1 Referenz gefunden.
-       *[other] { $count } Referenzen gefunden.
-    }
-lsp-references-error = LSP: Fehler bei der Suche nach Referenzen.
-
-ai-btn-sync = ⟳ Sync
-ai-hover-sync = Kontext (offene Dateien, Build-Fehler) an KI-Agenten senden
-ai-diff-heading = Vorgeschlagene KI-Änderungen überprüfen
-ai-diff-new-file = Neue Datei vorgeschlagen
-ai-chat-title = AI Chat Assistant
-ai-chat-label-response = Response:
-ai-chat-loading = AI is thinking…
-ai-chat-label-prompt = Your prompt:
-ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
-ai-chat-btn-send = Send
-ai-chat-btn-new = New Thread
-ai-chat-settings-title = AI Settings
-ai-chat-label-language = Language:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = System Prompt:
-ai-chat-default-prompt = Expert Rust Developer.
-command-name-plugin-ai-chat = Plugin: Ask AI Agent
-command-name-plugin-ollama = Plugin: Ask Ollama
-command-name-open-file = Open File
-command-name-project-search = Search in Project
-command-name-build = Build
-command-name-run = Run
-command-name-save = Save Current File
-command-name-close-tab = Close Current Tab
-command-name-new-project = New Project
-command-name-open-project = Open Project (in new window)
-command-name-open-folder = Open Folder (in this window)
-command-name-toggle-left = Toggle File Panel
-command-name-toggle-right = Toggle AI Panel
-command-name-toggle-build = Toggle Build Terminal
-command-name-toggle-float = Toggle Floating AI Panel
-command-name-show-about = About
-command-name-show-settings = Settings
-command-name-quit = Quit PolyCredo Editor
-command-name-plugin-hello = Plugin: Say Hello
-command-name-plugin-gemini = Plugin: Ask Gemini
-plugins-title = Plugin Manager
-plugins-list-label = Plugins List
-plugins-no-selection = Select a plugin from the list on the left
-plugins-enabled-label = Enable this plugin
-plugins-config-label = Plugin Configuration:
-plugins-unknown-agent = Unknown Agent
-plugins-category-ai = 🤖 AI Agents
-plugins-category-general = ⚙ General
-plugins-item-settings = Settings
-plugins-item-welcome = Overview
-plugins-welcome-title = Welcome to Plugin Manager
-plugins-welcome-text = PolyCredo Editor utilizes a modern plugin system based on WebAssembly (WASM). This ensures high performance and maximum security — plugins run in an isolated environment (sandbox) and only have access to what you explicitly authorize.
-plugins-welcome-hint = Select a category or a specific plugin from the list on the left to configure it.
-plugins-security-info = 🛡 Security: You can manage the file/directory blacklist in the main Settings.
-plugins-settings-saved = Plugin settings saved. Restart recommended for some changes.
-plugins-placeholder-api-key = API Key (e.g. Gemini, Anthropic)
-plugins-placeholder-model = Model ID (e.g. gemini-1.5-flash)
-command-name-show-plugins = Plugins
-ai-chat-title = AI Chat Assistant
-ai-chat-label-response = Response:
-ai-chat-loading = AI is thinking…
-ai-chat-label-prompt = Your prompt:
-ai-chat-placeholder-prompt = Enter instructions for AI (e.g. "Explain this code")...
-ai-chat-btn-send = Send
-ai-chat-btn-new = New Thread
-ai-chat-settings-title = AI Settings
-ai-chat-label-language = Language:
-ai-chat-btn-reset = Reset
-ai-chat-label-system-prompt = System Prompt:
-ai-chat-default-prompt = Expert Rust Developer.
-command-name-plugin-gemini = Plugin: Ask Gemini
-command-name-plugin-ollama = Plugin: Ask Ollama
-command-name-plugin-ai-chat = Plugin: Ask AI Agent
 
 ## Support Modal
 support-modal-title = PolyCredo-Entwicklung unterstützen
@@ -483,14 +325,30 @@ support-modal-github = Auf GitHub folgen
 support-modal-donate = Zur Entwicklung beitragen
 semantic-indexing-btn-stop = Indizierung stoppen
 
-menu-build-all = Alle Pakete
-build-all-status-running = Erstelle Pakete…
-build-all-status-ok = ✔ Alle Pakete erfolgreich erstellt
-build-all-status-error = ✘ Build mit Fehlern beendet (Code { $code })
-build-all-status-waiting = Warte auf Start…
-build-all-waiting-output = Starte scripts/build-all.sh…
-build-all-btn-close = Schließen
-build-all-btn-run = Ausführen
-build-all-btn-rerun = Erneut ausführen
-build-all-not-started = Paket auswählen und Ausführen klicken
-build-all-hint-start = Paket oben auswählen und Ausführen klicken…
+## Dependency Wizard
+dep-wizard-title = Dependency Installation Wizard
+dep-wizard-install-question = Do you want to download and install { $tool } to { $path }?
+dep-wizard-install-cmd-question = Do you want to start the installation of { $tool } using a system command?
+dep-wizard-btn-install = Install
+dep-wizard-btn-run-cmd = Start Installation (requires sudo)
+dep-wizard-status-downloading = Downloading...
+dep-wizard-status-running = Installing...
+dep-wizard-status-success = Installation successful!
+dep-wizard-status-error = Installation error: { $error }
+
+dep-wizard-appimagetool-desc = ...
+
+## Unsaved close guard
+unsaved-close-guard-title = Ungespeicherte Änderungen
+unsaved-close-guard-message = Diese Datei enthält ungespeicherte Änderungen. Was möchten Sie vor dem Schließen tun?
+unsaved-close-guard-save = Speichern und schließen
+unsaved-close-guard-discard = Änderungen verwerfen
+unsaved-close-guard-cancel = Abbrechen
+
+## History panel (lokale Dateiversionsgeschichte)
+tab-context-history = Dateiverlauf
+tab-context-close = Tab schließen
+history-panel-title = Verlauf: { $name }
+history-panel-no-versions = Keine historischen Versionen.
+history-panel-close = ✕ Schließen
+history-panel-version-label = { $date }

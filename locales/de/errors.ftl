@@ -9,7 +9,6 @@ error-file-delete = Fehler beim Löschen von { $name }: { $reason }
 error-file-rename = Fehler beim Umbenennen: { $reason }
 error-file-create = Fehler beim Erstellen der Datei { $name }: { $reason }
 error-file-read-only-error = "{ $name }" kann nicht gespeichert werden, da sie nicht korrekt gelesen werden konnte. Dieser Tab ist nun schreibgeschützt, um Datenverlust zu vermeiden.
-error-safe-mode-blocked = Das Projekt befindet sich im sicheren Modus (schreibgeschützt). Sie können Änderungen nur in der Sandbox vornehmen oder den sicheren Modus in den Einstellungen deaktivieren.
 error-file-watch = Fehler bei der Dateiüberwachung
 
 ## Verzeichnisse
@@ -44,9 +43,16 @@ error-unknown = Ein unbekannter Fehler ist aufgetreten.
 
 ## Informationsmeldungen (Toast-Info)
 info-file-saved = Datei gespeichert.
+info-file-already-saved = Datei ist bereits gespeichert.
 info-project-created = Projekt { $name } erfolgreich erstellt.
 info-session-restored =
     { $count ->
         [one] 1 Fenster der vorherigen Sitzung wiederhergestellt.
        *[other] { $count } Fenster der vorherigen Sitzung wiederhergestellt.
     }
+
+## Unsaved Close Guard
+unsaved_close_guard_save_failed = Speichern von „{ $name }“ während des Schließens fehlgeschlagen: { $reason }
+
+## Lokaler Verlauf
+error-history-snapshot = Fehler beim Erstellen des Snapshots von „{ $path }": { $reason }

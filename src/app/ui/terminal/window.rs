@@ -33,7 +33,6 @@ impl StandardTerminalWindow {
         let mut interacted = false;
         let mut result = None;
 
-        let viewer_bg = egui::Color32::from_rgb(20, 20, 25);
         let screen_rect = ctx.screen_rect();
         let max_w = screen_rect.width() * 0.9;
         let max_h = screen_rect.height() * 0.9;
@@ -48,7 +47,6 @@ impl StandardTerminalWindow {
             .collapsible(true)
             .vscroll(false)
             .open(open)
-            .frame(egui::Frame::window(&ctx.style()).fill(viewer_bg))
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
                     ui.spacing_mut().item_spacing.y = 0.0;
@@ -59,16 +57,26 @@ impl StandardTerminalWindow {
                     });
                     ui.separator();
 
-                    // BODY
+                    // BODY — fixed-size child UI with clipping to prevent
+                    // content from pushing the window larger
                     let footer_reserved = 40.0;
+                    let body_w = ui.available_width();
                     let body_h = (ui.available_height() - footer_reserved).max(100.0);
-
-                    ui.allocate_ui(egui::vec2(ui.available_width(), body_h), |ui| {
-                        if let Some(res) = render_body(ui, ws, body_h) {
-                            result = Some(res);
-                            interacted = true;
-                        }
-                    });
+                    let body_rect = egui::Rect::from_min_size(
+                        ui.cursor().left_top(),
+                        egui::vec2(body_w, body_h),
+                    );
+                    let mut body_ui = ui.new_child(
+                        egui::UiBuilder::new()
+                            .max_rect(body_rect)
+                            .layout(egui::Layout::top_down(egui::Align::LEFT)),
+                    );
+                    body_ui.set_clip_rect(body_rect.intersect(ui.clip_rect()));
+                    if let Some(res) = render_body(&mut body_ui, ws, body_h) {
+                        result = Some(res);
+                        interacted = true;
+                    }
+                    ui.advance_cursor_after_rect(body_rect);
 
                     // FOOTER
                     ui.separator();

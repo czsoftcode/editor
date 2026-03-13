@@ -1,12 +1,56 @@
-use crate::app::ui::file_tree::FileTree;
+use crate::app::trash::{
+    RestoreConflictPolicy, move_path_to_trash, restore_from_trash_with_policy,
+};
+use crate::app::ui::background::spawn_task;
+use crate::app::ui::file_tree::{DeleteJobResult, FileTree, RestoreJobResult};
 use crate::app::ui::widgets::modal::{ModalResult, show_modal};
 use crate::app::validation::is_safe_filename;
+use std::path::PathBuf;
+
+// phase36-delete-scope-guard-enabled: this module stays delete-flow only.
+fn map_delete_error_reason_key(engine_error: &str) -> &'static str {
+    let normalized = engine_error.to_ascii_lowercase();
+    if normalized.contains("interni `.polycredo/trash`") {
+        "file-tree-delete-move-failed-reason-internal-trash"
+    } else if normalized.contains("permission denied")
+        || normalized.contains("opravnen")
+        || normalized.contains("prava")
+    {
+        "file-tree-delete-move-failed-reason-permission"
+    } else if normalized.contains("device or resource busy")
+        || normalized.contains("used by another process")
+        || normalized.contains("in use")
+    {
+        "file-tree-delete-move-failed-reason-locked"
+    } else if normalized.contains("no such file")
+        || normalized.contains("not found")
+        || normalized.contains("uz neexistuje")
+    {
+        "file-tree-delete-move-failed-reason-missing"
+    } else {
+        "file-tree-delete-move-failed-reason-generic"
+    }
+}
+
+pub(crate) fn format_delete_toast_error(i18n: &crate::i18n::I18n, engine_error: &str) -> String {
+    let mut args = fluent_bundle::FluentArgs::new();
+    args.set(
+        "reason",
+        i18n.get(map_delete_error_reason_key(engine_error)),
+    );
+    let reason = i18n.get_args("file-tree-delete-move-failed-reason", &args);
+    format!(
+        "{reason} {}",
+        i18n.get("file-tree-delete-move-failed-guidance")
+    )
+}
 
 impl FileTree {
     pub fn show_dialogs(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) {
         self.show_new_item_dialog(ui, i18n);
         self.show_rename_dialog(ui, i18n);
         self.show_delete_dialog(ui, i18n);
+        self.show_restore_conflict_dialog(ui, i18n);
     }
 
     fn show_new_item_dialog(&mut self, ui: &mut eframe::egui::Ui, i18n: &crate::i18n::I18n) {
@@ -178,23 +222,15 @@ impl FileTree {
         match result {
             ModalResult::Confirmed(()) => {
                 if let Some(path) = self.delete_confirm.take() {
-                    let del_result = if path.is_dir() {
-                        std::fs::remove_dir_all(&path)
-                    } else {
-                        std::fs::remove_file(&path)
-                    };
-                    match del_result {
-                        Ok(()) => {
-                            self.pending_deleted = Some(path);
-                            self.needs_reload = true;
-                        }
-                        Err(e) => {
-                            let mut err_args = fluent_bundle::FluentArgs::new();
-                            err_args.set("reason", e.to_string());
-                            self.pending_error =
-                                Some(i18n.get_args("file-tree-delete-error", &err_args));
-                        }
-                    }
+                    let root = self.root_path.clone();
+                    self.delete_rx =
+                        Some(spawn_task(move || match move_path_to_trash(&root, &path) {
+                            Ok(outcome) => DeleteJobResult::Deleted(outcome.moved_from),
+                            Err(err) => {
+                                let detail = format!("trash move failed: {err}");
+                                DeleteJobResult::Error(detail)
+                            }
+                        }));
                 }
             }
             ModalResult::Cancelled => {
@@ -203,4 +239,55 @@ impl FileTree {
             ModalResult::Pending => {}
         }
     }
+
+    fn show_restore_conflict_dialog(
+        &mut self,
+        ui: &mut eframe::egui::Ui,
+        i18n: &crate::i18n::I18n,
+    ) {
+        let Some(conflict_path) = self.restore_conflict.clone() else {
+            return;
+        };
+        let result = show_modal(
+            ui.ctx(),
+            "restore_conflict_modal",
+            &i18n.get("file-tree-restore-conflict-title"),
+            &i18n.get("file-tree-restore-as-copy"),
+            &i18n.get("btn-cancel"),
+            |ui| {
+                ui.label(i18n.get("file-tree-restore-conflict-message"));
+                Some(conflict_path.clone())
+            },
+        );
+
+        match result {
+            ModalResult::Confirmed(path) => {
+                let root = self.root_path.clone();
+                self.restore_rx = Some(spawn_task(move || {
+                    match restore_from_trash_as_copy(&root, &path) {
+                        Ok(restored_to) => RestoreJobResult::Restored(restored_to),
+                        Err(err) => RestoreJobResult::Error(err),
+                    }
+                }));
+                self.restore_conflict = None;
+            }
+            ModalResult::Cancelled => {
+                self.restore_conflict = None;
+            }
+            ModalResult::Pending => {}
+        }
+    }
+}
+
+fn restore_from_trash_as_copy(
+    project_root: &std::path::Path,
+    trash_entry_path: &std::path::Path,
+) -> Result<PathBuf, String> {
+    let outcome = restore_from_trash_with_policy(
+        project_root,
+        trash_entry_path,
+        RestoreConflictPolicy::RestoreAsCopy,
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(outcome.restored_to)
 }

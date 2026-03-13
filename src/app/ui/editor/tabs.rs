@@ -150,6 +150,11 @@ impl Editor {
         self.scroll_to_active = true;
     }
 
+    pub fn open_file_without_focus(&mut self, path: &PathBuf) {
+        self.open_file(path);
+        self.focus_editor_requested = false;
+    }
+
     pub fn close_tab(&mut self, index: usize) {
         if index >= self.tabs.len() {
             return;
@@ -183,6 +188,19 @@ impl Editor {
             .collect();
         for idx in indices.into_iter().rev() {
             self.close_tab(idx);
+        }
+    }
+
+    pub fn sync_tabs_for_restored_path(&mut self, restored_path: &PathBuf) {
+        // restore tab sync: update only existing tabs, never auto-open restored files.
+        let restored_exists = restored_path.exists();
+        for tab in &mut self.tabs {
+            if tab.path == *restored_path {
+                tab.deleted = !restored_exists;
+            }
+        }
+        if restored_exists {
+            self.reload_path_from_disk(restored_path);
         }
     }
 

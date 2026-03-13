@@ -1,7 +1,7 @@
 [build]
-jobs = 5
-target-dir = "~/.cache/polycredo-editor/target"
+jobs = 10
+target-dir = "/home/stkremen/.cache/polycredo-editor/target"
 
 [env]
-RAYON_NUM_THREADS = "4"
-TOKIO_WORKER_THREADS = "4"
+RAYON_NUM_THREADS = "8"
+TOKIO_WORKER_THREADS = "8"

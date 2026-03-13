@@ -1,15 +1,14 @@
-use super::super::types::{AppShared, FocusedPanel, Toast};
+use super::super::types::{FocusedPanel, Toast};
 use super::workspace::open_file_in_ws;
 use super::workspace::state::WorkspaceState;
 use crate::config;
 use eframe::egui;
-use std::sync::{Arc, Mutex};
 
 /// Renders the left panel (file tree + plugin bar + build terminal). Returns true if the terminal was clicked.
 pub(super) fn render_left_panel(
     ctx: &egui::Context,
     ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
+    _shared: &std::sync::Arc<std::sync::Mutex<crate::app::types::AppShared>>,
     dialog_open: bool,
     i18n: &crate::i18n::I18n,
 ) -> bool {
@@ -38,54 +37,14 @@ pub(super) fn render_left_panel(
                     ui.set_max_height(tree_height);
                     ui.set_min_height(tree_height);
 
-                    ui.horizontal(|ui| {
-                        let title = if ws.file_tree_in_sandbox {
-                            egui::RichText::new(i18n.get("panel-files-sandbox"))
-                                .color(egui::Color32::from_rgb(255, 230, 100))
-                                .strong()
-                        } else {
-                            egui::RichText::new(i18n.get("panel-files")).strong()
-                        };
-                        ui.heading(title);
-
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let prev_in_sandbox = ws.file_tree_in_sandbox;
-                            if ui
-                                .selectable_label(
-                                    !ws.file_tree_in_sandbox,
-                                    i18n.get("btn-tree-project"),
-                                )
-                                .clicked()
-                            {
-                                ws.file_tree_in_sandbox = false;
-                            }
-                            if ui
-                                .selectable_label(
-                                    ws.file_tree_in_sandbox,
-                                    i18n.get("btn-tree-sandbox"),
-                                )
-                                .clicked()
-                            {
-                                ws.file_tree_in_sandbox = true;
-                            }
-
-                            if ws.file_tree_in_sandbox != prev_in_sandbox {
-                                let target_dir = if ws.file_tree_in_sandbox {
-                                    &ws.sandbox.root
-                                } else {
-                                    &ws.root_path
-                                };
-                                ws.file_tree.load(target_dir);
-                            }
-                        });
-                    });
+                    ui.heading(egui::RichText::new(i18n.get("panel-files")).strong());
 
                     ui.separator();
                     egui::ScrollArea::both()
                         .auto_shrink([false, false])
                         .id_salt("file_tree_scroll")
                         .show(ui, |ui| {
-                            let result = ws.file_tree.ui(ui, i18n, ws.file_tree_in_sandbox);
+                            let result = ws.file_tree.ui(ui, i18n);
                             if let Some(err) = ws.file_tree.take_error() {
                                 ws.toasts.push(Toast::error(err));
                             }
@@ -98,6 +57,9 @@ pub(super) fn render_left_panel(
                             if let Some(deleted) = result.deleted {
                                 ws.editor.close_tabs_for_path(&deleted);
                             }
+                            if let Some(restored) = result.restored {
+                                ws.editor.sync_tabs_for_restored_path(&restored);
+                            }
                         });
                 });
             });
@@ -107,10 +69,7 @@ pub(super) fn render_left_panel(
                 left_clicked = true;
             }
 
-            // 2. AI PLUGIN BAR
-            render_plugin_bar(ui, ws, shared, i18n);
-
-            // 3. RESIZE SPLITTER & TERMINAL
+            // 2. RESIZE SPLITTER & TERMINAL
             if show_terminal_in_panel {
                 // Render interactive separator (splitter)
                 let sep_rect = ui.separator().rect;
@@ -147,85 +106,14 @@ pub(super) fn render_left_panel(
     left_clicked
 }
 
-/// Renders the AI plugin quick-launch bar (combobox + Start + Settings).
-fn render_plugin_bar(
-    ui: &mut egui::Ui,
-    ws: &mut WorkspaceState,
-    shared: &Arc<Mutex<AppShared>>,
-    i18n: &crate::i18n::I18n,
-) {
-    // Collect AI plugins from registry
-    let ai_plugins: Vec<(String, String)> = {
-        let sh = shared.lock().expect("lock");
-        let plugins = sh.registry.plugins.plugins.lock().expect("lock");
-        plugins
-            .iter()
-            .filter(|p| {
-                p.metadata.as_ref().and_then(|m| m.plugin_type.as_deref()) == Some("ai_agent")
-            })
-            .map(|p| {
-                let display = p
-                    .metadata
-                    .as_ref()
-                    .map(|m| m.name.clone())
-                    .unwrap_or_else(|| p.id.clone());
-                (p.id.clone(), display)
-            })
-            .collect()
-    };
-
-    if ai_plugins.is_empty() {
-        return;
-    }
-
-    ui.separator();
-
-    ui.horizontal(|ui| {
-        ui.label(i18n.get("ai-plugin-bar-label"));
-
-        let selected_label = ai_plugins
-            .iter()
-            .find(|(id, _)| id == &ws.ai_selected_provider)
-            .map(|(_, name)| name.as_str())
-            .unwrap_or(ws.ai_selected_provider.as_str())
-            .to_string();
-
-        egui::ComboBox::from_id_salt("left_panel_plugin_combo")
-            .selected_text(selected_label)
-            .show_ui(ui, |ui| {
-                for (id, name) in &ai_plugins {
-                    ui.selectable_value(&mut ws.ai_selected_provider, id.clone(), name.as_str());
-                }
-            });
-
-        if ui
-            .button(i18n.get("ai-btn-start"))
-            .on_hover_text(i18n.get("ai-plugin-bar-start-hover"))
-            .clicked()
-        {
-            ws.show_ai_chat = true;
-            ws.ai_focus_requested = true;
-            crate::app::ui::terminal::ai_chat::handle_action(
-                crate::app::ui::terminal::ai_chat::AiChatAction::NewQuery,
-                ws,
-                shared,
-            );
-        }
-
-        if ui
-            .button(i18n.get("ai-plugin-bar-settings"))
-            .on_hover_text(i18n.get("ai-plugin-bar-settings-hover"))
-            .clicked()
-        {
-            ws.show_plugins = true;
-            ws.selected_plugin_id = Some(ws.ai_selected_provider.clone());
-        }
-    });
-}
-
 /// Renders toast notifications in the bottom right corner. Removes expired toasts.
-pub(super) fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
-    ws.toasts.retain(|t: &Toast| !t.is_expired());
+pub(super) fn render_toasts(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    _i18n: &crate::i18n::I18n,
+) {
+    let notifications = &mut ws.toasts;
+    notifications.retain(|t| !t.is_expired());
     if ws.toasts.is_empty() {
         return;
     }
@@ -240,7 +128,7 @@ pub(super) fn render_toasts(ctx: &egui::Context, ws: &mut WorkspaceState) {
         .fixed_pos(egui::pos2(screen.max.x - toast_w - padding, start_y))
         .order(egui::Order::Foreground)
         .show(ctx, |ui| {
-            for toast in &ws.toasts {
+            for toast in ws.toasts.iter() {
                 let (bg, fg) = if toast.is_error {
                     (
                         egui::Color32::from_rgb(90, 30, 30),

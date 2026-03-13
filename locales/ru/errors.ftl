@@ -9,7 +9,6 @@ error-file-delete = Ошибка удаления { $name }: { $reason }
 error-file-rename = Ошибка переименования: { $reason }
 error-file-create = Ошибка создания файла { $name }: { $reason }
 error-file-read-only-error = Не удалось сохранить «{ $name }», так как файл не был корректно прочитан. Эта вкладка теперь доступна только для чтения во избежание потери данных.
-error-safe-mode-blocked = Проект находится в безопасном режиме (только для чтения). Вы можете вносить изменения только в Sandbox или отключите безопасный режим в Настройках.
 error-file-watch = Ошибка отслеживания файлов
 
 ## Папки
@@ -44,6 +43,7 @@ error-unknown = Произошла неизвестная ошибка.
 
 ## Информационные сообщения (toast info)
 info-file-saved = Файл сохранён.
+info-file-already-saved = Файл уже сохранён.
 info-project-created = Проект { $name } успешно создан.
 info-session-restored =
     { $count ->
@@ -52,3 +52,9 @@ info-session-restored =
         [many] Восстановлено { $count } окон из предыдущей сессии.
        *[other] Восстановлено { $count } окна из предыдущей сессии.
     }
+
+## Защита от потери несохранённых изменений
+unsaved_close_guard_save_failed = Не удалось сохранить «{ $name }» при закрытии: { $reason }
+
+## Локальная история
+error-history-snapshot = Не удалось создать снимок файла «{ $path }»: { $reason }

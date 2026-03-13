@@ -1,4 +1,5 @@
 use super::super::types::{FocusedPanel, Toast};
+use super::file_tree::FileTreeMode;
 use super::workspace::open_file_in_ws;
 use super::workspace::state::WorkspaceState;
 use crate::config;
@@ -37,7 +38,37 @@ pub(super) fn render_left_panel(
                     ui.set_max_height(tree_height);
                     ui.set_min_height(tree_height);
 
-                    ui.heading(egui::RichText::new(i18n.get("panel-files")).strong());
+                    ui.horizontal(|ui| {
+                        ui.heading(egui::RichText::new(i18n.get("panel-files")).strong());
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let btn_size = config::UI_FONT_SIZE;
+                            let is_changes = ws.file_tree.mode == FileTreeMode::Changes;
+                            let is_tree = ws.file_tree.mode == FileTreeMode::Tree;
+
+                            // Pořadí je obrácené (right-to-left layout)
+                            if ui
+                                .selectable_label(
+                                    is_changes,
+                                    egui::RichText::new(i18n.get("panel-files-changes"))
+                                        .size(btn_size),
+                                )
+                                .clicked()
+                            {
+                                ws.file_tree.mode = FileTreeMode::Changes;
+                            }
+                            if ui
+                                .selectable_label(
+                                    is_tree,
+                                    egui::RichText::new(i18n.get("panel-files-tree"))
+                                        .size(btn_size),
+                                )
+                                .clicked()
+                            {
+                                ws.file_tree.mode = FileTreeMode::Tree;
+                            }
+                        });
+                    });
 
                     ui.separator();
                     egui::ScrollArea::both()

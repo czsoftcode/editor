@@ -5,7 +5,180 @@ use crate::app::ui::git_status::{GitVisualStatus, git_color_for_visuals};
 use crate::config;
 use eframe::egui;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// Vrátí ikonu souboru podle přípony. Adresáře řeší volající zvlášť.
+fn file_icon(name: &str) -> &'static str {
+    let ext = name.rsplit('.').next().unwrap_or("");
+    match ext.to_ascii_lowercase().as_str() {
+        // Rust
+        "rs" => "🦀",
+        // Web
+        "html" | "htm" => "🌐",
+        "css" | "scss" | "sass" | "less" => "🎨",
+        "js" | "mjs" | "cjs" => "📜",
+        "ts" | "tsx" | "jsx" => "📘",
+        "json" => "📋",
+        "xml" | "svg" => "📐",
+        "wasm" => "⚙️",
+        // Konfigurace / data
+        "toml" | "yaml" | "yml" | "ini" | "cfg" | "conf" => "⚙️",
+        "env" => "🔒",
+        "lock" => "🔒",
+        // Dokumentace
+        "md" | "mdx" => "📝",
+        "txt" | "text" | "rtf" => "📄",
+        "pdf" => "📕",
+        "doc" | "docx" | "odt" => "📕",
+        // Obrázky
+        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp" | "ico" | "tiff" | "tif" => "🖼️",
+        // Audio / video
+        "mp3" | "wav" | "ogg" | "flac" | "aac" => "🎵",
+        "mp4" | "avi" | "mkv" | "webm" | "mov" => "🎬",
+        // Archivy
+        "zip" | "tar" | "gz" | "bz2" | "xz" | "7z" | "rar" | "zst" => "📦",
+        // Skripty / shell
+        "sh" | "bash" | "zsh" | "fish" | "bat" | "cmd" | "ps1" => "⚡",
+        // Programovací jazyky
+        "py" => "🐍",
+        "rb" => "💎",
+        "go" => "🔷",
+        "java" | "kt" | "kts" => "☕",
+        "c" | "h" => "🔧",
+        "cpp" | "cc" | "cxx" | "hpp" | "hxx" => "🔧",
+        "cs" => "🟣",
+        "swift" => "🐦",
+        "php" => "🐘",
+        "lua" => "🌙",
+        "sql" => "🗃️",
+        "r" => "📊",
+        // Databáze / binárky
+        "db" | "sqlite" | "sqlite3" => "🗃️",
+        "bin" | "exe" | "dll" | "so" | "dylib" | "a" => "⬛",
+        // Docker / CI
+        "dockerfile" => "🐳",
+        // Fonty
+        "ttf" | "otf" | "woff" | "woff2" => "🔤",
+        // Licence, readme atp. (bez přípony nebo speciální)
+        "license" | "licence" => "📜",
+        // Git
+        "gitignore" | "gitattributes" | "gitmodules" => "🔀",
+        // FTL (Fluent lokalizace)
+        "ftl" => "🌍",
+        // Výchozí
+        _ => match name.to_ascii_lowercase().as_str() {
+            "dockerfile" => "🐳",
+            "makefile" | "justfile" | "rakefile" => "⚡",
+            "license" | "licence" => "📜",
+            "readme" | "changelog" | "authors" | "contributors" => "📝",
+            _ => "📄",
+        },
+    }
+}
+
+/// Ikona adresáře. Některé speciální adresáře mají vlastní ikonu.
+fn dir_icon(name: &str) -> &'static str {
+    match name.to_ascii_lowercase().as_str() {
+        "src" | "lib" => "📦",
+        "test" | "tests" | "spec" | "specs" => "🧪",
+        "doc" | "docs" | "documentation" => "📚",
+        "assets" | "static" | "public" | "resources" | "res" => "🖼️",
+        "locales" | "locale" | "i18n" | "l10n" | "translations" => "🌍",
+        "scripts" | "bin" => "⚡",
+        "config" | "cfg" | "conf" | ".config" => "⚙️",
+        ".git" => "🔀",
+        ".github" | ".gitlab" => "🔀",
+        "node_modules" => "📦",
+        "target" | "build" | "dist" | "out" | "output" => "🏗️",
+        "vendor" | "third_party" | "deps" | "dependencies" => "📦",
+        "examples" | "example" => "💡",
+        "benches" | "benchmarks" => "📊",
+        _ => "📁",
+    }
+}
+
+/// Virtuální uzel stromu změn – vytvořený z git statusů bez čtení z disku.
+struct ChangesNode {
+    name: String,
+    abs_path: PathBuf,
+    is_dir: bool,
+    status: Option<GitVisualStatus>,
+    children: Vec<ChangesNode>,
+}
+
+impl ChangesNode {
+    fn new_dir(name: String, abs_path: PathBuf) -> Self {
+        Self {
+            name,
+            abs_path,
+            is_dir: true,
+            status: None,
+            children: Vec::new(),
+        }
+    }
+
+    fn new_file(name: String, abs_path: PathBuf, status: GitVisualStatus) -> Self {
+        Self {
+            name,
+            abs_path,
+            is_dir: false,
+            status: Some(status),
+            children: Vec::new(),
+        }
+    }
+
+    /// Vloží relativní cestu do stromu. Mezilehlé adresáře se vytváří automaticky.
+    fn insert(&mut self, rel: &Path, abs_path: PathBuf, status: GitVisualStatus) {
+        let components: Vec<_> = rel.components().collect();
+        self.insert_components(&components, abs_path, status);
+    }
+
+    fn insert_components(
+        &mut self,
+        components: &[std::path::Component<'_>],
+        abs_path: PathBuf,
+        status: GitVisualStatus,
+    ) {
+        if components.is_empty() {
+            return;
+        }
+
+        let name = components[0].as_os_str().to_string_lossy().to_string();
+
+        if components.len() == 1 {
+            // Listový uzel — soubor
+            self.children
+                .push(ChangesNode::new_file(name, abs_path, status));
+        } else {
+            // Adresářový uzel — najdi existující nebo vytvoř nový
+            let dir_abs = self.abs_path.join(&name);
+            let dir_pos = self
+                .children
+                .iter()
+                .position(|c| c.is_dir && c.name == name);
+
+            let idx = if let Some(pos) = dir_pos {
+                pos
+            } else {
+                self.children.push(ChangesNode::new_dir(name, dir_abs));
+                self.children.len() - 1
+            };
+            self.children[idx].insert_components(&components[1..], abs_path, status);
+        }
+    }
+
+    /// Rekurzivně seřadí strom: adresáře první, pak soubory, abecedně.
+    fn sort(&mut self) {
+        self.children.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        });
+        for child in &mut self.children {
+            child.sort();
+        }
+    }
+}
 
 fn resolve_file_tree_git_color(
     status: Option<GitVisualStatus>,
@@ -38,7 +211,8 @@ impl FileTree {
                 .as_ref()
                 .is_some_and(|target| target.starts_with(&node.path));
 
-            let header_text = egui::RichText::new(format!("\u{1F4C1} {}", &node.name))
+            let icon = dir_icon(&node.name);
+            let header_text = egui::RichText::new(format!("{icon} {}", &node.name))
                 .size(font_size)
                 .color(text_color);
             let mut header = egui::CollapsingHeader::new(header_text).default_open(node.expanded);
@@ -137,6 +311,7 @@ impl FileTree {
                 }
             }
 
+            let icon = file_icon(&node.name);
             let label = if is_large {
                 let mut job = egui::text::LayoutJob::default();
                 let main_font = egui::FontId::proportional(font_size);
@@ -144,7 +319,7 @@ impl FileTree {
                 let stroke_width = if is_very_large { 2.0 } else { 1.0 };
 
                 job.append(
-                    &format!("\u{1F4C4} {}", &node.name),
+                    &format!("{icon} {}", &node.name),
                     0.0,
                     egui::TextFormat {
                         font_id: main_font,
@@ -166,7 +341,7 @@ impl FileTree {
                 );
                 ui.selectable_label(false, job)
             } else {
-                let file_text = egui::RichText::new(format!("\u{1F4C4} {}", &node.name))
+                let file_text = egui::RichText::new(format!("{icon} {}", &node.name))
                     .size(font_size)
                     .color(file_color);
                 ui.selectable_label(false, file_text)
@@ -200,6 +375,100 @@ impl FileTree {
                     ui.close_menu();
                 }
             });
+        }
+    }
+
+    /// Vykreslí stromovou strukturu změněných/přidaných/smazaných souborů z git statusů.
+    /// Strom je vždy plně rozbalený (všechny adresáře otevřené).
+    pub fn show_changes(
+        ui: &mut egui::Ui,
+        root_path: &Path,
+        git_statuses: &HashMap<PathBuf, GitVisualStatus>,
+        selected: &mut Option<PathBuf>,
+    ) {
+        if git_statuses.is_empty() {
+            ui.label(
+                egui::RichText::new("—")
+                    .size(config::FILE_TREE_FONT_SIZE)
+                    .weak(),
+            );
+            return;
+        }
+
+        // Sestavíme virtuální strom ze změněných cest
+        let mut tree = ChangesNode::new_dir(String::new(), root_path.to_path_buf());
+        for (abs_path, status) in git_statuses {
+            let rel = abs_path.strip_prefix(root_path).unwrap_or(abs_path);
+            tree.insert(rel, abs_path.clone(), *status);
+        }
+        tree.sort();
+
+        // Vykreslíme obsah kořene (bez kořenového adresáře samotného)
+        for child in &tree.children {
+            Self::show_changes_node(ui, child, selected);
+        }
+    }
+
+    /// Rekurzivní vykreslení jednoho uzlu stromu změn.
+    fn show_changes_node(ui: &mut egui::Ui, node: &ChangesNode, selected: &mut Option<PathBuf>) {
+        let font_size = config::FILE_TREE_FONT_SIZE;
+        let visuals = ui.visuals();
+        let text_color = visuals.text_color();
+
+        if node.is_dir {
+            let icon = dir_icon(&node.name);
+            let header_text = egui::RichText::new(format!("{icon} {}", &node.name))
+                .size(font_size)
+                .color(text_color);
+            // Vždy plně rozbalený
+            egui::CollapsingHeader::new(header_text)
+                .default_open(true)
+                .open(Some(true))
+                .show(ui, |ui| {
+                    for child in &node.children {
+                        Self::show_changes_node(ui, child, selected);
+                    }
+                });
+        } else {
+            let status = node.status.unwrap_or(GitVisualStatus::Modified);
+            let color = git_color_for_visuals(status, visuals);
+
+            let status_char = match status {
+                GitVisualStatus::Modified => "M",
+                GitVisualStatus::Added => "A",
+                GitVisualStatus::Deleted => "D",
+                GitVisualStatus::Untracked => "?",
+            };
+
+            let mut job = egui::text::LayoutJob::default();
+
+            // Prefix se statusem
+            job.append(
+                &format!("{status_char} "),
+                0.0,
+                egui::TextFormat {
+                    font_id: egui::FontId::monospace(font_size * 0.85),
+                    color,
+                    ..Default::default()
+                },
+            );
+
+            // Ikona a název souboru
+            let icon = file_icon(&node.name);
+            job.append(
+                &format!("{icon} {}", &node.name),
+                0.0,
+                egui::TextFormat {
+                    font_id: egui::FontId::proportional(font_size),
+                    color,
+                    ..Default::default()
+                },
+            );
+
+            let label = ui.selectable_label(false, job);
+            if label.clicked() {
+                *selected = Some(node.abs_path.clone());
+            }
         }
     }
 }

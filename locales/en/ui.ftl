@@ -2,6 +2,8 @@
 
 ## Panels
 panel-files = Files
+panel-files-tree = Project
+panel-files-changes = Changes
 btn-tree-project = Project
 panel-runners = Runners
 panel-build = Build

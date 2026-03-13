@@ -14,6 +14,14 @@ use std::sync::mpsc::{self, TryRecvError};
 
 pub use self::node::FileNode;
 
+/// Režim zobrazení levého panelu: stromová struktura nebo flat seznam změn z gitu.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FileTreeMode {
+    #[default]
+    Tree,
+    Changes,
+}
+
 // Phase 37 trace hook for plan verification grep:
 const _PHASE37_PREVIEW_HOOK: &str = "show_trash_preview_dialog";
 
@@ -63,6 +71,8 @@ pub struct FileTree {
     pub(crate) restore_conflict: Option<PathBuf>,
     /// File statuses from git porcelain (absolute path -> semantic status)
     pub(crate) git_statuses: HashMap<PathBuf, GitVisualStatus>,
+    /// Aktuální režim zobrazení (Strom / Změny)
+    pub mode: FileTreeMode,
 }
 
 impl FileTree {
@@ -114,6 +124,7 @@ impl FileTree {
             trash_preview_rx: None,
             restore_conflict: None,
             git_statuses: HashMap::new(),
+            mode: FileTreeMode::Tree,
         }
     }
 
@@ -264,27 +275,34 @@ impl FileTree {
         let mut selected = None;
         let mut action = None;
 
-        let expand_to = self.expand_to.take();
-        if let Some(root) = &mut self.root {
-            let has_clipboard = self.clipboard.is_some();
-            Self::show_node(
-                ui,
-                root,
-                &mut selected,
-                &mut action,
-                has_clipboard,
-                &expand_to,
-                &self.git_statuses,
-                i18n,
-            );
-        }
+        match self.mode {
+            FileTreeMode::Tree => {
+                let expand_to = self.expand_to.take();
+                if let Some(root) = &mut self.root {
+                    let has_clipboard = self.clipboard.is_some();
+                    Self::show_node(
+                        ui,
+                        root,
+                        &mut selected,
+                        &mut action,
+                        has_clipboard,
+                        &expand_to,
+                        &self.git_statuses,
+                        i18n,
+                    );
+                }
 
-        if let Some(act) = action {
-            self.handle_action(act, i18n);
-        }
+                if let Some(act) = action {
+                    self.handle_action(act, i18n);
+                }
 
-        self.show_dialogs(ui, i18n);
-        self.show_trash_preview_dialog(ui, i18n);
+                self.show_dialogs(ui, i18n);
+                self.show_trash_preview_dialog(ui, i18n);
+            }
+            FileTreeMode::Changes => {
+                Self::show_changes(ui, &self.root_path, &self.git_statuses, &mut selected);
+            }
+        }
 
         result.selected = selected;
         result

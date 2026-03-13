@@ -1,3 +1,11 @@
+## [1.4.4-dev] - 2026-03-13
+
+### Added
+- **Přepínač Projekt / Změny v levém panelu**: Vedle nadpisu „Soubory" jsou dva přepínače — Projekt (klasický strom) a Změny (stromový pohled na soubory se změnami z gitu). Přepínače jsou lokalizované (cs, en, de, ru, sk).
+- **Pohled Změny**: Zobrazuje stromovou strukturu (ne flat seznam) pouze těch adresářů a souborů, které mají git status (Modified, Added, Deleted, Untracked). Strom je vždy plně rozbalený. Každý soubor má prefix statusu (M/A/D/?), barvy odpovídají existující git paletě. Kliknutím se soubor otevře v editoru.
+- **Ikony podle typu souboru**: Soubory v obou pohledech (Projekt i Změny) mají ikonu podle přípony — 🦀 `.rs`, 🌐 `.html`, 🎨 `.css`, 📜 `.js`, 📘 `.ts`, 📋 `.json`, ⚙️ `.toml`, 📝 `.md`, 🐍 `.py`, 🖼️ obrázky, 📦 archivy, 🐳 `Dockerfile` a další. Speciální adresáře mají taky vlastní ikony (📦 `src`, 🧪 `tests`, 📚 `docs`, 🌍 `locales`, 🏗️ `target` atd.).
+- **i18n**: Nové lokalizační klíče `panel-files-tree` a `panel-files-changes` ve všech 5 jazycích.
+
 ## [1.4.3-dev] - 2026-03-13
 
 ### Fixed

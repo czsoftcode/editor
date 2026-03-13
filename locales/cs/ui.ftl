@@ -2,6 +2,8 @@
 
 ## Panely
 panel-files = Soubory
+panel-files-tree = Projekt
+panel-files-changes = Změny
 btn-tree-project = Projekt
 panel-runners = Spouštěče
 panel-build = Sestavit

@@ -11,15 +11,16 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 ## Current State
 
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
-- **Last completed milestone:** M003: Vylepšení UI Historie Souboru (2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze
-- **Active milestone:** M003: Vylepšení UI Historie Souboru ✅ complete (S01 ✅, S02 ✅)
-- **Quality status:** `cargo check` čistý, clippy čistý, 145 testů zelených (1 předexistující selhání mimo scope)
-- **Primary artifacts:** `.gsd/milestones/M003/M003-ROADMAP.md`
+- **Last completed milestone:** M003: Vylepšení UI Historie Souboru (2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
+- **Active milestone:** none
+- **Quality status:** `cargo check` čistý, clippy čistý, 195 testů zelených (0 selhání)
+- **Primary artifacts:** `.gsd/milestones/M003/M003-SUMMARY.md`
 
 ## Requirements
 
 ### Validated
 
+- ✓ M003: Vylepšení UI Historie Souboru (R001–R009: editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, restore, potvrzovací dialog, tab sync, výchozí stav panelů, i18n)
 - ✓ v1.3.1: Safe Trash Delete (TRASH-01..04, RESTORE-01..03, TRASHUI-01, RELIAB-01..03)
 - ✓ v1.3.0: CLI cleanup + AI terminal-only boundary + traceability closure (R33-A/R33-B/R33-C/R33-D)
 - ✓ v1.2.2: Additional Themes (WarmTan + Midnight varianty, syntect mapovani, i18n)
@@ -61,13 +62,14 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 ## Context
 
 **Known tech debt:**
-- Test `phase35_delete_foundation_scope_guard_has_no_restore_foundation_symbols` selhává (hledá odstraněný soubor z v1.3.1)
+- Test `phase35_delete_foundation_scope_guard_has_no_restore_foundation_symbols` selhává (hledá odstraněný soubor z v1.3.1) — aktuálně 0 test failures (test mohl být odstraněn)
 - UAT skipped scenare ve fazich 35 a 36 (non-blocking)
 - Manualni anti-storm UX checkpoint ve fazi 38
 - Warning text kontrast v light mode (Settings modal)
 - Syntax highlighting v AI chatu (egui_commonmark code blocky)
 - warm_ivory_bg() threshold na hraně pro budoucí varianty
 - FmDocument dot-notation omezena na 2 úrovně zanoření
+- Restore error handling v history view používá eprintln! místo UI toastu
 
 ## Key Decisions
 
@@ -85,6 +87,8 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 | TextEdit+layouter+diff overlay v history view | Editovatelný panel se syntax highlighting + per-řádek diff pozadím | ✓ Implemented M003/S01 |
 | Proportionální sync scroll s epsilon tolerancí | Line-based mapování odloženo, proporce stačí | ✓ Implemented M003/S01 |
 | Restore jako append (ne replace) | Zachování kompletní historie při obnovení | ✓ Implemented M003/S02 |
+| Diff cache invalidace přes content_hash (xxh3_64) | Diff se přepočítá jen při reálné změně obsahu, ne per-frame | ✓ Implemented M003/S01 |
+| Restore signalizace přes HistorySplitResult flag | Render nemá &mut LocalHistory, restore musí proběhnout v workspace handleru | ✓ Implemented M003/S02 |
 
 <details>
 <summary>Archived milestone context (v1.3.1 planning snapshot)</summary>
@@ -101,6 +105,25 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - 7 slicí: S02 (Základ), S04 (Terminal Git Barvy), S05 (Light Varianty), S07 (Infrastructure), S08 (Sandbox Apply), S10 (Slash Commands), S11 (GSD State Engine)
 - Hlavní deliverables: dark/light theme se 3 variantami, sandbox runtime lifecycle, 7 slash commands, YAML-like parser
 - Duration: 2026-03-04 až 2026-03-07
+
+</details>
+
+<details>
+<summary>Archived milestone context (M002: Local History)</summary>
+
+- 3 slicí: S01 (pipeline + context menu), S02 (split view + diff), S03 (cleanup + edge cases)
+- Hlavní deliverables: snapshot pipeline při save, split view s diff zvýrazněním, cleanup retence 50 verzí / 30 dní
+- Duration: 2026-03-13
+
+</details>
+
+<details>
+<summary>Archived milestone context (M003: Vylepšení UI Historie Souboru)</summary>
+
+- 2 slicí: S01 (editovatelný panel + syntax highlighting + sync scroll + diff), S02 (obnovení + potvrzení + i18n)
+- Hlavní deliverables: editovatelný TextEdit s layouterem + diff overlay, syntax highlighting oba panely, proportionální sync scroll, restore s potvrzením (append), i18n 5 klíčů × 5 jazyků
+- Requirements: R001–R009 (všechny validated)
+- Duration: 2026-03-13
 
 </details>
 

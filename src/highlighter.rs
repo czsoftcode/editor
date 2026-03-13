@@ -43,7 +43,11 @@ fn build_syntax_set() -> SyntaxSet {
     for dir in &candidates {
         if dir.is_dir() {
             if let Err(e) = builder.add_from_folder(dir, true) {
-                eprintln!("[highlighter] Chyba při načítání syntaxí z {}: {}", dir.display(), e);
+                eprintln!(
+                    "[highlighter] Chyba při načítání syntaxí z {}: {}",
+                    dir.display(),
+                    e
+                );
             } else {
                 eprintln!("[highlighter] Načteny custom syntaxe z {}", dir.display());
             }
@@ -195,7 +199,10 @@ mod tests {
     fn test_toml_syntax_available() {
         let ss = build_syntax_set();
         let syntax = ss.find_syntax_by_extension("toml");
-        assert!(syntax.is_some(), "TOML syntaxe musí být dostupná po načtení custom syntaxí");
+        assert!(
+            syntax.is_some(),
+            "TOML syntaxe musí být dostupná po načtení custom syntaxí"
+        );
         assert_eq!(syntax.unwrap().name, "TOML");
     }
 
@@ -205,7 +212,11 @@ mod tests {
         let toml_text = "[package]\nname = \"test\"\nversion = \"1.0.0\"\n# komentář\nenabled = true\ncount = 42\n";
         let job = h.highlight(toml_text, "toml", "Cargo.toml", 14.0, "base16-ocean.dark");
         // TOML s highlighting musí vytvořit víc sekcí než plain text (kde je 1 sekce na řádek)
-        assert!(job.sections.len() > 6, "TOML highlighting by měl vytvořit více sekcí, dostal {}", job.sections.len());
+        assert!(
+            job.sections.len() > 6,
+            "TOML highlighting by měl vytvořit více sekcí, dostal {}",
+            job.sections.len()
+        );
     }
 
     #[test]

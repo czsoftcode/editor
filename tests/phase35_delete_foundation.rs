@@ -33,9 +33,10 @@ fn phase35_delete_foundation_is_fail_closed() {
 
 #[test]
 fn phase35_delete_foundation_scope_guard_has_no_restore_foundation_symbols() {
-    let plan =
-        fs::read_to_string(".planning/phases/35-trash-foundation-async-safety/35-03-PLAN.md")
-            .expect("failed to read 35-03 plan");
+    let plan = fs::read_to_string(
+        ".planning/milestones/v1.3.1-phases/35-trash-foundation-async-safety/35-03-PLAN.md",
+    )
+    .expect("failed to read 35-03 plan");
     let forbidden_prepare = format!("prepare_restore_{}", "foundation");
     let forbidden_phase = format!("phase35_restore_{}", "foundation");
     let forbidden_phrase = format!("{} {}", "restore", "foundation");

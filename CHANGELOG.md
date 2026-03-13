@@ -1,3 +1,26 @@
+## [1.4.1-dev] - 2026-03-13
+
+### Added
+- **History View — Editovatelný levý panel**: Levý panel v history split view je nyní plně editovatelný TextEdit se syntax highlighting (syntect). Editace se průběžně propsávají do tab bufferu a tab se označí jako modified (●).
+- **History View — Syntax Highlighting v obou panelech**: Oba panely mají syntax highlighting přes syntect kombinovaný s diff zvýrazněním — normální řádky plná syntaxe, diff řádky diff pozadí + syntax barvy textu.
+- **History View — Synchronizovaný scroll**: Rolování jedním panelem automaticky roluje i druhý přes proporcionální mapování s epsilon tolerancí (1.0px).
+- **History View — Diff zvýraznění v obou panelech**: Levý i pravý panel zobrazují diff oproti protějšímu panelu. Diff cache se invaliduje přes content_hash (xxh3) při reálné změně obsahu.
+- **History View — Obnovení historické verze**: Tlačítko "Obnovit" v toolbaru → potvrzovací dialog → obsah historické verze se zapíše do editoru. Nový snapshot se vytvoří jako append (mezilehlé verze zůstanou zachovány). History view se automaticky refreshne.
+- **History View — Výchozí stav panelů**: Soubor s 1 verzí → pravý panel prázdný. Soubor s >1 verzí → pravý panel automaticky zobrazí nejnovější historickou verzi.
+- **i18n**: 5 nových lokalizačních klíčů pro restore flow (`history-restore-btn`, `-confirm-title`, `-confirm-text`, `-confirm-ok`, `-confirm-cancel`) ve všech 5 jazycích (cs, en, sk, de, ru).
+
+### Changed
+- **History View rendering**: Levý panel přešel z read-only LayoutJob na editovatelný TextEdit s layouter closure (syntect highlighting + apply_diff_backgrounds overlay).
+- **Diff cache strategie**: Invalidace přes content_hash (xxh3_64) místo prostého diff_for_index porovnání — reaguje na reálné změny obsahu, ne jen na navigaci.
+- **Celkový počet testů**: 158 (145 unit + 13 integračních), 1 preexistující selhání mimo scope.
+
+### Verified
+- **cargo check**: Kompilace bez chyb.
+- **cargo clippy**: Žádné warningy.
+- **cargo test**: 158 testů zelených, 1 preexistující selhání mimo scope.
+- **i18n audit**: `grep 'history-restore' locales/*/ui.ftl` — 5 klíčů × 5 jazyků kompletní.
+- **Manuální UAT**: Scénáře popsány v S01-UAT.md a S02-UAT.md, vyžadují vizuální kontrolu v běžícím editoru.
+
 ## [1.4.0-dev] - 2026-03-13
  
 ### Added

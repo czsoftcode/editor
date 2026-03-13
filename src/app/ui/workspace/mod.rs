@@ -661,15 +661,21 @@ pub(crate) fn render_workspace(
     // --- 5. CENTRAL PANEL (Editor) ---
     let prev_active_path = ws.editor.active_path().cloned();
     egui::CentralPanel::default().show(ctx, |ui| {
-        let settings = Arc::clone(&shared.lock().expect("lock").settings);
-        let editor_res = ws
-            .editor
-            .ui(ui, editor_locked, i18n, ws.lsp_client.as_ref(), &settings);
-        if editor_res.clicked {
-            ws.focused_panel = FocusedPanel::Editor;
-        }
+        // Editor se nekreslí pokud je aktivní history split view
+        let editor_res = if ws.history_view.is_none() {
+            let settings = Arc::clone(&shared.lock().expect("lock").settings);
+            let res = ws
+                .editor
+                .ui(ui, editor_locked, i18n, ws.lsp_client.as_ref(), &settings);
+            if res.clicked {
+                ws.focused_panel = FocusedPanel::Editor;
+            }
+            Some(res)
+        } else {
+            None
+        };
 
-        if let Some(action) = editor_res.tab_action {
+        if let Some(action) = editor_res.as_ref().and_then(|r| r.tab_action.as_ref()) {
             match action {
                 TabBarAction::Close(idx) => {
                     let tabs_snapshot: Vec<(PathBuf, bool)> = ws
@@ -678,12 +684,12 @@ pub(crate) fn render_workspace(
                         .iter()
                         .map(|tab| (tab.path.clone(), tab.modified))
                         .collect();
-                    if let Some(target_path) = tabbar_close_target_path(&tabs_snapshot, idx) {
+                    if let Some(target_path) = tabbar_close_target_path(&tabs_snapshot, *idx) {
                         request_close_tab_target(ws, target_path);
                     }
                 }
                 TabBarAction::ShowHistory(idx) => {
-                    if let Some(tab) = ws.editor.tabs.get(idx)
+                    if let Some(tab) = ws.editor.tabs.get(*idx)
                         && let Ok(rel_path) = tab.path.strip_prefix(&ws.root_path)
                     {
                         let entries = ws.local_history.get_history(rel_path);
@@ -691,38 +697,40 @@ pub(crate) fn render_workspace(
                             ws.toasts
                                 .push(Toast::info(i18n.get("history-panel-no-versions")));
                         } else {
+                            let current_content = tab.content.clone();
                             ws.history_view = Some(history::HistoryViewState {
                                 file_path: tab.path.clone(),
                                 relative_path: rel_path.to_path_buf(),
                                 entries,
-                                selected_index: None,
-                                preview_content: None,
-                                scroll_to_selected: false,
+                                selected_index: Some(0),
+                                current_content,
+                                cached_diff: None,
+                                diff_for_index: None,
+                                split_ratio: 0.5,
                             });
                         }
                     }
                 }
                 TabBarAction::Switch(_) | TabBarAction::New => {
-                    // Other actions are already handled inside the editor UI.
+                    // Jiné akce jsou zpracované uvnitř editor UI.
                 }
             }
         }
 
-        if let Some((path_str, action, _new_text)) = editor_res.diff_action
-            && action == crate::app::ui::editor::DiffAction::Accepted
+        if let Some(ref editor_res) = editor_res
+            && let Some((ref path_str, ref action, ref _new_text)) = editor_res.diff_action
+            && *action == crate::app::ui::editor::DiffAction::Accepted
         {
-            let path = PathBuf::from(&path_str);
+            let path = PathBuf::from(path_str);
             if !ws.editor.tabs.iter().any(|t| t.path == path) {
                 open_file_in_ws(ws, path);
             }
         }
 
-        // History panel overlay — zobrazí se místo editoru pokud je aktivní
+        // History split view — zobrazí se místo editoru pokud je aktivní
         if ws.history_view.is_some() {
-            // Vytvořit nový scope pro borrow split:
-            // potřebujeme &mut history_view a &local_history současně.
             let hv = ws.history_view.as_mut().unwrap();
-            let close = history::render_history_panel(hv, &ws.local_history, ui, i18n);
+            let close = history::render_history_split_view(hv, &ws.local_history, ui, i18n);
             if close {
                 ws.history_view = None;
             }

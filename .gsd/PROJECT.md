@@ -12,9 +12,9 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
 - **Last completed milestone:** M001: Migration (2026-03-13) — theme systém, sandbox runtime, slash commands, GSD state engine
-- **Active milestone:** M002: Local History — S01 dokončen, S02 next
-- **Quality status:** `cargo check` čistý, testy zelené (1 předexistující selhání mimo scope)
-- **Primary artifacts:** `.gsd/milestones/M002/slices/S01/S01-SUMMARY.md`
+- **Active milestone:** M002: Local History — S01+S02 dokončeny, S03 next
+- **Quality status:** `cargo check` čistý, clippy čistý, testy zelené (1 předexistující selhání mimo scope)
+- **Primary artifacts:** `.gsd/milestones/M002/slices/S02/S02-SUMMARY.md`
 
 ## Requirements
 
@@ -45,7 +45,7 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 ## Milestone Sequence
 
 - ~~M001: Migration~~ ✓ (completed 2026-03-13)
-- 🔄 M002: Local History (active — S01 done, S02 next)
+- 🔄 M002: Local History (active — S01+S02 done, S03 next)
 
 ## Next Milestone Goals
 
@@ -94,4 +94,4 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 </details>
 
 ---
-*Last updated: 2026-03-13 after completing slice M002/S01: Snapshot Pipeline a Tab Context Menu*
+*Last updated: 2026-03-13 after completing slice M002/S02: History Split View s Diff a Navigací*

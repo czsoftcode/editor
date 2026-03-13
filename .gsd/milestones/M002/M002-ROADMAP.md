@@ -59,7 +59,7 @@ This milestone is complete only when all are true:
 
 - [x] **S01: Snapshot Pipeline a Tab Context Menu** `risk:medium` `depends:[]`
   > After this: Uložení souboru 3× vytvoří 3 snapshoty v `.polycredo/history/`. Pravý klik na tab ukáže "Historie souboru" — zatím otevře jednoduchý history panel s výpisem verzí a náhledem vybrané verze v jednom panelu. Binární soubory jsou přeskočeny, I/O chyby se zobrazí v toastu. Ověřeno unit testy a manuálně v běžícím editoru.
-- [ ] **S02: History Split View s Diff a Navigací** `risk:high` `depends:[S01]`
+- [x] **S02: History Split View s Diff a Navigací** `risk:high` `depends:[S01]`
   > After this: "Historie souboru" otevře plný split view — aktuální verze vlevo, historická vpravo s diff zvýrazněním (zelená/červená). Šipky přepínají mezi verzemi. Diff je cachovaný (ne per-frame). Zavření vrátí normální editor. Ověřeno vizuálně v běžícím editoru.
 - [ ] **S03: Cleanup, Edge Cases a Finální Integrace** `risk:low` `depends:[S01,S02]`
   > After this: Cleanup při startu workspace smaže verze nad retenci (50) a starší 30 dní. Stará testovací data v `.polycredo/history/` jsou vyčištěna. Zavření tabu v history mode vyčistí stav. Finální UAT scénáře prochází end-to-end. Kompletní i18n audit pro všech 5 jazyků.

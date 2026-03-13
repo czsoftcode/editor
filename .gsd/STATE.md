@@ -1,8 +1,8 @@
 # GSD State
 
-**Active Milestone:** None
+**Active Milestone:** M003 — Vylepšení UI Historie Souboru
 **Active Slice:** None
-**Phase:** idle
+**Phase:** complete
 **Requirements Status:** 0 active · 9 validated · 0 deferred · 2 out of scope
 
 ## Milestone Registry
@@ -11,10 +11,10 @@
 - ✅ **M003:** Vylepšení UI Historie Souboru
 
 ## Recent Decisions
-- All 9 M003 requirements (R001–R009) transitioned active → validated
+- None recorded
 
 ## Blockers
 - None
 
 ## Next Action
-All milestones complete. Ready for next milestone planning or backlog work.
+All milestones complete.

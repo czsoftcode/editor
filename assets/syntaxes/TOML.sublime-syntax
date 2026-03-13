@@ -1,0 +1,154 @@
+%YAML 1.2
+---
+# Sublime-syntax definice pro TOML (kompatibilní se syntect 5.x)
+name: TOML
+scope: source.toml
+file_extensions:
+  - toml
+  - Cargo.lock
+  - Pipfile
+  - poetry.lock
+
+contexts:
+  main:
+    # Komentáře
+    - match: '#.*$'
+      scope: comment.line.number-sign.toml
+
+    # Hlavičky tabulek [[array]]
+    - match: '^\s*(\[\[)([^\]]*?)(\]\])'
+      captures:
+        1: punctuation.definition.table.array.begin.toml
+        2: entity.name.table.array.toml
+        3: punctuation.definition.table.array.end.toml
+
+    # Hlavičky tabulek [table]
+    - match: '^\s*(\[)([^\]]*?)(\])'
+      captures:
+        1: punctuation.definition.table.begin.toml
+        2: entity.name.table.toml
+        3: punctuation.definition.table.end.toml
+
+    # Klíč = hodnota
+    - match: '^\s*([A-Za-z0-9_\-."]+)\s*(=)\s*'
+      captures:
+        1: variable.other.key.toml
+        2: keyword.operator.assignment.toml
+      push: value
+
+  value:
+    # Víceřádkové stringy (musí být před jednořádkovými)
+    - match: '"""'
+      scope: punctuation.definition.string.begin.toml
+      push: multiline_basic_string
+    - match: "'''"
+      scope: punctuation.definition.string.begin.toml
+      push: multiline_literal_string
+
+    # Základní string "..."
+    - match: '"'
+      scope: punctuation.definition.string.begin.toml
+      push: basic_string
+
+    # Literálový string '...'
+    - match: "'"
+      scope: punctuation.definition.string.begin.toml
+      push: literal_string
+
+    # Boolean
+    - match: '\b(true|false)\b'
+      scope: constant.language.boolean.toml
+      pop: true
+
+    # Datetime (RFC 3339)
+    - match: '\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?'
+      scope: constant.other.datetime.toml
+      pop: true
+
+    # Datum
+    - match: '\d{4}-\d{2}-\d{2}'
+      scope: constant.other.date.toml
+      pop: true
+
+    # Čas
+    - match: '\d{2}:\d{2}:\d{2}(\.\d+)?'
+      scope: constant.other.time.toml
+      pop: true
+
+    # Float (inf, nan, čísla s tečkou/exponentem)
+    - match: '[+-]?(inf|nan)\b'
+      scope: constant.numeric.float.toml
+      pop: true
+    - match: '[+-]?\d[\d_]*\.\d[\d_]*([eE][+-]?\d[\d_]*)?'
+      scope: constant.numeric.float.toml
+      pop: true
+    - match: '[+-]?\d[\d_]*[eE][+-]?\d[\d_]*'
+      scope: constant.numeric.float.toml
+      pop: true
+
+    # Hexadecimální čísla
+    - match: '0x[0-9a-fA-F_]+'
+      scope: constant.numeric.hex.toml
+      pop: true
+
+    # Oktálová čísla
+    - match: '0o[0-7_]+'
+      scope: constant.numeric.octal.toml
+      pop: true
+
+    # Binární čísla
+    - match: '0b[01_]+'
+      scope: constant.numeric.binary.toml
+      pop: true
+
+    # Integer
+    - match: '[+-]?\d[\d_]*'
+      scope: constant.numeric.integer.toml
+      pop: true
+
+    # Inline pole/tabulka — zůstaň v hodnotách
+    - match: '[\[\{]'
+      scope: punctuation.section.toml
+
+    # Komentář za hodnotou
+    - match: '#.*$'
+      scope: comment.line.number-sign.toml
+      pop: true
+
+    # Konec řádku → zpět do main
+    - match: '$'
+      pop: true
+
+  basic_string:
+    - match: '\\[btnfr"\\]|\\u[0-9a-fA-F]{4}|\\U[0-9a-fA-F]{8}'
+      scope: constant.character.escape.toml
+    - match: '"'
+      scope: punctuation.definition.string.end.toml
+      pop: 2
+    - match: '[^"\\]+'
+      scope: string.quoted.double.toml
+
+  literal_string:
+    - match: "'"
+      scope: punctuation.definition.string.end.toml
+      pop: 2
+    - match: "[^']*"
+      scope: string.quoted.single.toml
+
+  multiline_basic_string:
+    - match: '\\[btnfr"\\]|\\u[0-9a-fA-F]{4}|\\U[0-9a-fA-F]{8}'
+      scope: constant.character.escape.toml
+    - match: '"""'
+      scope: punctuation.definition.string.end.toml
+      pop: 2
+    - match: '[^"\\]+'
+      scope: string.quoted.double.toml
+    - match: '"'
+      scope: string.quoted.double.toml
+
+  multiline_literal_string:
+    - match: "'''"
+      scope: punctuation.definition.string.end.toml
+      pop: 2
+    - match: "[^']*"
+      scope: string.quoted.single.toml

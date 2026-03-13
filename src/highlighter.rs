@@ -8,6 +8,9 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+/// Cesta ke custom sublime-syntax definicím (vedle binárky nebo ve zdrojovém stromu).
+const CUSTOM_SYNTAXES_DIR: &str = "assets/syntaxes";
+
 pub struct Highlighter {
     syntax_set: SyntaxSet,
     theme_set: ThemeSet,
@@ -18,10 +21,43 @@ pub struct Highlighter {
     cache: std::sync::Mutex<HashMap<u64, Arc<egui::text::LayoutJob>>>,
 }
 
+/// Načte výchozí syntaxe + custom `.sublime-syntax` soubory z `assets/syntaxes/`.
+/// Hledá adresář vedle spustitelného souboru, v CWD, nebo ve zdrojovém stromu.
+fn build_syntax_set() -> SyntaxSet {
+    let defaults = SyntaxSet::load_defaults_newlines();
+    let mut builder = defaults.into_builder();
+
+    // Hledáme adresář s custom syntaxemi na několika místech
+    let candidates: Vec<std::path::PathBuf> = vec![
+        // Vedle binárky (typicky pro release build)
+        std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.join(CUSTOM_SYNTAXES_DIR)))
+            .unwrap_or_default(),
+        // CWD (typicky pro cargo run z kořene projektu)
+        std::path::PathBuf::from(CUSTOM_SYNTAXES_DIR),
+        // CARGO_MANIFEST_DIR (pro testy)
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(CUSTOM_SYNTAXES_DIR),
+    ];
+
+    for dir in &candidates {
+        if dir.is_dir() {
+            if let Err(e) = builder.add_from_folder(dir, true) {
+                eprintln!("[highlighter] Chyba při načítání syntaxí z {}: {}", dir.display(), e);
+            } else {
+                eprintln!("[highlighter] Načteny custom syntaxe z {}", dir.display());
+            }
+            break;
+        }
+    }
+
+    builder.build()
+}
+
 impl Highlighter {
     pub fn new() -> Self {
         Self {
-            syntax_set: SyntaxSet::load_defaults_newlines(),
+            syntax_set: build_syntax_set(),
             theme_set: ThemeSet::load_defaults(),
             current_theme: std::sync::Mutex::new("base16-ocean.dark".to_string()),
             cache: std::sync::Mutex::new(HashMap::new()),
@@ -154,6 +190,23 @@ impl Highlighter {
 mod tests {
     use super::*;
     use std::time::Instant;
+
+    #[test]
+    fn test_toml_syntax_available() {
+        let ss = build_syntax_set();
+        let syntax = ss.find_syntax_by_extension("toml");
+        assert!(syntax.is_some(), "TOML syntaxe musí být dostupná po načtení custom syntaxí");
+        assert_eq!(syntax.unwrap().name, "TOML");
+    }
+
+    #[test]
+    fn test_toml_highlighting_produces_sections() {
+        let h = Highlighter::new();
+        let toml_text = "[package]\nname = \"test\"\nversion = \"1.0.0\"\n# komentář\nenabled = true\ncount = 42\n";
+        let job = h.highlight(toml_text, "toml", "Cargo.toml", 14.0, "base16-ocean.dark");
+        // TOML s highlighting musí vytvořit víc sekcí než plain text (kde je 1 sekce na řádek)
+        assert!(job.sections.len() > 6, "TOML highlighting by měl vytvořit více sekcí, dostal {}", job.sections.len());
+    }
 
     #[test]
     fn test_highlight_performance_10k() {

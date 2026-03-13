@@ -9,13 +9,17 @@ use crate::app::ui::widgets::modal::{ModalResult, show_modal};
 use crate::highlighter::Highlighter;
 use crate::i18n::I18n;
 
-/// Převede UNIX timestamp (sekundy) na lokální čas přes libc::localtime_r.
+/// Převede UNIX timestamp (sekundy) na lokální čas.
+/// Na Unixu přes `localtime_r`, na Windows přes `localtime_s` (obrácené pořadí argumentů).
 /// Vrací (rok, měsíc, den, hodiny, minuty, sekundy).
 fn unix_ts_to_local(ts: u64) -> (i32, u32, u32, u32, u32, u32) {
     let time_t = ts as libc::time_t;
     let mut tm: libc::tm = unsafe { std::mem::zeroed() };
     unsafe {
+        #[cfg(unix)]
         libc::localtime_r(&time_t, &mut tm);
+        #[cfg(windows)]
+        libc::localtime_s(&mut tm, &time_t);
     }
     (
         tm.tm_year + 1900,

@@ -64,3 +64,4 @@ fn main() -> eframe::Result<()> {
         Box::new(move |cc| Ok(Box::new(app::EditorApp::new(cc, root_path)))),
     )
 }
+

@@ -6,6 +6,8 @@ pub(crate) enum TabBarAction {
     Switch(usize),
     Close(usize),
     New,
+    /// Otevřít history panel pro tab na daném indexu.
+    ShowHistory(usize),
 }
 
 /// Description of a single tab passed to [`render_compact_tab_bar`].

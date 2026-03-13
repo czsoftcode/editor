@@ -344,3 +344,16 @@ unsaved-close-guard-message = Diese Datei enthält ungespeicherte Änderungen. W
 unsaved-close-guard-save = Speichern und schließen
 unsaved-close-guard-discard = Änderungen verwerfen
 unsaved-close-guard-cancel = Abbrechen
+
+## History panel (lokale Dateiversionsgeschichte)
+tab-context-history = Dateiverlauf
+tab-context-close = Tab schließen
+history-panel-title = Verlauf: { $name }
+history-panel-no-versions = Keine historischen Versionen.
+history-panel-close = ✕ Schließen
+history-panel-version-label = { $date }
+history-nav-older = Ältere Version
+history-nav-newer = Neuere Version
+history-current-label = Aktuell
+history-historical-label = Historisch
+history-version-info = Version von { $date }

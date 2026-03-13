@@ -61,6 +61,8 @@ pub fn init_workspace(
 
     let profiles = load_profiles(&root_path);
 
+    let (background_io_tx, background_io_rx) = std::sync::mpsc::channel::<super::FsChangeResult>();
+
     WorkspaceState {
         file_tree,
         editor: Editor::new(),
@@ -131,12 +133,14 @@ pub fn init_workspace(
         },
         git_cancel,
         local_history: crate::app::local_history::LocalHistory::new(&root_path),
-        background_io_rx: None,
+        background_io_tx,
+        background_io_rx: Some(background_io_rx),
         applied_settings_version: 0,
         confirm_discard_changes: None,
         last_keystroke_time: None,
         pending_close_flow: None,
         last_unsaved_close_cancelled: false,
+        history_view: None,
     }
 }
 

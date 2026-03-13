@@ -53,3 +53,6 @@ info-session-restored =
 
 ## Unsaved Close Guard
 unsaved_close_guard_save_failed = Speichern von „{ $name }“ während des Schließens fehlgeschlagen: { $reason }
+
+## Lokaler Verlauf
+error-history-snapshot = Fehler beim Erstellen des Snapshots von „{ $path }": { $reason }

@@ -125,6 +125,7 @@ pub struct WorkspaceState {
     pub ai_panel: AiPanelState,
     pub git_cancel: Arc<AtomicBool>,
     pub local_history: crate::app::local_history::LocalHistory,
+    pub background_io_tx: mpsc::Sender<FsChangeResult>,
     pub background_io_rx: Option<mpsc::Receiver<FsChangeResult>>,
     pub applied_settings_version: u64,
     /// Pending discard changes confirmation for a specific modal ID.
@@ -137,6 +138,8 @@ pub struct WorkspaceState {
     /// was cancelled by the user. Used by root close orchestration to decide whether
     /// to proceed with Quit/Close Project/window close.
     pub last_unsaved_close_cancelled: bool,
+    /// Stav otevřeného history panelu (None = panel není zobrazen).
+    pub history_view: Option<crate::app::ui::workspace::history::HistoryViewState>,
 }
 
 impl Drop for WorkspaceState {

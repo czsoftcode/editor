@@ -93,7 +93,7 @@ impl Editor {
         // --- Tabs and bars ---
         use crate::app::ui::widgets::tab_bar::TabBarAction;
         let mut tab_action = None;
-        self.tab_bar(ui, &mut tab_action, settings);
+        self.tab_bar(ui, &mut tab_action, settings, i18n);
 
         if let Some(action) = tab_action {
             match action {
@@ -108,6 +108,9 @@ impl Editor {
                     result_tab_action = Some(TabBarAction::Close(idx));
                 }
                 TabBarAction::New => {}
+                TabBarAction::ShowHistory(idx) => {
+                    result_tab_action = Some(TabBarAction::ShowHistory(idx));
+                }
             }
         }
 

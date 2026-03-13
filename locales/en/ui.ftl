@@ -350,3 +350,16 @@ dep-wizard-btn-run-cmd = Start Installation (requires sudo)
 dep-wizard-status-running = Installing...
 
 dep-wizard-appimagetool-desc = The appimagetool is required for the final packaging of the .AppImage bundle.
+
+## History panel (local file history)
+tab-context-history = File History
+tab-context-close = Close Tab
+history-panel-title = History: { $name }
+history-panel-no-versions = No historical versions.
+history-panel-close = ✕ Close
+history-panel-version-label = { $date }
+history-nav-older = Older version
+history-nav-newer = Newer version
+history-current-label = Current
+history-historical-label = Historical
+history-version-info = Version from { $date }

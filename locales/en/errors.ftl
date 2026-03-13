@@ -53,3 +53,6 @@ info-session-restored =
 
 ## Unsaved close guard
 unsaved_close_guard_save_failed = Failed to save "{ $name }" while closing: { $reason }
+
+## Local History
+error-history-snapshot = Failed to create snapshot of "{ $path }": { $reason }

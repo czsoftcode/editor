@@ -53,6 +53,7 @@ impl Editor {
         ui: &mut egui::Ui,
         action: &mut Option<TabBarAction>,
         settings: &crate::settings::Settings,
+        i18n: &crate::i18n::I18n,
     ) {
         let btn_w = config::TAB_BTN_WIDTH;
         let initial_scroll = self.tab_scroll_x;
@@ -127,6 +128,24 @@ impl Editor {
                             if r.clicked_by(egui::PointerButton::Middle) {
                                 tab_action = Some(TabBarAction::Close(idx));
                             }
+
+                            // Context menu (pravý klik na tab)
+                            r.context_menu(|ui| {
+                                // "Historie souboru" — jen pro ne-binární taby
+                                let is_binary = self.tabs.get(idx).is_none_or(|t| t.is_binary);
+                                if !is_binary
+                                    && ui.button(i18n.get("tab-context-history")).clicked()
+                                {
+                                    tab_action = Some(TabBarAction::ShowHistory(idx));
+                                    ui.close_menu();
+                                }
+                                // "Zavřít tab"
+                                if ui.button(i18n.get("tab-context-close")).clicked() {
+                                    tab_action = Some(TabBarAction::Close(idx));
+                                    ui.close_menu();
+                                }
+                            });
+
                             if ui.small_button("\u{00D7}").clicked() {
                                 tab_action = Some(TabBarAction::Close(idx));
                             }

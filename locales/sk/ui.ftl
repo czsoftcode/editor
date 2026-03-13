@@ -354,3 +354,16 @@ unsaved-close-guard-message = Tento súbor má neuložené zmeny. Čo chceš uro
 unsaved-close-guard-save = Uložiť a zavrieť
 unsaved-close-guard-discard = Zahodiť zmeny
 unsaved-close-guard-cancel = Zrušiť
+
+## History panel (lokálna história súboru)
+tab-context-history = História súboru
+tab-context-close = Zavrieť tab
+history-panel-title = História: { $name }
+history-panel-no-versions = Žiadne historické verzie.
+history-panel-close = ✕ Zavrieť
+history-panel-version-label = { $date }
+history-nav-older = Staršia verzia
+history-nav-newer = Novšia verzia
+history-current-label = Aktuálna
+history-historical-label = Historická
+history-version-info = Verzia z { $date }

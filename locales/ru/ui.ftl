@@ -357,3 +357,16 @@ unsaved-close-guard-message = В этом файле есть несохранё
 unsaved-close-guard-save = Сохранить и закрыть
 unsaved-close-guard-discard = Отменить изменения
 unsaved-close-guard-cancel = Отмена
+
+## History panel (локальная история файла)
+tab-context-history = История файла
+tab-context-close = Закрыть вкладку
+history-panel-title = История: { $name }
+history-panel-no-versions = Нет исторических версий.
+history-panel-close = ✕ Закрыть
+history-panel-version-label = { $date }
+history-nav-older = Более старая версия
+history-nav-newer = Более новая версия
+history-current-label = Текущая
+history-historical-label = Историческая
+history-version-info = Версия от { $date }

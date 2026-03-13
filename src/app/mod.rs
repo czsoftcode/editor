@@ -985,12 +985,17 @@ mod tests {
             local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
                 "/tmp/test",
             )),
+            background_io_tx: {
+                let (tx, _rx) = std::sync::mpsc::channel();
+                tx
+            },
             background_io_rx: None,
             applied_settings_version: 0,
             confirm_discard_changes: None,
             last_keystroke_time: None,
             pending_close_flow: None,
             last_unsaved_close_cancelled: false,
+            history_view: None,
         };
 
         let dirty_path = ws.root_path.join("dirty.txt");
@@ -1110,12 +1115,17 @@ mod tests {
             local_history: crate::app::local_history::LocalHistory::new(&PathBuf::from(
                 "/tmp/test",
             )),
+            background_io_tx: {
+                let (tx, _rx) = std::sync::mpsc::channel();
+                tx
+            },
             background_io_rx: None,
             applied_settings_version: 0,
             confirm_discard_changes: None,
             last_keystroke_time: None,
             pending_close_flow: None,
             last_unsaved_close_cancelled: false,
+            history_view: None,
         };
 
         let mut app = EditorApp::test_new_with_workspace(ws, &ctx);

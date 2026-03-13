@@ -319,5 +319,8 @@ fn apply_tab_action(ws: &mut WorkspaceState, action: TabBarAction, ctx: &egui::C
             ws.claude_tabs.push(Terminal::new(id, ctx, &root, None));
             ws.claude_active_tab = ws.claude_tabs.len() - 1;
         }
+        TabBarAction::ShowHistory(_) => {
+            // ShowHistory je relevantní jen pro editor tab bar, ne pro AI terminálové taby.
+        }
     }
 }

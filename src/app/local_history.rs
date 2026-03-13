@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use xxhash_rust::xxh3::xxh3_64;
@@ -60,22 +61,27 @@ impl LocalHistory {
         xxh3_64(content.as_bytes())
     }
 
-    /// Takes a snapshot of the current content if it differs from the last saved snapshot.
-    /// Returns the Path to the snapshot if it was newly created, or None if skipped (unmodified).
-    pub fn take_snapshot(&mut self, relative_file_path: &Path, content: &str) -> Option<PathBuf> {
-        // Never take snapshots of the internal .polycredo directory (history, etc.)
+    /// Vytvoří snapshot aktuálního obsahu, pokud se liší od posledního uloženého snímku.
+    /// Vrátí cestu ke snapshotovému souboru, nebo `Ok(None)` pokud je přeskočen (duplicitní obsah,
+    /// `.polycredo` cesta). I/O chyby se propagují nahoru.
+    pub fn take_snapshot(
+        &mut self,
+        relative_file_path: &Path,
+        content: &str,
+    ) -> Result<Option<PathBuf>, io::Error> {
+        // Nikdy nesnapshotovat interní .polycredo adresář (historie atd.)
         if relative_file_path
             .components()
             .any(|c| c.as_os_str() == ".polycredo")
         {
-            return None;
+            return Ok(None);
         }
 
         let new_hash = Self::compute_hash(content);
         let safe_name = Self::encode_path(relative_file_path);
         let file_history_dir = self.base_dir.join(&safe_name);
 
-        // Update index if needed
+        // Aktualizovat index pokud je potřeba
         if !self.index.contains_key(&safe_name) {
             self.index.insert(
                 safe_name.clone(),
@@ -85,32 +91,29 @@ impl LocalHistory {
         }
 
         if !file_history_dir.exists() {
-            let _ = fs::create_dir_all(&file_history_dir);
+            fs::create_dir_all(&file_history_dir)?;
         }
 
-        // Find the most recent snapshot to avoid duplicating identical content
+        // Najít nejnovější snapshot — vyhnout se duplikaci identického obsahu
         let entries = self.get_history(relative_file_path);
         if let Some(latest) = entries.first()
             && latest.hash == new_hash
         {
-            return None; // No changes since last snapshot
+            return Ok(None); // Žádná změna od posledního snapshotů
         }
 
-        // Save new snapshot
+        // Uložit nový snapshot
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
 
-        // Format: timestamp_hash.txt
+        // Formát: timestamp_hash.txt
         let snapshot_name = format!("{}_{}.txt", timestamp, new_hash);
         let snapshot_path = file_history_dir.join(snapshot_name);
 
-        if fs::write(&snapshot_path, content).is_ok() {
-            Some(snapshot_path)
-        } else {
-            None
-        }
+        fs::write(&snapshot_path, content)?;
+        Ok(Some(snapshot_path))
     }
 
     /// Returns a list of all historical versions for a given file, sorted from newest to oldest.
@@ -143,6 +146,18 @@ impl LocalHistory {
         // Sort descending (newest first)
         entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
         entries
+    }
+
+    /// Načte obsah historické verze souboru z disku.
+    pub fn get_snapshot_content(
+        &self,
+        relative_file_path: &Path,
+        entry: &HistoryEntry,
+    ) -> io::Result<String> {
+        let safe_name = Self::encode_path(relative_file_path);
+        let snapshot_name = format!("{}_{}.txt", entry.timestamp, entry.hash);
+        let snapshot_path = self.base_dir.join(safe_name).join(snapshot_name);
+        fs::read_to_string(snapshot_path)
     }
 
     /// Cleans up old history files to prevent unbounded disk growth.
@@ -180,5 +195,117 @@ impl LocalHistory {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+    use tempfile::TempDir;
+
+    /// Vytvoří LocalHistory v dočasném adresáři.
+    fn setup() -> (TempDir, LocalHistory) {
+        let tmp = TempDir::new().expect("tmpdir");
+        let lh = LocalHistory::new(tmp.path());
+        (tmp, lh)
+    }
+
+    #[test]
+    fn take_snapshot_creates_file_on_fs() {
+        let (_tmp, mut lh) = setup();
+        let rel = Path::new("src/main.rs");
+        let content = "fn main() {}";
+
+        let result = lh.take_snapshot(rel, content);
+        assert!(result.is_ok(), "take_snapshot by neměl selhat");
+        let path = result.unwrap();
+        assert!(path.is_some(), "snapshot by měl být vytvořen");
+        let snapshot_path = path.unwrap();
+        assert!(snapshot_path.exists(), "soubor by měl existovat na disku");
+
+        let stored = fs::read_to_string(&snapshot_path).unwrap();
+        assert_eq!(stored, content);
+    }
+
+    #[test]
+    fn duplicate_content_is_skipped() {
+        let (_tmp, mut lh) = setup();
+        let rel = Path::new("src/lib.rs");
+        let content = "pub fn hello() {}";
+
+        let first = lh.take_snapshot(rel, content).unwrap();
+        assert!(first.is_some(), "první snapshot by měl být vytvořen");
+
+        let second = lh.take_snapshot(rel, content).unwrap();
+        assert!(second.is_none(), "duplikovaný obsah by měl být přeskočen");
+    }
+
+    #[test]
+    fn polycredo_path_is_skipped() {
+        let (_tmp, mut lh) = setup();
+        let rel = Path::new(".polycredo/history/index.json");
+        let content = "{}";
+
+        let result = lh.take_snapshot(rel, content).unwrap();
+        assert!(result.is_none(), ".polycredo cesta by měla být přeskočena");
+    }
+
+    #[test]
+    fn get_snapshot_content_returns_correct_data() {
+        let (_tmp, mut lh) = setup();
+        let rel = Path::new("test.txt");
+        let content = "Obsah testovacího souboru";
+
+        lh.take_snapshot(rel, content).unwrap();
+
+        let entries = lh.get_history(rel);
+        assert_eq!(entries.len(), 1);
+
+        let read_back = lh.get_snapshot_content(rel, &entries[0]).unwrap();
+        assert_eq!(read_back, content);
+    }
+
+    #[test]
+    fn get_history_returns_sorted_entries() {
+        let (_tmp, mut lh) = setup();
+        let rel = Path::new("multi.txt");
+
+        // Vytvořit 3 snapshoty s různým obsahem
+        lh.take_snapshot(rel, "verze 1").unwrap();
+        // Malá pauza, aby se lišil timestamp (nebo alespoň hash)
+        lh.take_snapshot(rel, "verze 2").unwrap();
+        lh.take_snapshot(rel, "verze 3").unwrap();
+
+        let entries = lh.get_history(rel);
+        assert_eq!(entries.len(), 3, "měly by existovat 3 snapshoty");
+
+        // Záznamy by měly být seřazeny od nejnovějšího
+        for window in entries.windows(2) {
+            assert!(
+                window[0].timestamp >= window[1].timestamp,
+                "záznamy by měly být seřazeny sestupně"
+            );
+        }
+    }
+
+    #[test]
+    fn error_on_readonly_directory() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let tmp = TempDir::new().expect("tmpdir");
+        let mut lh = LocalHistory::new(tmp.path());
+
+        // Vytvořit base_dir a pak ji nastavit jako readonly
+        fs::create_dir_all(&lh.base_dir).unwrap();
+        fs::set_permissions(&lh.base_dir, fs::Permissions::from_mode(0o444)).unwrap();
+
+        let rel = Path::new("readonly_test.txt");
+        let result = lh.take_snapshot(rel, "obsah");
+
+        // Vrátit zpět oprávnění pro cleanup
+        fs::set_permissions(&lh.base_dir, fs::Permissions::from_mode(0o755)).unwrap();
+
+        assert!(result.is_err(), "zápis do readonly adresáře by měl selhat");
     }
 }

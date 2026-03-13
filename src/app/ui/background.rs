@@ -105,7 +105,13 @@ pub(super) fn process_background_events(
                 ws.editor.pending_ai_diff = Some((path, original, new));
             }
             FsChangeResult::LocalHistory(rel_path, content) => {
-                ws.local_history.take_snapshot(&rel_path, &content);
+                if let Err(e) = ws.local_history.take_snapshot(&rel_path, &content) {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("path", rel_path.to_string_lossy().into_owned());
+                    args.set("reason", e.to_string());
+                    ws.toasts
+                        .push(Toast::error(i18n.get_args("error-history-snapshot", &args)));
+                }
             }
         }
     }
@@ -263,12 +269,24 @@ pub(super) fn process_background_events(
     let save_mode = { shared.lock().expect("lock").settings.save_mode.clone() };
     if should_run_autosave(save_mode) && ws.external_change_conflict.is_none() {
         let should_autosave = ws.editor.should_autosave();
+        let saved_path = ws.editor.active_path().cloned();
         let internal_save = Arc::clone(&shared.lock().expect("lock").is_internal_save);
         if let Some(err) = ws.editor.try_autosave(i18n, &internal_save)
             && should_emit_save_error_toast(&err)
         {
             ws.toasts.push(Toast::error(err));
         } else if should_autosave {
+            // Odeslat snapshot signál po úspěšném autosave pro ne-binární taby
+            if let Some(path) = &saved_path
+                && let Some(tab) = ws.editor.tabs.iter().find(|t| &t.path == path)
+                && !tab.is_binary
+                && let Ok(rel_path) = tab.path.strip_prefix(&ws.root_path)
+            {
+                let _ = ws.background_io_tx.send(FsChangeResult::LocalHistory(
+                    rel_path.to_path_buf(),
+                    tab.content.clone(),
+                ));
+            }
             ws.refresh_profiles_if_active_path();
         }
     }

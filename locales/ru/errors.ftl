@@ -55,3 +55,6 @@ info-session-restored =
 
 ## Защита от потери несохранённых изменений
 unsaved_close_guard_save_failed = Не удалось сохранить «{ $name }» при закрытии: { $reason }
+
+## Локальная история
+error-history-snapshot = Не удалось создать снимок файла «{ $path }»: { $reason }

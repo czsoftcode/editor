@@ -54,3 +54,6 @@ info-session-restored =
 
 ## Strážca neuložených zmien
 unsaved_close_guard_save_failed = Nepodarilo sa uložiť „{ $name }“ počas zatvárania: { $reason }
+
+## Lokálna história
+error-history-snapshot = Nepodarilo sa vytvoriť snapshot súboru „{ $path }": { $reason }

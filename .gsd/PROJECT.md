@@ -53,6 +53,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - ~~M002: Local History~~ ✓ (completed 2026-03-13) — snapshot pipeline, split view s diff zvýrazněním, cleanup retence 50 verzí / 30 dní
 - ~~M003: Vylepšení UI Historie Souboru~~ ✓ (completed 2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
 - ~~M004: Klávesové Zkratky a Centrální Keymap~~ ✓ (completed 2026-03-13) — centrální dispatch, exkluzivní modifier matching, chybějící handlery (Ctrl+F/H/G/Shift+P/F1), command palette, uživatelská konfigurace keybindings
+- **M005: Vylepšení Project Search** — regex, case-sensitive/whole-word togglery, zvýraznění matchů, kontext, file type filtr, project-wide replace s preview
 
 ## Next Milestone Goals
 

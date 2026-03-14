@@ -51,7 +51,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Inline project search panel** `risk:high` `depends:[]`
+- [x] **S01: Inline project search panel** `risk:high` `depends:[]`
   > After this: Ctrl+Shift+F otevře inline panel pod editorem s query inputem, togglery, per-file výsledky se zvýrazněním, klik na výsledek jumpne na řádek s fokusem, replace flow funguje z panelu, stav persistuje přes close/reopen, panel je resizable. Modální search dialogy jsou nahrazeny.
 - [ ] **S02: In-file search s regex/case/whole-word togglery** `risk:low` `depends:[S01]`
   > After this: Ctrl+F zobrazí search bar s regex/case/whole-word toggle buttony, matching používá build_regex() engine místo primitivního substring match. i18n pro nové toggle labely ve všech 5 jazycích.

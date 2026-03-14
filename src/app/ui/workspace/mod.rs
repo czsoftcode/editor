@@ -21,8 +21,7 @@ use super::super::types::{AppShared, FocusedPanel, Toast, should_emit_save_error
 use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{
-    poll_and_render_project_search_results, render_file_picker, render_project_search_dialog,
-    render_replace_preview_dialog,
+    render_file_picker, render_replace_preview_dialog, render_search_panel,
 };
 use super::terminal::right::render_ai_panel;
 use super::widgets::command_palette::{execute_command, render_command_palette};
@@ -501,13 +500,21 @@ pub(crate) fn render_workspace(
     // --- CENTRÁLNÍ KEYMAP DISPATCH ---
     // Dispatch musí být PŘED widget renderingem — consume_shortcut konzumuje event.
     if let Some(cmd_id) = ctx.input_mut(|input| ws.keymap.dispatch(input)) {
-        let mut dispatch_actions = MenuActions::default();
-        execute_command(
-            crate::app::registry::CommandAction::Internal(cmd_id),
-            &mut dispatch_actions,
-            shared,
-        );
-        process_menu_actions(ctx, ws, shared, dispatch_actions, i18n);
+        // ProjectSearch z keymapu = toggle (otevře/zavře panel)
+        if cmd_id == crate::app::ui::widgets::command_palette::CommandId::ProjectSearch {
+            ws.project_search.show_panel = !ws.project_search.show_panel;
+            if ws.project_search.show_panel {
+                ws.project_search.focus_requested = true;
+            }
+        } else {
+            let mut dispatch_actions = MenuActions::default();
+            execute_command(
+                crate::app::registry::CommandAction::Internal(cmd_id),
+                &mut dispatch_actions,
+                shared,
+            );
+            process_menu_actions(ctx, ws, shared, dispatch_actions, i18n);
+        }
     }
 
     // --- 1. TOP UI (MenuBar) ---
@@ -532,13 +539,7 @@ pub(crate) fn render_workspace(
     if let Some(path) = render_file_picker(ctx, ws, i18n) {
         open_file_in_ws(ws, path);
     }
-    render_project_search_dialog(ctx, ws, i18n);
     render_replace_preview_dialog(ctx, ws, i18n);
-    if let Some((file, line)) = poll_and_render_project_search_results(ctx, ws, i18n) {
-        let full_path = ws.root_path.join(&file);
-        open_file_in_ws(ws, full_path);
-        ws.editor.jump_to_location(line, 1);
-    }
 
     // Replace execution: snapshot → write → tab refresh → summary toast
     if ws.project_search.pending_replace {
@@ -722,6 +723,20 @@ pub(crate) fn render_workspace(
         crate::app::ui::terminal::bottom::render_bottom_panel(ctx, ws, dialog_open_base, i18n);
     let ai_clicked = render_ai_panel(ctx, ws, shared, dialog_open_base, i18n);
     let left_clicked = render_left_panel(ctx, ws, shared, dialog_open_base, i18n);
+
+    // --- 4b. SEARCH PANEL (must be before CentralPanel per egui layout rules) ---
+    render_search_panel(ctx, ws, i18n);
+
+    // Zpracuj kliknutý výsledek z search panelu → navigace + fokus na editor
+    if let Some(idx) = ws.project_search.pending_jump_index.take()
+        && let Some(result) = ws.project_search.results.get(idx)
+    {
+        let full_path = ws.root_path.join(&result.file);
+        let line = result.line;
+        open_file_in_ws(ws, full_path);
+        ws.editor.jump_to_location(line, 1);
+        ws.focused_panel = FocusedPanel::Editor;
+    }
 
     // --- 5. CENTRAL PANEL (Editor) ---
     let prev_active_path = ws.editor.active_path().cloned();

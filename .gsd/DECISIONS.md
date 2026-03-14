@@ -160,3 +160,8 @@
 - "Escape v search panelu zavírá panel (show_panel=false) ale nezmaže query ani results — VS Code chování, uživatel neztratí kontext"
 - "TopBottomPanel::bottom('search_panel') s resizable(true) — egui nativní resize handle na horním okraji, žádný custom drag handler"
 - "Mrtvé modální funkce (render_project_search_dialog, poll_and_render_project_search_results) se smažou kompletně, ne podmíněně — čistý kód bez mrtvých cest"
+- "Search panel navigace na kliknutý výsledek přes last_selected_index.take() pattern — panel drží &mut ws v closure, nemůže přímo volat open_file_in_ws; index se zpracuje po render_search_panel() v workspace/mod.rs"
+- "Dual-index pattern pro search panel: last_selected_index (persistentní highlight) + pending_jump_index (consumable navigace přes .take()) — highlight musí přetrvat po navigaci pro vizuální feedback, navigace se provede jen jednou"
+- "Poll loop přímo v render_search_panel() na začátku (před UI renderingem) — výsledky se akumulují ve stejném frame kdy se vykreslí, bez závislosti na modálním dialogu"
+- "Keymap dispatch pro ProjectSearch řešen přímo v workspace/mod.rs keymap sekci (ne přes generický process_menu_actions) — umožňuje toggle vs. menu always-open rozlišení bez přidávání signálu do MenuActions"
+- "Escape handling v search panelu jako globální key check před panel renderem (ne uvnitř panel closure) — jednoduší a funguje i bez fokusu na panelu, kontrola show_replace_preview zabraňuje zavření při otevřeném modálu"

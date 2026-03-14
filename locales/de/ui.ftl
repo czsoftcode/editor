@@ -144,6 +144,7 @@ file-picker-more = … und { $count } weitere
 
 ## Projektweite Suche (Ctrl+Shift+F)
 project-search-heading = Im Projekt suchen
+project-search-panel-title = Projektsuche
 project-search-placeholder = Im Projekt suchen…
 project-search-hint = Suchbegriff…
 project-search-btn = Suchen

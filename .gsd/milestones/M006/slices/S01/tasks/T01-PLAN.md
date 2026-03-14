@@ -63,6 +63,14 @@ Rozšířit `ProjectSearch` struct o panel-specifické fieldy, vytvořit skeleto
 - `grep 'render_search_panel' src/app/ui/search_picker.rs` → nalezeno
 - Existující 20 unit testů pass: `cargo test --lib app::ui::search_picker::tests`
 
+## Observability Impact
+
+- **`ProjectSearch.show_panel: bool`** — nový runtime signál viditelnosti panelu. Inspektovatelný v debuggeru nebo přes egui state. Hodnota `true` = panel zobrazen, `false` = skryt.
+- **`ProjectSearch.last_selected_index: Option<usize>`** — transitní signál kliknutého výsledku. Po zpracování se vždy resetuje na `None` (`.take()`). Pokud zůstane `Some` déle než jeden frame, je to bug.
+- **`ProjectSearch.searching: bool`** — indikátor běžícího search threadu (existující). Panel zobrazuje spinner při `true`.
+- **`ProjectSearch.regex_error: Option<String>`** — chybová hláška zobrazená inline v panelu při nevalidním regexu.
+- **Failure visibility:** nevalidní regex → červená hláška v panelu. Search chyba → toast přes `SearchBatch::Error`.
+
 ## Inputs
 
 - `src/app/ui/search_picker.rs` — engine funkce (build_regex, run_project_search) a existující modální UI jako reference

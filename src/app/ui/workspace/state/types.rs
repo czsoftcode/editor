@@ -96,7 +96,8 @@ pub struct ReplacePreview {
 }
 
 pub struct ProjectSearch {
-    pub show_input: bool,
+    /// Zobrazit inline search panel (TopBottomPanel::bottom).
+    pub show_panel: bool,
     pub query: String,
     pub results: Vec<SearchResult>,
     pub rx: Option<mpsc::Receiver<SearchBatch>>,
@@ -118,12 +119,16 @@ pub struct ProjectSearch {
     pub show_replace_preview: bool,
     /// Flag pro workspace handler — potvrdit replace (snapshot + write).
     pub pending_replace: bool,
+    /// Poslední vybraný index ve výsledcích panelu (pro vizuální highlight).
+    pub last_selected_index: Option<usize>,
+    /// Index výsledku čekajícího na navigaci (open_and_jump). Spotřebuje se přes .take().
+    pub pending_jump_index: Option<usize>,
 }
 
 impl Default for ProjectSearch {
     fn default() -> Self {
         Self {
-            show_input: false,
+            show_panel: false,
             query: String::new(),
             results: Vec::new(),
             rx: None,
@@ -137,6 +142,8 @@ impl Default for ProjectSearch {
             replace_previews: Vec::new(),
             show_replace_preview: false,
             pending_replace: false,
+            last_selected_index: None,
+            pending_jump_index: None,
         }
     }
 }

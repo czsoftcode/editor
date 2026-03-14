@@ -147,6 +147,7 @@ file-picker-more = … a { $count } dalších
 
 ## Hledání napříč projektem (Ctrl+Shift+F)
 project-search-heading = Hledat v projektu
+project-search-panel-title = Vyhledávání v projektu
 project-search-placeholder = Hledat v projektu…
 project-search-hint = Hledaný výraz…
 project-search-btn = Hledat

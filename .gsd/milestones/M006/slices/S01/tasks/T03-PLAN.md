@@ -78,6 +78,15 @@ Uzavření slice — keymap dispatch přepojit na show_panel toggle, menu action
 - `grep -c 'project-search-panel-title' locales/en/ui.ftl` → 1
 - Existující 20 unit testů stále pass
 
+## Observability Impact
+
+- **Smazáno:** `ProjectSearch.show_input` — field odstraněn, už se nesleduje. Panel viditelnost je výhradně přes `show_panel`.
+- **Změněno:** Keymap dispatch pro `CommandId::ProjectSearch` — nyní toggle `show_panel` (otevře/zavře), ne jednosměrné otevření.
+- **Nové:** `project-search-panel-title` i18n klíč — panel heading v UI, inspekce přes lokalizační soubory.
+- **Smazáno:** `render_project_search_dialog()` a `poll_and_render_project_search_results()` — mrtvý kód odstraněn, funkčnost přesunuta do `render_search_panel()`.
+- **Escape handling:** Detekce `Key::Escape` zavře panel (`show_panel = false`) pokud není otevřený replace preview dialog. Query a výsledky zůstávají zachovány.
+- **Budoucí agent:** Zkontroluj `show_panel` v types.rs pro panel stav, `grep 'render_project_search_dialog'` → 0 = mrtvý kód smazán, `grep 'show_input'` → 0 = field odstraněn.
+
 ## Inputs
 
 - T02 výstup: plně funkční render_search_panel() s výsledky, klik handlery, replace flow

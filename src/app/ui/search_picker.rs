@@ -141,61 +141,91 @@ fn start_project_search(ws: &mut WorkspaceState) {
         epoch,
         cancel_epoch,
     ));
-    ws.project_search.show_input = false;
 }
 
-pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n) {
-    if !ws.project_search.show_input {
+/// Inline search panel jako `TopBottomPanel::bottom` — náhrada za modální dialog.
+///
+/// Panel zobrazuje query input s togglery (regex, case, word, replace),
+/// file filter, a spouští search přes `run_project_search()`.
+/// Výsledky se streamují do `ws.project_search.results` a renderují se
+/// v pozdější fázi panelu.
+pub fn render_search_panel(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n) {
+    if !ws.project_search.show_panel {
         return;
     }
 
-    let focus_req = ws.project_search.focus_requested;
+    // --- Poll loop: akumulace výsledků z background threadu ---
+    if let Some(rx) = &ws.project_search.rx {
+        loop {
+            match rx.try_recv() {
+                Ok(SearchBatch::Results(batch)) => {
+                    ws.project_search.results.extend(batch);
+                }
+                Ok(SearchBatch::Done) => {
+                    ws.project_search.rx = None;
+                    ws.project_search.searching = false;
+                    break;
+                }
+                Ok(SearchBatch::Error(e)) => {
+                    ws.toasts
+                        .push(crate::app::types::Toast::error(format!("Search: {}", e)));
+                    ws.project_search.rx = None;
+                    ws.project_search.searching = false;
+                    break;
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    ws.project_search.rx = None;
+                    ws.project_search.searching = false;
+                    break;
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    break;
+                }
+            }
+        }
+    }
+    // Pokud stále probíhá search, vyžádáme repaint pro další poll
+    if ws.project_search.searching {
+        ctx.request_repaint();
+    }
+
     let mut start_search = false;
     let mut start_replace_preview = false;
-    let mut close = false;
-    let mut show_flag = true;
+    let mut close_panel = false;
+    let focus_req = ws.project_search.focus_requested;
 
-    let heading = if ws.project_search.show_replace {
-        i18n.get("project-search-replace-heading")
-    } else {
-        i18n.get("project-search-heading")
-    };
-    let modal = StandardModal::new(&heading, "project_search_modal").with_size(550.0, 340.0);
+    // Escape zavře panel (pokud není otevřený modální dialog — replace preview)
+    if !ws.project_search.show_replace_preview && ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        close_panel = true;
+    }
 
-    modal.show(ctx, &mut show_flag, |ui| {
-        // FOOTER
-        if let Some((start, replace, cl)) = modal.ui_footer_actions(ui, i18n, |f| {
-            if f.close() || f.cancel() {
-                return Some((false, false, true));
-            }
-            if f.button("project-search-btn").clicked() {
-                return Some((true, false, false));
-            }
-            if ws.project_search.show_replace
-                && !ws.project_search.results.is_empty()
-                && f.button("project-search-replace-btn").clicked()
-            {
-                return Some((false, true, false));
-            }
-            None
-        }) {
-            start_search = start;
-            start_replace_preview = replace;
-            close = cl;
-        }
+    egui::TopBottomPanel::bottom("search_panel")
+        .resizable(true)
+        .default_height(250.0)
+        .min_height(100.0)
+        .max_height(ctx.screen_rect().height() * 0.6)
+        .show(ctx, |ui| {
+            ui.add_space(4.0);
 
-        // BODY
-        modal.ui_body(ui, |ui| {
-            ui.add_space(8.0);
+            // Panel titulek
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(i18n.get("project-search-panel-title").as_str())
+                        .strong()
+                        .size(13.0),
+                );
+            });
+            ui.add_space(2.0);
 
-            // Řádek s query inputem a toggle buttony
+            // --- Horní řádek: query input + togglery + close ---
             let mut toggles_changed = false;
             ui.horizontal(|ui| {
+                // Query input
                 let resp = ui.add(
                     egui::TextEdit::singleline(&mut ws.project_search.query)
                         .hint_text(i18n.get("project-search-hint"))
-                        .desired_width(ui.available_width() - 130.0)
-                        .id(egui::Id::new("project_search_input")),
+                        .desired_width(ui.available_width() - 200.0)
+                        .id(egui::Id::new("search_panel_query_input")),
                 );
                 if focus_req {
                     resp.request_focus();
@@ -238,32 +268,50 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
                 {
                     ws.project_search.show_replace = !ws.project_search.show_replace;
                 }
+
+                // Close button
+                if ui.button("✕").on_hover_text("Close").clicked() {
+                    close_panel = true;
+                }
             });
 
-            // Replace input (viditelný pouze s replace toggle)
+            // Replace input s Replace All buttonem (podmíněný na show_replace)
             if ws.project_search.show_replace {
-                ui.add_space(4.0);
-                ui.add(
-                    egui::TextEdit::singleline(&mut ws.project_search.replace_text)
-                        .hint_text(i18n.get("project-search-replace-with"))
-                        .desired_width(ui.available_width())
-                        .id(egui::Id::new("project_search_replace_input")),
-                );
+                ui.add_space(2.0);
+                ui.horizontal(|ui| {
+                    ui.add(
+                        egui::TextEdit::singleline(&mut ws.project_search.replace_text)
+                            .hint_text(i18n.get("project-search-replace-with"))
+                            .desired_width(ui.available_width() - 100.0)
+                            .id(egui::Id::new("search_panel_replace_input")),
+                    );
+                    // Replace All button — aktivní jen když jsou výsledky
+                    let has_results = !ws.project_search.results.is_empty();
+                    if ui
+                        .add_enabled(
+                            has_results,
+                            egui::Button::new(i18n.get("project-search-replace-btn")),
+                        )
+                        .clicked()
+                    {
+                        start_replace_preview = true;
+                    }
+                });
             }
 
-            ui.add_space(4.0);
+            ui.add_space(2.0);
 
             // File filter input
             ui.add(
                 egui::TextEdit::singleline(&mut ws.project_search.options.file_filter)
                     .hint_text(i18n.get("project-search-file-filter-hint"))
                     .desired_width(ui.available_width())
-                    .id(egui::Id::new("project_search_file_filter")),
+                    .id(egui::Id::new("search_panel_file_filter")),
             );
 
             // Inline regex error
             if let Some(ref err) = ws.project_search.regex_error {
-                ui.add_space(4.0);
+                ui.add_space(2.0);
                 ui.label(
                     egui::RichText::new(err)
                         .color(egui::Color32::from_rgb(255, 80, 80))
@@ -271,19 +319,145 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
                 );
             }
 
-            // Pokud se togglery změnily a query je neprázdný → automaticky spustit search
+            // Automatický search při změně togglerů
             if toggles_changed && !ws.project_search.query.trim().is_empty() {
                 start_search = true;
             }
 
-            ui.add_space(8.0);
+            ui.add_space(4.0);
+            ui.separator();
+
+            // --- Výsledky ---
+            let result_count = ws.project_search.results.len();
+
+            // Loading indikátor
+            if ws.project_search.searching {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("count", result_count as i64);
+                    ui.label(format!(
+                        "{} ({} ...)",
+                        i18n.get("project-search-searching"),
+                        result_count,
+                    ));
+                });
+                ui.add_space(2.0);
+            } else if result_count > 0 {
+                let mut args = fluent_bundle::FluentArgs::new();
+                args.set("count", result_count as i64);
+                ui.label(i18n.get_args("project-search-results-count", &args));
+                ui.add_space(2.0);
+            }
+
+            // Scrollovatelný seznam výsledků, seskupených per-soubor
+            let font_id = egui::FontId::monospace(12.0);
+            let text_color = ui.visuals().text_color();
+            let separator_text = i18n.get("project-search-context-separator");
+
+            egui::ScrollArea::vertical()
+                .id_salt("search_panel_results_scroll")
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+
+                    let results = &ws.project_search.results;
+                    let mut i = 0;
+                    while i < results.len() {
+                        let current_file = &results[i].file;
+
+                        // Soubor heading
+                        ui.add_space(4.0);
+                        ui.label(
+                            egui::RichText::new(current_file.to_string_lossy().as_ref())
+                                .strong()
+                                .size(12.0),
+                        );
+                        ui.separator();
+
+                        let mut prev_end_line: Option<usize> = None;
+
+                        // Všechny výsledky pro tento soubor
+                        while i < results.len() && results[i].file == *current_file {
+                            let result = &results[i];
+
+                            // Separator mezi nesouvisejícími bloky
+                            let ctx_start_line =
+                                result.line.saturating_sub(result.context_before.len());
+                            if let Some(prev_end) = prev_end_line
+                                && ctx_start_line > prev_end + 1
+                            {
+                                ui.label(
+                                    egui::RichText::new(separator_text.as_str())
+                                        .color(egui::Color32::GRAY)
+                                        .small(),
+                                );
+                            }
+
+                            // Context before
+                            for (ci, ctx_line) in result.context_before.iter().enumerate() {
+                                let line_num = result.line - result.context_before.len() + ci;
+                                let job = build_context_layout_job(line_num, ctx_line, &font_id);
+                                ui.add(egui::Label::new(job).wrap_mode(egui::TextWrapMode::Extend));
+                            }
+
+                            // Match řádek — zvýrazněný, klikací
+                            let is_last_selected = ws.project_search.last_selected_index == Some(i);
+                            let job = build_match_layout_job(
+                                result.line,
+                                &result.text,
+                                &result.match_ranges,
+                                &font_id,
+                                text_color,
+                            );
+                            // Vizuální indikace naposledy navštíveného výsledku
+                            if is_last_selected {
+                                let rect = ui.available_rect_before_wrap();
+                                let row_rect = egui::Rect::from_min_size(
+                                    rect.min,
+                                    egui::vec2(
+                                        ui.available_width(),
+                                        ui.text_style_height(&egui::TextStyle::Monospace) + 2.0,
+                                    ),
+                                );
+                                ui.painter().rect_filled(
+                                    row_rect,
+                                    0.0,
+                                    egui::Color32::from_rgba_unmultiplied(80, 120, 200, 40),
+                                );
+                            }
+                            let resp = ui.add(
+                                egui::Label::new(job)
+                                    .wrap_mode(egui::TextWrapMode::Extend)
+                                    .sense(egui::Sense::click()),
+                            );
+                            if resp.clicked() {
+                                // Uložit kliknutý výsledek: highlight zůstává, navigace se spotřebuje
+                                ws.project_search.last_selected_index = Some(i);
+                                ws.project_search.pending_jump_index = Some(i);
+                            }
+                            if resp.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+
+                            // Context after
+                            for (ci, ctx_line) in result.context_after.iter().enumerate() {
+                                let line_num = result.line + 1 + ci;
+                                let job = build_context_layout_job(line_num, ctx_line, &font_id);
+                                ui.add(egui::Label::new(job).wrap_mode(egui::TextWrapMode::Extend));
+                            }
+
+                            prev_end_line = Some(result.line + result.context_after.len());
+                            i += 1;
+                        }
+                    }
+                });
         });
-    });
 
     ws.project_search.focus_requested = false;
 
+    // Spustit search
     if start_search && !ws.project_search.query.trim().is_empty() {
-        // Validace regexu před spuštěním
         match build_regex(ws.project_search.query.trim(), &ws.project_search.options) {
             Ok(_) => {
                 ws.project_search.regex_error = None;
@@ -295,7 +469,7 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
         }
     }
 
-    // Spustit replace preview
+    // Spustit replace preview z panelu
     if start_replace_preview && !ws.project_search.results.is_empty() {
         match build_regex(ws.project_search.query.trim(), &ws.project_search.options) {
             Ok(regex) => {
@@ -327,12 +501,9 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
         }
     }
 
-    if close || !show_flag {
-        ws.project_search
-            .cancel_epoch
-            .fetch_add(1, Ordering::Relaxed);
-        ws.project_search.rx = None;
-        ws.project_search.show_input = false;
+    // Zavřít panel
+    if close_panel {
+        ws.project_search.show_panel = false;
     }
 }
 
@@ -614,192 +785,6 @@ fn build_context_layout_job(
     );
 
     job
-}
-
-/// Polluje výsledky z background thread a zobrazuje je v panelu.
-/// Vrací Some(path, line) pokud uživatel klikl na výsledek.
-pub fn poll_and_render_project_search_results(
-    ctx: &egui::Context,
-    ws: &mut WorkspaceState,
-    i18n: &I18n,
-) -> Option<(PathBuf, usize)> {
-    // Polluj dávky výsledků z rx kanálu (akumulace per-soubor)
-    if let Some(rx) = &ws.project_search.rx {
-        loop {
-            match rx.try_recv() {
-                Ok(SearchBatch::Results(batch)) => {
-                    ws.project_search.results.extend(batch);
-                }
-                Ok(SearchBatch::Done) => {
-                    ws.project_search.rx = None;
-                    ws.project_search.searching = false;
-                    break;
-                }
-                Ok(SearchBatch::Error(e)) => {
-                    ws.toasts
-                        .push(crate::app::types::Toast::error(format!("Search: {}", e)));
-                    ws.project_search.rx = None;
-                    ws.project_search.searching = false;
-                    break;
-                }
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    ws.project_search.rx = None;
-                    ws.project_search.searching = false;
-                    break;
-                }
-                Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    // Stále běží — request repaint pro další poll
-                    ctx.request_repaint();
-                    break;
-                }
-            }
-        }
-    }
-
-    // Zobraz výsledky pokud jsou neprázdné, nebo pokud stále hledáme
-    if ws.project_search.results.is_empty() && !ws.project_search.searching {
-        return None;
-    }
-
-    let mut clicked_result: Option<(PathBuf, usize)> = None;
-    let mut close = false;
-    let mut show_flag = true;
-
-    let result_count = ws.project_search.results.len();
-    let mut args = fluent_bundle::FluentArgs::new();
-    args.set("count", result_count as i64);
-    let title = if ws.project_search.searching {
-        format!(
-            "{} — {} ({} ...)",
-            i18n.get("project-search-heading"),
-            i18n.get("project-search-searching"),
-            result_count,
-        )
-    } else {
-        format!(
-            "{} — {}",
-            i18n.get("project-search-heading"),
-            i18n.get_args("project-search-results-count", &args),
-        )
-    };
-    let modal = StandardModal::new(&title, "project_search_results").with_size(750.0, 550.0);
-
-    modal.show(ctx, &mut show_flag, |ui| {
-        // FOOTER — jen zavřít
-        if let Some(()) = modal.ui_footer_actions(ui, i18n, |f| {
-            if f.close() || f.cancel() {
-                return Some(());
-            }
-            None
-        }) {
-            close = true;
-        }
-
-        // BODY — scrollovatelný seznam výsledků, seskupených per-soubor
-        modal.ui_body(ui, |ui| {
-            // Loading indikátor
-            if ws.project_search.searching {
-                ui.horizontal(|ui| {
-                    ui.spinner();
-                    ui.label(i18n.get("project-search-searching"));
-                });
-                ui.add_space(4.0);
-            }
-
-            let font_id = egui::FontId::monospace(12.0);
-            let text_color = ui.visuals().text_color();
-            let separator_text = i18n.get("project-search-context-separator");
-
-            egui::ScrollArea::vertical()
-                .id_salt("project_search_results_scroll")
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    ui.set_width(ui.available_width());
-
-                    // Seskupení výsledků per-soubor
-                    let results = &ws.project_search.results;
-                    let mut i = 0;
-                    while i < results.len() {
-                        let current_file = &results[i].file;
-
-                        // Soubor heading
-                        ui.add_space(6.0);
-                        ui.label(
-                            egui::RichText::new(current_file.to_string_lossy().as_ref())
-                                .strong()
-                                .size(12.0),
-                        );
-                        ui.separator();
-
-                        let mut prev_end_line: Option<usize> = None;
-
-                        // Všechny výsledky pro tento soubor
-                        while i < results.len() && results[i].file == *current_file {
-                            let result = &results[i];
-
-                            // Separator mezi nesouvisejícími bloky
-                            let ctx_start_line =
-                                result.line.saturating_sub(result.context_before.len());
-                            if let Some(prev_end) = prev_end_line
-                                && ctx_start_line > prev_end + 1
-                            {
-                                ui.label(
-                                    egui::RichText::new(separator_text.as_str())
-                                        .color(egui::Color32::GRAY)
-                                        .small(),
-                                );
-                            }
-
-                            // Context before
-                            for (ci, ctx_line) in result.context_before.iter().enumerate() {
-                                let line_num = result.line - result.context_before.len() + ci;
-                                let job = build_context_layout_job(line_num, ctx_line, &font_id);
-                                ui.add(egui::Label::new(job).wrap_mode(egui::TextWrapMode::Extend));
-                            }
-
-                            // Match řádek — zvýrazněný, klikací
-                            let job = build_match_layout_job(
-                                result.line,
-                                &result.text,
-                                &result.match_ranges,
-                                &font_id,
-                                text_color,
-                            );
-                            let resp = ui.add(
-                                egui::Label::new(job)
-                                    .wrap_mode(egui::TextWrapMode::Extend)
-                                    .sense(egui::Sense::click()),
-                            );
-                            if resp.clicked() {
-                                clicked_result = Some((result.file.clone(), result.line));
-                            }
-                            if resp.hovered() {
-                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                            }
-
-                            // Context after
-                            for (ci, ctx_line) in result.context_after.iter().enumerate() {
-                                let line_num = result.line + 1 + ci;
-                                let job = build_context_layout_job(line_num, ctx_line, &font_id);
-                                ui.add(egui::Label::new(job).wrap_mode(egui::TextWrapMode::Extend));
-                            }
-
-                            prev_end_line = Some(result.line + result.context_after.len());
-                            i += 1;
-                        }
-                    }
-                });
-        });
-    });
-
-    if close || !show_flag {
-        ws.project_search.results.clear();
-        ws.project_search
-            .cancel_epoch
-            .fetch_add(1, Ordering::Relaxed);
-    }
-
-    clicked_result
 }
 
 /// Sestaví regex z query a SearchOptions.

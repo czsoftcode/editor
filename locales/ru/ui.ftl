@@ -159,6 +159,7 @@ file-picker-more = … и ещё { $count }
 
 ## Поиск по проекту (Ctrl+Shift+F)
 project-search-heading = Поиск в проекте
+project-search-panel-title = Поиск в проекте
 project-search-placeholder = Поиск в проекте…
 project-search-hint = Поисковый запрос…
 project-search-btn = Найти

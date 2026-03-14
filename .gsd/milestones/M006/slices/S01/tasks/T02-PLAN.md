@@ -83,6 +83,17 @@ Hlavní funkční jádro search panelu — rendering výsledků per-file se zvý
 - `src/app/ui/search_picker.rs` — engine funkce a LayoutJob buildery
 - `src/app/ui/workspace/state/actions.rs` — `open_and_jump()` helper
 
+## Observability Impact
+
+- `ws.project_search.searching` — `true` indikuje běžící poll loop v panelu; přechod na `false` = search done/error
+- `ws.project_search.results.len()` — počet výsledků akumulovaných přes poll loop; roste inkrementálně
+- `ws.project_search.last_selected_index` — `Some(idx)` po kliknutí na výsledek, `None` po zpracování (open_and_jump)
+- `ws.project_search.show_replace_preview` — `true` = replace preview dialog otevřen z panelu
+- `ws.project_search.pending_replace` — `true` = replace potvrzeno, čeká na zpracování v workspace handler
+- Toast chyby: `SearchBatch::Error(msg)` → toast v UI; I/O chyby replace → toast
+- Spinner v panelu: viditelný runtime signál pro probíhající search
+- `ctx.request_repaint()` — voláno pokud `searching == true` pro continuální poll loop
+
 ## Expected Output
 
 - `src/app/ui/search_picker.rs` — kompletní render_search_panel() s výsledky, poll loop, klik handlery, replace flow

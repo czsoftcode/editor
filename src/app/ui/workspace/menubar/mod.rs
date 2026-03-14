@@ -170,7 +170,7 @@ pub(super) fn process_menu_actions(
         ws.file_picker = Some(FilePicker::new(files));
     }
     if actions.project_search {
-        ws.project_search.show_input = true;
+        ws.project_search.show_panel = true;
         ws.project_search.focus_requested = true;
     }
     if actions.focus_editor {

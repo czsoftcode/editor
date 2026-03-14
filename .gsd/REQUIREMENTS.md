@@ -4,29 +4,31 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ## Active
 
+(none)
+
+## Validated
+
 ### R013 — Uživatelská konfigurace keybindings
 - Class: primary-user-loop
-- Status: active
+- Status: validated
 - Description: Uživatel může v `[keybindings]` sekci settings.toml přemapovat zkratky na jiné klávesové kombinace. Chybějící sekce = default bindings.
 - Why it matters: Různí uživatelé mají různé preference a návyky z jiných editorů.
 - Source: user
-- Primary owning slice: M004
-- Supporting slices: none
-- Validation: pending
+- Primary owning slice: M004/S03
+- Supporting slices: M004/S01, M004/S02
+- Validation: `keybindings: HashMap<String, String>` s `#[serde(default)]` v Settings. apply_keybinding_overrides() s validací (reserved, invalid, conflict, unknown id, empty string). Init + save wiring. 10 unit testů pro override logiku + 2 backward compat testy. Menu/palette labely reflektují overrides automaticky.
 - Notes: none
 
 ### R015 — Sjednocení s VS Code / JetBrains konvencemi
 - Class: primary-user-loop
-- Status: active
+- Status: validated
 - Description: Defaultní keybindings odpovídají konvencím VS Code / JetBrains (Ctrl+Shift+P command palette, Ctrl+Tab přepínání tabů, Ctrl+F find, Ctrl+H replace, atd.). Chybějící standardní zkratky jsou doplněny.
 - Why it matters: Uživatelé přecházející z jiných editorů očekávají známé zkratky.
 - Source: user
 - Primary owning slice: M004
 - Supporting slices: none
-- Validation: partially validated — S01 dispatch + S02 doplnil Ctrl+F/H/G/Shift+P/F1 konvence. Zbývá S03 pro uživatelskou konfigurovatelnost.
+- Validation: S01 centrální dispatch + exkluzivní modifier matching. S02 doplnil Ctrl+F/H/G/Shift+P/F1 konvence, command palette, menu napojení. S03 uživatelská konfigurovatelnost přes [keybindings] sekci. Všechny standardní zkratky implementovány a konfigurovatelné.
 - Notes: none
-
-## Validated
 
 ### R012 — Chybějící keyboard handlery
 - Class: primary-user-loop
@@ -215,15 +217,15 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 | R010 | core-capability | validated | M004/S01 | none | Keymap dispatch, 9 unit testů, 0 ad-hoc handlerů |
 | R011 | core-capability | validated | M004/S01 | none | test_dispatch_ordering, modifier_count řazení |
 | R012 | primary-user-loop | validated | M004/S02 | M004/S01 | 4 nové CommandId, 5 command registrací, 4 unit testy, menu flagy, 13/13 pass |
-| R013 | primary-user-loop | active | M004 | none | pending (S03) |
+| R013 | primary-user-loop | validated | M004/S03 | M004/S01, M004/S02 | apply_keybinding_overrides(), 10 unit testů, backward compat, menu/palette labely |
 | R014 | launchability | validated | M004/S01 | none | Modifiers::COMMAND, parse_shortcut Ctrl/Cmd→COMMAND |
-| R015 | primary-user-loop | active | M004 | none | partially validated (S01 dispatch + S02 Ctrl+F/H/G/Shift+P/F1, zbývá S03 konfigurace) |
+| R015 | primary-user-loop | validated | M004 | none | S01 dispatch + S02 konvence + S03 konfigurovatelnost |
 | R100 | anti-feature | out-of-scope | none | none | n/a |
 | R101 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 2 (R013, R015)
+- Active requirements: 0
 - Mapped to slices: 18
-- Validated: 13 (R001–R012, R014)
+- Validated: 15 (R001–R015)
 - Unmapped active requirements: 0

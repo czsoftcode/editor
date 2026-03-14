@@ -128,3 +128,7 @@
 - "F1 alternativní binding registrován jako druhý Command záznam s id 'ui.command_palette_f1' a sdíleným i18n klíčem 'command-name-command-palette' — nejjednodušší přístup bez nového registračního mechanismu pro multi-binding"
 - "is_standalone_key_allowed() jako privátní helper v keymap.rs — oddělení whitelistu od hlavní parse logiky, snadno rozšiřitelný pro budoucí standalone klávesy"
 - "Menu položky s flagy pattern: kliknutí nastaví actions.* = true + ui.close_menu(), shortcut label přes shortcut_label(keymap, CommandId::*) — konzistentní s existujícím OpenFile/ProjectSearch/Build/Run vzorem"
+- "Override na CommandRegistry commands (single source of truth), ne na keymapu přímo — palette čte cmd.shortcut, menu čte z keymapy, obojí se aktualizuje automaticky"
+- "Re-init defaults před apply overrides v save_settings_draft — předchozí overrides mohly změnit command state, čistý stav + nové overrides zaručí konzistenci"
+- "Ctrl+A/C/V/X/Z/Y jako reserved keys neoverridovatelné — TextEdit je zpracuje sám, uživatelský override by rozbil Copy/Paste/Undo"
+- "S03 plánován jako jeden task — scope koherentní (Settings field + registry override + init/save wiring + testy), 7 kroků / 6 souborů v limitu"

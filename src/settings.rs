@@ -1,4 +1,5 @@
 use crate::app::ai_prefs::{AiExpertiseRole, AiReasoningDepth};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use syntect::highlighting::ThemeSet;
@@ -187,6 +188,12 @@ pub struct Settings {
     /// Ollama seed (0 = random, any other value = deterministic).
     #[serde(default)]
     pub ollama_seed: i64,
+
+    /// Uživatelské přemapování klávesových zkratek.
+    /// Klíč = command id (např. "editor.save"), hodnota = shortcut string (např. "Ctrl+Shift+S").
+    /// Prázdný string = vymazání zkratky. Chybějící sekce = default bindings.
+    #[serde(default)]
+    pub keybindings: HashMap<String, String>,
 }
 
 fn default_top_p() -> f64 {
@@ -245,6 +252,7 @@ impl Default for Settings {
             ollama_top_k: default_top_k(),
             ollama_repeat_penalty: default_repeat_penalty(),
             ollama_seed: 0,
+            keybindings: HashMap::new(),
         }
     }
 }
@@ -870,6 +878,39 @@ auto_show_ai_diff = false
 "#;
         let s: Settings = toml::from_str(old_toml).expect("deserialize old settings");
         assert_eq!(s.save_mode, SaveMode::Manual);
+    }
+
+    #[test]
+    fn settings_backward_compat_no_keybindings() {
+        // TOML bez [keybindings] sekce se deserializuje s prázdnou HashMap
+        let toml_str = r#"
+editor_font_size = 14.0
+dark_theme = true
+"#;
+        let result: Settings = toml::from_str(toml_str).expect("Should parse without keybindings");
+        assert!(
+            result.keybindings.is_empty(),
+            "keybindings musí být prázdná HashMap"
+        );
+    }
+
+    #[test]
+    fn settings_keybindings_roundtrip() {
+        let mut keybindings = std::collections::HashMap::new();
+        keybindings.insert("editor.save".to_string(), "Ctrl+Shift+S".to_string());
+        keybindings.insert("editor.find".to_string(), "".to_string());
+
+        let settings = Settings {
+            keybindings,
+            ..Default::default()
+        };
+        let toml_str = toml::to_string(&settings).expect("serialize");
+        let restored: Settings = toml::from_str(&toml_str).expect("deserialize");
+        assert_eq!(
+            restored.keybindings.get("editor.save").unwrap(),
+            "Ctrl+Shift+S"
+        );
+        assert_eq!(restored.keybindings.get("editor.find").unwrap(), "");
     }
 
     #[test]

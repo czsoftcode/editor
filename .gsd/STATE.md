@@ -2,7 +2,7 @@
 
 **Active Milestone:** M004 — Klávesové Zkratky a Centrální Keymap
 **Active Slice:** S03 — Uživatelská konfigurace keybindings a dynamické labely
-**Phase:** planning
+**Phase:** planned → ready for execution
 **Requirements Status:** 2 active · 13 validated · 0 deferred · 2 out of scope
 
 ## Milestone Registry
@@ -12,11 +12,13 @@
 - 🔄 **M004:** Klávesové Zkratky a Centrální Keymap
 
 ## Recent Decisions
-- F1 alternativní binding jako druhý command záznam (ui.command_palette_f1)
-- Find/Replace/GotoLine přesunuty do centrálního command registry s dynamickými labely
+- Override na CommandRegistry commands (single source of truth)
+- Re-init defaults před apply overrides v save flow
+- Ctrl+A/C/V/X/Z/Y jako reserved neoverridovatelné
+- S03 jako jeden task
 
 ## Blockers
 - None
 
 ## Next Action
-Plan and execute S03 — uživatelská konfigurace keybindings v settings.toml + dynamické labely z overrides.
+Execute T01 (keybinding overrides + rebuild + testy).

@@ -154,6 +154,19 @@ pub fn format_shortcut(shortcut: &KeyboardShortcut) -> String {
     shortcut.format(&egui::ModifierNames::NAMES, is_mac)
 }
 
+/// Kontroluje jestli shortcut odpovídá TextEdit reserved klávesám (Ctrl+A/C/V/X/Z/Y).
+/// Tyto klávesy nesmí být overridovány uživatelem — jsou vyhrazené pro textový editor.
+pub fn is_reserved_shortcut(shortcut: &KeyboardShortcut) -> bool {
+    // Reserved = COMMAND modifikátor (bez dalších modifikátorů) + jedna z A/C/V/X/Z/Y
+    if shortcut.modifiers != Modifiers::COMMAND {
+        return false;
+    }
+    matches!(
+        shortcut.logical_key,
+        Key::A | Key::C | Key::V | Key::X | Key::Z | Key::Y
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

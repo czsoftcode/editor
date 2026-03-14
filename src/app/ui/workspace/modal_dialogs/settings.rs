@@ -262,6 +262,16 @@ pub(super) fn save_settings_draft(
 
         s.settings = Arc::new(draft);
         s.i18n = Arc::new(crate::i18n::I18n::new(&lang));
+
+        // Re-init command registry defaults a aplikovat nové keybinding overrides
+        let keybindings = s.settings.keybindings.clone();
+        s.registry.commands = crate::app::registry::CommandRegistry::new();
+        s.registry.init_defaults();
+        s.registry.commands.apply_keybinding_overrides(&keybindings);
+
+        // Rebuild keymapy z aktualizovaných commands
+        ws.keymap = crate::app::keymap::Keymap::from_commands(s.registry.commands.get_all());
+
         s.settings_version
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }

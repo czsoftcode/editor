@@ -11,16 +11,16 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 ## Current State
 
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
-- **Last completed milestone:** M003: Vylepšení UI Historie Souboru (2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
-- **Active milestone:** M004: Klávesové Zkratky a Centrální Keymap — S01 ✓, S02 ✓, S03 next
-- **Quality status:** `cargo check` čistý, clippy čistý, 160 testů zelených (0 selhání)
-- **Primary artifacts:** `.gsd/milestones/M004/slices/S02/S02-SUMMARY.md`
+- **Last completed milestone:** M004: Klávesové Zkratky a Centrální Keymap (2026-03-13) — centrální dispatch, exkluzivní modifier matching, chybějící handlery, command palette, uživatelská konfigurace keybindings
+- **Quality status:** `cargo check` čistý, clippy čistý, 172 testů zelených (0 selhání)
+- **Primary artifacts:** `.gsd/milestones/M004/slices/S03/S03-SUMMARY.md`
 
 ## Requirements
 
 ### Validated
 
 - ✓ M003: Vylepšení UI Historie Souboru (R001–R009: editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, restore, potvrzovací dialog, tab sync, výchozí stav panelů, i18n)
+- ✓ M004: Klávesové Zkratky a Centrální Keymap (R010–R015: centrální dispatch, exkluzivní modifier matching, chybějící handlery, uživatelská konfigurace, cross-platform Ctrl↔Cmd, VS Code/JetBrains konvence)
 - ✓ v1.3.1: Safe Trash Delete (TRASH-01..04, RESTORE-01..03, TRASHUI-01, RELIAB-01..03)
 - ✓ v1.3.0: CLI cleanup + AI terminal-only boundary + traceability closure (R33-A/R33-B/R33-C/R33-D)
 - ✓ v1.2.2: Additional Themes (WarmTan + Midnight varianty, syntect mapovani, i18n)
@@ -52,7 +52,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - ~~M001: Migration~~ ✓ (completed 2026-03-13)
 - ~~M002: Local History~~ ✓ (completed 2026-03-13) — snapshot pipeline, split view s diff zvýrazněním, cleanup retence 50 verzí / 30 dní
 - ~~M003: Vylepšení UI Historie Souboru~~ ✓ (completed 2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
-- M004: Klávesové Zkratky a Centrální Keymap — S01 ✓ (centrální dispatch, modifier fix), S02 ✓ (chybějící handlery, command palette, F1, i18n), S03 next (uživatelská konfigurace)
+- ~~M004: Klávesové Zkratky a Centrální Keymap~~ ✓ (completed 2026-03-13) — centrální dispatch, exkluzivní modifier matching, chybějící handlery (Ctrl+F/H/G/Shift+P/F1), command palette, uživatelská konfigurace keybindings
 
 ## Next Milestone Goals
 
@@ -132,4 +132,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 </details>
 
 ---
-*Last updated: 2026-03-13 after M004/S02 completed*
+*Last updated: 2026-03-13 after M004 completed (S03 — uživatelská konfigurace keybindings)*

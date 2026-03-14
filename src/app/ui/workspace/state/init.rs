@@ -43,10 +43,13 @@ pub fn init_workspace(
     }
     project_index.full_rescan();
 
-    // Vytvořit keymapu z registrovaných příkazů (před spawn_semantic_indexer,
-    // kde se shared přesouvá)
+    // Aplikovat uživatelské keybinding overrides a vytvořit keymapu
+    // (před spawn_semantic_indexer, kde se shared přesouvá)
     let keymap = {
-        let sh = shared.lock().expect("lock shared for keymap init");
+        let mut sh = shared.lock().expect("lock shared for keymap init");
+        sh.registry
+            .commands
+            .apply_keybinding_overrides(&settings.keybindings);
         Keymap::from_commands(sh.registry.commands.get_all())
     };
 

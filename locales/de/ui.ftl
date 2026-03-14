@@ -126,6 +126,13 @@ command-name-toggle-float = Schwebendes KI-Panel umschalten
 command-name-show-about = Über
 command-name-show-settings = Einstellungen
 command-name-quit = PolyCredo Editor beenden
+command-name-find = Suchen
+command-name-replace = Ersetzen
+command-name-goto-line = Gehe zu Zeile
+command-name-command-palette = Befehlspalette
+command-name-focus-editor = Editor fokussieren
+command-name-focus-build = Build fokussieren
+command-name-focus-claude = KI fokussieren
 
 ## Schnelles Öffnen (Ctrl+P)
 file-picker-heading = Datei öffnen

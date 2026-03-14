@@ -114,13 +114,36 @@ pub fn parse_shortcut(s: &str) -> Option<KeyboardShortcut> {
         name => Key::from_name(name),
     }?;
 
-    // Musí mít aspoň jeden modifikátor (samotná klávesa bez modifikátoru
-    // není validní zkratka pro naše účely)
-    if modifiers == Modifiers::NONE {
+    // Musí mít aspoň jeden modifikátor, POKUD klávesa není na whitelistu
+    // standalone kláves (F1–F12, Escape, Delete, Insert).
+    if modifiers == Modifiers::NONE && !is_standalone_key_allowed(&key) {
         return None;
     }
 
     Some(KeyboardShortcut::new(modifiers, key))
+}
+
+/// Whitelist kláves, které mohou fungovat jako zkratky bez modifikátoru.
+/// Zahrnuje F1–F12, Escape, Delete a Insert.
+fn is_standalone_key_allowed(key: &Key) -> bool {
+    matches!(
+        key,
+        Key::F1
+            | Key::F2
+            | Key::F3
+            | Key::F4
+            | Key::F5
+            | Key::F6
+            | Key::F7
+            | Key::F8
+            | Key::F9
+            | Key::F10
+            | Key::F11
+            | Key::F12
+            | Key::Escape
+            | Key::Delete
+            | Key::Insert
+    )
 }
 
 /// Formátuje `KeyboardShortcut` na čitelný string, platform-aware.
@@ -314,6 +337,134 @@ mod tests {
         assert_eq!(
             second, None,
             "druhý dispatch musí vrátit None (event konzumován)"
+        );
+
+        let _ = ctx.end_pass();
+    }
+
+    #[test]
+    fn test_parse_shortcut_f1() {
+        // F1 bez modifikátoru — whitelist standalone kláves
+        let s = parse_shortcut("F1").expect("mělo se parsovat 'F1'");
+        assert_eq!(s.modifiers, Modifiers::NONE, "F1 nemá modifikátor");
+        assert_eq!(s.logical_key, Key::F1);
+    }
+
+    #[test]
+    fn test_parse_shortcut_escape() {
+        // Escape bez modifikátoru — whitelist standalone kláves
+        let s = parse_shortcut("Escape").expect("mělo se parsovat 'Escape'");
+        assert_eq!(s.modifiers, Modifiers::NONE, "Escape nemá modifikátor");
+        assert_eq!(s.logical_key, Key::Escape);
+    }
+
+    #[test]
+    fn test_dispatch_new_commands() {
+        // Keymap s Find (Ctrl+F) → dispatch Ctrl+F vrátí Find
+        use crate::app::registry::{Command, CommandAction};
+
+        let commands = vec![
+            Command {
+                id: "editor.find".to_string(),
+                i18n_key: "command-name-find",
+                shortcut: Some(KeyboardShortcut::new(Modifiers::COMMAND, Key::F)),
+                action: CommandAction::Internal(CommandId::Find),
+            },
+            Command {
+                id: "editor.replace".to_string(),
+                i18n_key: "command-name-replace",
+                shortcut: Some(KeyboardShortcut::new(Modifiers::COMMAND, Key::H)),
+                action: CommandAction::Internal(CommandId::Replace),
+            },
+            Command {
+                id: "editor.goto_line".to_string(),
+                i18n_key: "command-name-goto-line",
+                shortcut: Some(KeyboardShortcut::new(Modifiers::COMMAND, Key::G)),
+                action: CommandAction::Internal(CommandId::GotoLine),
+            },
+        ];
+
+        let keymap = Keymap::from_commands(&commands);
+
+        let ctx = egui::Context::default();
+        let mut raw = egui::RawInput::default();
+        raw.events.push(egui::Event::Key {
+            key: Key::F,
+            physical_key: Some(Key::F),
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers {
+                alt: false,
+                ctrl: true,
+                shift: false,
+                mac_cmd: false,
+                command: true,
+            },
+        });
+        ctx.begin_pass(raw);
+
+        let result = ctx.input_mut(|input| keymap.dispatch(input));
+        assert_eq!(result, Some(CommandId::Find), "Ctrl+F musí matchnout Find");
+
+        let _ = ctx.end_pass();
+    }
+
+    #[test]
+    fn test_dispatch_command_palette_ordering() {
+        // Ctrl+Shift+P vrátí CommandPalette, ne OpenFile (Ctrl+P)
+        use crate::app::registry::{Command, CommandAction};
+
+        let commands = vec![
+            Command {
+                id: "editor.open_file".to_string(),
+                i18n_key: "command-name-open-file",
+                shortcut: Some(KeyboardShortcut::new(Modifiers::COMMAND, Key::P)),
+                action: CommandAction::Internal(CommandId::OpenFile),
+            },
+            Command {
+                id: "ui.command_palette".to_string(),
+                i18n_key: "command-name-command-palette",
+                shortcut: Some(KeyboardShortcut::new(
+                    Modifiers::COMMAND | Modifiers::SHIFT,
+                    Key::P,
+                )),
+                action: CommandAction::Internal(CommandId::CommandPalette),
+            },
+        ];
+
+        let keymap = Keymap::from_commands(&commands);
+
+        // Ověříme řazení: Ctrl+Shift+P (2 modifikátory) je před Ctrl+P (1 modifikátor)
+        assert_eq!(
+            keymap.bindings[0].1,
+            CommandId::CommandPalette,
+            "Ctrl+Shift+P (CommandPalette) musí být v keymapu před Ctrl+P (OpenFile)"
+        );
+        assert_eq!(keymap.bindings[1].1, CommandId::OpenFile);
+
+        // Dispatch Ctrl+Shift+P
+        let ctx = egui::Context::default();
+        let mut raw = egui::RawInput::default();
+        raw.events.push(egui::Event::Key {
+            key: Key::P,
+            physical_key: Some(Key::P),
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers {
+                alt: false,
+                ctrl: true,
+                shift: true,
+                mac_cmd: false,
+                command: true,
+            },
+        });
+        ctx.begin_pass(raw);
+
+        let result = ctx.input_mut(|input| keymap.dispatch(input));
+        assert_eq!(
+            result,
+            Some(CommandId::CommandPalette),
+            "Ctrl+Shift+P musí matchnout CommandPalette, ne OpenFile"
         );
 
         let _ = ctx.end_pass();

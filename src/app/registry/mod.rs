@@ -268,6 +268,34 @@ impl Registry {
                 cmd_alt(Key::A),
                 FocusClaude,
             ),
+            // Find / Replace / Go to Line
+            ("editor.find", "command-name-find", cmd(Key::F), Find),
+            (
+                "editor.replace",
+                "command-name-replace",
+                cmd(Key::H),
+                Replace,
+            ),
+            (
+                "editor.goto_line",
+                "command-name-goto-line",
+                cmd(Key::G),
+                GotoLine,
+            ),
+            // Command Palette — Ctrl+Shift+P (primární)
+            (
+                "ui.command_palette",
+                "command-name-command-palette",
+                cmd_shift(Key::P),
+                CommandPalette,
+            ),
+            // Command Palette — F1 (alternativní, bez modifikátoru)
+            (
+                "ui.command_palette_f1",
+                "command-name-command-palette",
+                Some(KeyboardShortcut::new(Modifiers::NONE, Key::F1)),
+                CommandPalette,
+            ),
         ];
 
         for (id, i18n, shortcut, internal_id) in defaults {

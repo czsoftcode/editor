@@ -12,9 +12,9 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
 - **Last completed milestone:** M003: Vylepšení UI Historie Souboru (2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
-- **Active milestone:** M004: Klávesové Zkratky a Centrální Keymap — S01 complete, S02 next
-- **Quality status:** `cargo check` čistý, clippy čistý, 156 testů zelených (0 selhání)
-- **Primary artifacts:** `.gsd/milestones/M004/slices/S01/S01-SUMMARY.md`
+- **Active milestone:** M004: Klávesové Zkratky a Centrální Keymap — S01 ✓, S02 ✓, S03 next
+- **Quality status:** `cargo check` čistý, clippy čistý, 160 testů zelených (0 selhání)
+- **Primary artifacts:** `.gsd/milestones/M004/slices/S02/S02-SUMMARY.md`
 
 ## Requirements
 
@@ -52,7 +52,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - ~~M001: Migration~~ ✓ (completed 2026-03-13)
 - ~~M002: Local History~~ ✓ (completed 2026-03-13) — snapshot pipeline, split view s diff zvýrazněním, cleanup retence 50 verzí / 30 dní
 - ~~M003: Vylepšení UI Historie Souboru~~ ✓ (completed 2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
-- M004: Klávesové Zkratky a Centrální Keymap — S01 ✓ (centrální dispatch, modifier fix), S02 next (chybějící handlery, command palette), S03 (uživatelská konfigurace)
+- M004: Klávesové Zkratky a Centrální Keymap — S01 ✓ (centrální dispatch, modifier fix), S02 ✓ (chybějící handlery, command palette, F1, i18n), S03 next (uživatelská konfigurace)
 
 ## Next Milestone Goals
 
@@ -132,4 +132,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 </details>
 
 ---
-*Last updated: 2026-03-13 after M004/S01 completed*
+*Last updated: 2026-03-13 after M004/S02 completed*

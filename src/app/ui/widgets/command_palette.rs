@@ -26,6 +26,10 @@ pub(crate) enum CommandId {
     FocusEditor,
     FocusBuild,
     FocusClaude,
+    Find,
+    Replace,
+    GotoLine,
+    CommandPalette,
 }
 
 pub(crate) struct CommandPaletteState {
@@ -218,6 +222,10 @@ pub(crate) fn execute_command(
                 CommandId::FocusEditor => actions.focus_editor = true,
                 CommandId::FocusBuild => actions.focus_build = true,
                 CommandId::FocusClaude => actions.focus_claude = true,
+                CommandId::Find => actions.find = true,
+                CommandId::Replace => actions.replace = true,
+                CommandId::GotoLine => actions.goto_line = true,
+                CommandId::CommandPalette => actions.command_palette = true,
             }
             None
         }

@@ -129,6 +129,13 @@ command-name-toggle-float = Přepnout plovoucí AI panel
 command-name-show-about = O aplikaci
 command-name-show-settings = Nastavení
 command-name-quit = Ukončit PolyCredo Editor
+command-name-find = Najít
+command-name-replace = Nahradit
+command-name-goto-line = Přejít na řádek
+command-name-command-palette = Příkazová paleta
+command-name-focus-editor = Fokus na editor
+command-name-focus-build = Fokus na build
+command-name-focus-claude = Fokus na AI
 
 ## Rychlé otevření souboru (Ctrl+P)
 file-picker-heading = Otevřít soubor

@@ -141,6 +141,13 @@ command-name-toggle-float = Переключить плавающую ИИ-па�
 command-name-show-about = О программе
 command-name-show-settings = Настройки
 command-name-quit = Выйти из PolyCredo Editor
+command-name-find = Найти
+command-name-replace = Заменить
+command-name-goto-line = Перейти к строке
+command-name-command-palette = Палитра команд
+command-name-focus-editor = Фокус на редактор
+command-name-focus-build = Фокус на сборку
+command-name-focus-claude = Фокус на ИИ
 
 ## Быстрое открытие файла (Ctrl+P)
 file-picker-heading = Открыть файл

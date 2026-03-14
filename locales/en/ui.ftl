@@ -126,6 +126,13 @@ command-name-toggle-float = Toggle Floating AI Panel
 command-name-show-about = About
 command-name-show-settings = Settings
 command-name-quit = Quit PolyCredo Editor
+command-name-find = Find
+command-name-replace = Replace
+command-name-goto-line = Go to Line
+command-name-command-palette = Command Palette
+command-name-focus-editor = Focus Editor
+command-name-focus-build = Focus Build
+command-name-focus-claude = Focus AI
 
 ## Quick file open (Ctrl+P)
 file-picker-heading = Open File

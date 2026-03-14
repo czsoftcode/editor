@@ -63,6 +63,10 @@ pub(crate) struct MenuActions {
     pub focus_editor: bool,
     pub focus_build: bool,
     pub focus_claude: bool,
+    pub find: bool,
+    pub replace: bool,
+    pub goto_line: bool,
+    pub command_palette: bool,
 }
 
 pub(super) fn render_menu_bar(
@@ -180,6 +184,34 @@ pub(super) fn process_menu_actions(
     if actions.focus_claude {
         ws.show_right_panel = true;
         ws.focused_panel = FocusedPanel::Claude;
+    }
+    if actions.find {
+        ws.editor.show_search = true;
+        ws.editor.search_focus_requested = true;
+    }
+    if actions.replace {
+        ws.editor.show_search = true;
+        ws.editor.show_replace = true;
+        ws.editor.search_focus_requested = true;
+    }
+    if actions.goto_line {
+        ws.editor.show_goto_line = true;
+        ws.editor.goto_line_focus_requested = true;
+    }
+    if actions.command_palette {
+        if ws.command_palette.is_some() {
+            ws.command_palette = None;
+        } else {
+            let commands = shared
+                .lock()
+                .expect("Failed to lock AppShared for command palette")
+                .registry
+                .commands
+                .get_all()
+                .to_vec();
+            ws.command_palette =
+                Some(crate::app::ui::widgets::command_palette::CommandPaletteState::new(commands));
+        }
     }
     if actions.trash_preview {
         ws.file_tree.request_open_trash_preview();

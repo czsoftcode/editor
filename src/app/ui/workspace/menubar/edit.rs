@@ -26,24 +26,35 @@ pub fn render(
             egui::Button::new(i18n.get("menu-edit-select-all")).shortcut_text("Ctrl+A"),
         );
         ui.separator();
-        // Find/Replace/Goto — zpracovává editor interně, nejsou v command registry.
-        // Hardcoded labely jsou OK.
+        // Find/Replace/Goto — napojené na MenuActions flagy, dynamické shortcut labely z keymapu.
         if ui
-            .add(egui::Button::new(i18n.get("menu-edit-find")).shortcut_text("Ctrl+F"))
+            .add(
+                egui::Button::new(i18n.get("menu-edit-find"))
+                    .shortcut_text(shortcut_label(keymap, CommandId::Find)),
+            )
             .clicked()
         {
+            actions.find = true;
             ui.close_menu();
         }
         if ui
-            .add(egui::Button::new(i18n.get("menu-edit-replace")).shortcut_text("Ctrl+H"))
+            .add(
+                egui::Button::new(i18n.get("menu-edit-replace"))
+                    .shortcut_text(shortcut_label(keymap, CommandId::Replace)),
+            )
             .clicked()
         {
+            actions.replace = true;
             ui.close_menu();
         }
         if ui
-            .add(egui::Button::new(i18n.get("menu-edit-goto-line")).shortcut_text("Ctrl+G"))
+            .add(
+                egui::Button::new(i18n.get("menu-edit-goto-line"))
+                    .shortcut_text(shortcut_label(keymap, CommandId::GotoLine)),
+            )
             .clicked()
         {
+            actions.goto_line = true;
             ui.close_menu();
         }
         if ui
@@ -85,6 +96,17 @@ pub fn render(
             .clicked()
         {
             actions.run = true;
+            ui.close_menu();
+        }
+        ui.separator();
+        if ui
+            .add(
+                egui::Button::new(i18n.get("menu-edit-command-palette"))
+                    .shortcut_text(shortcut_label(keymap, CommandId::CommandPalette)),
+            )
+            .clicked()
+        {
+            actions.command_palette = true;
             ui.close_menu();
         }
     });

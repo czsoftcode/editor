@@ -4,17 +4,6 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ## Active
 
-### R012 — Chybějící keyboard handlery
-- Class: primary-user-loop
-- Status: active
-- Description: Všechny zkratky zobrazené v menu a command palette mají funkční keyboard handler — Ctrl+F, Ctrl+H, Ctrl+G, Ctrl+P, Ctrl+Shift+F, Ctrl+Shift+P.
-- Why it matters: Menu zobrazuje zkratky, které ve skutečnosti nefungují — matoucí UX.
-- Source: user
-- Primary owning slice: M004
-- Supporting slices: none
-- Validation: pending
-- Notes: none
-
 ### R013 — Uživatelská konfigurace keybindings
 - Class: primary-user-loop
 - Status: active
@@ -34,10 +23,21 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 - Source: user
 - Primary owning slice: M004
 - Supporting slices: none
-- Validation: pending — dispatch infrastruktura hotová (S01), chybějící zkratky doplní S02
+- Validation: partially validated — S01 dispatch + S02 doplnil Ctrl+F/H/G/Shift+P/F1 konvence. Zbývá S03 pro uživatelskou konfigurovatelnost.
 - Notes: none
 
 ## Validated
+
+### R012 — Chybějící keyboard handlery
+- Class: primary-user-loop
+- Status: validated
+- Description: Všechny zkratky zobrazené v menu a command palette mají funkční keyboard handler — Ctrl+F, Ctrl+H, Ctrl+G, Ctrl+P, Ctrl+Shift+F, Ctrl+Shift+P.
+- Why it matters: Menu zobrazuje zkratky, které ve skutečnosti nefungují — matoucí UX.
+- Source: user
+- Primary owning slice: M004/S02
+- Supporting slices: M004/S01
+- Validation: 4 nové CommandId varianty (Find, Replace, GotoLine, CommandPalette) v dispatch pipeline. 5 nových command registrací včetně F1. 4 nové unit testy (test_dispatch_new_commands, test_dispatch_command_palette_ordering). Menu edit.rs napojení na flagy. 13/13 keymap testů pass.
+- Notes: none
 
 ### R010 — Centrální keymap dispatch
 - Class: core-capability
@@ -214,16 +214,16 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 | R009 | primary-user-loop | validated | M003/S01 | none | apply_diff_backgrounds + highlight |
 | R010 | core-capability | validated | M004/S01 | none | Keymap dispatch, 9 unit testů, 0 ad-hoc handlerů |
 | R011 | core-capability | validated | M004/S01 | none | test_dispatch_ordering, modifier_count řazení |
-| R012 | primary-user-loop | active | M004 | none | pending (S02) |
+| R012 | primary-user-loop | validated | M004/S02 | M004/S01 | 4 nové CommandId, 5 command registrací, 4 unit testy, menu flagy, 13/13 pass |
 | R013 | primary-user-loop | active | M004 | none | pending (S03) |
 | R014 | launchability | validated | M004/S01 | none | Modifiers::COMMAND, parse_shortcut Ctrl/Cmd→COMMAND |
-| R015 | primary-user-loop | active | M004 | none | partially (S01 dispatch, S02 chybějící zkratky) |
+| R015 | primary-user-loop | active | M004 | none | partially validated (S01 dispatch + S02 Ctrl+F/H/G/Shift+P/F1, zbývá S03 konfigurace) |
 | R100 | anti-feature | out-of-scope | none | none | n/a |
 | R101 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 3 (R012, R013, R015)
+- Active requirements: 2 (R013, R015)
 - Mapped to slices: 18
-- Validated: 12 (R001–R011, R014)
+- Validated: 13 (R001–R012, R014)
 - Unmapped active requirements: 0

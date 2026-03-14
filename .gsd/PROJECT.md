@@ -14,7 +14,7 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 - **Last completed milestone:** M005: Vylepšení Project Search (2026-03-13)
 - **Active milestone:** none (backlog prioritization pending)
 - **Quality status:** `cargo check` čistý, clippy čistý, 192+ testů zelených (0 selhání)
-- **Primary artifacts:** `.gsd/milestones/M005/slices/S02/S02-SUMMARY.md`
+- **Primary artifacts:** `.gsd/milestones/M005/M005-SUMMARY.md`
 
 ## Requirements
 

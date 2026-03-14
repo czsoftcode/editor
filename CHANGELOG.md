@@ -1,3 +1,8 @@
+## [1.4.5-dev] - 2026-03-13
+
+### Fixed
+- **Search panel Enter nefungoval**: Project search query input, file filter input i in-file search input (Ctrl+F) nereagovaly na Enter. Příčina: egui `TextEdit::singleline` při Enter automaticky ztratí fokus, takže `has_focus()` vrací `false` ve stejném framu. Opraveno na `lost_focus()` + `request_focus()` pro zachování fokusu po akci.
+
 ## [1.4.4-dev] - 2026-03-13
 
 ### Added

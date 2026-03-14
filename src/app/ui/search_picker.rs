@@ -230,8 +230,12 @@ pub fn render_search_panel(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &
                 if focus_req {
                     resp.request_focus();
                 }
-                if resp.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                // singleline TextEdit při Enter ztratí fokus — has_focus() je false,
+                // proto kontrolujeme lost_focus() (= uživatel potvrdil Enter)
+                if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     start_search = true;
+                    // Vrátit fokus zpět na input pro další editaci query
+                    resp.request_focus();
                 }
 
                 // Toggle buttons: .* (regex), Aa (case), W (whole-word), ↔ (replace)
@@ -302,12 +306,19 @@ pub fn render_search_panel(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &
             ui.add_space(2.0);
 
             // File filter input
-            ui.add(
+            let filter_resp = ui.add(
                 egui::TextEdit::singleline(&mut ws.project_search.options.file_filter)
                     .hint_text(i18n.get("project-search-file-filter-hint"))
                     .desired_width(ui.available_width())
                     .id(egui::Id::new("search_panel_file_filter")),
             );
+            if filter_resp.lost_focus()
+                && ui.input(|i| i.key_pressed(egui::Key::Enter))
+                && !ws.project_search.query.trim().is_empty()
+            {
+                start_search = true;
+                filter_resp.request_focus();
+            }
 
             // Inline regex error
             if let Some(ref err) = ws.project_search.regex_error {

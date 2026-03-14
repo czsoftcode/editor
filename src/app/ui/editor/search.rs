@@ -136,12 +136,16 @@ impl Editor {
             if focus_requested {
                 response.request_focus();
             }
-            if response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            // singleline TextEdit při Enter ztratí fokus — has_focus() je false,
+            // proto kontrolujeme lost_focus() (= uživatel potvrdil Enter)
+            if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                 if ui.input(|i| i.modifiers.shift) {
                     do_prev = true;
                 } else {
                     do_next = true;
                 }
+                // Vrátit fokus zpět na input pro další navigaci
+                response.request_focus();
             }
 
             // Toggle buttons: .* (regex), Aa (case), W (whole-word)

@@ -4,7 +4,115 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ## Active
 
-(none)
+### R016 — Regex search engine s togglery
+- Class: core-capability
+- Status: active
+- Description: Search engine s `RegexBuilder`, case-insensitive/sensitive toggle, whole-word toggle. Nevalidní regex pattern vrací inline chybu.
+- Why it matters: Table stakes pro programátorský editor — substring match nestačí.
+- Source: user
+- Primary owning slice: M005/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: `regex` crate již v Cargo.toml.
+
+### R017 — Zvýrazněné matchující části ve výsledcích
+- Class: primary-user-loop
+- Status: active
+- Description: Výsledky project search zobrazují zvýrazněné matchující části textu přes LayoutJob s barevnými TextSection.
+- Why it matters: Bez zvýraznění uživatel nevidí kde přesně v řádku je match.
+- Source: user
+- Primary owning slice: M005/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: Pattern z diff_view.rs a history/mod.rs.
+
+### R018 — Kontextové řádky se sloučením blízkých matchů
+- Class: primary-user-loop
+- Status: active
+- Description: Výsledky zobrazují ±2 řádky kontextu kolem matchujícího řádku. Blízké matche (≤4 řádky) se slučují do jednoho bloku.
+- Why it matters: Standard v grep/VS Code — uživatel vidí kde v kódu se match nachází.
+- Source: user
+- Primary owning slice: M005/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: none
+
+### R019 — File type filtr (glob pattern)
+- Class: primary-user-loop
+- Status: active
+- Description: Uživatel může omezit search scope zadáním glob patternu (např. `*.rs`, `*.toml`, `src/**/*.rs`). Filtrování přes `globset` crate.
+- Why it matters: Omezení scope hledání na relevantní soubory.
+- Source: user
+- Primary owning slice: M005/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: `globset` již v Cargo.toml.
+
+### R020 — Project-wide replace s preview a per-file checkboxy
+- Class: primary-user-loop
+- Status: active
+- Description: Uživatel zadá replace text, zobrazí se preview diff všech náhrad per-file s checkboxy. Potvrzení provede nahrazení ve vybraných souborech.
+- Why it matters: Destruktivní operace vyžaduje preview a kontrolu.
+- Source: user
+- Primary owning slice: M005/S02
+- Supporting slices: M005/S01
+- Validation: pending
+- Notes: none
+
+### R021 — Regex error zobrazený inline v dialogu
+- Class: failure-visibility
+- Status: active
+- Description: Nevalidní regex pattern zobrazí chybovou zprávu inline pod inputem v dialogu. Hledání se nespustí.
+- Why it matters: Ne panic, ne toast — inline feedback pro okamžitou opravu.
+- Source: user
+- Primary owning slice: M005/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: `RegexBuilder::build()` vrací `Err(regex::Error)` s popisnou zprávou.
+
+### R022 — Replace I/O error reporting přes toast per-file
+- Class: failure-visibility
+- Status: active
+- Description: Pokud zápis jednoho souboru při replace selže, chyba se reportuje přes toast a replace pokračuje s dalšími soubory.
+- Why it matters: Per-file error handling místo atomic all-or-nothing. Uživatel vidí které soubory selhaly.
+- Source: user
+- Primary owning slice: M005/S02
+- Supporting slices: none
+- Validation: pending
+- Notes: Konzistentní s S-3 (I/O error propagace do UI).
+
+### R023 — Local history snapshot před replace
+- Class: core-capability
+- Status: active
+- Description: Před modifikací každého souboru při replace se vytvoří local history snapshot přes `take_snapshot()`.
+- Why it matters: Záchranná síť pro undo destruktivní operace.
+- Source: user
+- Primary owning slice: M005/S02
+- Supporting slices: none
+- Validation: pending
+- Notes: `take_snapshot()` potřebuje `&mut LocalHistory` — volání v workspace handleru.
+
+### R024 — i18n pro všechny nové UI prvky (5 jazyků)
+- Class: launchability
+- Status: active
+- Description: Všechny nové UI texty (toggle labely, replace UI, error messages, context labels) mají i18n klíče ve všech 5 jazycích (cs, en, sk, de, ru).
+- Why it matters: Konzistence s existujícím i18n systémem.
+- Source: inferred
+- Primary owning slice: M005/S01
+- Supporting slices: M005/S02
+- Validation: pending
+- Notes: none
+
+### R025 — Inkrementální streamování výsledků
+- Class: primary-user-loop
+- Status: active
+- Description: Výsledky se streamují inkrementálně (po dávkách per-soubor), ne jednorázově po dokončení celého searche.
+- Why it matters: UX — uživatel vidí výsledky ihned, ne po sekundách čekání.
+- Source: user
+- Primary owning slice: M005/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: Rozšíření existujícího mpsc pattern z `run_project_search()`.
 
 ## Validated
 
@@ -220,12 +328,22 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 | R013 | primary-user-loop | validated | M004/S03 | M004/S01, M004/S02 | apply_keybinding_overrides(), 10 unit testů, backward compat, menu/palette labely |
 | R014 | launchability | validated | M004/S01 | none | Modifiers::COMMAND, parse_shortcut Ctrl/Cmd→COMMAND |
 | R015 | primary-user-loop | validated | M004 | none | S01 dispatch + S02 konvence + S03 konfigurovatelnost |
+| R016 | core-capability | active | M005/S01 | none | pending |
+| R017 | primary-user-loop | active | M005/S01 | none | pending |
+| R018 | primary-user-loop | active | M005/S01 | none | pending |
+| R019 | primary-user-loop | active | M005/S01 | none | pending |
+| R020 | primary-user-loop | active | M005/S02 | M005/S01 | pending |
+| R021 | failure-visibility | active | M005/S01 | none | pending |
+| R022 | failure-visibility | active | M005/S02 | none | pending |
+| R023 | core-capability | active | M005/S02 | none | pending |
+| R024 | launchability | active | M005/S01 | M005/S02 | pending |
+| R025 | primary-user-loop | active | M005/S01 | none | pending |
 | R100 | anti-feature | out-of-scope | none | none | n/a |
 | R101 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 0
-- Mapped to slices: 18
+- Active requirements: 10 (R016–R025)
+- Mapped to slices: 28
 - Validated: 15 (R001–R015)
 - Unmapped active requirements: 0

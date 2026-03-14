@@ -66,3 +66,11 @@ Rozšířit `PendingCloseMode` o `SwitchProject(PathBuf)` variantu. Upravit `pro
 - `locales/sk/ui.ftl` — 5+ nových open-choice-* klíčů
 - `locales/de/ui.ftl` — 5+ nových open-choice-* klíčů
 - `locales/ru/ui.ftl` — 5+ nových open-choice-* klíčů
+
+## Observability Impact
+
+- `ws.pending_close_flow.mode` — pokud je `SwitchProject(path)`, guard flow běží pro přepnutí projektu; inspektovatelné přes debugger na `process_unsaved_close_guard_dialog`
+- Po Finished pro SwitchProject: `process_unsaved_close_guard_dialog` vrací `Some(path)` → `open_here_path` se nastaví → workspace reinicializace proběhne standardní cestou
+- Po Cancel v guard flow: `pending_open_choice` se vyčistí na `None` → modal se nezobrazí znovu; `last_unsaved_close_cancelled = true` signalizuje cancel
+- Guard + modal kolize: pokud `pending_close_flow.is_some()`, open choice modal se nevykresluje — diagnostikovatelné přes `pending_open_choice.is_some() && pending_close_flow.is_some()` (oba nastavené = guard má prioritu)
+- i18n klíče `open-choice-*` — ověřitelné přes `grep -c 'open-choice' locales/*/ui.ftl`

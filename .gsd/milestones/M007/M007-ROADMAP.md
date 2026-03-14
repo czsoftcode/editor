@@ -57,7 +57,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Modal volby okna s guard flow a workspace reinicializací** `risk:high` `depends:[]`
+- [x] **S01: Modal volby okna s guard flow a workspace reinicializací** `risk:high` `depends:[]`
   > After this: po výběru složky / vytvoření projektu / kliknutí na nedávný projekt se zobrazí modal s volbou; "Nové okno" otevře nový viewport; "Stávající okno" spustí unsaved guard (pokud dirty), po guard dokončení starý workspace se nahradí novým; i18n kompletní
 
 ## Boundary Map

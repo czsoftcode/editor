@@ -357,6 +357,13 @@ impl EditorApp {
                 AppAction::OpenInNewWindow(path) => {
                     self.open_in_new_window(path, ctx);
                 }
+                AppAction::OpenWithChoice(path) => {
+                    // Nastavit pending_open_choice na root workspace.
+                    // Wizard callback nemá přímý přístup k ws, proto jde přes AppAction.
+                    if let Some(ws) = &mut self.root_ws {
+                        ws.pending_open_choice = Some(path);
+                    }
+                }
                 AppAction::CloseWorkspace(vid) => {
                     self.secondary.retain(|sw| sw.viewport_id != vid);
                     self.save_session();
@@ -1000,6 +1007,7 @@ mod tests {
             pending_close_flow: None,
             last_unsaved_close_cancelled: false,
             history_view: None,
+            pending_open_choice: None,
         };
 
         let dirty_path = ws.root_path.join("dirty.txt");
@@ -1133,6 +1141,7 @@ mod tests {
             pending_close_flow: None,
             last_unsaved_close_cancelled: false,
             history_view: None,
+            pending_open_choice: None,
         };
 
         let mut app = EditorApp::test_new_with_workspace(ws, &ctx);

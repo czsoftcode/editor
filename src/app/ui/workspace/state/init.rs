@@ -165,6 +165,7 @@ pub fn init_workspace(
         pending_close_flow: None,
         last_unsaved_close_cancelled: false,
         history_view: None,
+        pending_open_choice: None,
     }
 }
 

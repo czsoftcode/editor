@@ -33,12 +33,15 @@ pub struct SettingsConflict {
 }
 
 /// Mode of the pending unsaved close flow.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PendingCloseMode {
     /// Guard flow initiated for a single active tab.
     SingleTab,
     /// Guard flow initiated for closing the whole workspace/project.
     WorkspaceClose,
+    /// Guard flow initiated for switching to a different project in the current window.
+    /// Po dokončení (save/discard všech dirty tabs) se nastaví `open_here_path`.
+    SwitchProject(PathBuf),
 }
 
 /// Input mode used for building the unsaved-close queue.
@@ -143,6 +146,9 @@ pub struct WorkspaceState {
     pub last_unsaved_close_cancelled: bool,
     /// Stav otevřeného history panelu (None = panel není zobrazen).
     pub history_view: Option<crate::app::ui::workspace::history::HistoryViewState>,
+    /// Cesta čekající na rozhodnutí uživatele (Nové okno / Stávající okno / Zrušit).
+    /// Nastavuje se po výběru složky, open_recent nebo wizard callback.
+    pub pending_open_choice: Option<PathBuf>,
 }
 
 impl Drop for WorkspaceState {

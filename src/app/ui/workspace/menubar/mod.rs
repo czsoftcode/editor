@@ -224,25 +224,25 @@ pub(super) fn process_menu_actions(
             .lock()
             .expect("Failed to lock AppShared for open recent action");
         sh.actions.push(AppAction::AddRecent(path.clone()));
-        sh.actions.push(AppAction::OpenInNewWindow(path));
+        drop(sh);
+        // Nastavíme pending stav přímo na workspace — modal rozhodne kam otevřít
+        ws.pending_open_choice = Some(path);
     }
 
-    let mut open_here_path: Option<PathBuf> = None;
+    let open_here_path: Option<PathBuf> = None;
     if let Some(rx) = &ws.folder_pick_rx
-        && let Ok((maybe_path, in_new_window)) = rx.try_recv()
+        && let Ok((maybe_path, _in_new_window)) = rx.try_recv()
     {
         ws.folder_pick_rx = None;
         if let Some(dir) = maybe_path {
             let path = dir.canonicalize().unwrap_or(dir);
-            if in_new_window {
-                let mut sh = shared
-                    .lock()
-                    .expect("Failed to lock AppShared for folder pick result");
-                sh.actions.push(AppAction::AddRecent(path.clone()));
-                sh.actions.push(AppAction::OpenInNewWindow(path));
-            } else {
-                open_here_path = Some(path);
-            }
+            let mut sh = shared
+                .lock()
+                .expect("Failed to lock AppShared for folder pick result");
+            sh.actions.push(AppAction::AddRecent(path.clone()));
+            drop(sh);
+            // Nastavíme pending stav přímo — modal rozhodne kam otevřít
+            ws.pending_open_choice = Some(path);
         }
     }
 

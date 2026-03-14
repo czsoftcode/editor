@@ -411,3 +411,10 @@ project-search-replace-write-error = Write failed for { $file }: { $error }
 search-regex-toggle = Regular expression
 search-case-toggle = Match case
 search-word-toggle = Whole word
+
+# Open project choice modal
+open-choice-title = Open Project
+open-choice-description = Where do you want to open the project?
+open-choice-new-window = New Window
+open-choice-current-window = Current Window
+open-choice-cancel = Cancel

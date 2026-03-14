@@ -405,3 +405,10 @@ project-search-replace-write-error = Schreiben fehlgeschlagen für { $file }: { 
 search-regex-toggle = Regulärer Ausdruck
 search-case-toggle = Groß-/Kleinschreibung
 search-word-toggle = Ganzes Wort
+
+# Projektöffnungs-Auswahldialog
+open-choice-title = Projekt öffnen
+open-choice-description = Wo möchten Sie das Projekt öffnen?
+open-choice-new-window = Neues Fenster
+open-choice-current-window = Aktuelles Fenster
+open-choice-cancel = Abbrechen

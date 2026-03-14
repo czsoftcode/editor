@@ -419,3 +419,10 @@ project-search-replace-write-error = Ошибка записи для { $file }:
 search-regex-toggle = Регулярное выражение
 search-case-toggle = С учётом регистра
 search-word-toggle = Целое слово
+
+# Диалог выбора открытия проекта
+open-choice-title = Открыть проект
+open-choice-description = Где вы хотите открыть проект?
+open-choice-new-window = Новое окно
+open-choice-current-window = Текущее окно
+open-choice-cancel = Отмена

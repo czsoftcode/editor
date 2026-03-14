@@ -404,6 +404,83 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 - Validation: build_match_layout_job() (oranžový bg rgba(200,130,0,120)) a build_context_layout_job() (dim rgb(140,140,140)) znovupoužity v render_search_panel(). grep 'build_match_layout_job\|build_context_layout_job' → 8 výskytů.
 - Notes: Znovupoužití identických engine funkcí z M005.
 
+### R037 — Modal dialog s volbou "Nové okno / Stávající okno / Zrušit" po výběru složky
+- Class: core-capability
+- Status: validated
+- Description: Po výběru složky v "Otevřít projekt" se zobrazí modal s volbou "Nové okno" (výchozí) / "Stávající okno" / "Zrušit".
+- Why it matters: Primární deliverable M007 — uživatel si volí kam projekt otevřít.
+- Source: user
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: open_project handler nastavuje pending_open_choice, show_open_choice_modal() se 3 tlačítky přes StandardModal, modal renderován v render_workspace(). cargo check + ./check.sh pass.
+- Notes: none
+
+### R038 — Stejný modal po vytvoření projektu v wizardu
+- Class: core-capability
+- Status: validated
+- Description: Po dokončení "Nový projekt" wizardu se zobrazí stejný modal s volbou kam otevřít.
+- Why it matters: Konzistentní UX — všechny cesty k otevření projektu nabízejí volbu.
+- Source: user
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: Wizard callback pushuje AppAction::OpenWithChoice(path), handler v process_actions nastavuje pending_open_choice na root_ws.
+- Notes: Wizard callback nemá &mut WorkspaceState — proto přes AppAction.
+
+### R039 — Stejný modal po kliknutí na nedávný projekt
+- Class: core-capability
+- Status: validated
+- Description: Po kliknutí na položku v "Nedávné projekty" se zobrazí stejný modal s volbou.
+- Why it matters: Konzistentní UX napříč entry pointy.
+- Source: user
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: open_recent handler nastavuje pending_open_choice přímo (má &mut WorkspaceState).
+- Notes: none
+
+### R040 — Unsaved changes guard při volbě "stávající okno"
+- Class: failure-visibility
+- Status: validated
+- Description: Pokud existují neuložené změny a uživatel zvolí "Stávající okno", zobrazí se unsaved changes guard (Save / Discard / Cancel). Po Save/Discard se projekt přepne, Cancel zruší akci.
+- Why it matters: Ochrana před ztrátou neuložených dat.
+- Source: user
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: PendingCloseMode::SwitchProject(PathBuf) variant, PendingCloseFlow s dirty tabs queue, process_unsaved_close_guard_dialog vrací Option<PathBuf> pro post-guard reinit, Cancel čistí pending_open_choice.
+- Notes: Rozšíření existujícího guard flow — identický pattern jako WorkspaceClose.
+
+### R041 — Workspace reinicializace při přepnutí projektu
+- Class: core-capability
+- Status: validated
+- Description: Volba "Stávající okno" provede kompletní workspace reinicializaci — starý WorkspaceState se dropne (cleanup terminálů, watcherů, git cancel), nový init_workspace() se zavolá.
+- Why it matters: Korektní přepnutí bez resource leaků.
+- Source: user
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: open_here_path = Some(path) po guard/přímém výběru → existující init_workspace() pattern v app/mod.rs. Rust Drop na starém ws zajistí cleanup.
+- Notes: Žádný nový cleanup kód — znovupoužití existujícího open_here_path mechanismu.
+
+### R042 — i18n pro open choice dialog (5 jazyků)
+- Class: launchability
+- Status: validated
+- Description: Všechny texty open choice modalu mají i18n klíče ve všech 5 jazycích (cs, en, sk, de, ru).
+- Why it matters: Konzistence s existujícím i18n systémem.
+- Source: inferred
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: 5 open-choice-* klíčů (title, description, new-window, current-window, cancel) × 5 locale souborů. show_open_choice_modal() používá i18n.get().
+- Notes: none
+
+### R043 — Cleanup terminálů a watcherů při přepnutí projektu
+- Class: operational
+- Status: validated
+- Description: Terminály, watchers a background procesy starého projektu se korektně ukončí při přepnutí na nový projekt.
+- Why it matters: Žádné resource leaky po přepnutí.
+- Source: inferred
+- Primary owning slice: M007/S01
+- Supporting slices: none
+- Validation: Rust Drop na starém WorkspaceState — Terminal::drop() volá kill_process_group(), ProjectWatcher se dropne s notify::RecommendedWatcher, git_cancel.store(true). Existující mechanismus, žádný nový kód.
+- Notes: Verifikační requirement — pokryt Rust ownership model.
+
 ## Deferred
 
 (none)
@@ -472,12 +549,19 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 | R034 | primary-user-loop | validated | M006/S01 | none | poll loop + searching flag + spinner + request_repaint |
 | R035 | primary-user-loop | validated | M006/S01 | none | per-file seskupení s filename hlavičkou |
 | R036 | primary-user-loop | validated | M006/S01 | none | build_match/context_layout_job() znovupoužity |
+| R037 | core-capability | validated | M007/S01 | none | open_project handler → pending_open_choice → modal |
+| R038 | core-capability | validated | M007/S01 | none | wizard callback → OpenWithChoice → pending_open_choice |
+| R039 | core-capability | validated | M007/S01 | none | open_recent handler → pending_open_choice → modal |
+| R040 | failure-visibility | validated | M007/S01 | none | SwitchProject guard flow, Save/Discard/Cancel |
+| R041 | core-capability | validated | M007/S01 | none | open_here_path → init_workspace, Drop cleanup |
+| R042 | launchability | validated | M007/S01 | none | 5 open-choice-* klíčů × 5 jazyků |
+| R043 | operational | validated | M007/S01 | none | Rust Drop: Terminal, Watcher, git_cancel |
 | R100 | anti-feature | out-of-scope | none | none | n/a |
 | R101 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
 - Active requirements: 0
-- Mapped to slices: 39
-- Validated: 36 (R001–R036)
+- Mapped to slices: 46
+- Validated: 43 (R001–R043)
 - Unmapped active requirements: 0

@@ -17,7 +17,9 @@ use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 
-use super::super::types::{AppShared, FocusedPanel, Toast, should_emit_save_error_toast};
+use super::super::types::{
+    AppAction, AppShared, FocusedPanel, Toast, should_emit_save_error_toast,
+};
 use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{
@@ -35,7 +37,7 @@ use crate::settings::SaveMode;
 use crate::tr;
 pub(crate) use menubar::MenuActions;
 use menubar::{process_menu_actions, render_menu_bar};
-use modal_dialogs::render_dialogs;
+use modal_dialogs::{OpenChoice, render_dialogs, show_open_choice_modal};
 
 fn should_save_settings_draft_on_ctrl_s(show_settings: bool) -> bool {
     show_settings
@@ -283,20 +285,19 @@ fn process_unsaved_close_guard_dialog(
     ws: &mut WorkspaceState,
     shared: &Arc<Mutex<AppShared>>,
     i18n: &crate::i18n::I18n,
-) {
+) -> Option<PathBuf> {
     let mut should_refresh_profiles = false;
+    let mut switch_project_path: Option<PathBuf> = None;
 
     {
-        let Some(flow) = ws.pending_close_flow.as_mut() else {
-            return;
-        };
+        let flow = ws.pending_close_flow.as_mut()?;
 
         if flow.queue.is_empty() || flow.current_index >= flow.queue.len() {
             // An empty or exhausted queue means the guard flow is effectively done.
             // Treat this as a cancelled flow from the workspace perspective.
             ws.last_unsaved_close_cancelled = true;
             ws.pending_close_flow = None;
-            return;
+            return None;
         }
 
         let current_path = flow.queue[flow.current_index].clone();
@@ -308,6 +309,7 @@ fn process_unsaved_close_guard_dialog(
             match outcome {
                 UnsavedCloseOutcome::Cancelled => {
                     ws.last_unsaved_close_cancelled = true;
+                    ws.pending_open_choice = None;
                     ws.pending_close_flow = None;
                 }
                 UnsavedCloseOutcome::Continue => {
@@ -315,10 +317,16 @@ fn process_unsaved_close_guard_dialog(
                 }
                 UnsavedCloseOutcome::Finished => {
                     ws.last_unsaved_close_cancelled = false;
+                    // Extrahovat SwitchProject cestu před vynulováním flow
+                    if let Some(ref flow) = ws.pending_close_flow
+                        && let PendingCloseMode::SwitchProject(ref path) = flow.mode
+                    {
+                        switch_project_path = Some(path.clone());
+                    }
                     ws.pending_close_flow = None;
                 }
             }
-            return;
+            return switch_project_path;
         }
 
         // Keep queue alignment without requesting editor focus while modal is active.
@@ -339,7 +347,7 @@ fn process_unsaved_close_guard_dialog(
         );
 
         if decision == UnsavedGuardDecision::Pending {
-            return;
+            return None;
         }
 
         let mut precomputed_outcome = None;
@@ -399,7 +407,20 @@ fn process_unsaved_close_guard_dialog(
                 // Keep the flow active; next item (or same on save-fail) will be handled on the next frame.
             }
             UnsavedCloseOutcome::Finished | UnsavedCloseOutcome::Cancelled => {
-                ws.last_unsaved_close_cancelled = matches!(outcome, UnsavedCloseOutcome::Cancelled);
+                let is_cancelled = matches!(outcome, UnsavedCloseOutcome::Cancelled);
+                ws.last_unsaved_close_cancelled = is_cancelled;
+                // Extrahovat SwitchProject cestu před vynulováním flow
+                if !is_cancelled
+                    && let Some(flow) = ws.pending_close_flow.as_ref()
+                    && let PendingCloseMode::SwitchProject(ref path) = flow.mode
+                {
+                    switch_project_path = Some(path.clone());
+                }
+                // Cancel v guard flow musí vyčistit pending_open_choice
+                // aby se modal znovu nezobrazil
+                if is_cancelled {
+                    ws.pending_open_choice = None;
+                }
                 ws.pending_close_flow = None;
             }
         }
@@ -408,6 +429,8 @@ fn process_unsaved_close_guard_dialog(
     if should_refresh_profiles {
         ws.refresh_profiles_if_active_path();
     }
+
+    switch_project_path
 }
 
 pub(crate) fn render_workspace(
@@ -527,19 +550,70 @@ pub(crate) fn render_workspace(
         || ws.show_settings
         || ws.show_new_project
         || ws.show_about
-        || ws.show_semantic_indexing_modal;
+        || ws.show_semantic_indexing_modal
+        || ws.pending_open_choice.is_some();
     let editor_locked = editor_input_locked(dialog_open_base, ws.pending_close_flow.is_some());
 
     let dialogs_interacted = render_dialogs(ctx, ws, shared, i18n);
     // Unsaved close guard dialog is rendered after generic dialogs so that it
     // can safely own the decision flow for pending close operations.
-    process_unsaved_close_guard_dialog(ctx, ws, shared, i18n);
+    if let Some(path) = process_unsaved_close_guard_dialog(ctx, ws, shared, i18n) {
+        // SwitchProject guard flow dokončen — nastavit open_here_path
+        open_here_path = Some(path);
+    }
     render_semantic_indexing_modal(ctx, ws, i18n);
     ws.dep_wizard.render(ctx, i18n);
     if let Some(path) = render_file_picker(ctx, ws, i18n) {
         open_file_in_ws(ws, path);
     }
     render_replace_preview_dialog(ctx, ws, i18n);
+
+    // --- Open Choice Modal (Nové okno / Stávající okno / Zrušit) ---
+    // Nepokoušet se renderovat, pokud běží guard flow (prevence kolize dvou modálů)
+    if ws.pending_open_choice.is_some() && ws.pending_close_flow.is_none() {
+        let id_salt = ws.root_path.as_os_str().to_os_string();
+        match show_open_choice_modal(ctx, &id_salt, i18n) {
+            OpenChoice::NewWindow => {
+                let path = ws.pending_open_choice.take().unwrap();
+                let mut sh = shared
+                    .lock()
+                    .expect("Failed to lock AppShared for OpenChoice::NewWindow");
+                sh.actions.push(AppAction::OpenInNewWindow(path));
+            }
+            OpenChoice::CurrentWindow => {
+                let path = ws.pending_open_choice.take().unwrap();
+                // Zjistit jestli existují dirty (modified) tabs
+                let tabs_snapshot: Vec<(PathBuf, bool)> = ws
+                    .editor
+                    .tabs
+                    .iter()
+                    .map(|t| (t.path.clone(), t.modified))
+                    .collect();
+                let dirty_queue = build_dirty_close_queue_for_mode(
+                    DirtyCloseQueueMode::WorkspaceClose(ws.editor.active_path()),
+                    &tabs_snapshot,
+                );
+                if dirty_queue.is_empty() {
+                    // Žádné dirty tabs — rovnou přepnout projekt
+                    open_here_path = Some(path);
+                } else {
+                    // Dirty tabs existují — spustit guard flow pro SwitchProject
+                    ws.pending_close_flow = Some(PendingCloseFlow {
+                        mode: PendingCloseMode::SwitchProject(path),
+                        queue: dirty_queue,
+                        current_index: 0,
+                        inline_error: None,
+                    });
+                }
+            }
+            OpenChoice::Cancelled => {
+                ws.pending_open_choice = None;
+            }
+            OpenChoice::Pending => {
+                // Modal zůstává otevřený, nic neděláme
+            }
+        }
+    }
 
     // Replace execution: snapshot → write → tab refresh → summary toast
     if ws.project_search.pending_replace {

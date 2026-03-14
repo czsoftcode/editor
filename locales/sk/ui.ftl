@@ -415,3 +415,10 @@ project-search-replace-write-error = Zápis zlyhal pre { $file }: { $error }
 search-regex-toggle = Regulárny výraz
 search-case-toggle = Rozlišovať veľkosť písmen
 search-word-toggle = Celé slová
+
+# Modál výberu otvorenia projektu
+open-choice-title = Otvoriť projekt
+open-choice-description = Kde chcete projekt otvoriť?
+open-choice-new-window = Nové okno
+open-choice-current-window = Existujúce okno
+open-choice-cancel = Zrušiť

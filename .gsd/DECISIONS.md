@@ -171,3 +171,5 @@
 - "PendingCloseMode::SwitchProject(PathBuf) rozšíření guard flow — post-guard akce nastaví open_here_path místo close, znovupoužívá existující reinit pattern bez nového cleanup kódu"
 - "Modal blokován pokud pending_close_flow.is_some() — prevence kolize dvou guard flow (SwitchProject + WindowClose)"
 - "Workspace reinicializace přes existující open_here_path pattern — Rust Drop na starém WorkspaceState automaticky zajistí cleanup terminálů, watcherů a git cancel; žádný nový cleanup kód"
+- "Menubar handlery (open_project, open_recent) nastavují ws.pending_open_choice přímo — mají &mut WorkspaceState, nepotřebují AppAction detour přes process_actions()"
+- "OpenWithChoice handler v process_actions nastavuje pending na root_ws — sekundární okna nejsou relevantní pro pending modal, wizard callback je hlavní use case pro AppAction cestu"

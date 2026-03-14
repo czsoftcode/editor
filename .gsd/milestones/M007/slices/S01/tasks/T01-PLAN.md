@@ -44,6 +44,14 @@ Zavést `pending_open_choice: Option<PathBuf>` jako centrální stav pro "uživa
 - [ ] Modal se renderuje v render_workspace() a reaguje na volby
 - [ ] Escape/klik mimo = Cancel (clear pending)
 
+## Observability Impact
+
+- **Nový stav:** `pending_open_choice: Option<PathBuf>` na `WorkspaceState` — inspektovatelný přes debugger/log; `Some(path)` = modal je zobrazen, `None` = modal skrytý
+- **Nová akce:** `AppAction::OpenWithChoice(PathBuf)` — prochází centrální `process_actions()`, trasovatelná jako ostatní akce
+- **Vizuální signál:** Modal se 3 tlačítky je viditelný okamžitě po výběru cesty — budoucí agent ověří přes `grep -r 'pending_open_choice' src/`
+- **Failure visibility:** Pokud `pending_open_choice` zůstane `Some` déle než 1 frame bez modalu = bug v renderingu (detektovatelné přes stav fieldu)
+- **Cancel path:** Escape/backdrop vždy vyčistí pending stav → deterministické chování
+
 ## Verification
 
 - `cargo check` — žádné compile errory

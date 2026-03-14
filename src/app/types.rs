@@ -135,6 +135,8 @@ impl Default for PersistentState {
 pub(crate) enum AppAction {
     /// Open project in a new window
     OpenInNewWindow(PathBuf),
+    /// User selected a path; show the "New window / Current window" choice modal
+    OpenWithChoice(PathBuf),
     /// Close secondary viewport (after clicking X window button)
     CloseWorkspace(eframe::egui::ViewportId),
     /// Add path to recent projects

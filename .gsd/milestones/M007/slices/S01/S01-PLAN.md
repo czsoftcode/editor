@@ -15,6 +15,15 @@
 - i18n klíče ve všech 5 jazycích
 - `cargo check` + `./check.sh` pass
 
+## Observability / Diagnostics
+
+- `pending_open_choice` na `WorkspaceState` — inspektovatelný stav; pokud je `Some(path)`, modal je viditelný
+- Toast chyby při selhání open_here flow se propagují přes stávající toast systém
+- `OpenWithChoice` akce loguje se přes stávající `AppAction` flow v `process_actions()` — debugovatelné přes breakpoint na matchi
+- Guard flow (`PendingCloseMode::SwitchProject`) se chová identicky jako existující `WorkspaceClose` — sledovatelné přes `pending_close_flow` field
+- Escape/backdrop cancel čistí `pending_open_choice` → modal zmizí ihned (vizuálně pozorovatelné)
+- Žádné secrets se nelogují
+
 ## Verification
 
 - `cargo check` — žádné compile errory
@@ -26,7 +35,7 @@
 
 ## Tasks
 
-- [ ] **T01: Pending stav, modal a napojení tří entry pointů** `est:45m`
+- [x] **T01: Pending stav, modal a napojení tří entry pointů** `est:45m`
   - Why: Základ celého flow — modal se musí zobrazit po třech akcích a "Nové okno" + "Stávající okno" (bez dirty) musí fungovat
   - Files: `src/app/types.rs`, `src/app/mod.rs`, `src/app/ui/workspace/state/mod.rs`, `src/app/ui/workspace/state/types.rs`, `src/app/ui/workspace/menubar/mod.rs`, `src/app/ui/workspace/modal_dialogs.rs`, `src/app/ui/workspace/mod.rs`
   - Do:
@@ -42,7 +51,7 @@
   - Verify: `cargo check` pass; modal se zobrazí po open_project/open_recent/wizard; "Nové okno" otevře viewport; "Stávající okno" bez dirty přepne workspace
   - Done when: `cargo check` čistý, všechny tři entry pointy nastavují `pending_open_choice`, modal renderován a obě cesty (new window, current window bez dirty) fungují
 
-- [ ] **T02: Guard flow rozšíření, post-guard reinit a i18n** `est:30m`
+- [x] **T02: Guard flow rozšíření, post-guard reinit a i18n** `est:30m`
   - Why: Volba "Stávající okno" s neuloženými změnami musí zobrazit unsaved guard a po save/discard provést reinicializaci
   - Files: `src/app/ui/workspace/state/mod.rs`, `src/app/ui/workspace/mod.rs`, `locales/cs/ui.ftl`, `locales/en/ui.ftl`, `locales/sk/ui.ftl`, `locales/de/ui.ftl`, `locales/ru/ui.ftl`
   - Do:

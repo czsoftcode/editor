@@ -39,6 +39,13 @@ Implementace čisté search engine logiky bez UI: regex matching s toggle kombin
 - `cargo test --bin polycredo-editor app::ui::search_picker` — 13+ testů pass
 - `cargo check` — kompilace čistá (UI kód se dočasně přizpůsobí novým typům)
 
+## Observability Impact
+
+- **`ProjectSearch.regex_error: Option<String>`** — nový field: uchovává lidsky čitelnou chybu regex kompilace. Inspekce: přítomnost `Some(msg)` značí nevalidní query. Budoucí agent může zkontrolovat, že error message obsahuje specifický regex error, ne generický fallback.
+- **`ProjectSearch.searching: bool`** — nový field: `true` znamená probíhající search. Inspekce: agent vidí, jestli se výsledky stále akumulují.
+- **`SearchBatch::Error(String)`** — nový enum variant: propaguje I/O chyby ze search threadu do UI vlákna. Bez tohoto se I/O chyby tiše zahodí.
+- **Failure path:** `build_regex()` s nevalidním patternem vrací `Err(String)` — unit test to explicitně ověřuje (ne panic, ne prázdný string).
+
 ## Inputs
 
 - `src/app/ui/search_picker.rs` — existující search implementace (352 řádků)

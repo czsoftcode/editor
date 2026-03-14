@@ -57,7 +57,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Vylepšený search dialog s regex engine, zvýrazněnými výsledky a kontextem** `risk:high` `depends:[]`
+- [x] **S01: Vylepšený search dialog s regex engine, zvýrazněnými výsledky a kontextem** `risk:high` `depends:[]`
   > After this: Ctrl+Shift+F otevře nový dialog s regex/case/whole-word togglery a file type filtrem. Výsledky zobrazují zvýrazněné matche v kontextu ±2 řádků. Kliknutí na výsledek otevře soubor na řádku. Inkrementální streamování výsledků. Unit testy pokrývají engine logiku.
 - [ ] **S02: Project-wide replace s preview a local history** `risk:medium` `depends:[S01]`
   > After this: Uživatel zadá replace text, zobrazí se preview diff per-file s checkboxy, potvrzení modifikuje vybrané soubory s local history snapshotem. I/O chyby se reportují per-file přes toast. i18n kompletní.

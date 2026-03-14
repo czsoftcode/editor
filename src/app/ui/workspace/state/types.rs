@@ -54,15 +54,50 @@ pub struct SearchResult {
     pub file: PathBuf,
     pub line: usize,
     pub text: String,
+    /// Byte rozsahy matchů v rámci `text` (start, end).
+    pub match_ranges: Vec<(usize, usize)>,
+    /// Kontextové řádky před matchem.
+    pub context_before: Vec<String>,
+    /// Kontextové řádky za matchem.
+    pub context_after: Vec<String>,
+}
+
+/// Volby pro vyhledávání — togglery v search dialogu.
+#[derive(Clone, Debug, Default)]
+pub struct SearchOptions {
+    pub use_regex: bool,
+    pub case_sensitive: bool,
+    pub whole_word: bool,
+    pub file_filter: String,
+}
+
+/// Dávka výsledků ze search threadu.
+pub enum SearchBatch {
+    /// Výsledky z jednoho souboru.
+    Results(Vec<SearchResult>),
+    /// Search dokončen.
+    Done,
+    /// Chyba při vyhledávání (I/O, regex, atd.).
+    Error(String),
 }
 
 pub struct ProjectSearch {
     pub show_input: bool,
     pub query: String,
     pub results: Vec<SearchResult>,
-    pub rx: Option<mpsc::Receiver<Vec<SearchResult>>>,
+    pub rx: Option<mpsc::Receiver<SearchBatch>>,
     pub focus_requested: bool,
     pub cancel_epoch: Arc<AtomicU64>,
+    /// Volby vyhledávání (regex/case/word/filtr).
+    pub options: SearchOptions,
+    /// Chybová hláška z nevalidního regexu.
+    pub regex_error: Option<String>,
+    /// Text pro replace (připraveno pro S02).
+    pub replace_text: String,
+    /// Zobrazit replace UI.
+    pub show_replace: bool,
+    /// Indikátor probíhajícího vyhledávání.
+    pub searching: bool,
 }
 
 impl Default for ProjectSearch {
@@ -74,6 +109,11 @@ impl Default for ProjectSearch {
             rx: None,
             focus_requested: false,
             cancel_epoch: Arc::new(AtomicU64::new(0)),
+            options: SearchOptions::default(),
+            regex_error: None,
+            replace_text: String::new(),
+            show_replace: false,
+            searching: false,
         }
     }
 }

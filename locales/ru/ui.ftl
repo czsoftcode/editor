@@ -173,6 +173,23 @@ project-search-results =
     }
 project-search-no-results = Нет результатов
 project-search-max-results = Показано не более { $max } результатов
+project-search-regex-toggle = Регулярное выражение (regex)
+project-search-case-toggle = Учитывать регистр
+project-search-word-toggle = Целые слова
+project-search-file-filter-hint = Фильтр файлов (*.rs, *.toml)
+project-search-regex-error = Ошибка регулярного выражения
+project-search-searching = Поиск…
+project-search-results-count =
+    { $count ->
+        [one] 1 результат
+        [few] { $count } результата
+       *[other] { $count } результатов
+    }
+project-search-replace-heading = Замена в проекте
+project-search-replace-btn = Заменить всё
+project-search-replace-with = Заменить на…
+project-search-replace-preview = Предпросмотр замены
+project-search-context-separator = ···
 
 ## Общие кнопки
 btn-ok = OK

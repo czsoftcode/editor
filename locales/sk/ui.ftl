@@ -158,6 +158,22 @@ project-search-results =
     }
 project-search-no-results = Žiadne výsledky
 project-search-max-results = Zobrazených max. { $max } výsledkov
+project-search-regex-toggle = Regulárny výraz (regex)
+project-search-case-toggle = Rozlišovať veľkosť písmen
+project-search-word-toggle = Celé slová
+project-search-file-filter-hint = Filter súborov (*.rs, *.toml)
+project-search-regex-error = Chyba regexu
+project-search-searching = Hľadám…
+project-search-results-count =
+    { $count ->
+        [one] 1 výsledok
+       *[other] { $count } výsledkov
+    }
+project-search-replace-heading = Nahradiť v projekte
+project-search-replace-btn = Nahradiť všetko
+project-search-replace-with = Nahradiť za…
+project-search-replace-preview = Náhľad nahradenia
+project-search-context-separator = ···
 
 ## Spoločné tlačidlá
 btn-ok = OK

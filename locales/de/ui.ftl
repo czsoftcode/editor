@@ -156,6 +156,22 @@ project-search-results =
     }
 project-search-no-results = Keine Ergebnisse
 project-search-max-results = Max. { $max } Ergebnisse werden angezeigt
+project-search-regex-toggle = Regulärer Ausdruck (Regex)
+project-search-case-toggle = Groß-/Kleinschreibung beachten
+project-search-word-toggle = Ganze Wörter
+project-search-file-filter-hint = Dateifilter (*.rs, *.toml)
+project-search-regex-error = Regex-Fehler
+project-search-searching = Suche…
+project-search-results-count =
+    { $count ->
+        [one] 1 Ergebnis
+       *[other] { $count } Ergebnisse
+    }
+project-search-replace-heading = Im Projekt ersetzen
+project-search-replace-btn = Alle ersetzen
+project-search-replace-with = Ersetzen durch…
+project-search-replace-preview = Ersetzungsvorschau
+project-search-context-separator = ···
 
 ## Gemeinsame Schaltflächen
 btn-ok = OK

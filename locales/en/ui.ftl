@@ -156,6 +156,22 @@ project-search-results =
     }
 project-search-no-results = No results
 project-search-max-results = Showing max. { $max } results
+project-search-regex-toggle = Regular expression (regex)
+project-search-case-toggle = Case sensitive
+project-search-word-toggle = Whole words
+project-search-file-filter-hint = File filter (*.rs, *.toml)
+project-search-regex-error = Regex error
+project-search-searching = Searching…
+project-search-results-count =
+    { $count ->
+        [one] 1 result
+       *[other] { $count } results
+    }
+project-search-replace-heading = Replace in project
+project-search-replace-btn = Replace all
+project-search-replace-with = Replace with…
+project-search-replace-preview = Replace preview
+project-search-context-separator = ···
 
 ## Common buttons
 btn-ok = OK

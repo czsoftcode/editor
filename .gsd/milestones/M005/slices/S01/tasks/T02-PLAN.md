@@ -40,6 +40,14 @@ Přestavba UI project search dialogu: nový input dialog s toggle buttony (regex
 - `./check.sh` — fmt, clippy, všechny testy pass
 - `grep -c 'project-search-' locales/*/ui.ftl` — minimálně 19 per jazyk (7 existujících + 12 nových)
 
+## Observability Impact
+
+- **Inline regex error**: `ProjectSearch.regex_error` se zobrazuje v UI jako červený text pod query inputem. Budoucí agent může ověřit přes `regex_error.is_some()`.
+- **Search progress**: `ProjectSearch.searching` je `true` během běhu, UI zobrazuje "Hledám..." indikátor. Přechod `true→false` nastane při `SearchBatch::Done`, `Error`, nebo `Disconnect`.
+- **Toggle stavy**: `ProjectSearch.options` (use_regex, case_sensitive, whole_word, file_filter) jsou přímo inspektovatelné.
+- **Výsledky**: `ProjectSearch.results.len()` sleduje akumulované výsledky. UI zobrazuje počet v titulku dialogu.
+- **Failure visibility**: I/O chyby ze search threadu logované přes `eprintln!("Search: chyba čtení ...")`. Regex error → inline v dialogu. SearchBatch::Error → toast.
+
 ## Inputs
 
 - T01 output: rozšířené typy (SearchResult, ProjectSearch, SearchOptions, SearchBatch), engine funkce (build_regex, search_file_with_context, run_project_search)

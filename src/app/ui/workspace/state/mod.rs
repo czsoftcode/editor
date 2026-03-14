@@ -23,7 +23,8 @@ use crate::watcher::{FileWatcher, ProjectWatcher};
 pub use self::actions::{open_and_jump, open_file_in_ws, spawn_ai_tool_check, ws_to_panel_state};
 pub use self::init::init_workspace;
 pub use self::types::{
-    FilePicker, FolderPickResult, FsChangeResult, ProjectSearch, SearchResult, SecondaryWorkspace,
+    FilePicker, FolderPickResult, FsChangeResult, ProjectSearch, SearchBatch, SearchOptions,
+    SearchResult, SecondaryWorkspace,
 };
 
 #[derive(Clone)]

@@ -27,6 +27,8 @@
 - `cargo test --bin polycredo-editor app::ui::search_picker` — engine unit testy (regex, case, whole-word, filtr, kontext)
 - `cargo check` — kompilace čistá
 - `./check.sh` — fmt, clippy, všechny testy pass
+- Diagnostika: unit test ověří, že nevalidní regex vrací `Err(String)` s popisnou chybovou hláškou (ne panic, ne prázdný string)
+- Failure-path: `ProjectSearch.regex_error` musí být `Some(msg)` po nevalidním regexu, `None` po validním. Unit test `build_regex_invalid_pattern` ověřuje prefix "Neplatný regex:" a neprázdný string. `build_regex_empty_query` ověřuje Err pro prázdný dotaz.
 
 ## Observability / Diagnostics
 
@@ -43,14 +45,14 @@
 
 ## Tasks
 
-- [ ] **T01: Search engine s togglery, file filtrem a kontextovými řádky** `est:45m`
+- [x] **T01: Search engine s togglery, file filtrem a kontextovými řádky** `est:45m`
   - Why: Engine logika je základ pro celý search — regex matching, toggle kombinace, kontext extraction, file filtering. Plně testovatelná bez UI.
   - Files: `src/app/ui/search_picker.rs`, `src/app/ui/workspace/state/types.rs`
   - Do: (1) Rozšířit `SearchResult` o `match_ranges: Vec<(usize, usize)>` a `context_before: Vec<String>`, `context_after: Vec<String>`. (2) Přidat `SearchOptions` struct (`use_regex`, `case_sensitive`, `whole_word`, `file_filter: String`). (3) Rozšířit `ProjectSearch` o `SearchOptions`, `regex_error: Option<String>`, `replace_text: String`, `show_replace: bool`. (4) Implementovat `build_regex(query: &str, opts: &SearchOptions) -> Result<Regex, String>` — regex mode: Regex::new(query), plain mode: regex::escape(query), whole-word: `\b` wrapping, case: RegexBuilder::case_insensitive(). (5) Implementovat `search_file_with_context(path, regex, context_lines: usize) -> Vec<SearchResult>` — find_iter na každém řádku, context ±2, sloučení blízkých bloků (distance ≤ 2*context). (6) File filter přes `globset::Glob::new(filter).compile_matcher()` v search threadu. (7) Změnit `run_project_search()` na streamování — `mpsc::Sender<SearchBatch>` kde `SearchBatch` je enum `Results(Vec<SearchResult>)` | `Done` | `Error(String)`. Posílat výsledky per-soubor. (8) Unit testy: build_regex kombinace (8 testů), search_file_with_context s kontextem a sloučením (3 testy), file filter (2 testy).
   - Verify: `cargo test --bin polycredo-editor app::ui::search_picker` — všechny engine testy pass. `cargo check` čistý.
   - Done when: build_regex() zvládá všechny toggle kombinace, search_file_with_context() vrací match_ranges + kontext se sloučením, file filter funguje, streamování přes SearchBatch, 13+ unit testů pass.
 
-- [ ] **T02: Vylepšený UI dialog s togglery, zvýrazněnými výsledky a i18n** `est:50m`
+- [x] **T02: Vylepšený UI dialog s togglery, zvýrazněnými výsledky a i18n** `est:50m`
   - Why: Engine z T01 potřebuje UI — toggle ikonky, zvýrazněné výsledky s LayoutJob, kontextové řádky, klikací výsledky, inline regex error, inkrementální akumulace výsledků, i18n.
   - Files: `src/app/ui/search_picker.rs`, `src/app/ui/workspace/mod.rs`, `locales/cs/ui.ftl`, `locales/en/ui.ftl`, `locales/sk/ui.ftl`, `locales/de/ui.ftl`, `locales/ru/ui.ftl`
   - Do: (1) Přestavit `render_project_search_dialog()` — input pole + toggle buttons (selectable_label: ".*" regex, "Aa" case, "W" whole-word) + file filter input + inline regex error pod inputem červeně. (2) Validace regex při změně query/togglerů — `build_regex()`, error do `regex_error`, search se spustí jen pokud Ok. (3) Přestavit `poll_and_render_project_search_results()` — akumulace dávek z `try_recv()` loop, loading indikátor dokud `Done` nepřijde. (4) Výsledkový rendering: per-soubor sekce (filename heading), per-match řádek s LayoutJob — matchující text zvýrazněný background barvou (žlutá/oranžová), kontext řádky s tlumenou barvou. Klikací přes `ui.add(Label::new(job).sense(Sense::click()))` nebo `Button::new(job)`. (5) Kliknutí na výsledek → `open_file_in_ws()` + `jump_to_location()` (existující pattern). (6) i18n: ~12 nových klíčů × 5 jazyků — `project-search-regex-toggle`, `project-search-case-toggle`, `project-search-word-toggle`, `project-search-file-filter`, `project-search-file-filter-hint`, `project-search-regex-error`, `project-search-searching`, `project-search-results-count`, `project-search-replace-heading`, `project-search-replace-btn`, `project-search-replace-with`, `project-search-context-separator`. (7) Smazat `collect_project_files()` — nahrazeno `ProjectIndex::get_files()` (už se používá v dispatch kódu).

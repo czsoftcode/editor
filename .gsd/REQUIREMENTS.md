@@ -4,7 +4,126 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ## Active
 
-(none)
+### R026 — Inline search panel pod editorem
+- Class: core-capability
+- Status: active
+- Description: Project search se zobrazuje v inline `TopBottomPanel::bottom` pod editorem s query inputem a togglery (regex/case/whole-word, file filter). Panel neblokuje editaci — editor je viditelný a editovatelný nad panelem.
+- Why it matters: Core deliverable M006. Eliminuje modální blokaci editace.
+- Source: user
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: none
+
+### R027 — Kliknutí na výsledek otevře soubor s fokusem
+- Class: primary-user-loop
+- Status: active
+- Description: Kliknutí na výsledek v search panelu otevře soubor a jumpne na řádek s fokusem. Panel zůstane otevřený.
+- Why it matters: Eliminuje problém ztráty fokusu po zavření modálu a blokace editace.
+- Source: user
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: Využívá existující open_and_jump() helper.
+
+### R028 — Persistentní stav panelu
+- Class: primary-user-loop
+- Status: active
+- Description: Výsledky a query přežijí close/reopen panelu. Zavření panelu (Escape/✕) a znovuotevření (Ctrl+Shift+F) zobrazí stejné výsledky a stav.
+- Why it matters: Eliminuje problém ztráty kontextu při znovuotevření search.
+- Source: user
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: show_panel=false nezmaže query ani results.
+
+### R029 — Ctrl+Shift+F toggle panelu
+- Class: primary-user-loop
+- Status: active
+- Description: Ctrl+Shift+F otevírá/zavírá search panel (toggle). Konzistentní se stávající zkratkou.
+- Why it matters: Zpětná kompatibilita se stávající klávesovou zkratkou.
+- Source: user
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: Keymap dispatch změní show_input na show_panel toggle.
+
+### R030 — In-file search s regex/case/whole-word togglery
+- Class: core-capability
+- Status: active
+- Description: In-file search (Ctrl+F) má regex/case-sensitive/whole-word togglery sdílející `build_regex()` engine z M005. Nahrazuje primitivní substring match.
+- Why it matters: Sjednocení matching engine — in-file search dostane stejné schopnosti jako project search.
+- Source: user
+- Primary owning slice: M006/S02
+- Supporting slices: none
+- Validation: pending
+- Notes: Přepis update_search() z char_indices loop na regex.find_iter().
+
+### R031 — Panel resize tažením horního okraje
+- Class: primary-user-loop
+- Status: active
+- Description: Search panel je resizable — uživatel může tažením horního okraje měnit výšku panelu.
+- Why it matters: Různí uživatelé preferují různou velikost panelu dle kontextu.
+- Source: user
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: egui TopBottomPanel::bottom().resizable(true) — nativní API.
+
+### R032 — Replace flow z inline panelu
+- Class: primary-user-loop
+- Status: active
+- Description: Replace toggle a replace input jsou v inline panelu. Replace All spouští existující preview dialog (zůstává modální).
+- Why it matters: Zachování stávající replace funkcionality v novém UI.
+- Source: user
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: render_replace_preview_dialog() se nezmění.
+
+### R033 — i18n pro nové/změněné UI prvky (5 jazyků)
+- Class: launchability
+- Status: active
+- Description: Všechny nové UI texty v search panelu a in-file search togglerech mají i18n klíče ve všech 5 jazycích (cs, en, sk, de, ru).
+- Why it matters: Konzistence s existujícím i18n systémem.
+- Source: inferred
+- Primary owning slice: M006/S01
+- Supporting slices: M006/S02
+- Validation: pending
+- Notes: Většina textů sdílena s existujícími project-search-* klíči.
+
+### R034 — Spinner a indikátor průběhu v panelu
+- Class: primary-user-loop
+- Status: active
+- Description: Během probíhajícího vyhledávání panel zobrazuje spinner a "Hledám..." indikátor. Po dokončení zobrazí počet výsledků.
+- Why it matters: UX — uživatel ví že search běží. Existuje v modálu, přenést do panelu.
+- Source: inferred
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: Přenesení existujícího patternu z poll_and_render_project_search_results().
+
+### R035 — Per-file seskupení výsledků s filename hlavičkou
+- Class: primary-user-loop
+- Status: active
+- Description: Výsledky v panelu jsou seskupené per-file s filename hlavičkou (collapsible). Standardní grep/VS Code pattern.
+- Why it matters: Organizace výsledků — uživatel vidí strukturu, ne flat list.
+- Source: inferred
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: Přenesení existujícího per-file seskupení z modálního dialogu.
+
+### R036 — Kontextové řádky a match highlighting v panelu
+- Class: primary-user-loop
+- Status: active
+- Description: Výsledky v panelu zobrazují kontextové řádky a zvýrazněné matchující části textu přes LayoutJob — stejně jako v modálním dialogu z M005.
+- Why it matters: Přenesení M005 funkcionality (R017, R018) do nového UI.
+- Source: inferred
+- Primary owning slice: M006/S01
+- Supporting slices: none
+- Validation: pending
+- Notes: Znovupoužití build_match_layout_job() a build_context_layout_job().
 
 ## Validated
 
@@ -340,12 +459,23 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 | R023 | core-capability | validated | M005/S02 | none | take_snapshot v workspace handleru, pending_replace pattern |
 | R024 | launchability | validated | M005/S01 | M005/S02 | 21+14=35 klíčů × 5 jazyků |
 | R025 | primary-user-loop | validated | M005/S01 | none | SearchBatch enum, per-soubor dávkování |
+| R026 | core-capability | active | M006/S01 | none | pending |
+| R027 | primary-user-loop | active | M006/S01 | none | pending |
+| R028 | primary-user-loop | active | M006/S01 | none | pending |
+| R029 | primary-user-loop | active | M006/S01 | none | pending |
+| R030 | core-capability | active | M006/S02 | none | pending |
+| R031 | primary-user-loop | active | M006/S01 | none | pending |
+| R032 | primary-user-loop | active | M006/S01 | none | pending |
+| R033 | launchability | active | M006/S01 | M006/S02 | pending |
+| R034 | primary-user-loop | active | M006/S01 | none | pending |
+| R035 | primary-user-loop | active | M006/S01 | none | pending |
+| R036 | primary-user-loop | active | M006/S01 | none | pending |
 | R100 | anti-feature | out-of-scope | none | none | n/a |
 | R101 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 0
-- Mapped to slices: 28
+- Active requirements: 11 (R026–R036)
+- Mapped to slices: 39
 - Validated: 25 (R001–R025)
 - Unmapped active requirements: 0

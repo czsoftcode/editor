@@ -15,3 +15,7 @@ Přebudování project-wide search (Ctrl+Shift+F) z minimálního modálního di
 ## 2026-03-13: M006 — Inline Search Panel + Vylepšení In-file Search
 
 Přesun project search z modálních dialogů do inline spodního panelu pod editorem (VS Code styl) — persistentní stav, fokus management po kliknutí na výsledek, resize panelu. Sjednocení in-file search (Ctrl+F) s regex/case/whole-word engine z M005 přes sdílený build_regex().
+
+## 2026-03-14: M007 — Dialog Otevření Projektu — Stávající vs Nové Okno
+
+Přidání modálního dialogu s volbou "Otevřít v novém okně" (výchozí) / "Otevřít ve stávajícím okně" po výběru složky (Otevřít projekt), po vytvoření projektu (Nový projekt) a po kliknutí na položku v Nedávných projektech. Při volbě stávajícího okna se zobrazí unsaved changes guard a provede se workspace reinicializace (cleanup terminálů, watcherů, editor stavu).

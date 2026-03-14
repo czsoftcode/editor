@@ -38,13 +38,13 @@
 
 This milestone is complete only when all are true:
 
-- [ ] Modal dialog se zobrazí po všech třech akcích (open project, new project wizard, recent)
-- [ ] "Nové okno" vytvoří nový viewport
-- [ ] "Stávající okno" provede workspace reinicializaci (starý ws se dropne, nový init_workspace)
-- [ ] Unsaved changes guard se zobrazí při dirty tabs a správně reaguje na Save/Discard/Cancel
-- [ ] i18n klíče existují ve všech 5 jazycích
-- [ ] `cargo check` + `./check.sh` projde čistě
-- [ ] Escape/klik mimo modal = Cancel (vyčistí pending stav)
+- [x] Modal dialog se zobrazí po všech třech akcích (open project, new project wizard, recent)
+- [x] "Nové okno" vytvoří nový viewport
+- [x] "Stávající okno" provede workspace reinicializaci (starý ws se dropne, nový init_workspace)
+- [x] Unsaved changes guard se zobrazí při dirty tabs a správně reaguje na Save/Discard/Cancel
+- [x] i18n klíče existují ve všech 5 jazycích
+- [x] `cargo check` + `./check.sh` projde čistě
+- [x] Escape/klik mimo modal = Cancel (vyčistí pending stav)
 
 ## Requirement Coverage
 

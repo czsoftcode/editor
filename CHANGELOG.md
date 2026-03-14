@@ -1,3 +1,11 @@
+## [1.4.6-dev] - 2026-03-14
+
+### Added
+- **Dialog volby okna při otevření projektu**: Po výběru složky (Otevřít projekt), vytvoření projektu ve wizardu (Nový projekt) i kliknutí na nedávný projekt se zobrazí modal s volbou „Nové okno" / „Stávající okno" / „Zrušit". Dříve bylo chování hardcoded — otevření vždy v novém okně.
+- **Unsaved changes guard pro přepnutí projektu**: Volba „Stávající okno" s neuloženými změnami spustí guard (Uložit / Zahodit / Zrušit). Nový `PendingCloseMode::SwitchProject` rozšiřuje existující guard flow o post-guard workspace reinicializaci místo zavření.
+- **Workspace reinicializace**: Přepnutí projektu ve stávajícím okně korektně ukončí terminály (PTY kill), watchers a git operace starého projektu přes Rust Drop a inicializuje nový workspace přes existující `open_here_path` pattern.
+- **i18n**: 5 nových klíčů `open-choice-*` (title, description, new-window, current-window, cancel) ve všech 5 jazycích (cs, en, sk, de, ru).
+
 ## [1.4.5-dev] - 2026-03-13
 
 ### Fixed

@@ -414,3 +414,8 @@ project-search-replace-success = Заменено в { $count } файлах
 project-search-replace-partial-success = Заменено в { $success } из { $total } файлов ({ $errors } ошибок)
 project-search-replace-snapshot-error = Ошибка снимка для { $file }: { $error }
 project-search-replace-write-error = Ошибка записи для { $file }: { $error }
+
+# Переключатели поиска в файле
+search-regex-toggle = Регулярное выражение
+search-case-toggle = С учётом регистра
+search-word-toggle = Целое слово

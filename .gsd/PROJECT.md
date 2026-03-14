@@ -11,8 +11,8 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 ## Current State
 
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
-- **Last completed milestone:** M005: Vylepšení Project Search (2026-03-13)
-- **Active milestone:** M006: Inline Search Panel + Vylepšení In-file Search (S01 done, S02 pending)
+- **Last completed milestone:** M006: Inline Search Panel + Vylepšení In-file Search (2026-03-13)
+- **Active milestone:** none (M006 complete)
 - **Quality status:** `cargo check` čistý, clippy čistý, 192+ testů zelených (0 selhání)
 - **Primary artifacts:** `.gsd/milestones/M006/slices/S01/S01-SUMMARY.md`
 
@@ -23,7 +23,7 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 - ✓ M003: Vylepšení UI Historie Souboru (R001–R009: editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, restore, potvrzovací dialog, tab sync, výchozí stav panelů, i18n)
 - ✓ M004: Klávesové Zkratky a Centrální Keymap (R010–R015: centrální dispatch, exkluzivní modifier matching, chybějící handlery, uživatelská konfigurace, cross-platform Ctrl↔Cmd, VS Code/JetBrains konvence)
 - ✓ M005: Vylepšení Project Search (R016–R025: regex engine s togglery, zvýrazněné matche, kontextové řádky se sloučením, file type filtr, project-wide replace s preview a local history, i18n)
-- ◐ M006/S01: Inline Search Panel (R026–R029, R031–R036: inline bottom panel, klik→jump, persistentní stav, keymap toggle, resize, replace flow, i18n)
+- ✓ M006: Inline Search Panel + Vylepšení In-file Search (R026–R036: inline bottom panel, klik→jump, persistentní stav, keymap toggle, resize, replace flow, in-file search regex/case/whole-word togglery, i18n)
 - ✓ v1.3.1: Safe Trash Delete (TRASH-01..04, RESTORE-01..03, TRASHUI-01, RELIAB-01..03)
 - ✓ v1.3.0: CLI cleanup + AI terminal-only boundary + traceability closure (R33-A/R33-B/R33-C/R33-D)
 - ✓ v1.2.2: Additional Themes (WarmTan + Midnight varianty, syntect mapovani, i18n)
@@ -57,7 +57,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - ~~M003: Vylepšení UI Historie Souboru~~ ✓ (completed 2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
 - ~~M004: Klávesové Zkratky a Centrální Keymap~~ ✓ (completed 2026-03-13) — centrální dispatch, exkluzivní modifier matching, chybějící handlery (Ctrl+F/H/G/Shift+P/F1), command palette, uživatelská konfigurace keybindings
 - ~~M005: Vylepšení Project Search~~ ✓ (completed 2026-03-13) — regex engine, case/whole-word togglery, zvýraznění matchů, kontext ±2 řádků se sloučením, file type filtr, project-wide replace s preview a local history, i18n 35 klíčů × 5 jazyků
-- **M006: Inline Search Panel + Vylepšení In-file Search** — přesun project search z modálů do inline bottom panelu pod editorem, persistentní stav, fokus management, sjednocení in-file search s regex engine
+- ~~M006: Inline Search Panel + Vylepšení In-file Search~~ ✓ (completed 2026-03-13) — inline bottom panel s klik→jump a persistentním stavem, in-file search regex/case/whole-word togglery sdílející build_regex() engine, i18n kompletní
 
 ## Next Milestone Goals
 
@@ -147,4 +147,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 </details>
 
 ---
-*Last updated: 2026-03-13 after M006/S01 slice completed*
+*Last updated: 2026-03-13 after M006 milestone completed*

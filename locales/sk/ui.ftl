@@ -410,3 +410,8 @@ project-search-replace-success = Nahradené v { $count } súboroch
 project-search-replace-partial-success = Nahradené v { $success } z { $total } súborov ({ $errors } chýb)
 project-search-replace-snapshot-error = Snapshot zlyhal pre { $file }: { $error }
 project-search-replace-write-error = Zápis zlyhal pre { $file }: { $error }
+
+# In-file search togglery
+search-regex-toggle = Regulárny výraz
+search-case-toggle = Rozlišovať veľkosť písmen
+search-word-toggle = Celé slová

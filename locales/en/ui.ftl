@@ -406,3 +406,8 @@ project-search-replace-success = Replaced in { $count } files
 project-search-replace-partial-success = Replaced in { $success } of { $total } files ({ $errors } errors)
 project-search-replace-snapshot-error = Snapshot failed for { $file }: { $error }
 project-search-replace-write-error = Write failed for { $file }: { $error }
+
+# In-file search toggles
+search-regex-toggle = Regular expression
+search-case-toggle = Match case
+search-word-toggle = Whole word

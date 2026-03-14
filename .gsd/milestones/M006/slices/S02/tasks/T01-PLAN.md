@@ -78,6 +78,12 @@ Rozšířit in-file search bar (Ctrl+F) o 3 toggle buttons (regex/case/whole-wor
 - `grep 'search-regex-toggle\|search-case-toggle\|search-word-toggle' locales/cs/ui.ftl` → 3 výskyty
 - Existující testy: `cargo test --lib` — všechny pass
 
+## Observability Impact
+
+- **Nový signál:** `editor.search_regex_error: Option<String>` — při nevalidním regex patternu ukládá chybovou hlášku. Zobrazí se červeně v search baru. Agent ověří přes `grep 'search_regex_error' src/app/ui/editor/search.rs`.
+- **Inspekce:** Stav togglerů (`search_use_regex`, `search_case_sensitive`, `search_whole_word`) persistuje v `Editor` structu — přežije close/reopen search baru.
+- **Failure visibility:** Nevalidní regex → `search_matches` prázdné + error message v UI. Žádná tichá chyba.
+
 ## Inputs
 
 - `src/app/ui/editor/search.rs` — stávající search_bar() a update_search() jako základ pro rozšíření

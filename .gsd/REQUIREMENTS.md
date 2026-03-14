@@ -4,18 +4,20 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ## Active
 
+(none)
+
+## Validated
+
 ### R030 — In-file search s regex/case/whole-word togglery
 - Class: core-capability
-- Status: active
+- Status: validated
 - Description: In-file search (Ctrl+F) má regex/case-sensitive/whole-word togglery sdílející `build_regex()` engine z M005. Nahrazuje primitivní substring match.
 - Why it matters: Sjednocení matching engine — in-file search dostane stejné schopnosti jako project search.
 - Source: user
 - Primary owning slice: M006/S02
 - Supporting slices: none
-- Validation: pending
+- Validation: build_regex() + regex.find_iter() v update_search(). 3 toggle buttons (selectable_label) v search_bar(). search_regex_error zobrazení v baru. i18n 3 klíče × 5 jazyků. ./check.sh pass (192 unit + 37 integration testů).
 - Notes: Přepis update_search() z char_indices loop na regex.find_iter().
-
-## Validated
 
 ### R013 — Uživatelská konfigurace keybindings
 - Class: primary-user-loop
@@ -463,7 +465,7 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 | R027 | primary-user-loop | validated | M006/S01 | none | pending_jump_index → open_file_in_ws + jump + fokus |
 | R028 | primary-user-loop | validated | M006/S01 | none | show_panel=false nezmaže query/results/togglery |
 | R029 | primary-user-loop | validated | M006/S01 | none | keymap toggle show_panel, menu always-open |
-| R030 | core-capability | active | M006/S02 | none | pending |
+| R030 | core-capability | validated | M006/S02 | none | build_regex() + regex.find_iter(), 3 togglery, i18n 3×5, ./check.sh pass |
 | R031 | primary-user-loop | validated | M006/S01 | none | resizable(true) default 250px, min 100, max 60% |
 | R032 | primary-user-loop | validated | M006/S01 | none | Replace toggle + input + Replace All → preview dialog |
 | R033 | launchability | validated | M006/S01 | M006/S02 | project-search-panel-title 5 jazyků, S02 přidá in-file |
@@ -475,7 +477,7 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ## Coverage Summary
 
-- Active requirements: 1 (R030)
+- Active requirements: 0
 - Mapped to slices: 39
-- Validated: 35 (R001–R029, R031–R036)
+- Validated: 36 (R001–R036)
 - Unmapped active requirements: 0

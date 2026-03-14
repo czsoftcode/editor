@@ -144,6 +144,14 @@ pub struct Editor {
     pub(crate) search_matches: Vec<(usize, usize)>,
     pub(crate) current_match: Option<usize>,
     pub(crate) search_focus_requested: bool,
+    /// Regex toggle v in-file search (Ctrl+F).
+    pub(crate) search_use_regex: bool,
+    /// Case-sensitive toggle v in-file search.
+    pub(crate) search_case_sensitive: bool,
+    /// Whole-word toggle v in-file search.
+    pub(crate) search_whole_word: bool,
+    /// Chybová hláška při nevalidním regex patternu.
+    pub(crate) search_regex_error: Option<String>,
     pub(crate) md_split_ratio: f32,
     pub(crate) md_layout_mode: MarkdownLayoutMode,
     pub(crate) tab_scroll_x: f32,
@@ -201,6 +209,10 @@ impl Editor {
             search_matches: Vec::new(),
             current_match: None,
             search_focus_requested: false,
+            search_use_regex: false,
+            search_case_sensitive: false,
+            search_whole_word: false,
+            search_regex_error: None,
             md_split_ratio: 0.5,
             md_layout_mode: MarkdownLayoutMode::PodSebou,
             tab_scroll_x: 0.0,

@@ -400,3 +400,8 @@ project-search-replace-success = Ersetzt in { $count } Dateien
 project-search-replace-partial-success = Ersetzt in { $success } von { $total } Dateien ({ $errors } Fehler)
 project-search-replace-snapshot-error = Snapshot fehlgeschlagen für { $file }: { $error }
 project-search-replace-write-error = Schreiben fehlgeschlagen für { $file }: { $error }
+
+# In-file Suche Toggles
+search-regex-toggle = Regulärer Ausdruck
+search-case-toggle = Groß-/Kleinschreibung
+search-word-toggle = Ganzes Wort

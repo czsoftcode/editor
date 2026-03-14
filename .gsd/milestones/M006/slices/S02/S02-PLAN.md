@@ -11,16 +11,23 @@
 - Stav togglerů persistuje v Editor structu (přetrvá přes close/reopen Ctrl+F)
 - i18n klíče pro nové toggle labely (pokud chybí) ve všech 5 jazycích
 
+## Observability / Diagnostics
+
+- `editor.search_regex_error` — zobrazí se červeně v search baru při nevalidním regex patternu. Agent ověří přes `grep 'search_regex_error' src/app/ui/editor/search.rs`.
+- Při prázdném query nebo chybě regexu se `search_matches` vyčistí a `current_match = None` — UI reaguje okamžitě (0/0 counter).
+- Failure path: nevalidní regex → error message v baru, žádné matche, replace buttons neaktivní.
+
 ## Verification
 
 - `cargo check` — čistá kompilace
 - `./check.sh` — fmt, clippy, testy pass
 - `grep 'build_regex' src/app/ui/editor/search.rs` → nalezeno (napojení na engine)
 - `grep 'search_use_regex\|search_case_sensitive\|search_whole_word' src/app/ui/editor/mod.rs` → 3 výskyty (nové fieldy)
+- `grep 'search_regex_error' src/app/ui/editor/search.rs` → nalezeno (regex error handling/zobrazení)
 
 ## Tasks
 
-- [ ] **T01: Regex/case/whole-word togglery v in-file search** `est:45m`
+- [x] **T01: Regex/case/whole-word togglery v in-file search** `est:45m`
   - Why: Jediný task — scope je koherentní (3 nové fieldy, přepis jedné funkce, UI rozšíření jednoho baru, i18n). Izolovaná změna v editor/search.rs + editor/mod.rs.
   - Files: `src/app/ui/editor/mod.rs`, `src/app/ui/editor/search.rs`, `locales/{cs,en,sk,de,ru}/ui.ftl`
   - Do: 1) V Editor struct přidat `search_use_regex: bool` (default false), `search_case_sensitive: bool` (default false), `search_whole_word: bool` (default false). 2) V `search_bar()` přidat 3 toggle buttons (selectable_label) před/za query input — `.*` regex, `Aa` case, `W` whole-word. Stejný vizuální pattern jako v project search panelu. 3) Přepsat `update_search()`: místo `eq_ignore_ascii_case` char_indices loop → `build_regex(query, SearchOptions { use_regex, case_sensitive, whole_word })` → `regex.find_iter(content)` → `search_matches = matches.map(|m| (m.start(), m.end())).collect()`. 4) Regex error handling: pokud `build_regex()` vrací Err, zobrazit krátkou chybu v search baru (červeně) a nespouštět search. Přidat `search_regex_error: Option<String>` do Editor. 5) Ověřit že replace_current a replace_all fungují s novými byte ranges — `regex.find_iter()` vrací byte offsets, existující `replace_range(start..end)` je konzistentní. 6) Toggle state persistence: fieldy v Editor struct přetrvávají přes close/reopen Ctrl+F (show_search = false nezmaže toggle stav). 7) i18n: přidat klíče `search-regex-toggle`, `search-case-toggle`, `search-word-toggle` do všech 5 jazyků (nebo sdílet existující project-search-* klíče pokud texty jsou identické). 8) `cargo fmt` + `cargo clippy`. 9) `./check.sh`.

@@ -2,6 +2,8 @@ use std::time::Instant;
 
 use eframe::egui;
 
+use super::super::search_picker::build_regex;
+use super::super::workspace::state::SearchOptions;
 use super::{Editor, SaveStatus};
 
 impl Editor {
@@ -10,13 +12,11 @@ impl Editor {
     pub(super) fn update_search(&mut self) {
         self.search_matches.clear();
         self.current_match = None;
+        self.search_regex_error = None;
 
         if !self.show_search || self.search_query.is_empty() {
             return;
         }
-
-        let query = self.search_query.clone();
-        let query_len = query.len();
 
         let active_idx = match self.active_tab {
             Some(i) => i,
@@ -27,25 +27,26 @@ impl Editor {
             None => return,
         };
 
-        if query_len > content.len() {
-            return;
-        }
+        let opts = SearchOptions {
+            use_regex: self.search_use_regex,
+            case_sensitive: self.search_case_sensitive,
+            whole_word: self.search_whole_word,
+            file_filter: String::new(),
+        };
 
-        let mut matches = Vec::new();
-        for (start, _) in content.char_indices() {
-            let end = start + query_len;
-            if end > content.len() {
-                break;
+        let regex = match build_regex(&self.search_query, &opts) {
+            Ok(r) => r,
+            Err(msg) => {
+                self.search_regex_error = Some(msg);
+                return;
             }
-            if !content.is_char_boundary(end) {
-                continue;
-            }
-            if content[start..end].eq_ignore_ascii_case(&query) {
-                matches.push((start, end));
-            }
-        }
+        };
 
-        self.search_matches = matches;
+        self.search_matches = regex
+            .find_iter(content)
+            .map(|m| (m.start(), m.end()))
+            .collect();
+
         if !self.search_matches.is_empty() {
             self.current_match = Some(0);
         }
@@ -120,6 +121,7 @@ impl Editor {
         let mut do_replace_all = false;
         let mut do_close = false;
         let mut query_changed = false;
+        let mut toggles_changed = false;
 
         ui.horizontal(|ui| {
             ui.label(i18n.get("search-label"));
@@ -142,6 +144,32 @@ impl Editor {
                 }
             }
 
+            // Toggle buttons: .* (regex), Aa (case), W (whole-word)
+            if ui
+                .selectable_label(self.search_use_regex, ".*")
+                .on_hover_text(i18n.get("search-regex-toggle"))
+                .clicked()
+            {
+                self.search_use_regex = !self.search_use_regex;
+                toggles_changed = true;
+            }
+            if ui
+                .selectable_label(self.search_case_sensitive, "Aa")
+                .on_hover_text(i18n.get("search-case-toggle"))
+                .clicked()
+            {
+                self.search_case_sensitive = !self.search_case_sensitive;
+                toggles_changed = true;
+            }
+            if ui
+                .selectable_label(self.search_whole_word, "W")
+                .on_hover_text(i18n.get("search-word-toggle"))
+                .clicked()
+            {
+                self.search_whole_word = !self.search_whole_word;
+                toggles_changed = true;
+            }
+
             if ui.small_button("\u{25B2}").clicked() {
                 do_prev = true;
             }
@@ -154,6 +182,12 @@ impl Editor {
                 ui.label(format!("{}/{}", current, match_count));
             } else if !self.search_query.is_empty() {
                 ui.label("0/0");
+            }
+
+            // Regex error — krátká hláška červeně
+            if let Some(ref err) = self.search_regex_error {
+                let truncated: String = err.chars().take(40).collect();
+                ui.colored_label(egui::Color32::RED, truncated);
             }
 
             if !self.show_replace && ui.small_button(i18n.get("search-replace-expand")).clicked() {
@@ -180,7 +214,7 @@ impl Editor {
         ui.separator();
 
         self.search_focus_requested = false;
-        if query_changed {
+        if query_changed || toggles_changed {
             self.update_search();
         }
         if do_next {

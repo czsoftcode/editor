@@ -408,3 +408,8 @@ project-search-replace-success = Nahrazeno v { $count } souborech
 project-search-replace-partial-success = Nahrazeno v { $success } z { $total } souborů ({ $errors } chyb)
 project-search-replace-snapshot-error = Snapshot selhal pro { $file }: { $error }
 project-search-replace-write-error = Zápis selhal pro { $file }: { $error }
+
+# In-file search togglery
+search-regex-toggle = Regulární výraz
+search-case-toggle = Rozlišovat velikost písmen
+search-word-toggle = Celá slova

@@ -56,6 +56,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - ~~M003: Vylepšení UI Historie Souboru~~ ✓ (completed 2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
 - ~~M004: Klávesové Zkratky a Centrální Keymap~~ ✓ (completed 2026-03-13) — centrální dispatch, exkluzivní modifier matching, chybějící handlery (Ctrl+F/H/G/Shift+P/F1), command palette, uživatelská konfigurace keybindings
 - ~~M005: Vylepšení Project Search~~ ✓ (completed 2026-03-13) — regex engine, case/whole-word togglery, zvýraznění matchů, kontext ±2 řádků se sloučením, file type filtr, project-wide replace s preview a local history, i18n 35 klíčů × 5 jazyků
+- **M006: Inline Search Panel + Vylepšení In-file Search** — přesun project search z modálů do inline bottom panelu pod editorem, persistentní stav, fokus management, sjednocení in-file search s regex engine
 
 ## Next Milestone Goals
 

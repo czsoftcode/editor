@@ -114,6 +114,9 @@ impl Editor {
             }
         }
 
+        if self.show_search {
+            self.search_bar(ui, i18n);
+        }
         if self.show_goto_line {
             self.goto_line_bar(ui, i18n);
         }

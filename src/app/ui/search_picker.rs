@@ -197,6 +197,94 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
     }
 }
 
+/// Polluje výsledky z background thread a zobrazuje je v panelu.
+/// Vrací Some(path, line) pokud uživatel klikl na výsledek.
+pub fn poll_and_render_project_search_results(
+    ctx: &egui::Context,
+    ws: &mut WorkspaceState,
+    i18n: &I18n,
+) -> Option<(PathBuf, usize)> {
+    // Polluj výsledky z rx kanálu
+    if let Some(rx) = &ws.project_search.rx {
+        match rx.try_recv() {
+            Ok(results) => {
+                ws.project_search.results = results;
+                ws.project_search.rx = None;
+            }
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                ws.project_search.rx = None;
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => {
+                // Stále běží — request repaint pro další poll
+                ctx.request_repaint();
+            }
+        }
+    }
+
+    // Zobraz výsledky pokud jsou neprázdné
+    if ws.project_search.results.is_empty() {
+        return None;
+    }
+
+    let mut clicked_result: Option<(PathBuf, usize)> = None;
+    let mut close = false;
+    let mut show_flag = true;
+
+    let title = format!(
+        "{} — {} {}",
+        i18n.get("project-search-heading"),
+        ws.project_search.results.len(),
+        if ws.project_search.results.len() == 1 {
+            "result"
+        } else {
+            "results"
+        },
+    );
+    let modal = StandardModal::new(&title, "project_search_results").with_size(700.0, 500.0);
+
+    modal.show(ctx, &mut show_flag, |ui| {
+        // FOOTER — jen zavřít
+        if let Some(()) = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() || f.cancel() {
+                return Some(());
+            }
+            None
+        }) {
+            close = true;
+        }
+
+        // BODY — scrollovatelný seznam výsledků
+        modal.ui_body(ui, |ui| {
+            egui::ScrollArea::vertical()
+                .max_height(380.0)
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    for result in &ws.project_search.results {
+                        let label = format!(
+                            "{}:{} — {}",
+                            result.file.display(),
+                            result.line,
+                            result.text,
+                        );
+                        let resp = ui.selectable_label(false, &label);
+                        if resp.clicked() {
+                            clicked_result = Some((result.file.clone(), result.line));
+                        }
+                    }
+                });
+        });
+    });
+
+    if close || !show_flag {
+        ws.project_search.results.clear();
+        ws.project_search
+            .cancel_epoch
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    clicked_result
+}
+
 pub fn run_project_search(
     root: PathBuf,
     files: Arc<Vec<PathBuf>>,

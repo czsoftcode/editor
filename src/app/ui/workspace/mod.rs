@@ -20,7 +20,9 @@ use eframe::egui;
 use super::super::types::{AppShared, FocusedPanel, Toast, should_emit_save_error_toast};
 use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
-use super::search_picker::{render_file_picker, render_project_search_dialog};
+use super::search_picker::{
+    poll_and_render_project_search_results, render_file_picker, render_project_search_dialog,
+};
 use super::terminal::right::render_ai_panel;
 use super::widgets::command_palette::{execute_command, render_command_palette};
 use crate::app::ui::dialogs::confirm::{UnsavedGuardDecision, show_unsaved_close_guard_dialog};
@@ -530,6 +532,11 @@ pub(crate) fn render_workspace(
         open_file_in_ws(ws, path);
     }
     render_project_search_dialog(ctx, ws, i18n);
+    if let Some((file, line)) = poll_and_render_project_search_results(ctx, ws, i18n) {
+        let full_path = ws.root_path.join(&file);
+        open_file_in_ws(ws, full_path);
+        ws.editor.jump_to_location(line, 1);
+    }
 
     if let Some(cmd_id) = render_command_palette(ctx, ws, shared, i18n) {
         let mut actions = MenuActions::default();

@@ -13,7 +13,7 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
 - **Last completed milestone:** M004: Klávesové Zkratky a Centrální Keymap (2026-03-13) — centrální dispatch, exkluzivní modifier matching, chybějící handlery, command palette, uživatelská konfigurace keybindings
 - **Quality status:** `cargo check` čistý, clippy čistý, 172 testů zelených (0 selhání)
-- **Primary artifacts:** `.gsd/milestones/M004/slices/S03/S03-SUMMARY.md`
+- **Primary artifacts:** `.gsd/milestones/M004/M004-SUMMARY.md`
 
 ## Requirements
 
@@ -132,4 +132,4 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 </details>
 
 ---
-*Last updated: 2026-03-13 after M004 completed (S03 — uživatelská konfigurace keybindings)*
+*Last updated: 2026-03-13 after M004 milestone completed and closed*

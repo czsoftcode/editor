@@ -13,8 +13,8 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
 - **Last completed milestone:** M006: Inline Search Panel + Vylepšení In-file Search (2026-03-13)
 - **Active milestone:** none (M006 complete)
-- **Quality status:** `cargo check` čistý, clippy čistý, 192+ testů zelených (0 selhání)
-- **Primary artifacts:** `.gsd/milestones/M006/slices/S01/S01-SUMMARY.md`
+- **Quality status:** `cargo check` čistý, clippy čistý, 229 testů zelených (0 selhání)
+- **Primary artifacts:** `.gsd/milestones/M006/M006-SUMMARY.md`
 
 ## Requirements
 
@@ -98,6 +98,9 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 | Centrální Keymap dispatch místo ad-hoc ctx.input() handlerů | Konzistence, konfigurovatelnost, exkluzivní modifier matching | ✓ Implemented M004/S01 |
 | Modifiers::COMMAND místo Modifiers::CTRL | Cross-platform: Ctrl na Linuxu, Cmd na macOS automaticky | ✓ Implemented M004/S01 |
 | Keymap bindings seřazeny dle modifier_count() | egui consume_shortcut ignoruje extra modifikátory — řazení zajistí prioritu trojkombinací | ✓ Implemented M004/S01 |
+| Inline search panel místo modálních dialogů | Eliminuje ztrátu fokusu, kontextu a blokaci editace | ✓ Implemented M006/S01 |
+| Dual-index pattern pro panel navigaci | Borrow checker neumožňuje open_file_in_ws uvnitř panel closure | ✓ Implemented M006/S01 |
+| Sdílení build_regex() engine pro in-file search | Žádná duplikace logiky, sjednocení matching engine | ✓ Implemented M006/S02 |
 
 <details>
 <summary>Archived milestone context (v1.3.1 planning snapshot)</summary>
@@ -146,5 +149,15 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 </details>
 
+<details>
+<summary>Archived milestone context (M006: Inline Search Panel + Vylepšení In-file Search)</summary>
+
+- 2 slicí: S01 (inline search panel — layout, input, výsledky, klik→jump, replace, persistentní stav), S02 (in-file search regex/case/whole-word togglery)
+- Hlavní deliverables: inline bottom panel pod editorem nahrazující modální dialogy, dual-index navigace s fokus transferem, in-file search sjednocen s build_regex() engine, 375+ řádků mrtvého modálního kódu smazáno
+- Requirements: R026–R036 (všechny validated)
+- Duration: 2026-03-13
+
+</details>
+
 ---
-*Last updated: 2026-03-13 after M006 milestone completed*
+*Last updated: 2026-03-13 after M006 milestone completion verified*

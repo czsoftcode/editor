@@ -32,6 +32,13 @@ Implementace replace logiky: compute nahrazení pro všechny matchující soubor
 - `cargo test --bin polycredo-editor app::ui::search_picker` — replace testy pass
 - `cargo check` — kompilace čistá
 
+## Observability Impact
+
+- `compute_replace_previews()` vrací `io::Result<Vec<ReplacePreview>>` — I/O chyby (neexistující/nečitelný soubor) se propagují nahoru, caller je může zobrazit přes toast.
+- `apply_replacements()` vrací `Vec<(PathBuf, Result<(), String>)>` — per-file výsledek. Agent/UI může inspektovat vektor a identifikovat přesně které soubory selhaly a s jakou zprávou.
+- `ReplacePreview.selected` flag — umožňuje per-file kontrolu před zápisem. Inspektovatelné přes debug/log.
+- Selhání se netiší: žádný `unwrap()` na I/O, žádný tichý skip.
+
 ## Inputs
 
 - S01 output: `SearchResult` s match_ranges, `build_regex()`, `SearchOptions`

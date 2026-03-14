@@ -46,6 +46,13 @@ UI pro replace flow: replace input v search dialogu, preview dialog s per-file d
 - `src/app/types.rs` — Toast API
 - `src/app/ui/editor/diff_view.rs` — LayoutJob diff rendering pattern
 
+## Observability Impact
+
+- **New runtime signals:** replace summary toast po dokončení (úspěch/partial), per-file error toast pro snapshot/write selhání
+- **Inspection surfaces:** `ProjectSearch.pending_replace` flag — indikuje probíhající replace operaci; `ProjectSearch.replace_previews` — aktuální preview data s per-file `selected` stavem; `ProjectSearch.show_replace_preview` — viditelnost preview dialogu
+- **Failure visibility:** snapshot selhání → toast s cestou a chybou, soubor přeskočen (nezapsán); write selhání → toast s cestou a chybou, pokračuje s dalšími; summary toast zobrazí success/error count
+- **Future agent inspection:** zkontrolovat `replace_previews` vektor — `selected` flag per-file; toast queue v `ws.toasts` pro error messages
+
 ## Expected Output
 
 - `src/app/ui/search_picker.rs` — replace UI (input toggle, preview dialog)

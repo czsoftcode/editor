@@ -387,3 +387,15 @@ history-restore-confirm-title = Historische Version wiederherstellen
 history-restore-confirm-text = Den aktuellen Inhalt durch die ausgewählte historische Version ersetzen? Der aktuelle Stand wird als neue Version in der Historie gespeichert.
 history-restore-confirm-ok = Wiederherstellen
 history-restore-confirm-cancel = Abbrechen
+
+# Replace preview dialog
+project-search-replace-preview-title = Ersetzungsvorschau
+project-search-replace-confirm = Ersetzen bestätigen
+project-search-replace-cancel = Abbrechen
+project-search-replace-select-all = Alle auswählen
+project-search-replace-deselect-all = Alle abwählen
+project-search-replace-selection-info = { $selected } von { $total } ausgewählt
+project-search-replace-success = Ersetzt in { $count } Dateien
+project-search-replace-partial-success = Ersetzt in { $success } von { $total } Dateien ({ $errors } Fehler)
+project-search-replace-snapshot-error = Snapshot fehlgeschlagen für { $file }: { $error }
+project-search-replace-write-error = Schreiben fehlgeschlagen für { $file }: { $error }

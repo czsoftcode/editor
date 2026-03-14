@@ -149,3 +149,7 @@
 - "Label::new(layout_job).sense(Sense::click()) pro klikací search výsledky — ověřený pattern z terminal/bottom/mod.rs"
 - "SearchBatch::Error → toast (ne regex_error) — runtime chyba vs. UI validace je sémanticky jiný kanál"
 - "collect_project_files() ponecháno v search_picker.rs — živá závislost v ProjectIndex::full_rescan(), nelze smazat dokud index nebude mít vlastní scan implementaci"
+- "pending_replace flag pattern: UI nastaví flag po Confirm, workspace handler provede snapshot+write po renderingu — oddělení UI od destruktivních operací, konzistentní s HistorySplitResult.restore_confirmed pattern"
+- "Tab refresh po replace: reload obsahu z disku + reset modified flag + sync last_saved_content — prevence falešného unsaved indikátoru po replace"
+- "apply_replacements() vrací Vec<(PathBuf, Result<(), String>)> — per-file error reporting, caller rozhoduje o UI zobrazení (toast)"
+- "Preview dialog collapsing: default-open pro ≤5 souborů, collapsed pro >5 — UX balance mezi přehledností a informačním přetížením"

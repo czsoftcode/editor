@@ -393,3 +393,15 @@ history-restore-confirm-title = Restore historical version
 history-restore-confirm-text = Replace the current content with the selected historical version? The current state will be saved as a new version in history.
 history-restore-confirm-ok = Restore
 history-restore-confirm-cancel = Cancel
+
+# Replace preview dialog
+project-search-replace-preview-title = Replace Preview
+project-search-replace-confirm = Confirm Replace
+project-search-replace-cancel = Cancel
+project-search-replace-select-all = Select All
+project-search-replace-deselect-all = Deselect All
+project-search-replace-selection-info = { $selected } of { $total } selected
+project-search-replace-success = Replaced in { $count } files
+project-search-replace-partial-success = Replaced in { $success } of { $total } files ({ $errors } errors)
+project-search-replace-snapshot-error = Snapshot failed for { $file }: { $error }
+project-search-replace-write-error = Write failed for { $file }: { $error }

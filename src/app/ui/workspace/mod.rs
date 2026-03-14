@@ -22,6 +22,7 @@ use super::background::process_background_events;
 use super::panels::{render_left_panel, render_toasts};
 use super::search_picker::{
     poll_and_render_project_search_results, render_file_picker, render_project_search_dialog,
+    render_replace_preview_dialog,
 };
 use super::terminal::right::render_ai_panel;
 use super::widgets::command_palette::{execute_command, render_command_palette};
@@ -532,10 +533,97 @@ pub(crate) fn render_workspace(
         open_file_in_ws(ws, path);
     }
     render_project_search_dialog(ctx, ws, i18n);
+    render_replace_preview_dialog(ctx, ws, i18n);
     if let Some((file, line)) = poll_and_render_project_search_results(ctx, ws, i18n) {
         let full_path = ws.root_path.join(&file);
         open_file_in_ws(ws, full_path);
         ws.editor.jump_to_location(line, 1);
+    }
+
+    // Replace execution: snapshot → write → tab refresh → summary toast
+    if ws.project_search.pending_replace {
+        ws.project_search.pending_replace = false;
+
+        let selected_previews: Vec<_> = ws
+            .project_search
+            .replace_previews
+            .iter()
+            .filter(|p| p.selected)
+            .collect();
+        let total = selected_previews.len();
+        let mut success_count = 0usize;
+        let mut error_count = 0usize;
+        let mut modified_files: Vec<std::path::PathBuf> = Vec::new();
+
+        for preview in &selected_previews {
+            // Relativní cesta pro snapshot
+            let rel_path = preview
+                .file
+                .strip_prefix(&ws.root_path)
+                .unwrap_or(&preview.file);
+
+            // (a) take_snapshot před zápisem
+            if let Err(e) = ws
+                .local_history
+                .take_snapshot(rel_path, &preview.original_content)
+            {
+                let mut err_args = fluent_bundle::FluentArgs::new();
+                err_args.set("file", rel_path.to_string_lossy().to_string());
+                err_args.set("error", format!("{}", e));
+                ws.toasts.push(Toast::error(
+                    i18n.get_args("project-search-replace-snapshot-error", &err_args),
+                ));
+                error_count += 1;
+                continue; // Snapshot selhal → skip soubor
+            }
+
+            // (b) Zápis nového obsahu
+            if let Err(e) = std::fs::write(&preview.file, &preview.new_content) {
+                let mut err_args = fluent_bundle::FluentArgs::new();
+                err_args.set("file", rel_path.to_string_lossy().to_string());
+                err_args.set("error", format!("{}", e));
+                ws.toasts.push(Toast::error(
+                    i18n.get_args("project-search-replace-write-error", &err_args),
+                ));
+                error_count += 1;
+                continue;
+            }
+
+            success_count += 1;
+            modified_files.push(preview.file.clone());
+        }
+
+        // Summary toast
+        if error_count == 0 && success_count > 0 {
+            let mut args = fluent_bundle::FluentArgs::new();
+            args.set("count", success_count as i64);
+            ws.toasts.push(Toast::info(
+                i18n.get_args("project-search-replace-success", &args),
+            ));
+        } else if error_count > 0 {
+            let mut args = fluent_bundle::FluentArgs::new();
+            args.set("success", success_count as i64);
+            args.set("total", total as i64);
+            args.set("errors", error_count as i64);
+            ws.toasts.push(Toast::info(
+                i18n.get_args("project-search-replace-partial-success", &args),
+            ));
+        }
+
+        // Refresh otevřených tabů
+        for tab in &mut ws.editor.tabs {
+            if modified_files.contains(&tab.path)
+                && let Ok(new_content) = std::fs::read_to_string(&tab.path)
+            {
+                tab.content = new_content.clone();
+                tab.last_saved_content = new_content;
+                tab.modified = false;
+            }
+        }
+
+        // Vyčistit replace previews
+        ws.project_search.replace_previews.clear();
+        ws.project_search.show_replace_preview = false;
     }
 
     if let Some(cmd_id) = render_command_palette(ctx, ws, shared, i18n) {

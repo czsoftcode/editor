@@ -151,24 +151,36 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
 
     let focus_req = ws.project_search.focus_requested;
     let mut start_search = false;
+    let mut start_replace_preview = false;
     let mut close = false;
     let mut show_flag = true;
 
-    let modal = StandardModal::new(i18n.get("project-search-heading"), "project_search_modal")
-        .with_size(550.0, 300.0);
+    let heading = if ws.project_search.show_replace {
+        i18n.get("project-search-replace-heading")
+    } else {
+        i18n.get("project-search-heading")
+    };
+    let modal = StandardModal::new(&heading, "project_search_modal").with_size(550.0, 340.0);
 
     modal.show(ctx, &mut show_flag, |ui| {
         // FOOTER
-        if let Some((start, cl)) = modal.ui_footer_actions(ui, i18n, |f| {
+        if let Some((start, replace, cl)) = modal.ui_footer_actions(ui, i18n, |f| {
             if f.close() || f.cancel() {
-                return Some((false, true));
+                return Some((false, false, true));
             }
             if f.button("project-search-btn").clicked() {
-                return Some((true, false));
+                return Some((true, false, false));
+            }
+            if ws.project_search.show_replace
+                && !ws.project_search.results.is_empty()
+                && f.button("project-search-replace-btn").clicked()
+            {
+                return Some((false, true, false));
             }
             None
         }) {
             start_search = start;
+            start_replace_preview = replace;
             close = cl;
         }
 
@@ -182,7 +194,7 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
                 let resp = ui.add(
                     egui::TextEdit::singleline(&mut ws.project_search.query)
                         .hint_text(i18n.get("project-search-hint"))
-                        .desired_width(ui.available_width() - 100.0)
+                        .desired_width(ui.available_width() - 130.0)
                         .id(egui::Id::new("project_search_input")),
                 );
                 if focus_req {
@@ -192,7 +204,7 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
                     start_search = true;
                 }
 
-                // Toggle buttons: .* (regex), Aa (case), W (whole-word)
+                // Toggle buttons: .* (regex), Aa (case), W (whole-word), ↔ (replace)
                 if ui
                     .selectable_label(ws.project_search.options.use_regex, ".*")
                     .on_hover_text(i18n.get("project-search-regex-toggle"))
@@ -218,7 +230,26 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
                     ws.project_search.options.whole_word = !ws.project_search.options.whole_word;
                     toggles_changed = true;
                 }
+                // Replace toggle
+                if ui
+                    .selectable_label(ws.project_search.show_replace, "↔")
+                    .on_hover_text(i18n.get("project-search-replace-heading"))
+                    .clicked()
+                {
+                    ws.project_search.show_replace = !ws.project_search.show_replace;
+                }
             });
+
+            // Replace input (viditelný pouze s replace toggle)
+            if ws.project_search.show_replace {
+                ui.add_space(4.0);
+                ui.add(
+                    egui::TextEdit::singleline(&mut ws.project_search.replace_text)
+                        .hint_text(i18n.get("project-search-replace-with"))
+                        .desired_width(ui.available_width())
+                        .id(egui::Id::new("project_search_replace_input")),
+                );
+            }
 
             ui.add_space(4.0);
 
@@ -263,12 +294,221 @@ pub fn render_project_search_dialog(ctx: &egui::Context, ws: &mut WorkspaceState
             }
         }
     }
+
+    // Spustit replace preview
+    if start_replace_preview && !ws.project_search.results.is_empty() {
+        match build_regex(ws.project_search.query.trim(), &ws.project_search.options) {
+            Ok(regex) => {
+                match compute_replace_previews(
+                    &ws.root_path,
+                    &ws.project_search.results,
+                    &regex,
+                    &ws.project_search.replace_text,
+                ) {
+                    Ok(previews) => {
+                        if previews.is_empty() {
+                            ws.toasts.push(crate::app::types::Toast::info(
+                                i18n.get("project-search-no-results"),
+                            ));
+                        } else {
+                            ws.project_search.replace_previews = previews;
+                            ws.project_search.show_replace_preview = true;
+                        }
+                    }
+                    Err(e) => {
+                        ws.toasts
+                            .push(crate::app::types::Toast::error(format!("{}", e)));
+                    }
+                }
+            }
+            Err(e) => {
+                ws.project_search.regex_error = Some(e);
+            }
+        }
+    }
+
     if close || !show_flag {
         ws.project_search
             .cancel_epoch
             .fetch_add(1, Ordering::Relaxed);
         ws.project_search.rx = None;
         ws.project_search.show_input = false;
+    }
+}
+
+/// Renderuje replace preview dialog — modal s per-file diff a checkboxy.
+pub fn render_replace_preview_dialog(ctx: &egui::Context, ws: &mut WorkspaceState, i18n: &I18n) {
+    if !ws.project_search.show_replace_preview {
+        return;
+    }
+
+    let mut confirm = false;
+    let mut cancel = false;
+    let mut show_flag = true;
+
+    let preview_count = ws.project_search.replace_previews.len();
+    let selected_count = ws
+        .project_search
+        .replace_previews
+        .iter()
+        .filter(|p| p.selected)
+        .count();
+
+    let mut args = fluent_bundle::FluentArgs::new();
+    args.set("count", preview_count as i64);
+    args.set("selected", selected_count as i64);
+
+    let title = i18n.get("project-search-replace-preview-title");
+
+    let modal = StandardModal::new(&title, "replace_preview_modal").with_size(850.0, 600.0);
+
+    modal.show(ctx, &mut show_flag, |ui| {
+        // FOOTER
+        if let Some((conf, canc)) = modal.ui_footer_actions(ui, i18n, |f| {
+            if f.close() || f.cancel() {
+                return Some((false, true));
+            }
+            if f.button("project-search-replace-confirm").clicked() {
+                return Some((true, false));
+            }
+            None
+        }) {
+            confirm = conf;
+            cancel = canc;
+        }
+
+        // BODY
+        modal.ui_body(ui, |ui| {
+            // Select all / Deselect all
+            ui.horizontal(|ui| {
+                if ui
+                    .button(i18n.get("project-search-replace-select-all"))
+                    .clicked()
+                {
+                    for p in &mut ws.project_search.replace_previews {
+                        p.selected = true;
+                    }
+                }
+                if ui
+                    .button(i18n.get("project-search-replace-deselect-all"))
+                    .clicked()
+                {
+                    for p in &mut ws.project_search.replace_previews {
+                        p.selected = false;
+                    }
+                }
+                ui.add_space(8.0);
+                let mut sel_args = fluent_bundle::FluentArgs::new();
+                sel_args.set("selected", selected_count as i64);
+                sel_args.set("total", preview_count as i64);
+                ui.label(i18n.get_args("project-search-replace-selection-info", &sel_args));
+            });
+
+            ui.add_space(4.0);
+            ui.separator();
+
+            let font_id = egui::FontId::monospace(12.0);
+            let bg_added = egui::Color32::from_rgba_unmultiplied(40, 100, 40, 100);
+            let bg_removed = egui::Color32::from_rgba_unmultiplied(120, 30, 30, 100);
+            let fg_added = egui::Color32::from_rgb(150, 255, 150);
+            let fg_removed = egui::Color32::from_rgb(255, 150, 150);
+            let fg_normal = ui.visuals().text_color();
+
+            egui::ScrollArea::vertical()
+                .id_salt("replace_preview_scroll")
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+
+                    for idx in 0..ws.project_search.replace_previews.len() {
+                        let preview = &ws.project_search.replace_previews[idx];
+                        let file_display = preview
+                            .file
+                            .strip_prefix(&ws.root_path)
+                            .unwrap_or(&preview.file)
+                            .to_string_lossy()
+                            .to_string();
+                        let match_count = preview.match_count;
+
+                        // Per-file header: checkbox + filename + match count
+                        ui.add_space(4.0);
+                        let header_id = egui::Id::new(("replace_preview_file", idx));
+                        let mut selected = preview.selected;
+                        ui.horizontal(|ui| {
+                            ui.checkbox(&mut selected, "");
+                            let mut match_args = fluent_bundle::FluentArgs::new();
+                            match_args.set("file", file_display.clone());
+                            match_args.set("count", match_count as i64);
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "{} ({} {})",
+                                    file_display,
+                                    match_count,
+                                    if match_count == 1 { "match" } else { "matches" }
+                                ))
+                                .strong()
+                                .size(12.0),
+                            );
+                        });
+                        ws.project_search.replace_previews[idx].selected = selected;
+
+                        // Collapsible diff sekce
+                        let collapsing_id = header_id.with("diff");
+                        egui::CollapsingHeader::new(egui::RichText::new("Diff").small())
+                            .id_salt(collapsing_id)
+                            .default_open(preview_count <= 5)
+                            .show(ui, |ui| {
+                                let preview = &ws.project_search.replace_previews[idx];
+                                let diff = similar::TextDiff::from_lines(
+                                    &preview.original_content,
+                                    &preview.new_content,
+                                );
+
+                                for change in diff.iter_all_changes() {
+                                    let (bg_color, fg_color, prefix) = match change.tag() {
+                                        similar::ChangeTag::Delete => {
+                                            (Some(bg_removed), fg_removed, "- ")
+                                        }
+                                        similar::ChangeTag::Insert => {
+                                            (Some(bg_added), fg_added, "+ ")
+                                        }
+                                        similar::ChangeTag::Equal => (None, fg_normal, "  "),
+                                    };
+
+                                    let line_text = change.value();
+                                    let mut layout_job = egui::text::LayoutJob::default();
+                                    layout_job.append(
+                                        &format!("{}{}", prefix, line_text),
+                                        0.0,
+                                        egui::text::TextFormat {
+                                            font_id: font_id.clone(),
+                                            color: fg_color,
+                                            background: bg_color
+                                                .unwrap_or(egui::Color32::TRANSPARENT),
+                                            ..Default::default()
+                                        },
+                                    );
+
+                                    ui.add(
+                                        egui::Label::new(layout_job)
+                                            .wrap_mode(egui::TextWrapMode::Extend),
+                                    );
+                                }
+                            });
+
+                        ui.separator();
+                    }
+                });
+        });
+    });
+
+    if confirm {
+        ws.project_search.show_replace_preview = false;
+        ws.project_search.pending_replace = true;
+    }
+    if cancel || !show_flag {
+        ws.project_search.show_replace_preview = false;
+        ws.project_search.replace_previews.clear();
     }
 }
 
@@ -788,6 +1028,71 @@ pub fn collect_project_files(root: &std::path::Path) -> Vec<std::path::PathBuf> 
 }
 
 // ---------------------------------------------------------------------------
+// Replace engine
+// ---------------------------------------------------------------------------
+
+use crate::app::ui::workspace::state::ReplacePreview;
+
+/// Spočítá replace preview pro každý unikátní soubor z výsledků vyhledávání.
+///
+/// Pro každý soubor načte obsah z disku, provede `regex.replace_all()`,
+/// a pokud se obsah liší, vygeneruje `ReplacePreview`. Capture groups ($1, $2)
+/// fungují automaticky díky `Regex::replace_all`.
+pub fn compute_replace_previews(
+    root: &Path,
+    results: &[SearchResult],
+    regex: &regex::Regex,
+    replace_text: &str,
+) -> std::io::Result<Vec<ReplacePreview>> {
+    // Deduplikovat cesty — zachovat pořadí prvního výskytu
+    let mut seen = std::collections::HashSet::new();
+    let mut unique_files: Vec<&PathBuf> = Vec::new();
+    for r in results {
+        if seen.insert(&r.file) {
+            unique_files.push(&r.file);
+        }
+    }
+
+    let mut previews = Vec::new();
+    for rel_path in &unique_files {
+        let full_path = root.join(rel_path);
+        let original_content = std::fs::read_to_string(&full_path)?;
+        let new_content = regex
+            .replace_all(&original_content, replace_text)
+            .into_owned();
+        if new_content != original_content {
+            // Spočítej počet matchů v souboru
+            let match_count = regex.find_iter(&original_content).count();
+            previews.push(ReplacePreview {
+                file: full_path,
+                original_content,
+                new_content,
+                match_count,
+                selected: true,
+            });
+        }
+    }
+
+    Ok(previews)
+}
+
+/// Aplikuje nahrazení — zapíše `new_content` do souborů kde `selected == true`.
+///
+/// Vrací vektor výsledků per-file. Selhání jednoho souboru neblokuje ostatní.
+pub fn apply_replacements(previews: &[ReplacePreview]) -> Vec<(PathBuf, Result<(), String>)> {
+    let mut results = Vec::new();
+    for preview in previews {
+        if !preview.selected {
+            continue;
+        }
+        let result = std::fs::write(&preview.file, &preview.new_content)
+            .map_err(|e| format!("{}: {}", preview.file.display(), e));
+        results.push((preview.file.clone(), result));
+    }
+    results
+}
+
+// ---------------------------------------------------------------------------
 // Unit testy — search engine
 // ---------------------------------------------------------------------------
 
@@ -1009,5 +1314,189 @@ mod tests {
         let matcher = globset::Glob::new("*.py").unwrap().compile_matcher();
         assert!(!matcher.is_match("main.rs"));
         assert!(!matcher.is_match("lib.rs"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Replace engine — compute_replace_previews + apply_replacements
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_compute_replace_previews_basic() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+
+        // Vytvoř 2 soubory s "foo"
+        std::fs::write(root.join("a.txt"), "foo bar foo\n").unwrap();
+        std::fs::write(root.join("b.txt"), "hello foo world\n").unwrap();
+
+        let re = regex::Regex::new("foo").unwrap();
+
+        // Simuluj SearchResult — stačí file + dummy data
+        let results = vec![
+            SearchResult {
+                file: PathBuf::from("a.txt"),
+                line: 1,
+                text: "foo bar foo".to_string(),
+                match_ranges: vec![(0, 3), (8, 11)],
+                context_before: vec![],
+                context_after: vec![],
+            },
+            SearchResult {
+                file: PathBuf::from("b.txt"),
+                line: 1,
+                text: "hello foo world".to_string(),
+                match_ranges: vec![(6, 9)],
+                context_before: vec![],
+                context_after: vec![],
+            },
+        ];
+
+        let previews = compute_replace_previews(root, &results, &re, "bar").unwrap();
+        assert_eq!(previews.len(), 2);
+
+        assert_eq!(previews[0].new_content, "bar bar bar\n");
+        assert_eq!(previews[0].match_count, 2);
+        assert!(previews[0].selected);
+
+        assert_eq!(previews[1].new_content, "hello bar world\n");
+        assert_eq!(previews[1].match_count, 1);
+        assert!(previews[1].selected);
+    }
+
+    #[test]
+    fn test_compute_replace_previews_regex_capture() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+
+        std::fs::write(root.join("c.txt"), "fn old_name() {}\nfn other_name() {}\n").unwrap();
+
+        // Regex s capture group: zachytí jméno funkce
+        let re = regex::Regex::new(r"fn (\w+)_name").unwrap();
+
+        let results = vec![SearchResult {
+            file: PathBuf::from("c.txt"),
+            line: 1,
+            text: "fn old_name() {}".to_string(),
+            match_ranges: vec![(0, 11)],
+            context_before: vec![],
+            context_after: vec![],
+        }];
+
+        // Replace s $1 — zachová captured group
+        let previews = compute_replace_previews(root, &results, &re, "fn ${1}_func").unwrap();
+        assert_eq!(previews.len(), 1);
+        assert_eq!(
+            previews[0].new_content,
+            "fn old_func() {}\nfn other_func() {}\n"
+        );
+        assert_eq!(previews[0].match_count, 2);
+    }
+
+    #[test]
+    fn test_apply_replacements_success() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+
+        let file_path = root.join("test.txt");
+        std::fs::write(&file_path, "original content").unwrap();
+
+        let previews = vec![ReplacePreview {
+            file: file_path.clone(),
+            original_content: "original content".to_string(),
+            new_content: "replaced content".to_string(),
+            match_count: 1,
+            selected: true,
+        }];
+
+        let results = apply_replacements(&previews);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].1.is_ok());
+
+        // Ověřit obsah souboru na disku
+        let actual = std::fs::read_to_string(&file_path).unwrap();
+        assert_eq!(actual, "replaced content");
+    }
+
+    #[test]
+    fn test_apply_replacements_partial_skip() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+
+        let file_a = root.join("a.txt");
+        let file_b = root.join("b.txt");
+        std::fs::write(&file_a, "original A").unwrap();
+        std::fs::write(&file_b, "original B").unwrap();
+
+        let previews = vec![
+            ReplacePreview {
+                file: file_a.clone(),
+                original_content: "original A".to_string(),
+                new_content: "replaced A".to_string(),
+                match_count: 1,
+                selected: true,
+            },
+            ReplacePreview {
+                file: file_b.clone(),
+                original_content: "original B".to_string(),
+                new_content: "replaced B".to_string(),
+                match_count: 1,
+                selected: false, // Přeskočit
+            },
+        ];
+
+        let results = apply_replacements(&previews);
+        // Jen vybrané soubory se zapisují
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].0, file_a);
+        assert!(results[0].1.is_ok());
+
+        // file_a — nahrazeno
+        assert_eq!(std::fs::read_to_string(&file_a).unwrap(), "replaced A");
+        // file_b — nezměněno
+        assert_eq!(std::fs::read_to_string(&file_b).unwrap(), "original B");
+    }
+
+    #[test]
+    fn test_apply_replacements_nonexistent_file_error() {
+        // Neexistující soubor vrací Err, ale neblokuje ostatní soubory
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+
+        let good_file = root.join("good.txt");
+        std::fs::write(&good_file, "original").unwrap();
+        let bad_file = root.join("nonexistent").join("bad.txt");
+
+        let previews = vec![
+            ReplacePreview {
+                file: bad_file.clone(),
+                original_content: "x".to_string(),
+                new_content: "y".to_string(),
+                match_count: 1,
+                selected: true,
+            },
+            ReplacePreview {
+                file: good_file.clone(),
+                original_content: "original".to_string(),
+                new_content: "replaced".to_string(),
+                match_count: 1,
+                selected: true,
+            },
+        ];
+
+        let results = apply_replacements(&previews);
+        assert_eq!(results.len(), 2, "Oba soubory se zpracují");
+
+        // bad_file → Err s popisnou zprávou
+        assert!(results[0].1.is_err());
+        let err_msg = results[0].1.as_ref().unwrap_err();
+        assert!(
+            err_msg.contains("bad.txt"),
+            "Chyba by měla obsahovat název souboru: {}",
+            err_msg
+        );
+
+        // good_file → Ok
+        assert!(results[1].1.is_ok());
+        assert_eq!(std::fs::read_to_string(&good_file).unwrap(), "replaced");
     }
 }

@@ -81,6 +81,20 @@ pub enum SearchBatch {
     Error(String),
 }
 
+/// Preview nahrazení pro jeden soubor — obsahuje originální i nový obsah.
+pub struct ReplacePreview {
+    /// Cesta k souboru.
+    pub file: PathBuf,
+    /// Původní obsah souboru.
+    pub original_content: String,
+    /// Obsah po nahrazení.
+    pub new_content: String,
+    /// Počet matchů v souboru.
+    pub match_count: usize,
+    /// Zda je soubor vybrán pro nahrazení (výchozí: true).
+    pub selected: bool,
+}
+
 pub struct ProjectSearch {
     pub show_input: bool,
     pub query: String,
@@ -98,6 +112,12 @@ pub struct ProjectSearch {
     pub show_replace: bool,
     /// Indikátor probíhajícího vyhledávání.
     pub searching: bool,
+    /// Preview data pro replace (per-file).
+    pub replace_previews: Vec<ReplacePreview>,
+    /// Zobrazit replace preview dialog.
+    pub show_replace_preview: bool,
+    /// Flag pro workspace handler — potvrdit replace (snapshot + write).
+    pub pending_replace: bool,
 }
 
 impl Default for ProjectSearch {
@@ -114,6 +134,9 @@ impl Default for ProjectSearch {
             replace_text: String::new(),
             show_replace: false,
             searching: false,
+            replace_previews: Vec::new(),
+            show_replace_preview: false,
+            pending_replace: false,
         }
     }
 }

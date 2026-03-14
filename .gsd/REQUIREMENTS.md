@@ -4,6 +4,32 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ## Active
 
+(none)
+
+## Validated
+
+### R013 — Uživatelská konfigurace keybindings
+- Class: primary-user-loop
+- Status: validated
+- Description: Uživatel může v `[keybindings]` sekci settings.toml přemapovat zkratky na jiné klávesové kombinace. Chybějící sekce = default bindings.
+- Why it matters: Různí uživatelé mají různé preference a návyky z jiných editorů.
+- Source: user
+- Primary owning slice: M004/S03
+- Supporting slices: M004/S01, M004/S02
+- Validation: `keybindings: HashMap<String, String>` s `#[serde(default)]` v Settings. apply_keybinding_overrides() s validací (reserved, invalid, conflict, unknown id, empty string). Init + save wiring. 10 unit testů pro override logiku + 2 backward compat testy. Menu/palette labely reflektují overrides automaticky.
+- Notes: none
+
+### R015 — Sjednocení s VS Code / JetBrains konvencemi
+- Class: primary-user-loop
+- Status: validated
+- Description: Defaultní keybindings odpovídají konvencím VS Code / JetBrains (Ctrl+Shift+P command palette, Ctrl+Tab přepínání tabů, Ctrl+F find, Ctrl+H replace, atd.). Chybějící standardní zkratky jsou doplněny.
+- Why it matters: Uživatelé přecházející z jiných editorů očekávají známé zkratky.
+- Source: user
+- Primary owning slice: M004
+- Supporting slices: none
+- Validation: S01 centrální dispatch + exkluzivní modifier matching. S02 doplnil Ctrl+F/H/G/Shift+P/F1 konvence, command palette, menu napojení. S03 uživatelská konfigurovatelnost přes [keybindings] sekci. Všechny standardní zkratky implementovány a konfigurovatelné.
+- Notes: none
+
 ### R016 — Regex search engine s togglery
 - Class: core-capability
 - Status: validated
@@ -50,14 +76,14 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ### R020 — Project-wide replace s preview a per-file checkboxy
 - Class: primary-user-loop
-- Status: active
+- Status: validated
 - Description: Uživatel zadá replace text, zobrazí se preview diff všech náhrad per-file s checkboxy. Potvrzení provede nahrazení ve vybraných souborech.
 - Why it matters: Destruktivní operace vyžaduje preview a kontrolu.
 - Source: user
 - Primary owning slice: M005/S02
 - Supporting slices: M005/S01
-- Validation: pending
-- Notes: none
+- Validation: compute_replace_previews() generuje per-file preview data s original/new content a match_count. render_replace_preview_dialog() zobrazuje inline diff přes similar::TextDiff s checkboxy a select all/deselect all. apply_replacements() zapisuje vybrané soubory s per-file error isolation. 5 unit testů (basic, capture groups, success, partial skip, nonexistent file). cargo check + ./check.sh pass.
+- Notes: Regex capture groups ($1, $2) fungují automaticky přes Regex::replace_all().
 
 ### R021 — Regex error zobrazený inline v dialogu
 - Class: failure-visibility
@@ -72,35 +98,35 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 
 ### R022 — Replace I/O error reporting přes toast per-file
 - Class: failure-visibility
-- Status: active
+- Status: validated
 - Description: Pokud zápis jednoho souboru při replace selže, chyba se reportuje přes toast a replace pokračuje s dalšími soubory.
 - Why it matters: Per-file error handling místo atomic all-or-nothing. Uživatel vidí které soubory selhaly.
 - Source: user
 - Primary owning slice: M005/S02
 - Supporting slices: none
-- Validation: pending
+- Validation: apply_replacements() vrací Vec<(PathBuf, Result<(), String>)> — per-file error isolation. Unit test test_apply_replacements_nonexistent_file_error ověřuje, že chybný soubor neblokuje ostatní a výsledek obsahuje chybovou hlášku s názvem souboru. Workspace handler generuje per-file toast pro snapshot/write selhání. cargo check + ./check.sh pass.
 - Notes: Konzistentní s S-3 (I/O error propagace do UI).
 
 ### R023 — Local history snapshot před replace
 - Class: core-capability
-- Status: active
+- Status: validated
 - Description: Před modifikací každého souboru při replace se vytvoří local history snapshot přes `take_snapshot()`.
 - Why it matters: Záchranná síť pro undo destruktivní operace.
 - Source: user
 - Primary owning slice: M005/S02
 - Supporting slices: none
-- Validation: pending
+- Validation: take_snapshot(relative_path, original_content) volaný v workspace handleru (main thread) pro každý selected ReplacePreview. Snapshot selhání → toast + skip soubor (write se nespustí). pending_replace flag pattern zajišťuje sekvenční zpracování na main threadu. cargo check + ./check.sh pass.
 - Notes: `take_snapshot()` potřebuje `&mut LocalHistory` — volání v workspace handleru.
 
 ### R024 — i18n pro všechny nové UI prvky (5 jazyků)
 - Class: launchability
-- Status: active
+- Status: validated
 - Description: Všechny nové UI texty (toggle labely, replace UI, error messages, context labels) mají i18n klíče ve všech 5 jazycích (cs, en, sk, de, ru).
 - Why it matters: Konzistence s existujícím i18n systémem.
 - Source: inferred
 - Primary owning slice: M005/S01
 - Supporting slices: M005/S02
-- Validation: S01 dodal 21 klíčů s prefixem project-search-* × 5 jazyků (grep ověřeno). Zbývají replace-specifické klíče v S02.
+- Validation: S01 dodal 21 klíčů + S02 přidal 14 replace-specifických klíčů = 35 project-search-* klíčů × 5 jazyků. grep -c 'project-search-replace' locales/*/ui.ftl → 14 per jazyk. Kompletní pokrytí.
 - Notes: none
 
 ### R025 — Inkrementální streamování výsledků
@@ -113,30 +139,6 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 - Supporting slices: none
 - Validation: SearchBatch enum (Results/Done/Error) přes mpsc s per-soubor dávkováním. UI akumuluje výsledky přes try_recv() loop. Spinner + "Hledám..." indikátor během searching == true. cargo check čistý.
 - Notes: Rozšíření existujícího mpsc pattern z `run_project_search()`.
-
-## Validated
-
-### R013 — Uživatelská konfigurace keybindings
-- Class: primary-user-loop
-- Status: validated
-- Description: Uživatel může v `[keybindings]` sekci settings.toml přemapovat zkratky na jiné klávesové kombinace. Chybějící sekce = default bindings.
-- Why it matters: Různí uživatelé mají různé preference a návyky z jiných editorů.
-- Source: user
-- Primary owning slice: M004/S03
-- Supporting slices: M004/S01, M004/S02
-- Validation: `keybindings: HashMap<String, String>` s `#[serde(default)]` v Settings. apply_keybinding_overrides() s validací (reserved, invalid, conflict, unknown id, empty string). Init + save wiring. 10 unit testů pro override logiku + 2 backward compat testy. Menu/palette labely reflektují overrides automaticky.
-- Notes: none
-
-### R015 — Sjednocení s VS Code / JetBrains konvencemi
-- Class: primary-user-loop
-- Status: validated
-- Description: Defaultní keybindings odpovídají konvencím VS Code / JetBrains (Ctrl+Shift+P command palette, Ctrl+Tab přepínání tabů, Ctrl+F find, Ctrl+H replace, atd.). Chybějící standardní zkratky jsou doplněny.
-- Why it matters: Uživatelé přecházející z jiných editorů očekávají známé zkratky.
-- Source: user
-- Primary owning slice: M004
-- Supporting slices: none
-- Validation: S01 centrální dispatch + exkluzivní modifier matching. S02 doplnil Ctrl+F/H/G/Shift+P/F1 konvence, command palette, menu napojení. S03 uživatelská konfigurovatelnost přes [keybindings] sekci. Všechny standardní zkratky implementovány a konfigurovatelné.
-- Notes: none
 
 ### R012 — Chybějící keyboard handlery
 - Class: primary-user-loop
@@ -332,18 +334,18 @@ Explicitní capability contract pro projekt PolyCredo Editor.
 | R017 | primary-user-loop | validated | M005/S01 | none | LayoutJob multi-section s oranžovým bg |
 | R018 | primary-user-loop | validated | M005/S01 | none | search_file_with_context() 3 unit testy, sloučení |
 | R019 | primary-user-loop | validated | M005/S01 | none | globset filtr 2 unit testy, filename+path |
-| R020 | primary-user-loop | active | M005/S02 | M005/S01 | pending |
+| R020 | primary-user-loop | validated | M005/S02 | M005/S01 | 5 unit testů, preview dialog s diff+checkboxy |
 | R021 | failure-visibility | validated | M005/S01 | none | inline regex error, 2 unit testy |
-| R022 | failure-visibility | active | M005/S02 | none | pending |
-| R023 | core-capability | active | M005/S02 | none | pending |
-| R024 | launchability | active | M005/S01 | M005/S02 | S01: 21 klíčů × 5 jazyků, S02 doplní replace |
+| R022 | failure-visibility | validated | M005/S02 | none | per-file error isolation, unit test nonexistent file |
+| R023 | core-capability | validated | M005/S02 | none | take_snapshot v workspace handleru, pending_replace pattern |
+| R024 | launchability | validated | M005/S01 | M005/S02 | 21+14=35 klíčů × 5 jazyků |
 | R025 | primary-user-loop | validated | M005/S01 | none | SearchBatch enum, per-soubor dávkování |
 | R100 | anti-feature | out-of-scope | none | none | n/a |
 | R101 | anti-feature | out-of-scope | none | none | n/a |
 
 ## Coverage Summary
 
-- Active requirements: 4 (R020, R022, R023, R024)
+- Active requirements: 0
 - Mapped to slices: 28
-- Validated: 21 (R001–R019, R021, R025)
+- Validated: 25 (R001–R025)
 - Unmapped active requirements: 0

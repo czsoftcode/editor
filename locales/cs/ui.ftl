@@ -395,3 +395,15 @@ history-restore-confirm-title = Obnovit historickou verzi
 history-restore-confirm-text = Nahradit aktuální obsah vybranou historickou verzí? Aktuální stav bude uložen jako nová verze v historii.
 history-restore-confirm-ok = Obnovit
 history-restore-confirm-cancel = Zrušit
+
+# Replace preview dialog
+project-search-replace-preview-title = Náhled nahrazení
+project-search-replace-confirm = Potvrdit nahrazení
+project-search-replace-cancel = Zrušit
+project-search-replace-select-all = Vybrat vše
+project-search-replace-deselect-all = Odznačit vše
+project-search-replace-selection-info = { $selected } z { $total } vybráno
+project-search-replace-success = Nahrazeno v { $count } souborech
+project-search-replace-partial-success = Nahrazeno v { $success } z { $total } souborů ({ $errors } chyb)
+project-search-replace-snapshot-error = Snapshot selhal pro { $file }: { $error }
+project-search-replace-write-error = Zápis selhal pro { $file }: { $error }

@@ -26,6 +26,8 @@
 - `cargo test --bin polycredo-editor app::ui::search_picker` — replace unit testy pass
 - `cargo check` — kompilace čistá
 - `./check.sh` — fmt, clippy, všechny testy pass
+- `apply_replacements()` s neexistující cestou vrací `Err(String)` per-file — ověřit unit testem že chybný soubor neblokuje ostatní a výsledek obsahuje chybovou hlášku
+- Diagnostic: `ProjectSearch` replace-related fieldy (`pending_replace`, `replace_previews`, `show_replace_preview`) inspektovatelné po replace akci — `pending_replace` se resetuje po dokončení, `replace_previews` obsahuje per-file stav
 
 ## Observability / Diagnostics
 
@@ -42,14 +44,14 @@
 
 ## Tasks
 
-- [ ] **T01: Replace engine a preview data model** `est:30m`
+- [x] **T01: Replace engine a preview data model** `est:30m`
   - Why: Replace logika (compute nahrazení, preview data) musí existovat dřív než UI. Testovatelné bez UI.
   - Files: `src/app/ui/search_picker.rs`, `src/app/ui/workspace/state/types.rs`
   - Do: (1) Přidat `ReplacePreview` struct — `file: PathBuf`, `original_content: String`, `new_content: String`, `match_count: usize`, `selected: bool` (default true). (2) Rozšířit `ProjectSearch` o `replace_previews: Vec<ReplacePreview>`, `show_replace_preview: bool`. (3) Implementovat `compute_replace_previews(results: &[SearchResult], regex: &Regex, replace_text: &str) -> Vec<ReplacePreview>` — seskupit výsledky per-file, načíst obsah souboru, `regex.replace_all()`, porovnat original vs new. (4) Implementovat `apply_replacements(previews: &[ReplacePreview]) -> Vec<(PathBuf, Result<(), String>)>` — standalone funkce pro zápis `new_content` do souborů kde `selected == true`. Vrací výsledek per-file. (5) Unit testy: compute_replace_previews (2 testy), apply_replacements s tempdir (2 testy).
   - Verify: `cargo test --bin polycredo-editor app::ui::search_picker` — replace testy pass
   - Done when: compute_replace_previews() generuje správné preview data, apply_replacements() zapisuje soubory, 4 unit testy pass.
 
-- [ ] **T02: Replace UI, preview dialog, snapshot wiring a i18n** `est:40m`
+- [x] **T02: Replace UI, preview dialog, snapshot wiring a i18n** `est:40m`
   - Why: Replace engine z T01 potřebuje UI — replace input, preview dialog s diff a checkboxy, snapshot volání v workspace handleru, error toasty, i18n.
   - Files: `src/app/ui/search_picker.rs`, `src/app/ui/workspace/mod.rs`, `locales/cs/ui.ftl`, `locales/en/ui.ftl`, `locales/sk/ui.ftl`, `locales/de/ui.ftl`, `locales/ru/ui.ftl`
   - Do: (1) V search dialogu: replace toggle button → zobrazí replace input pole pod query. "Replace All" button spustí `compute_replace_previews()` a otevře preview dialog. (2) Replace preview dialog: per-file collapsible sekce s checkboxem. Každá sekce zobrazuje filename + match count. Uvnitř: starý text (červená) → nový text (zelená) diff přes LayoutJob (pattern z diff_view.rs). Select all / Deselect all checkboxy nahoře. (3) "Potvrdit" button: zavře preview → v workspace handleru: pro každý vybraný soubor: `take_snapshot(relative_path, original_content)` → `fs::write(path, new_content)`. Pokud snapshot selže → toast, skip soubor. Pokud write selže → toast, pokračovat. (4) Summary toast: "Nahrazeno v {N} souborech" nebo "Nahrazeno v {N} z {M} souborů ({K} chyb)". (5) Po replace: refresh otevřených tabů jejichž soubor byl modifikován (reload content z disku). (6) i18n: doplnit chybějící replace klíče — `project-search-replace-preview-title`, `project-search-replace-confirm`, `project-search-replace-select-all`, `project-search-replace-deselect-all`, `project-search-replace-success`, `project-search-replace-error`, `project-search-replace-snapshot-error` (5 jazyků).

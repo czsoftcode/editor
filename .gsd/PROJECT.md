@@ -11,10 +11,10 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 ## Current State
 
 - **Shipped version:** v1.3.1 Safe Trash Delete (2026-03-12)
-- **Last completed milestone:** M004: Klávesové Zkratky a Centrální Keymap (2026-03-13)
-- **Active milestone:** M005: Vylepšení Project Search — S01 dokončen (regex engine + togglery + zvýrazněné výsledky + i18n), S02 pending (replace s preview)
-- **Quality status:** `cargo check` čistý, clippy čistý, 187 testů zelených (0 selhání)
-- **Primary artifacts:** `.gsd/milestones/M005/slices/S01/S01-SUMMARY.md`
+- **Last completed milestone:** M005: Vylepšení Project Search (2026-03-13)
+- **Active milestone:** none (backlog prioritization pending)
+- **Quality status:** `cargo check` čistý, clippy čistý, 192+ testů zelených (0 selhání)
+- **Primary artifacts:** `.gsd/milestones/M005/slices/S02/S02-SUMMARY.md`
 
 ## Requirements
 
@@ -22,6 +22,7 @@ Editor nesmi zahrivat notebook v klidovem stavu - idle CPU zatez musi byt minima
 
 - ✓ M003: Vylepšení UI Historie Souboru (R001–R009: editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, restore, potvrzovací dialog, tab sync, výchozí stav panelů, i18n)
 - ✓ M004: Klávesové Zkratky a Centrální Keymap (R010–R015: centrální dispatch, exkluzivní modifier matching, chybějící handlery, uživatelská konfigurace, cross-platform Ctrl↔Cmd, VS Code/JetBrains konvence)
+- ✓ M005: Vylepšení Project Search (R016–R025: regex engine s togglery, zvýrazněné matche, kontextové řádky se sloučením, file type filtr, project-wide replace s preview a local history, i18n)
 - ✓ v1.3.1: Safe Trash Delete (TRASH-01..04, RESTORE-01..03, TRASHUI-01, RELIAB-01..03)
 - ✓ v1.3.0: CLI cleanup + AI terminal-only boundary + traceability closure (R33-A/R33-B/R33-C/R33-D)
 - ✓ v1.2.2: Additional Themes (WarmTan + Midnight varianty, syntect mapovani, i18n)
@@ -54,7 +55,7 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 - ~~M002: Local History~~ ✓ (completed 2026-03-13) — snapshot pipeline, split view s diff zvýrazněním, cleanup retence 50 verzí / 30 dní
 - ~~M003: Vylepšení UI Historie Souboru~~ ✓ (completed 2026-03-13) — editovatelný panel, syntax highlighting, sync scroll, diff zvýraznění, obnovení verze s potvrzením, i18n
 - ~~M004: Klávesové Zkratky a Centrální Keymap~~ ✓ (completed 2026-03-13) — centrální dispatch, exkluzivní modifier matching, chybějící handlery (Ctrl+F/H/G/Shift+P/F1), command palette, uživatelská konfigurace keybindings
-- **M005: Vylepšení Project Search** — regex, case-sensitive/whole-word togglery, zvýraznění matchů, kontext, file type filtr, project-wide replace s preview
+- ~~M005: Vylepšení Project Search~~ ✓ (completed 2026-03-13) — regex engine, case/whole-word togglery, zvýraznění matchů, kontext ±2 řádků se sloučením, file type filtr, project-wide replace s preview a local history, i18n 35 klíčů × 5 jazyků
 
 ## Next Milestone Goals
 
@@ -133,5 +134,15 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 </details>
 
+<details>
+<summary>Archived milestone context (M005: Vylepšení Project Search)</summary>
+
+- 2 slicí: S01 (regex engine + togglery + zvýrazněné výsledky + kontext + file type filtr), S02 (project-wide replace s preview + local history)
+- Hlavní deliverables: regex search s 8 kombinacemi togglerů, zvýrazněné matche v kontextu ±2 řádků se sloučením, file type glob filtr, replace preview dialog s per-file diff a checkboxy, local history snapshot před replace, per-file error handling, 35 i18n klíčů × 5 jazyků
+- Requirements: R016–R025 (všechny validated)
+- Duration: 2026-03-13
+
+</details>
+
 ---
-*Last updated: 2026-03-13 after M005/S01 slice completed*
+*Last updated: 2026-03-13 after M005 milestone completed*
